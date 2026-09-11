@@ -137,6 +137,9 @@ export function createMockApi(): FocusPlugApi {
     });
     policyBus.emit({ type: "start_countdown", reason, seconds });
     appendLog("policy", `start_countdown · ${reason} · ${seconds}s`);
+    if (scene.freeze) {
+      return;
+    }
     countdownTimer = setInterval(() => {
       const remaining = state.countdownSec - 1;
       if (remaining <= 0) {

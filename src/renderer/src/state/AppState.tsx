@@ -145,7 +145,15 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
 
     const scene = readUrlScene();
     if (!usingMock && scene.countdown !== null) {
-      previewCountdown(scene.countdown, "Distracted: Discord");
+      if (scene.freeze) {
+        setLocalCountdown({
+          seconds: scene.countdown,
+          reason: "Distracted: Discord",
+          total: scene.countdown,
+        });
+      } else {
+        previewCountdown(scene.countdown, "Distracted: Discord");
+      }
     }
 
     return () => {

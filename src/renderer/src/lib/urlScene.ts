@@ -3,6 +3,7 @@ export type SceneName = "default" | "live" | "distracted";
 export interface UrlScene {
   countdown: number | null;
   scene: SceneName;
+  freeze: boolean;
 }
 
 function readParam(name: string): string | null {
@@ -24,5 +25,5 @@ export function readUrlScene(): UrlScene {
   } else if (sceneParam === "distracted" || countdown !== null) {
     scene = "distracted";
   }
-  return { countdown, scene };
+  return { countdown, scene, freeze: readParam("freeze") !== null };
 }
