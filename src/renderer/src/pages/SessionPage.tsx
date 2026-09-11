@@ -78,12 +78,16 @@ export function SessionPage(): JSX.Element {
             <p
               className={cn(
                 "mt-1 font-mono text-[32px] font-bold leading-none tabular",
-                countdownIdle ? "text-zinc-600" : "text-fp-red",
+                countdownIdle ? "text-zinc-500" : "text-fp-red",
               )}
             >
-              {countdownIdle ? "—" : padCountdown(app.countdown?.seconds ?? 0)}
+              {countdownIdle
+                ? padCountdown(app.settings.countdownSec)
+                : padCountdown(app.countdown?.seconds ?? 0)}
             </p>
-            <p className="mt-1 text-[12px] text-fp-faint">{countdownText}</p>
+            <p className="mt-1 text-[12px] text-fp-faint">
+              {countdownIdle ? `Idle · ${app.settings.countdownSec}s fuse` : countdownText}
+            </p>
           </div>
         </div>
 
