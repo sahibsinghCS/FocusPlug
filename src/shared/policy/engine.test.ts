@@ -80,6 +80,8 @@ interface StepSpec {
   ts: number;
   focus: FocusSnapshot | null;
   desk: DeskSnapshot | null;
+  enabledPlugIds?: string[];
+  plugsArmed?: boolean;
   expect: {
     decision: Decision;
     events?: PolicyEvent["type"][];
@@ -89,6 +91,10 @@ interface StepSpec {
     startReason?: string;
     startSeconds?: number;
     killReason?: string;
+    plugOffIds?: string[];
+    plugOnIds?: string[];
+    plugOffReason?: string;
+    plugOnReason?: string;
     detailIncludes?: string;
   };
 }
@@ -98,12 +104,20 @@ interface SeqCase {
   strictMode?: boolean;
   countdownSec?: number;
   deskThreshold?: number;
+  enabledPlugIds?: string[];
+  plugsArmed?: boolean;
   steps: StepSpec[];
 }
 
 function makeInput(
   step: StepSpec,
-  defaults: { strictMode: boolean; countdownSec: number; deskThreshold: number },
+  defaults: {
+    strictMode: boolean;
+    countdownSec: number;
+    deskThreshold: number;
+    enabledPlugIds: string[];
+    plugsArmed: boolean;
+  },
 ): PolicyInput {
   return {
     sessionActive: step.sessionActive ?? true,
@@ -112,6 +126,8 @@ function makeInput(
     countdownSec: defaults.countdownSec,
     deskThreshold: defaults.deskThreshold,
     strictMode: defaults.strictMode,
+    enabledPlugIds: step.enabledPlugIds ?? defaults.enabledPlugIds,
+    plugsArmed: step.plugsArmed ?? defaults.plugsArmed,
   };
 }
 
@@ -176,6 +192,29 @@ function assertStep(caseName: string, index: number, events: PolicyEvent[], spec
     expect(status.detail).toContain(spec.detailIncludes);
   }
 
+  const plugOffs = ofType(events, "plug_off");
+  const plugOns = ofType(events, "plug_on");
+  if (plugOffs.length > 0) {
+    expect(kills.length, `${label} plug_off must accompany kill`).toBeGreaterThan(0);
+  }
+  if (plugOns.length > 0) {
+    expect(ofType(events, "unlock").length, `${label} plug_on must accompany unlock`).toBeGreaterThan(0);
+  }
+  if (spec.plugOffIds) {
+    expect(plugOffs, `${label} plug_off count`).toHaveLength(1);
+    expect(plugOffs[0]?.deviceIds, `${label} plug_off ids`).toEqual(spec.plugOffIds);
+  }
+  if (spec.plugOnIds) {
+    expect(plugOns, `${label} plug_on count`).toHaveLength(1);
+    expect(plugOns[0]?.deviceIds, `${label} plug_on ids`).toEqual(spec.plugOnIds);
+  }
+  if (spec.plugOffReason !== undefined) {
+    expect(plugOffs[0]?.reason, `${label} plug_off reason`).toBe(spec.plugOffReason);
+  }
+  if (spec.plugOnReason !== undefined) {
+    expect(plugOns[0]?.reason, `${label} plug_on reason`).toBe(spec.plugOnReason);
+  }
+
   for (const kill of kills) {
     for (const study of STUDY_PROCESS_NAMES) {
       expect(kill.targets, `${label} must never kill study process ${study}`).not.toContain(study);
@@ -189,6 +228,8 @@ function runCase(seq: SeqCase): PolicyEvent[][] {
     strictMode: seq.strictMode ?? true,
     countdownSec: seq.countdownSec ?? 10,
     deskThreshold: seq.deskThreshold ?? 0.6,
+    enabledPlugIds: seq.enabledPlugIds ?? [],
+    plugsArmed: seq.plugsArmed ?? true,
   };
   const all: PolicyEvent[][] = [];
   seq.steps.forEach((step, index) => {
@@ -1328,6 +1369,513 @@ describe("desk-away countdown and kill safety", () => {
   });
 });
 
+describe("gauntlet: plug_off / plug_on", () => {
+  const PLUGS = ["lamp", "fan"];
+
+  const cases: SeqCase[] = [
+    {
+      name: "blocked kill emits plug_off with enabled ids when armed",
+      enabledPlugIds: PLUGS,
+      plugsArmed: true,
+      steps: [
+        {
+          ts: T0,
+          focus: discord(T0),
+          desk: present(T0),
+          expect: {
+            decision: "DISTRACTED",
+            events: ["start_countdown", "status"],
+            excludes: ["kill", "plug_off", "plug_on"],
+          },
+        },
+        {
+          ts: T0 + 10 * SEC,
+          focus: discord(T0 + 10 * SEC),
+          desk: present(T0 + 10 * SEC),
+          expect: {
+            decision: "DISTRACTED",
+            events: ["kill", "plug_off", "status"],
+            killTargets: ["discord.exe"],
+            killReason: REASONS.blockedFocus,
+            plugOffIds: PLUGS,
+            plugOffReason: REASONS.blockedFocus,
+            excludes: ["plug_on"],
+          },
+        },
+      ],
+    },
+    {
+      name: "unlock after kill emits plug_on with the same ids",
+      enabledPlugIds: PLUGS,
+      plugsArmed: true,
+      steps: [
+        {
+          ts: T0,
+          focus: discord(T0),
+          desk: present(T0),
+          expect: { decision: "DISTRACTED", includes: ["start_countdown"] },
+        },
+        {
+          ts: T0 + 10 * SEC,
+          focus: discord(T0 + 10 * SEC),
+          desk: present(T0 + 10 * SEC),
+          expect: {
+            decision: "DISTRACTED",
+            includes: ["kill", "plug_off"],
+            plugOffIds: PLUGS,
+          },
+        },
+        {
+          ts: T0 + 12 * SEC,
+          focus: chrome(T0 + 12 * SEC),
+          desk: present(T0 + 12 * SEC),
+          expect: {
+            decision: "ON_TASK",
+            events: ["unlock", "plug_on", "status"],
+            plugOnIds: PLUGS,
+            plugOnReason: REASONS.unlock,
+            excludes: ["kill", "plug_off", "cancel_countdown"],
+          },
+        },
+      ],
+    },
+    {
+      name: "empty enabledPlugIds: kill and unlock without plug events",
+      enabledPlugIds: [],
+      plugsArmed: true,
+      steps: [
+        {
+          ts: T0,
+          focus: discord(T0),
+          desk: present(T0),
+          expect: { decision: "DISTRACTED", includes: ["start_countdown"] },
+        },
+        {
+          ts: T0 + 10 * SEC,
+          focus: discord(T0 + 10 * SEC),
+          desk: present(T0 + 10 * SEC),
+          expect: {
+            decision: "DISTRACTED",
+            events: ["kill", "status"],
+            excludes: ["plug_off", "plug_on"],
+          },
+        },
+        {
+          ts: T0 + 12 * SEC,
+          focus: chrome(T0 + 12 * SEC),
+          desk: present(T0 + 12 * SEC),
+          expect: {
+            decision: "ON_TASK",
+            events: ["unlock", "status"],
+            excludes: ["plug_off", "plug_on"],
+          },
+        },
+      ],
+    },
+    {
+      name: "plugsArmed false: kill and unlock without plug events even with ids",
+      enabledPlugIds: PLUGS,
+      plugsArmed: false,
+      steps: [
+        {
+          ts: T0,
+          focus: discord(T0),
+          desk: present(T0),
+          expect: { decision: "DISTRACTED", includes: ["start_countdown"] },
+        },
+        {
+          ts: T0 + 10 * SEC,
+          focus: discord(T0 + 10 * SEC),
+          desk: present(T0 + 10 * SEC),
+          expect: {
+            decision: "DISTRACTED",
+            events: ["kill", "status"],
+            killTargets: ["discord.exe"],
+            excludes: ["plug_off", "plug_on"],
+          },
+        },
+        {
+          ts: T0 + 12 * SEC,
+          focus: chrome(T0 + 12 * SEC),
+          desk: present(T0 + 12 * SEC),
+          expect: {
+            decision: "ON_TASK",
+            events: ["unlock", "status"],
+            excludes: ["plug_off", "plug_on"],
+          },
+        },
+      ],
+    },
+    {
+      name: "uncertain desk with armed plugs: no desk-only kill and no desk-only plug_off",
+      enabledPlugIds: PLUGS,
+      plugsArmed: true,
+      steps: [
+        {
+          ts: T0,
+          focus: chrome(T0),
+          desk: uncertainDesk(T0),
+          expect: {
+            decision: "IDLE",
+            events: ["status"],
+            excludes: ["kill", "start_countdown", "plug_off", "plug_on"],
+          },
+        },
+        {
+          ts: T0 + 30 * SEC,
+          focus: chrome(T0 + 30 * SEC),
+          desk: uncertainDesk(T0 + 30 * SEC),
+          expect: {
+            decision: "IDLE",
+            excludes: ["kill", "start_countdown", "plug_off", "plug_on"],
+          },
+        },
+      ],
+    },
+    {
+      name: "desk-away countdown then uncertain: cancel, no kill, no plug_off",
+      enabledPlugIds: PLUGS,
+      plugsArmed: true,
+      steps: [
+        {
+          ts: T0,
+          focus: chrome(T0),
+          desk: away(T0),
+          expect: {
+            decision: "AWAY",
+            includes: ["start_countdown"],
+            excludes: ["plug_off", "plug_on"],
+          },
+        },
+        {
+          ts: T0 + 5 * SEC,
+          focus: chrome(T0 + 5 * SEC),
+          desk: uncertainDesk(T0 + 5 * SEC),
+          expect: {
+            decision: "IDLE",
+            events: ["cancel_countdown", "status"],
+            excludes: ["kill", "unlock", "plug_off", "plug_on"],
+          },
+        },
+        {
+          ts: T0 + 10 * SEC,
+          focus: chrome(T0 + 10 * SEC),
+          desk: uncertainDesk(T0 + 10 * SEC),
+          expect: {
+            decision: "IDLE",
+            excludes: ["kill", "plug_off", "plug_on", "start_countdown"],
+          },
+        },
+      ],
+    },
+    {
+      name: "desk-away kill emits plug_off; return unlocks with plug_on",
+      enabledPlugIds: PLUGS,
+      plugsArmed: true,
+      steps: [
+        {
+          ts: T0,
+          focus: explorer(T0),
+          desk: away(T0),
+          expect: { decision: "AWAY", includes: ["start_countdown"], excludes: ["plug_off"] },
+        },
+        {
+          ts: T0 + 10 * SEC,
+          focus: explorer(T0 + 10 * SEC),
+          desk: away(T0 + 10 * SEC),
+          expect: {
+            decision: "AWAY",
+            events: ["kill", "plug_off", "status"],
+            killTargets: [ALL_BLOCKLIST_TARGET],
+            killReason: REASONS.deskAway,
+            plugOffIds: PLUGS,
+            plugOffReason: REASONS.deskAway,
+          },
+        },
+        {
+          ts: T0 + 12 * SEC,
+          focus: chrome(T0 + 12 * SEC),
+          desk: present(T0 + 12 * SEC),
+          expect: {
+            decision: "ON_TASK",
+            events: ["unlock", "plug_on", "status"],
+            plugOnIds: PLUGS,
+            excludes: ["plug_off"],
+          },
+        },
+      ],
+    },
+    {
+      name: "cancel_countdown on return-before-kill does not plug_off; unlock still plug_on",
+      enabledPlugIds: PLUGS,
+      plugsArmed: true,
+      steps: [
+        {
+          ts: T0,
+          focus: discord(T0),
+          desk: present(T0),
+          expect: { decision: "DISTRACTED", includes: ["start_countdown"] },
+        },
+        {
+          ts: T0 + 5 * SEC,
+          focus: chrome(T0 + 5 * SEC),
+          desk: present(T0 + 5 * SEC),
+          expect: {
+            decision: "ON_TASK",
+            events: ["cancel_countdown", "unlock", "plug_on", "status"],
+            plugOnIds: PLUGS,
+            excludes: ["kill", "plug_off"],
+          },
+        },
+      ],
+    },
+    {
+      name: "session inactive never emits plug events even when armed with ids",
+      enabledPlugIds: PLUGS,
+      plugsArmed: true,
+      steps: [
+        {
+          sessionActive: false,
+          ts: T0,
+          focus: discord(T0),
+          desk: present(T0),
+          expect: {
+            decision: "IDLE",
+            events: ["status"],
+            excludes: ["kill", "plug_off", "plug_on", "start_countdown", "unlock"],
+          },
+        },
+        {
+          sessionActive: false,
+          ts: T0,
+          focus: chrome(T0),
+          desk: away(T0),
+          expect: {
+            decision: "IDLE",
+            excludes: ["kill", "plug_off", "plug_on", "start_countdown"],
+          },
+        },
+      ],
+    },
+    {
+      name: "session OFF at the kill instant cancels and does not plug_off",
+      enabledPlugIds: PLUGS,
+      plugsArmed: true,
+      steps: [
+        {
+          ts: T0,
+          focus: discord(T0),
+          desk: present(T0),
+          expect: { decision: "DISTRACTED", includes: ["start_countdown"] },
+        },
+        {
+          sessionActive: false,
+          ts: T0 + 10 * SEC,
+          focus: discord(T0 + 10 * SEC),
+          desk: present(T0 + 10 * SEC),
+          expect: {
+            decision: "IDLE",
+            events: ["cancel_countdown", "status"],
+            excludes: ["kill", "unlock", "plug_off", "plug_on"],
+          },
+        },
+      ],
+    },
+    {
+      name: "session OFF after lock does not emit plug_on (no unlock)",
+      enabledPlugIds: PLUGS,
+      plugsArmed: true,
+      steps: [
+        {
+          ts: T0,
+          focus: discord(T0),
+          desk: present(T0),
+          expect: { decision: "DISTRACTED", includes: ["start_countdown"] },
+        },
+        {
+          ts: T0 + 10 * SEC,
+          focus: discord(T0 + 10 * SEC),
+          desk: present(T0 + 10 * SEC),
+          expect: {
+            decision: "DISTRACTED",
+            includes: ["kill", "plug_off"],
+            plugOffIds: PLUGS,
+          },
+        },
+        {
+          sessionActive: false,
+          ts: T0 + 11 * SEC,
+          focus: discord(T0 + 11 * SEC),
+          desk: present(T0 + 11 * SEC),
+          expect: {
+            decision: "IDLE",
+            events: ["status"],
+            excludes: ["kill", "unlock", "plug_off", "plug_on", "cancel_countdown"],
+          },
+        },
+      ],
+    },
+    {
+      name: "countdownSec 0: start + kill + plug_off together",
+      countdownSec: 0,
+      enabledPlugIds: PLUGS,
+      plugsArmed: true,
+      steps: [
+        {
+          ts: T0,
+          focus: discord(T0),
+          desk: present(T0),
+          expect: {
+            decision: "DISTRACTED",
+            events: ["start_countdown", "kill", "plug_off", "status"],
+            plugOffIds: PLUGS,
+            plugOffReason: REASONS.blockedFocus,
+          },
+        },
+      ],
+    },
+    {
+      name: "after kill+plug_off, staying distracted does not re-emit plug_off",
+      enabledPlugIds: PLUGS,
+      plugsArmed: true,
+      steps: [
+        {
+          ts: T0,
+          focus: discord(T0),
+          desk: present(T0),
+          expect: { decision: "DISTRACTED", includes: ["start_countdown"] },
+        },
+        {
+          ts: T0 + 10 * SEC,
+          focus: discord(T0 + 10 * SEC),
+          desk: present(T0 + 10 * SEC),
+          expect: { decision: "DISTRACTED", includes: ["kill", "plug_off"] },
+        },
+        {
+          ts: T0 + 20 * SEC,
+          focus: discord(T0 + 20 * SEC),
+          desk: present(T0 + 20 * SEC),
+          expect: {
+            decision: "DISTRACTED",
+            events: ["status"],
+            excludes: ["kill", "plug_off", "plug_on", "start_countdown"],
+          },
+        },
+      ],
+    },
+    {
+      name: "already on task with armed plugs emits only status",
+      enabledPlugIds: PLUGS,
+      plugsArmed: true,
+      steps: [
+        {
+          ts: T0,
+          focus: chrome(T0),
+          desk: present(T0),
+          expect: {
+            decision: "ON_TASK",
+            events: ["status"],
+            excludes: ["unlock", "plug_on", "plug_off", "kill"],
+          },
+        },
+      ],
+    },
+    {
+      name: "low-conf away with armed plugs: no desk-only kill or plug_off",
+      deskThreshold: 0.6,
+      enabledPlugIds: PLUGS,
+      plugsArmed: true,
+      steps: [
+        {
+          ts: T0,
+          focus: chrome(T0),
+          desk: away(T0, 0.59),
+          expect: {
+            decision: "IDLE",
+            excludes: ["kill", "start_countdown", "plug_off", "plug_on"],
+          },
+        },
+        {
+          ts: T0 + 10 * SEC,
+          focus: chrome(T0 + 10 * SEC),
+          desk: away(T0 + 10 * SEC, 0.59),
+          expect: {
+            decision: "IDLE",
+            excludes: ["kill", "plug_off", "plug_on"],
+          },
+        },
+      ],
+    },
+    {
+      name: "webcam-off away with armed plugs: no desk-only kill or plug_off",
+      enabledPlugIds: PLUGS,
+      plugsArmed: true,
+      steps: [
+        {
+          ts: T0,
+          focus: chrome(T0),
+          desk: { ts: T0, label: "away", confidence: 0.99, webcamEnabled: false },
+          expect: {
+            decision: "IDLE",
+            excludes: ["kill", "start_countdown", "plug_off", "plug_on"],
+          },
+        },
+      ],
+    },
+    {
+      name: "blocked + uncertain desk still kills and plug_off (block path, not desk-only)",
+      enabledPlugIds: PLUGS,
+      plugsArmed: true,
+      steps: [
+        {
+          ts: T0,
+          focus: discord(T0),
+          desk: uncertainDesk(T0),
+          expect: { decision: "DISTRACTED", includes: ["start_countdown"], excludes: ["plug_off"] },
+        },
+        {
+          ts: T0 + 10 * SEC,
+          focus: discord(T0 + 10 * SEC),
+          desk: uncertainDesk(T0 + 10 * SEC),
+          expect: {
+            decision: "DISTRACTED",
+            events: ["kill", "plug_off", "status"],
+            killTargets: ["discord.exe"],
+            plugOffIds: PLUGS,
+          },
+        },
+      ],
+    },
+    {
+      name: "desk-away then sit on Explorer: cancel, no kill, no plug_off",
+      enabledPlugIds: PLUGS,
+      plugsArmed: true,
+      steps: [
+        {
+          ts: T0,
+          focus: explorer(T0),
+          desk: away(T0),
+          expect: { decision: "AWAY", includes: ["start_countdown"] },
+        },
+        {
+          ts: T0 + 10 * SEC,
+          focus: explorer(T0 + 10 * SEC),
+          desk: present(T0 + 10 * SEC),
+          expect: {
+            decision: "IDLE",
+            events: ["cancel_countdown", "status"],
+            excludes: ["kill", "plug_off", "plug_on", "unlock"],
+          },
+        },
+      ],
+    },
+  ];
+
+  it.each(cases)("$name", (seq) => {
+    runCase(seq);
+  });
+});
+
 describe("clock, purity, and isolation", () => {
   it("uses max(focus.ts, desk.ts) and will not let time run backwards", () => {
     const engine = new PolicyEngine();
@@ -1338,6 +1886,8 @@ describe("clock, purity, and isolation", () => {
       countdownSec: 10,
       deskThreshold: 0.6,
       strictMode: true,
+      enabledPlugIds: [],
+      plugsArmed: true,
     });
     const events = engine.step({
       sessionActive: true,
@@ -1346,8 +1896,30 @@ describe("clock, purity, and isolation", () => {
       countdownSec: 10,
       deskThreshold: 0.6,
       strictMode: true,
+      enabledPlugIds: [],
+      plugsArmed: true,
     });
     expect(ofType(events, "kill")).toHaveLength(1);
+  });
+
+  it("plug_off copies deviceIds so event mutation cannot change PolicyInput", () => {
+    const input: PolicyInput = {
+      sessionActive: true,
+      focus: discord(T0),
+      desk: present(T0),
+      countdownSec: 0,
+      deskThreshold: 0.6,
+      strictMode: true,
+      enabledPlugIds: ["lamp", "fan"],
+      plugsArmed: true,
+    };
+    const inputBefore = JSON.stringify(input);
+    const events = stepPolicy(INITIAL_POLICY_STATE, input).events;
+    const plugOff = ofType(events, "plug_off")[0];
+    expect(plugOff).toBeDefined();
+    plugOff?.deviceIds.push("mutated");
+    expect(JSON.stringify(input)).toBe(inputBefore);
+    expect(input.enabledPlugIds).toEqual(["lamp", "fan"]);
   });
 
   it("does not mutate caller PolicyState or PolicyInput", () => {
@@ -1362,6 +1934,8 @@ describe("clock, purity, and isolation", () => {
       countdownSec: 10,
       deskThreshold: 0.6,
       strictMode: true,
+      enabledPlugIds: [],
+      plugsArmed: true,
     };
     const stateBefore = JSON.stringify(state);
     const inputBefore = JSON.stringify(input);
@@ -1380,6 +1954,8 @@ describe("clock, purity, and isolation", () => {
       countdownSec: 10,
       deskThreshold: 0.6,
       strictMode: true,
+      enabledPlugIds: [],
+      plugsArmed: true,
     });
     const bEvents = b.step({
       sessionActive: true,
@@ -1388,6 +1964,8 @@ describe("clock, purity, and isolation", () => {
       countdownSec: 10,
       deskThreshold: 0.6,
       strictMode: true,
+      enabledPlugIds: [],
+      plugsArmed: true,
     });
     expect(ofType(bEvents, "kill")).toHaveLength(0);
     expect(ofType(bEvents, "start_countdown")).toHaveLength(1);
@@ -1402,6 +1980,8 @@ describe("clock, purity, and isolation", () => {
       countdownSec: Number.NaN,
       deskThreshold: 0.6,
       strictMode: true,
+      enabledPlugIds: [],
+      plugsArmed: true,
     });
     const later = engine.step({
       sessionActive: true,
@@ -1410,6 +1990,8 @@ describe("clock, purity, and isolation", () => {
       countdownSec: Number.NaN,
       deskThreshold: 0.6,
       strictMode: true,
+      enabledPlugIds: [],
+      plugsArmed: true,
     });
     expect(ofType(later, "kill")).toHaveLength(0);
   });
@@ -1422,6 +2004,8 @@ describe("clock, purity, and isolation", () => {
       countdownSec: -5,
       deskThreshold: 0.6,
       strictMode: true,
+      enabledPlugIds: [],
+      plugsArmed: true,
     });
     expect(ofType(events, "kill")).toHaveLength(1);
     expect(ofType(events, "start_countdown")[0]?.seconds).toBe(0);
@@ -1443,6 +2027,8 @@ describe("clock, purity, and isolation", () => {
       /from ["']node:fs["']/,
       /from ["']fs["']/,
       /\bfetch\s*\(/,
+      /from ["']electron-store["']/,
+      /tplink|node-kasa|hs100|smartplug|plug-controller/i,
     ];
     for (const name of files) {
       const source = readFileSync(join(dir, name), "utf8");

@@ -5,8 +5,10 @@ import {
   focusKind,
   isOnTask,
   killTargetsFor,
+  plugDeviceIds,
+  plugEventFor,
 } from "./evaluate";
-import { ALL_BLOCKLIST_TARGET } from "./constants";
+import { ALL_BLOCKLIST_TARGET, REASONS } from "./constants";
 import type { DeskSnapshot, FocusSnapshot, PolicyInput } from "../types";
 
 const TS = 1_000_000;
@@ -59,6 +61,8 @@ function baseInput(patch: Partial<PolicyInput> = {}): PolicyInput {
     countdownSec: 10,
     deskThreshold: 0.6,
     strictMode: true,
+    enabledPlugIds: [],
+    plugsArmed: true,
     ...patch,
   };
 }
@@ -268,6 +272,20 @@ describe("classify", () => {
     expect(c.decision).toBe("ON_TASK");
     expect(c.violation).toBeNull();
   });
+
+  it("plug fields do not change classify (no desk-only violation from plugs)", () => {
+    const c = classify(
+      baseInput({
+        focus: chrome(),
+        desk: { ts: TS, label: "uncertain", confidence: 0.99, webcamEnabled: true },
+        enabledPlugIds: ["lamp"],
+        plugsArmed: true,
+      }),
+    );
+    expect(c.decision).toBe("IDLE");
+    expect(c.violation).toBeNull();
+    expect(c.desk).toBe("uncertain");
+  });
 });
 
 describe("killTargetsFor", () => {
@@ -309,5 +327,67 @@ describe("killTargetsFor", () => {
         "present",
       ),
     ).toEqual([]);
+  });
+});
+
+describe("plugDeviceIds", () => {
+  it("armed ids are copied, unique, and skip blanks", () => {
+    const input = baseInput({
+      enabledPlugIds: ["lamp", " lamp ", "fan", "lamp", "", "   "],
+      plugsArmed: true,
+    });
+    const ids = plugDeviceIds(input);
+    expect(ids).toEqual(["lamp", "fan"]);
+    ids.push("mutated");
+    expect(input.enabledPlugIds).toEqual(["lamp", " lamp ", "fan", "lamp", "", "   "]);
+  });
+
+  it("empty enabledPlugIds yields no plug ids even when armed", () => {
+    expect(plugDeviceIds(baseInput({ enabledPlugIds: [], plugsArmed: true }))).toEqual([]);
+  });
+
+  it("plugsArmed false yields no plug ids even when devices exist", () => {
+    expect(
+      plugDeviceIds(baseInput({ enabledPlugIds: ["lamp", "fan"], plugsArmed: false })),
+    ).toEqual([]);
+  });
+
+  it("omitted plugsArmed defaults to true when ids exist", () => {
+    const input = baseInput({ enabledPlugIds: ["lamp"] });
+    delete (input as { plugsArmed?: boolean }).plugsArmed;
+    expect(plugDeviceIds(input)).toEqual(["lamp"]);
+  });
+});
+
+describe("plugEventFor", () => {
+  it("returns plug_off / plug_on with the same ids when armed", () => {
+    const input = baseInput({ enabledPlugIds: ["lamp", "fan"], plugsArmed: true });
+    expect(plugEventFor("plug_off", input, REASONS.blockedFocus)).toEqual({
+      type: "plug_off",
+      deviceIds: ["lamp", "fan"],
+      reason: REASONS.blockedFocus,
+    });
+    expect(plugEventFor("plug_on", input, REASONS.unlock)).toEqual({
+      type: "plug_on",
+      deviceIds: ["lamp", "fan"],
+      reason: REASONS.unlock,
+    });
+  });
+
+  it("returns null when ids are empty or plugs are disarmed", () => {
+    expect(plugEventFor("plug_off", baseInput({ enabledPlugIds: [], plugsArmed: true }), REASONS.deskAway)).toBeNull();
+    expect(
+      plugEventFor("plug_on", baseInput({ enabledPlugIds: ["lamp"], plugsArmed: false }), REASONS.unlock),
+    ).toBeNull();
+  });
+
+  it("returns null when the session is inactive", () => {
+    expect(
+      plugEventFor(
+        "plug_off",
+        baseInput({ sessionActive: false, enabledPlugIds: ["lamp"], plugsArmed: true }),
+        REASONS.blockedFocus,
+      ),
+    ).toBeNull();
   });
 });
