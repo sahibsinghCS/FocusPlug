@@ -2,104 +2,53 @@ import { app, BrowserWindow, ipcMain, shell } from "electron";
 import { join } from "node:path";
 import { electronApp, is, optimizer } from "@electron-toolkit/utils";
 import {
-  DEFAULT_ALLOWLIST,
-  DEFAULT_BLOCKLIST,
-  DEFAULT_SESSION_STATE,
-  DEFAULT_SETTINGS,
-} from "@shared/defaults";
-import {
   IPC_INVOKE,
-  type AppLists,
+  IPC_PUSH,
+  type AppEntry,
   type AppSettings,
-  type KillResult,
-  type SessionState,
 } from "@shared/ipc";
-import type { AppEntry, SessionEvent } from "@shared/types";
+import { createSessionRuntime, type SessionController, type SessionPush } from "./session";
 
-let sessionState: SessionState = { ...DEFAULT_SESSION_STATE };
-let allowlist: AppEntry[] = cloneEntries(DEFAULT_ALLOWLIST);
-let blocklist: AppEntry[] = cloneEntries(DEFAULT_BLOCKLIST);
-let settings: AppSettings = { ...DEFAULT_SETTINGS };
-const sessionLog: SessionEvent[] = [];
+let session: SessionController | null = null;
 
-function cloneEntries(entries: AppEntry[]): AppEntry[] {
-  return entries.map((entry) => ({
-    ...entry,
-    match: [...entry.match],
-  }));
+function broadcast(channel: string, payload: unknown): void {
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (!win.isDestroyed() && !win.webContents.isDestroyed()) {
+      win.webContents.send(channel, payload);
+    }
+  }
 }
 
-function lists(): AppLists {
+function createElectronPush(): SessionPush {
   return {
-    allowlist: cloneEntries(allowlist),
-    blocklist: cloneEntries(blocklist),
+    sessionState: (state) => broadcast(IPC_PUSH.SESSION_STATE, state),
+    policyEvent: (event) => broadcast(IPC_PUSH.POLICY_EVENT, event),
+    focusSnapshot: (snap) => broadcast(IPC_PUSH.FOCUS_SNAPSHOT, snap),
+    deskSnapshot: (snap) => broadcast(IPC_PUSH.DESK_SNAPSHOT, snap),
+    sessionEvent: (event) => broadcast(IPC_PUSH.SESSION_EVENT, event),
   };
 }
 
-function registerIpc(): void {
-  ipcMain.handle(IPC_INVOKE.SESSION_START, (): SessionState => {
-    sessionState = {
-      ...sessionState,
-      sessionActive: true,
-      decision: "IDLE",
-      countdownSec: 0,
-      detail: "Session started (scaffold stub — monitors not wired)",
-    };
-    return sessionState;
-  });
-
-  ipcMain.handle(IPC_INVOKE.SESSION_STOP, (): SessionState => {
-    sessionState = {
-      ...DEFAULT_SESSION_STATE,
-      focus: sessionState.focus,
-      desk: sessionState.desk,
-    };
-    return sessionState;
-  });
-
-  ipcMain.handle(IPC_INVOKE.SESSION_GET_STATE, (): SessionState => sessionState);
-
-  ipcMain.handle(IPC_INVOKE.LISTS_GET, (): AppLists => lists());
-
-  ipcMain.handle(
-    IPC_INVOKE.LISTS_SET_ALLOW,
-    (_event, next: AppEntry[]): AppLists => {
-      allowlist = cloneEntries(next);
-      return lists();
-    },
+function registerIpc(controller: SessionController): void {
+  ipcMain.handle(IPC_INVOKE.SESSION_START, async () => controller.start());
+  ipcMain.handle(IPC_INVOKE.SESSION_STOP, async () => controller.stop());
+  ipcMain.handle(IPC_INVOKE.SESSION_GET_STATE, () => controller.getState());
+  ipcMain.handle(IPC_INVOKE.LISTS_GET, () => controller.getLists());
+  ipcMain.handle(IPC_INVOKE.LISTS_SET_ALLOW, (_event, entries: AppEntry[]) =>
+    controller.setAllowlist(entries),
   );
-
-  ipcMain.handle(
-    IPC_INVOKE.LISTS_SET_BLOCK,
-    (_event, next: AppEntry[]): AppLists => {
-      blocklist = cloneEntries(next);
-      return lists();
-    },
+  ipcMain.handle(IPC_INVOKE.LISTS_SET_BLOCK, (_event, entries: AppEntry[]) =>
+    controller.setBlocklist(entries),
   );
-
-  ipcMain.handle(IPC_INVOKE.SETTINGS_GET, (): AppSettings => ({ ...settings }));
-
-  ipcMain.handle(
-    IPC_INVOKE.SETTINGS_SET,
-    (_event, patch: Partial<AppSettings>): AppSettings => {
-      settings = { ...settings, ...patch };
-      return { ...settings };
-    },
+  ipcMain.handle(IPC_INVOKE.SETTINGS_GET, () => controller.getSettings());
+  ipcMain.handle(IPC_INVOKE.SETTINGS_SET, (_event, patch: Partial<AppSettings>) =>
+    controller.setSettings(patch),
   );
-
-  ipcMain.handle(IPC_INVOKE.LOG_GET, (): SessionEvent[] => [...sessionLog]);
-
-  ipcMain.handle(IPC_INVOKE.DESK_SET_ENABLED, (_event, enabled: boolean): boolean => {
-    settings = { ...settings, webcamEnabled: enabled };
-    return settings.webcamEnabled;
-  });
-
-  ipcMain.handle(IPC_INVOKE.DEMO_KILL, (): KillResult => {
-    return {
-      killed: [],
-      errors: ["Process killer not wired yet (foundation scaffold)"],
-    };
-  });
+  ipcMain.handle(IPC_INVOKE.LOG_GET, () => controller.getLog());
+  ipcMain.handle(IPC_INVOKE.DESK_SET_ENABLED, (_event, enabled: boolean) =>
+    controller.setDeskEnabled(enabled),
+  );
+  ipcMain.handle(IPC_INVOKE.DEMO_KILL, async () => controller.demoKill());
 }
 
 function createWindow(): void {
@@ -142,7 +91,11 @@ if (process.platform === "linux") {
 
 app.whenReady().then(() => {
   electronApp.setAppUserModelId("com.focusplug.app");
-  registerIpc();
+  session = createSessionRuntime({
+    userDataDir: app.getPath("userData"),
+    push: createElectronPush(),
+  });
+  registerIpc(session);
 
   app.on("browser-window-created", (_event, window) => {
     optimizer.watchWindowShortcuts(window);
@@ -155,6 +108,12 @@ app.whenReady().then(() => {
       createWindow();
     }
   });
+});
+
+app.on("before-quit", () => {
+  if (session !== null) {
+    void session.stop();
+  }
 });
 
 app.on("window-all-closed", () => {
