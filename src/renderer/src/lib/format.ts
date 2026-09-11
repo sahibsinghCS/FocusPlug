@@ -1,4 +1,13 @@
-import type { Decision, DeskLabel, DeskSnapshot, FocusSnapshot, SessionState } from "@shared/ipc";
+import type {
+  Decision,
+  DeskLabel,
+  DeskModelId,
+  DeskSnapshot,
+  FocusSnapshot,
+  SessionState,
+} from "@shared/ipc";
+import type { PlugView } from "./plugsUi";
+import { plugKillNote as plugKillNoteFromViews, summarizePlugs } from "./plugsUi";
 
 export type Tone = "lime" | "red" | "amber" | "mute";
 
@@ -84,4 +93,25 @@ export function deskPrimary(desk: DeskSnapshot | null): string {
 
 export function sessionModeLabel(state: SessionState): string {
   return state.sessionActive ? "Live" : "Standby";
+}
+
+export function deskModelLabel(model: DeskModelId): string {
+  if (model === "stub") return "Stub";
+  if (model === "custom") return "Custom";
+  return "BlazeFace";
+}
+
+export function plugPowerLabel(plug: PlugView): string {
+  if (plug.error) return "Error";
+  if (!plug.online) return "Offline";
+  if (plug.powerOn === null) return "Unknown";
+  return plug.powerOn ? "Power on" : "Power off";
+}
+
+export function plugStatusLine(plugs: readonly PlugView[]): string {
+  return summarizePlugs(plugs);
+}
+
+export function plugKillNote(plugs: readonly PlugView[]): string | null {
+  return plugKillNoteFromViews(plugs);
 }

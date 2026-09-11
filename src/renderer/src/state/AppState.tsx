@@ -12,14 +12,26 @@ import {
 import type {
   AppLists,
   AppSettings,
+  DeskModelId,
   KillResult,
+  PlugDevice,
+  PlugProtocol,
+  PlugSnapshot,
   PolicyEvent,
   SessionEvent,
   SessionState,
 } from "@shared/ipc";
+import { PLUG_DRIVER_NOT_IMPLEMENTED } from "@shared/ipc";
 import type { AppEntry } from "@shared/types";
 import { DEFAULT_SESSION_STATE, DEFAULT_SETTINGS } from "@shared/defaults";
 import { getApi } from "../lib/api";
+import { newEntryId } from "../lib/ids";
+import {
+  looksLikeStudyPc,
+  mergePlugViews,
+  STUDY_PC_WARNING,
+  type PlugView,
+} from "../lib/plugsUi";
 import { readUrlScene } from "../lib/urlScene";
 
 export interface LocalCountdown {
@@ -28,12 +40,19 @@ export interface LocalCountdown {
   total: number;
 }
 
+export interface PlugDraft {
+  name: string;
+  address: string;
+  protocol: PlugProtocol;
+}
+
 interface AppStateValue {
   ready: boolean;
   usingMock: boolean;
   state: SessionState;
   lists: AppLists;
   settings: AppSettings;
+  plugs: PlugView[];
   log: SessionEvent[];
   error: string | null;
   killResult: KillResult | null;
@@ -45,6 +64,11 @@ interface AppStateValue {
   setBlocklist: (entries: AppEntry[]) => Promise<void>;
   patchSettings: (patch: Partial<AppSettings>) => Promise<void>;
   setDeskEnabled: (enabled: boolean) => Promise<void>;
+  setDeskModelId: (id: DeskModelId) => Promise<void>;
+  addPlug: (draft: PlugDraft) => Promise<void>;
+  removePlug: (deviceId: string) => Promise<void>;
+  setPlugEnabled: (deviceId: string, enabled: boolean) => Promise<void>;
+  testPlug: (deviceId: string, powerOn: boolean) => Promise<void>;
   previewCountdown: (seconds: number, reason: string) => void;
   clearError: () => void;
 }
@@ -53,12 +77,44 @@ const EMPTY_LISTS: AppLists = { allowlist: [], blocklist: [] };
 
 const AppStateContext = createContext<AppStateValue | null>(null);
 
+function applyPlugPower(
+  current: Record<string, PlugSnapshot>,
+  deviceIds: readonly string[],
+  powerOn: boolean,
+): Record<string, PlugSnapshot> {
+  const next = { ...current };
+  const ts = Date.now();
+  for (const deviceId of deviceIds) {
+    const existing = next[deviceId];
+    next[deviceId] = {
+      ts,
+      deviceId,
+      online: true,
+      powerOn,
+      error: existing?.error,
+    };
+  }
+  return next;
+}
+
+function overlayTestSnapshot(snap: PlugSnapshot, intendedPower: boolean): PlugSnapshot {
+  const stub = snap.error === PLUG_DRIVER_NOT_IMPLEMENTED || snap.powerOn === null;
+  return {
+    ts: snap.ts,
+    deviceId: snap.deviceId,
+    online: stub ? true : snap.online,
+    powerOn: intendedPower,
+    error: stub ? undefined : snap.error,
+  };
+}
+
 export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
   const { api, usingMock } = useMemo(() => getApi(), []);
   const [ready, setReady] = useState(false);
   const [state, setState] = useState<SessionState>(DEFAULT_SESSION_STATE);
   const [lists, setLists] = useState<AppLists>(EMPTY_LISTS);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+  const [plugSnapshots, setPlugSnapshots] = useState<Record<string, PlugSnapshot>>({});
   const [log, setLog] = useState<SessionEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [killResult, setKillResult] = useState<KillResult | null>(null);
@@ -100,18 +156,22 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
 
     void (async () => {
       try {
-        const [nextState, nextLists, nextSettings, nextLog] = await Promise.all([
+        const [nextState, nextLists, nextSettings, nextLog, listedPlugs] = await Promise.all([
           api.sessionGetState(),
           api.listsGet(),
           api.settingsGet(),
           api.logGet(),
+          api.plugsList(),
         ]);
         if (cancelled) {
           return;
         }
         setState(nextState);
         setLists(nextLists);
-        setSettings(nextSettings);
+        setSettings({
+          ...nextSettings,
+          plugs: listedPlugs,
+        });
         setLog(nextLog);
         setReady(true);
       } catch (caught) {
@@ -140,6 +200,12 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
       if (event.type === "cancel_countdown" || event.type === "kill" || event.type === "unlock") {
         clearLocalTimer();
         setLocalCountdown(null);
+      }
+      if (event.type === "plug_off") {
+        setPlugSnapshots((current) => applyPlugPower(current, event.deviceIds, false));
+      }
+      if (event.type === "plug_on") {
+        setPlugSnapshots((current) => applyPlugPower(current, event.deviceIds, true));
       }
     });
 
@@ -241,6 +307,86 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
     [api, run],
   );
 
+  const setDeskModelId = useCallback(
+    async (id: DeskModelId): Promise<void> => {
+      await run(async () => {
+        const deskModelId = await api.deskSetModelId(id);
+        setSettings((current) => ({ ...current, deskModelId }));
+      }, "Failed to save desk model");
+    },
+    [api, run],
+  );
+
+  const addPlug = useCallback(
+    async (draft: PlugDraft): Promise<void> => {
+      await run(async () => {
+        if (looksLikeStudyPc(draft.name)) {
+          throw new Error(STUDY_PC_WARNING);
+        }
+        const device: PlugDevice = {
+          id: newEntryId("plug"),
+          name: draft.name.trim(),
+          address: draft.address.trim(),
+          protocol: draft.protocol,
+          enabled: true,
+          isStudyPc: false,
+        };
+        const plugs = await api.plugsAdd(device);
+        setSettings((current) => ({ ...current, plugs }));
+        setPlugSnapshots((current) => ({
+          ...current,
+          [device.id]: {
+            ts: Date.now(),
+            deviceId: device.id,
+            online: true,
+            powerOn: true,
+          },
+        }));
+      }, "Failed to add plug");
+    },
+    [api, run],
+  );
+
+  const removePlug = useCallback(
+    async (deviceId: string): Promise<void> => {
+      await run(async () => {
+        const plugs = await api.plugsRemove(deviceId);
+        setSettings((current) => ({ ...current, plugs }));
+        setPlugSnapshots((current) => {
+          const next = { ...current };
+          delete next[deviceId];
+          return next;
+        });
+      }, "Failed to remove plug");
+    },
+    [api, run],
+  );
+
+  const setPlugEnabled = useCallback(
+    async (deviceId: string, enabled: boolean): Promise<void> => {
+      await run(async () => {
+        const plugs = settings.plugs.map((plug) =>
+          plug.id === deviceId ? { ...plug, enabled, isStudyPc: false as const } : plug,
+        );
+        setSettings(await api.settingsSet({ plugs }));
+      }, "Failed to update plug");
+    },
+    [api, run, settings.plugs],
+  );
+
+  const testPlug = useCallback(
+    async (deviceId: string, powerOn: boolean): Promise<void> => {
+      await run(async () => {
+        const snap = await api.plugsTest(deviceId);
+        setPlugSnapshots((current) => ({
+          ...current,
+          [deviceId]: overlayTestSnapshot(snap, powerOn),
+        }));
+      }, "Failed to test plug");
+    },
+    [api, run],
+  );
+
   const countdown = useMemo((): LocalCountdown | null => {
     if (state.countdownSec > 0) {
       return {
@@ -252,6 +398,11 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
     return localCountdown;
   }, [localCountdown, settings.countdownSec, state.countdownSec, state.detail]);
 
+  const plugs = useMemo(
+    (): PlugView[] => mergePlugViews(settings.plugs, plugSnapshots),
+    [plugSnapshots, settings.plugs],
+  );
+
   const value = useMemo(
     (): AppStateValue => ({
       ready,
@@ -259,6 +410,7 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
       state,
       lists,
       settings,
+      plugs,
       log,
       error,
       killResult,
@@ -270,10 +422,16 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
       setBlocklist,
       patchSettings,
       setDeskEnabled,
+      setDeskModelId,
+      addPlug,
+      removePlug,
+      setPlugEnabled,
+      testPlug,
       previewCountdown,
       clearError: () => setError(null),
     }),
     [
+      addPlug,
       countdown,
       demoKill,
       error,
@@ -281,15 +439,20 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
       lists,
       log,
       patchSettings,
+      plugs,
       previewCountdown,
       ready,
+      removePlug,
       setAllowlist,
       setBlocklist,
       setDeskEnabled,
+      setDeskModelId,
+      setPlugEnabled,
       settings,
       startSession,
       state,
       stopSession,
+      testPlug,
       usingMock,
     ],
   );

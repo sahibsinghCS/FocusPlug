@@ -33,6 +33,7 @@
     "src/shared/**/*.ts"
   ],
   "exclude": [
-    "src/shared/**/*.test.ts"
+    "src/shared/**/*.test.ts",
+    "src/renderer/src/**/*.test.ts"
   ]
 }

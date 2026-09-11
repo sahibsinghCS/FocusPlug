@@ -5,18 +5,20 @@ import {
   DEFAULT_SETTINGS,
 } from "@shared/defaults";
 import {
-  PLUG_DRIVER_NOT_IMPLEMENTED,
   type AppEntry,
   type AppLists,
   type AppSettings,
+  type DeskModelId,
   type DeskSnapshot,
   type FocusPlugApi,
   type FocusSnapshot,
   type KillResult,
+  type PlugDevice,
   type PolicyEvent,
   type SessionEvent,
   type SessionState,
 } from "@shared/ipc";
+import { isDeskModelId } from "./plugsUi";
 import { readUrlScene } from "./urlScene";
 
 function cloneEntries(entries: AppEntry[]): AppEntry[] {
@@ -24,6 +26,17 @@ function cloneEntries(entries: AppEntry[]): AppEntry[] {
     ...entry,
     match: [...entry.match],
   }));
+}
+
+function clonePlugs(plugs: readonly PlugDevice[]): PlugDevice[] {
+  return plugs.map((plug) => ({ ...plug, isStudyPc: false as const }));
+}
+
+function cloneSettings(settings: AppSettings): AppSettings {
+  return {
+    ...settings,
+    plugs: clonePlugs(settings.plugs),
+  };
 }
 
 function now(): number {
@@ -76,14 +89,100 @@ function createBus<T>(): {
   };
 }
 
+const MOCK_SETTINGS_KEY = "focusplug.mock.settings";
+const MOCK_POWER_KEY = "focusplug.mock.plugPower";
+
+function readStored(key: string): unknown {
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) {
+      return null;
+    }
+    return JSON.parse(raw) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+function writeStored(key: string, value: unknown): void {
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // Quota or private mode — mock still works in-memory.
+  }
+}
+
+function loadStoredSettings(): AppSettings {
+  const raw = readStored(MOCK_SETTINGS_KEY);
+  if (typeof raw !== "object" || raw === null) {
+    return cloneSettings(DEFAULT_SETTINGS);
+  }
+  const record = raw as Record<string, unknown>;
+  const plugsRaw = Array.isArray(record.plugs) ? record.plugs : [];
+  const plugs: PlugDevice[] = [];
+  for (const item of plugsRaw) {
+    if (typeof item !== "object" || item === null) {
+      continue;
+    }
+    const plug = item as Record<string, unknown>;
+    if (typeof plug.id !== "string" || plug.id.length === 0) continue;
+    if (typeof plug.name !== "string" || plug.name.length === 0) continue;
+    if (plug.protocol !== "kasa" && plug.protocol !== "http" && plug.protocol !== "mock") continue;
+    if (typeof plug.address !== "string" || plug.address.length === 0) continue;
+    if (typeof plug.enabled !== "boolean") continue;
+    if (plug.isStudyPc !== false) continue;
+    plugs.push({
+      id: plug.id,
+      name: plug.name,
+      protocol: plug.protocol,
+      address: plug.address,
+      enabled: plug.enabled,
+      isStudyPc: false,
+    });
+  }
+  return {
+    countdownSec:
+      typeof record.countdownSec === "number" && Number.isFinite(record.countdownSec)
+        ? record.countdownSec
+        : DEFAULT_SETTINGS.countdownSec,
+    deskThreshold:
+      typeof record.deskThreshold === "number" && Number.isFinite(record.deskThreshold)
+        ? record.deskThreshold
+        : DEFAULT_SETTINGS.deskThreshold,
+    strictMode:
+      typeof record.strictMode === "boolean" ? record.strictMode : DEFAULT_SETTINGS.strictMode,
+    webcamEnabled:
+      typeof record.webcamEnabled === "boolean"
+        ? record.webcamEnabled
+        : DEFAULT_SETTINGS.webcamEnabled,
+    deskModelId: isDeskModelId(record.deskModelId) ? record.deskModelId : DEFAULT_SETTINGS.deskModelId,
+    plugs,
+  };
+}
+
+function loadStoredPower(): Map<string, boolean> {
+  const raw = readStored(MOCK_POWER_KEY);
+  const map = new Map<string, boolean>();
+  if (typeof raw !== "object" || raw === null) {
+    return map;
+  }
+  for (const [id, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof value === "boolean") {
+      map.set(id, value);
+    }
+  }
+  return map;
+}
+
 export function createMockApi(): FocusPlugApi {
   const scene = readUrlScene();
-  let settings: AppSettings = { ...DEFAULT_SETTINGS };
+  let settings: AppSettings = loadStoredSettings();
   let allowlist = cloneEntries(DEFAULT_ALLOWLIST);
   let blocklist = cloneEntries(DEFAULT_BLOCKLIST);
   let state: SessionState = buildInitialState(scene, settings);
   let log: SessionEvent[] = buildInitialLog(scene);
   let countdownTimer: ReturnType<typeof setInterval> | null = null;
+  const lastPower = loadStoredPower();
 
   const sessionBus = createBus<SessionState>();
   const policyBus = createBus<PolicyEvent>();
@@ -96,6 +195,32 @@ export function createMockApi(): FocusPlugApi {
       allowlist: cloneEntries(allowlist),
       blocklist: cloneEntries(blocklist),
     };
+  }
+
+  function persistSettings(): void {
+    writeStored(MOCK_SETTINGS_KEY, cloneSettings(settings));
+  }
+
+  function persistPower(): void {
+    writeStored(MOCK_POWER_KEY, Object.fromEntries(lastPower.entries()));
+  }
+
+  function enabledPlugIds(): string[] {
+    return settings.plugs.filter((plug) => plug.enabled).map((plug) => plug.id);
+  }
+
+  function cutEnabledPlugs(reason: string): string[] {
+    const deviceIds = enabledPlugIds();
+    if (deviceIds.length === 0) {
+      return [];
+    }
+    for (const id of deviceIds) {
+      lastPower.set(id, false);
+    }
+    persistPower();
+    policyBus.emit({ type: "plug_off", deviceIds, reason });
+    appendLog("plug_off", `off · ${deviceIds.join(", ")}`);
+    return deviceIds;
   }
 
   function publishState(next: SessionState): void {
@@ -150,13 +275,8 @@ export function createMockApi(): FocusPlugApi {
           detail: "Kill window reached — Discord",
         });
         policyBus.emit({ type: "kill", targets: ["discord.exe"], reason });
-        policyBus.emit({
-          type: "plug_off",
-          deviceIds: ["console-lamp", "tv-outlet"],
-          reason: reason,
-        });
+        cutEnabledPlugs(reason);
         appendLog("kill", "Force-quit Discord (mock countdown elapsed)");
-        appendLog("plug_off", "off · console-lamp, tv-outlet");
         return;
       }
       patchState({ countdownSec: remaining });
@@ -205,27 +325,43 @@ export function createMockApi(): FocusPlugApi {
       appendLog("lists", `Blocklist updated (${blocklist.length} apps)`);
       return lists();
     },
-    settingsGet: async () => ({
-      ...settings,
-      plugs: settings.plugs.map((plug) => ({ ...plug })),
-    }),
+    settingsGet: async () => cloneSettings(settings),
     settingsSet: async (patch) => {
+      if (patch.deskModelId !== undefined && !isDeskModelId(patch.deskModelId)) {
+        throw new Error("deskModelId must be stub, blazeface, or custom");
+      }
+      if (patch.plugs) {
+        for (const plug of patch.plugs) {
+          if (plug.isStudyPc !== false) {
+            throw new Error("Study PC plugs are forbidden");
+          }
+        }
+      }
       settings = {
         ...settings,
         ...patch,
-        plugs: (patch.plugs ?? settings.plugs).map((plug) => ({ ...plug })),
+        plugs: clonePlugs(patch.plugs ?? settings.plugs),
       };
+      persistSettings();
       if (patch.webcamEnabled !== undefined && state.desk) {
         patchState({
           desk: { ...state.desk, webcamEnabled: patch.webcamEnabled, ts: now() },
         });
       }
-      appendLog("settings", "Settings saved");
-      return { ...settings };
+      appendLog(
+        "settings",
+        patch.deskModelId
+          ? `Settings saved · deskModelId=${patch.deskModelId}`
+          : patch.plugs
+            ? `Settings saved · ${patch.plugs.filter((plug) => plug.enabled).length} plugs armed`
+            : "Settings saved",
+      );
+      return cloneSettings(settings);
     },
     logGet: async () => [...log],
     deskSetEnabled: async (enabled) => {
       settings = { ...settings, webcamEnabled: enabled };
+      persistSettings();
       if (state.desk) {
         patchState({
           desk: { ...state.desk, webcamEnabled: enabled, ts: now() },
@@ -235,12 +371,16 @@ export function createMockApi(): FocusPlugApi {
       return settings.webcamEnabled;
     },
     deskGetModelId: async () => settings.deskModelId,
-    deskSetModelId: async (id) => {
+    deskSetModelId: async (id: DeskModelId) => {
+      if (!isDeskModelId(id)) {
+        throw new Error("deskModelId must be stub, blazeface, or custom");
+      }
       settings = { ...settings, deskModelId: id };
+      persistSettings();
       appendLog("desk", `Desk model set to ${id}`);
       return settings.deskModelId;
     },
-    plugsList: async () => settings.plugs.map((plug) => ({ ...plug })),
+    plugsList: async () => clonePlugs(settings.plugs),
     plugsAdd: async (device) => {
       if (device.isStudyPc !== false) {
         throw new Error("Study PC plugs are forbidden");
@@ -248,9 +388,13 @@ export function createMockApi(): FocusPlugApi {
       if (settings.plugs.some((plug) => plug.id === device.id)) {
         throw new Error("Plug already exists");
       }
-      settings = { ...settings, plugs: [...settings.plugs, { ...device, isStudyPc: false }] };
-      appendLog("plugs", `Added ${device.name}`);
-      return settings.plugs.map((plug) => ({ ...plug }));
+      const next: PlugDevice = { ...device, isStudyPc: false };
+      settings = { ...settings, plugs: [...settings.plugs, next] };
+      lastPower.set(next.id, true);
+      persistSettings();
+      persistPower();
+      appendLog("plugs", `Added ${next.name} (${next.protocol})`);
+      return clonePlugs(settings.plugs);
     },
     plugsRemove: async (deviceId) => {
       if (!settings.plugs.some((plug) => plug.id === deviceId)) {
@@ -260,19 +404,23 @@ export function createMockApi(): FocusPlugApi {
         ...settings,
         plugs: settings.plugs.filter((plug) => plug.id !== deviceId),
       };
+      lastPower.delete(deviceId);
+      persistSettings();
+      persistPower();
       appendLog("plugs", `Removed ${deviceId}`);
-      return settings.plugs.map((plug) => ({ ...plug }));
+      return clonePlugs(settings.plugs);
     },
     plugsTest: async (deviceId) => {
-      if (!settings.plugs.some((plug) => plug.id === deviceId)) {
+      const plug = settings.plugs.find((item) => item.id === deviceId);
+      if (!plug) {
         throw new Error("Plug not found");
       }
+      const powerOn = lastPower.get(deviceId) ?? true;
       return {
         ts: now(),
         deviceId,
-        online: false,
-        powerOn: null,
-        error: PLUG_DRIVER_NOT_IMPLEMENTED,
+        online: true,
+        powerOn,
       };
     },
     demoKill: async () => {
@@ -286,13 +434,8 @@ export function createMockApi(): FocusPlugApi {
         detail: "Demo Kill — Discord force-quit",
       });
       policyBus.emit({ type: "kill", targets: result.killed, reason: "Demo Kill" });
-      policyBus.emit({
-        type: "plug_off",
-        deviceIds: ["console-lamp", "tv-outlet"],
-        reason: "demo",
-      });
+      cutEnabledPlugs("demo");
       appendLog("kill", "Demo Kill · discord.exe");
-      appendLog("plug_off", "off · console-lamp, tv-outlet");
       return result;
     },
     onSessionState: (cb) => sessionBus.on(cb),
