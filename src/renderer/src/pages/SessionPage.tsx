@@ -42,7 +42,7 @@ export function SessionPage(): JSX.Element {
   const killNote = demoKillNote(app);
 
   return (
-    <div className="flex h-full min-h-0 flex-col px-5 py-4 min-[1100px]:px-6">
+    <div className="flex h-full min-h-0 flex-col px-5 py-3 min-[1100px]:px-6">
       <header className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-fp-faint">

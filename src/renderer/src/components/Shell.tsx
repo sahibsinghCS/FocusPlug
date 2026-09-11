@@ -90,7 +90,7 @@ export function Shell(): JSX.Element {
         collapsed={sidebar.collapsed}
         onToggleSidebar={sidebar.toggle}
       />
-      {app.error ? (
+      {app.error && route !== "session" ? (
         <div
           className="flex items-center justify-between gap-3 border-b border-fp-red/30 bg-fp-red/10 px-4 py-1.5 text-[12px] text-fp-red"
           role="alert"
