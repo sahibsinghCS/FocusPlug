@@ -5,7 +5,8 @@ import { describe, expect, it } from "vitest";
 import { ALL_BLOCKLIST_TARGET, REASONS, SESSION_OFF_DETAIL } from "./constants";
 import { INITIAL_POLICY_STATE, PolicyEngine, stepPolicy } from "./engine";
 import type { PolicyState } from "./engine";
-import type { Decision, DeskSnapshot, FocusSnapshot, PolicyEvent, PolicyInput } from "../types";
+import type { PolicyEngineInput } from "./evaluate";
+import type { Decision, DeskSnapshot, FocusSnapshot, PlugDevice, PolicyEvent, PolicyInput } from "../types";
 
 const T0 = 1_000_000;
 const SEC = 1000;
@@ -75,6 +76,17 @@ function uncertainDesk(ts: number, confidence = 0.99): DeskSnapshot {
   return { ts, label: "uncertain", confidence, webcamEnabled: true };
 }
 
+function funPlug(id: string, enabled = true): PlugDevice {
+  return {
+    id,
+    name: id,
+    protocol: "mock",
+    address: `${id}.local`,
+    enabled,
+    isStudyPc: false,
+  };
+}
+
 interface StepSpec {
   sessionActive?: boolean;
   ts: number;
@@ -82,6 +94,7 @@ interface StepSpec {
   desk: DeskSnapshot | null;
   enabledPlugIds?: string[];
   plugsArmed?: boolean;
+  plugs?: PlugDevice[];
   expect: {
     decision: Decision;
     events?: PolicyEvent["type"][];
@@ -106,6 +119,7 @@ interface SeqCase {
   deskThreshold?: number;
   enabledPlugIds?: string[];
   plugsArmed?: boolean;
+  plugs?: PlugDevice[];
   steps: StepSpec[];
 }
 
@@ -115,20 +129,29 @@ function makeInput(
     strictMode: boolean;
     countdownSec: number;
     deskThreshold: number;
-    enabledPlugIds: string[];
+    enabledPlugIds?: string[];
     plugsArmed: boolean;
+    plugs?: PlugDevice[];
   },
-): PolicyInput {
-  return {
+): PolicyEngineInput {
+  const input: PolicyEngineInput = {
     sessionActive: step.sessionActive ?? true,
     focus: step.focus,
     desk: step.desk,
     countdownSec: defaults.countdownSec,
     deskThreshold: defaults.deskThreshold,
     strictMode: defaults.strictMode,
-    enabledPlugIds: step.enabledPlugIds ?? defaults.enabledPlugIds,
     plugsArmed: step.plugsArmed ?? defaults.plugsArmed,
   };
+  const enabledPlugIds = step.enabledPlugIds ?? defaults.enabledPlugIds;
+  if (enabledPlugIds !== undefined) {
+    input.enabledPlugIds = enabledPlugIds;
+  }
+  const plugs = step.plugs ?? defaults.plugs;
+  if (plugs !== undefined) {
+    input.plugs = plugs;
+  }
+  return input;
 }
 
 function typesOf(events: PolicyEvent[]): PolicyEvent["type"][] {
@@ -228,8 +251,9 @@ function runCase(seq: SeqCase): PolicyEvent[][] {
     strictMode: seq.strictMode ?? true,
     countdownSec: seq.countdownSec ?? 10,
     deskThreshold: seq.deskThreshold ?? 0.6,
-    enabledPlugIds: seq.enabledPlugIds ?? [],
+    enabledPlugIds: seq.enabledPlugIds,
     plugsArmed: seq.plugsArmed ?? true,
+    plugs: seq.plugs,
   };
   const all: PolicyEvent[][] = [];
   seq.steps.forEach((step, index) => {
@@ -1847,6 +1871,53 @@ describe("gauntlet: plug_off / plug_on", () => {
       ],
     },
     {
+      name: "plugs[] derive enabled ids when enabledPlugIds is omitted",
+      plugs: [funPlug("lamp"), funPlug("fan", false), funPlug("tv")],
+      plugsArmed: true,
+      countdownSec: 0,
+      steps: [
+        {
+          ts: T0,
+          focus: discord(T0),
+          desk: present(T0),
+          expect: {
+            decision: "DISTRACTED",
+            events: ["start_countdown", "kill", "plug_off", "status"],
+            plugOffIds: ["lamp", "tv"],
+          },
+        },
+      ],
+    },
+    {
+      name: "study-PC id is never emitted even when listed",
+      enabledPlugIds: ["study-pc", "lamp"],
+      plugs: [
+        {
+          id: "study-pc",
+          name: "Tower",
+          protocol: "mock",
+          address: "192.168.1.2",
+          enabled: true,
+          isStudyPc: true,
+        } as unknown as PlugDevice,
+        funPlug("lamp"),
+      ],
+      plugsArmed: true,
+      countdownSec: 0,
+      steps: [
+        {
+          ts: T0,
+          focus: discord(T0),
+          desk: present(T0),
+          expect: {
+            decision: "DISTRACTED",
+            events: ["start_countdown", "kill", "plug_off", "status"],
+            plugOffIds: ["lamp"],
+          },
+        },
+      ],
+    },
+    {
       name: "desk-away then sit on Explorer: cancel, no kill, no plug_off",
       enabledPlugIds: PLUGS,
       plugsArmed: true,
@@ -1902,8 +1973,23 @@ describe("clock, purity, and isolation", () => {
     expect(ofType(events, "kill")).toHaveLength(1);
   });
 
-  it("plug_off copies deviceIds so event mutation cannot change PolicyInput", () => {
+  it("frozen PolicyInput (no plug fields) kills without plug events", () => {
     const input: PolicyInput = {
+      sessionActive: true,
+      focus: discord(T0),
+      desk: present(T0),
+      countdownSec: 0,
+      deskThreshold: 0.6,
+      strictMode: true,
+    };
+    const events = new PolicyEngine().step(input);
+    expect(ofType(events, "kill")).toHaveLength(1);
+    expect(ofType(events, "plug_off")).toHaveLength(0);
+    expect(ofType(events, "plug_on")).toHaveLength(0);
+  });
+
+  it("plug_off copies deviceIds so event mutation cannot change PolicyInput", () => {
+    const input: PolicyEngineInput = {
       sessionActive: true,
       focus: discord(T0),
       desk: present(T0),
@@ -1934,8 +2020,6 @@ describe("clock, purity, and isolation", () => {
       countdownSec: 10,
       deskThreshold: 0.6,
       strictMode: true,
-      enabledPlugIds: [],
-      plugsArmed: true,
     };
     const stateBefore = JSON.stringify(state);
     const inputBefore = JSON.stringify(input);

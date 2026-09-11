@@ -7,7 +7,9 @@
     "countdownSec": 10,
     "deskThreshold": 0.6,
     "strictMode": true,
-    "webcamEnabled": true
+    "webcamEnabled": true,
+    "deskModelId": "blazeface",
+    "plugs": []
   },
   "policyEventTypes": [
     "status",
