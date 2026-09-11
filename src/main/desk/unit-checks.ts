@@ -83,6 +83,18 @@ export function runClassifyUnitChecks(): UnitCheckResult[] {
     JSON.stringify(covered),
   );
 
+  const phantomOnCover = classifyDesk({
+    ts: 41,
+    webcamEnabled: true,
+    frame: { width: 640, height: 480, meanLuma: 3.5, lumaStd: 1.6 },
+    faces: [faceAt(0.99, { x0: 80, y0: 60, x1: 280, y1: 300 })],
+  });
+  check(
+    "BlazeFace phantoms on a covered lens are not at_desk",
+    phantomOnCover.label === "away",
+    JSON.stringify(phantomOnCover),
+  );
+
   const tiny = classifyDesk({
     ts: 5,
     webcamEnabled: true,

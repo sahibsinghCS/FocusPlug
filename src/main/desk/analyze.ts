@@ -1,4 +1,4 @@
-import { classifyDesk, faceAreaRatio, isUsableFace } from "./classify";
+import { classifyDesk, faceAreaRatio, isUsableFace, sceneIsOccluded } from "./classify";
 import { DESK_MODEL_ID } from "./detector";
 import { frameStats } from "./frame";
 import type { BlazeFaceDetector } from "./detector";
@@ -68,6 +68,7 @@ export async function analyzeDeskFrame(options: {
           faceAreaRatio(face, stats) > faceAreaRatio(best, stats) ? face : best,
         )
       : undefined;
+    const occluded = sceneIsOccluded(stats);
     return {
       snapshot: classifyDesk({
         ts: options.ts,
@@ -76,7 +77,7 @@ export async function analyzeDeskFrame(options: {
         faces,
       }),
       debug: {
-        reason: "inference",
+        reason: occluded ? "occluded-frame" : "inference",
         faceCount: faces.length,
         usableFaceCount: usable.length,
         maxProbability,

@@ -5,6 +5,9 @@ import type { ClassifyInput, FaceSignal, FrameStats } from "./types";
 export const AT_DESK_MIN_PROB = 0.6;
 export const UNCERTAIN_MIN_PROB = 0.5;
 export const MIN_FACE_AREA_RATIO = 0.008;
+/** Near-black, low-contrast frames (covered lens) are not a visible desk. */
+export const OCCLUDED_MAX_LUMA = 12;
+export const OCCLUDED_MAX_LUMA_STD = 8;
 
 export function clamp01(value: number): number {
   if (value < 0) {
@@ -44,7 +47,15 @@ export function landmarksPlausible(face: FaceSignal): boolean {
   return true;
 }
 
+/** Covered / unplugged sensors yield a near-black, low-variance frame. */
+export function sceneIsOccluded(frame: FrameStats): boolean {
+  return frame.meanLuma < OCCLUDED_MAX_LUMA && frame.lumaStd < OCCLUDED_MAX_LUMA_STD;
+}
+
 export function isUsableFace(face: FaceSignal, frame: FrameStats): boolean {
+  if (sceneIsOccluded(frame)) {
+    return false;
+  }
   if (!Number.isFinite(face.probability) || face.probability < UNCERTAIN_MIN_PROB) {
     return false;
   }
@@ -82,6 +93,15 @@ export function classifyDesk(input: ClassifyInput): DeskSnapshot {
       ts: input.ts,
       label: "uncertain",
       confidence: 0.15,
+      webcamEnabled: true,
+    };
+  }
+
+  if (sceneIsOccluded(input.frame)) {
+    return {
+      ts: input.ts,
+      label: "away",
+      confidence: 0.9,
       webcamEnabled: true,
     };
   }

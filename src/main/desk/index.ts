@@ -3,6 +3,7 @@ export { createDefaultFrameSource, NullFrameSource, ScriptedFrameSource } from "
 export {
   AT_DESK_MIN_PROB,
   classifyDesk,
+  sceneIsOccluded,
   UNCERTAIN_MIN_PROB,
 } from "./classify";
 export { BlazeFaceDetector, DESK_MODEL_ID, getSharedDetector } from "./detector";
