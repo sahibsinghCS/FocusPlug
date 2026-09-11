@@ -28,7 +28,7 @@ If Discord cannot launch, skip to the Demo Kill beat after the overlay preview (
 | 1:20–1:40 | Kill + log | Overlay hits 0; Discord quits. Open **Log**: `start_countdown`, `kill` | “Discord is gone. The log is the proof, not a toast.” |
 | 1:40–1:55 | Unlock | Alt-tab to Docs, stay in frame. Overlay gone. Decision **On task** | “Back on Docs, still at the desk — unlocked. Strict mode needs both.” |
 | 1:55–2:20 | Desk AI (load-bearing) | Re-open Discord in the background if needed, then **cover the webcam** or leave the chair. Decision **Away**. Blocklist apps quit after the fuse | “Timers can’t see this. I left the desk — or covered the camera. High-confidence Away kills blocklist apps even if they weren’t focused. Uncertain never kills on desk alone.” |
-| 2:20–2:35 | Demo Kill | Uncover camera. Open Discord again. Click red **Demo Kill** (home footer or overlay **Demo Kill — skip wait**) | “Demo Kill is for filming: same force-quit, no waiting. Never kills the study PC.” |
+| 2:20–2:35 | Demo Kill | Uncover camera. Open Discord again. Click red **Demo Kill** (home footer or overlay **Demo Kill, skip wait**) | “Demo Kill is for filming: same force-quit, no waiting. Never kills the study PC.” |
 | 2:35–2:50 | Close | Session home: Decision + Desk AI visible | “AI decides at-desk vs away. The kill is the consequence. FocusPlug — local enforcement, not another focus timer.” |
 
 If the desk-away beat is messy, cut it to 10 seconds (cover lens → **Away** label) and spend the time on Demo Kill. **Do not** skip Desk AI entirely — Hyperbloom scores AI/ML as central, not decorative.
