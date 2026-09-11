@@ -5,6 +5,7 @@ import {
   type AppSettings,
   type DeskMonitor,
   type KillResult,
+  type PlugController,
   type PolicyEngine as PolicyEngineSeam,
   type ProcessKiller,
   type SessionState,
@@ -21,14 +22,16 @@ import type {
   PolicyEvent,
   SessionEvent,
 } from "../../shared/types.ts";
+import { createPlugController, SettingsPlugStore } from "../plugs/index.ts";
 import {
   cloneSettings,
   isDeskModelId,
   normalizePlugDevice,
   normalizeSettings,
 } from "../store/appStore.ts";
+import { formatPlug, resolveSessionPlugIds } from "./plugActions.ts";
 import type { SessionPush } from "./push.ts";
-import { demoKillMatchers, expandKillTargets } from "./targets.ts";
+import { demoKillMatchers, enabledPlugIds, expandKillTargets } from "./targets.ts";
 
 export const DEFAULT_SESSION_TICK_MS = 250;
 
@@ -48,6 +51,8 @@ export interface SessionControllerOptions {
   windowMonitor: WindowMonitor;
   deskMonitor: DeskMonitor;
   killer: ProcessKiller;
+  /** Defaults to settings.plugs + Kasa/HTTP/mock hosts. */
+  plugs?: PlugController;
   store: SessionStore;
   push: SessionPush;
   policyFactory?: () => PolicyEngineSeam;
@@ -72,6 +77,10 @@ function cloneEntries(entries: AppEntry[]): AppEntry[] {
     ...entry,
     match: [...entry.match],
   }));
+}
+
+function cloneDevices(devices: readonly PlugDevice[]): PlugDevice[] {
+  return devices.map((device) => ({ ...device }));
 }
 
 function isAppEntry(value: unknown): value is AppEntry {
@@ -165,13 +174,14 @@ function errorMessage(error: unknown): string {
 
 /**
  * Session orchestrator: monitors → PolicyEngine.step → countdown IPC →
- * ProcessKiller → unlock. Injectable seams so the golden path can be proven
- * without Win32.
+ * ProcessKiller + PlugController → unlock. Injectable seams so the golden
+ * path can be proven without Win32 or hardware plugs.
  */
 export class SessionController {
   private readonly windowMonitor: WindowMonitor;
   private readonly deskMonitor: DeskMonitor;
   private readonly killer: ProcessKiller;
+  private readonly plugs: PlugController;
   private readonly store: SessionStore;
   private readonly push: SessionPush;
   private readonly policyFactory: () => PolicyEngineSeam;
@@ -195,6 +205,15 @@ export class SessionController {
     this.deskMonitor = options.deskMonitor;
     this.killer = options.killer;
     this.store = options.store;
+    this.plugs =
+      options.plugs ??
+      createPlugController({
+        store: new SettingsPlugStore({
+          loadSettings: () => this.loadSettings(),
+          saveSettings: (settings) => this.store.saveSettings(settings),
+        }),
+        now: options.now,
+      });
     this.push = options.push;
     this.policyFactory = options.policyFactory ?? (() => new PolicyEngine());
     this.now = options.now ?? Date.now;
@@ -331,7 +350,7 @@ export class SessionController {
     if (this.sessionActive) {
       this.enqueueEvaluate();
     }
-    return { ...next };
+    return cloneSettings(next);
   }
 
   getLog(): SessionEvent[] {
@@ -369,7 +388,7 @@ export class SessionController {
   }
 
   listPlugs(): PlugDevice[] {
-    return this.loadSettings().plugs.map((plug) => ({ ...plug }));
+    return cloneDevices(this.loadSettings().plugs);
   }
 
   addPlug(value: unknown): PlugDevice[] {
@@ -424,13 +443,16 @@ export class SessionController {
   async demoKill(): Promise<KillResult> {
     this.clearFuse();
     const matchers = demoKillMatchers(this.store.loadBlocklist(), this.focus);
-    const result = await this.runKill(matchers);
     const event: PolicyEvent = {
       type: "kill",
       targets: matchers,
       reason: "demo",
     };
     this.push.policyEvent(event);
+    const [result] = await Promise.all([
+      this.runKill(matchers),
+      this.cutEnabledPlugs("demo"),
+    ]);
     this.appendLog("demo", formatKill("Demo Kill", result));
     this.state = {
       ...this.state,
@@ -518,6 +540,16 @@ export class SessionController {
       case "unlock":
         this.appendLog("unlock", "Unlocked — back on task");
         return;
+      case "plug_off":
+        await this.applyPlugCommand("off", event.deviceIds, event.reason, {
+          emitEvent: false,
+        });
+        return;
+      case "plug_on":
+        await this.applyPlugCommand("on", event.deviceIds, event.reason, {
+          emitEvent: false,
+        });
+        return;
       case "status":
         this.state = {
           ...this.state,
@@ -528,13 +560,6 @@ export class SessionController {
           this.lastLoggedDecision = event.decision;
           this.appendLog("decision", `${event.decision} · ${event.detail}`);
         }
-        return;
-      case "plug_off":
-      case "plug_on":
-        this.appendLog(
-          "plug",
-          `${event.type} · ${event.reason} · ${event.deviceIds.join(", ") || "none"}`,
-        );
         return;
       default: {
         const _exhaustive: never = event;
@@ -556,13 +581,63 @@ export class SessionController {
     }
   }
 
+  private loadPlugDevices(): PlugDevice[] {
+    return cloneDevices(this.loadSettings().plugs);
+  }
+
+  private sessionPlugIds(requested?: readonly string[]): string[] {
+    return resolveSessionPlugIds(this.loadPlugDevices(), requested);
+  }
+
+  /** Demo Kill and other session-owned paths — policy does not emit these. */
+  private async cutEnabledPlugs(reason: string): Promise<PlugSnapshot[]> {
+    return this.applyPlugCommand("off", enabledPlugIds(this.loadPlugDevices()), reason);
+  }
+
+  private async applyPlugCommand(
+    action: "off" | "on",
+    requested: readonly string[],
+    reason: string,
+    options?: { emitEvent?: boolean },
+  ): Promise<PlugSnapshot[]> {
+    const deviceIds = this.sessionPlugIds(requested);
+    const snapshots = await this.runPlugs(action, deviceIds);
+    if (options?.emitEvent !== false) {
+      const event: PolicyEvent =
+        action === "off"
+          ? { type: "plug_off", deviceIds: [...deviceIds], reason }
+          : { type: "plug_on", deviceIds: [...deviceIds], reason };
+      this.push.policyEvent(event);
+    }
+    this.appendLog(action === "off" ? "plug_off" : "plug_on", formatPlug(action, snapshots));
+    return snapshots;
+  }
+
+  private async runPlugs(action: "off" | "on", ids: string[]): Promise<PlugSnapshot[]> {
+    try {
+      const snapshots =
+        action === "off"
+          ? await Promise.resolve(this.plugs.off(ids))
+          : await Promise.resolve(this.plugs.on(ids));
+      return snapshots.map((snap) => ({ ...snap }));
+    } catch (error) {
+      return ids.map((deviceId) => ({
+        ts: this.now(),
+        deviceId,
+        online: false,
+        powerOn: null,
+        error: errorMessage(error),
+      }));
+    }
+  }
+
   private buildPolicyInput(sessionActive: boolean, settings?: AppSettings): PolicyEngineInput {
     const resolved = settings ?? this.loadSettings();
     const ts = this.now();
     const focus =
       this.focus === null ? null : { ...this.focus, ts: Math.max(this.focus.ts, ts) };
     const desk = this.desk === null ? null : { ...this.desk, ts: Math.max(this.desk.ts, ts) };
-    const enabledPlugIds = enabledFunPlugIds(resolved.plugs);
+    const funPlugIds = enabledFunPlugIds(resolved.plugs);
     return {
       sessionActive,
       focus,
@@ -570,8 +645,8 @@ export class SessionController {
       countdownSec: resolved.countdownSec,
       deskThreshold: resolved.deskThreshold,
       strictMode: resolved.strictMode,
-      enabledPlugIds,
-      plugsArmed: enabledPlugIds.length > 0,
+      enabledPlugIds: funPlugIds,
+      plugsArmed: funPlugIds.length > 0,
       plugs: resolved.plugs,
     };
   }

@@ -7,6 +7,7 @@ import type {
   AppSettings,
   DeskMonitor,
   KillResult,
+  PlugController,
   ProcessKiller,
   SessionState,
   WindowMonitor,
@@ -15,9 +16,12 @@ import type {
   AppEntry,
   DeskSnapshot,
   FocusSnapshot,
+  PlugDevice,
+  PlugSnapshot,
   PolicyEvent,
   SessionEvent,
 } from "../../shared/types.ts";
+import { SAMPLE_PLUGS } from "./fixtures.ts";
 import type { SessionStore } from "./controller.ts";
 import type { SessionPush } from "./push.ts";
 
@@ -26,6 +30,17 @@ function cloneEntries(entries: AppEntry[]): AppEntry[] {
     ...entry,
     match: [...entry.match],
   }));
+}
+
+function clonePlugs(devices: readonly PlugDevice[]): PlugDevice[] {
+  return devices.map((device) => ({ ...device }));
+}
+
+function cloneSettings(settings: AppSettings): AppSettings {
+  return {
+    ...settings,
+    plugs: clonePlugs(settings.plugs),
+  };
 }
 
 export class ScriptedWindowMonitor implements WindowMonitor {
@@ -88,6 +103,54 @@ export class RecordingKiller implements ProcessKiller {
   }
 }
 
+export class RecordingPlugController implements PlugController {
+  readonly offCalls: string[][] = [];
+  readonly onCalls: string[][] = [];
+  devices: PlugDevice[];
+  failWith: string | null = null;
+  now = (): number => 0;
+
+  constructor(devices: readonly PlugDevice[] = SAMPLE_PLUGS) {
+    this.devices = clonePlugs(devices);
+  }
+
+  async list(): Promise<PlugDevice[]> {
+    return clonePlugs(this.devices);
+  }
+
+  async discover(): Promise<PlugDevice[]> {
+    return this.list();
+  }
+
+  async off(ids: string[]): Promise<PlugSnapshot[]> {
+    this.offCalls.push([...ids]);
+    return this.snapshots(ids, false);
+  }
+
+  async on(ids: string[]): Promise<PlugSnapshot[]> {
+    this.onCalls.push([...ids]);
+    return this.snapshots(ids, true);
+  }
+
+  private snapshots(ids: string[], powerOn: boolean): PlugSnapshot[] {
+    if (this.failWith !== null) {
+      return ids.map((deviceId) => ({
+        ts: this.now(),
+        deviceId,
+        online: false,
+        powerOn: null,
+        error: this.failWith ?? "plug failed",
+      }));
+    }
+    return ids.map((deviceId) => ({
+      ts: this.now(),
+      deviceId,
+      online: true,
+      powerOn,
+    }));
+  }
+}
+
 export class MutableClock {
   ms: number;
 
@@ -106,10 +169,15 @@ export function createMemoryStore(init?: {
   allowlist?: AppEntry[];
   blocklist?: AppEntry[];
   settings?: AppSettings;
+  plugs?: PlugDevice[];
 }): SessionStore {
   let allowlist = cloneEntries(init?.allowlist ?? DEFAULT_ALLOWLIST);
   let blocklist = cloneEntries(init?.blocklist ?? DEFAULT_BLOCKLIST);
-  let settings: AppSettings = { ...(init?.settings ?? DEFAULT_SETTINGS) };
+  const base = cloneSettings(init?.settings ?? DEFAULT_SETTINGS);
+  let settings: AppSettings = {
+    ...base,
+    plugs: clonePlugs(init?.plugs ?? init?.settings?.plugs ?? base.plugs),
+  };
   const log: SessionEvent[] = [];
   return {
     loadAllowlist: () => cloneEntries(allowlist),
@@ -120,9 +188,9 @@ export function createMemoryStore(init?: {
     saveBlocklist: (entries) => {
       blocklist = cloneEntries(entries);
     },
-    loadSettings: () => ({ ...settings }),
+    loadSettings: () => cloneSettings(settings),
     saveSettings: (next) => {
-      settings = { ...next };
+      settings = cloneSettings(next);
     },
     appendSessionLog: (event) => {
       log.unshift({ ...event });

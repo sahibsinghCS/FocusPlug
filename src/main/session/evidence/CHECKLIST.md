@@ -1,6 +1,6 @@
 # Scripted checklist (Linux agent run)
 
-Bar: Docs → Discord → countdown → kill → return → unlock, plus Demo Kill.
+Bar: Docs → Discord → countdown → kill + plug_off → return → unlock + plug_on, plus Demo Kill (processes + plugs).
 
 Command: `npx vitest run src/main/session`
 
@@ -12,8 +12,11 @@ Command: `npx vitest run src/main/session`
 | Live countdown IPC: SessionState.countdownSec 10 → 9 → 8 | PASS |
 | 250ms ticker continues countdown without new snapshots | PASS |
 | Fuse elapsed → ProcessKiller.kill(["discord.exe"]); not `*blocklist*` | PASS |
-| Return Docs + at_desk → unlock + ON_TASK | PASS |
-| DEMO_KILL returns KillResult.killed (not foundation stub) | PASS |
+| Fuse elapsed → PlugController.off(enabled non-study plugs); log `plug_off` | PASS |
+| Return Docs + at_desk → unlock + ON_TASK + PlugController.on; log `plug_on` | PASS |
+| DEMO_KILL returns KillResult.killed (not foundation stub) and plug_off | PASS |
+| Zero plugs: kill / Demo Kill do not throw | PASS |
+| isStudyPc never appears in plug off/on calls | PASS |
 | Cancel countdown if back ON_TASK before 0 | PASS |
 | Desk-away expands `*blocklist*` to real matchers | PASS |
 | Lists/settings/desk enable persist and affect fuse | PASS |

@@ -12,13 +12,25 @@ export interface SessionRuntimeOptions {
   push: SessionPush;
   /** Shared JSON store. Pass the same instance used by PlugController. */
   store?: SessionControllerOptions["store"];
+  /** Shared PlugController. Defaults to settings.plugs + Kasa/HTTP/mock hosts. */
+  plugs?: PlugController;
   now?: () => number;
   tickIntervalMs?: number;
 }
 
+function createStoreBackedPlugs(
+  store: SessionControllerOptions["store"],
+  now?: () => number,
+): PlugController {
+  return createPlugController({
+    store: new SettingsPlugStore(store),
+    now,
+  });
+}
+
 /**
  * Production wiring: shared JSON store, platform window reader, desk AI,
- * blocklist killer. Tests should construct SessionController with mocks instead.
+ * blocklist killer, and the frozen PlugController (Kasa/HTTP/mock).
  */
 export function createSessionRuntime(options: SessionRuntimeOptions): SessionController {
   const store = options.store ?? createAppStore(options.userDataDir);
@@ -36,10 +48,12 @@ export function createSessionRuntime(options: SessionRuntimeOptions): SessionCon
     getAllowlistMatchers: () =>
       store.loadAllowlist().flatMap((entry) => (entry.enabled ? entry.match : [])),
   });
+  const plugs = options.plugs ?? createStoreBackedPlugs(store, options.now);
   const controllerOptions: SessionControllerOptions = {
     windowMonitor,
     deskMonitor,
     killer,
+    plugs,
     store,
     push: options.push,
     policyFactory: () => new PolicyEngine(),
@@ -54,11 +68,12 @@ export interface FocusPlugRuntime {
   plugs: PlugController;
 }
 
-/** Production pair: session + real plug drivers on the same settings store. */
+/** Production pair: one store, one PlugController shared with session. */
 export function createFocusPlugRuntime(options: SessionRuntimeOptions): FocusPlugRuntime {
   const store = options.store ?? createAppStore(options.userDataDir);
+  const plugs = options.plugs ?? createStoreBackedPlugs(store, options.now);
   return {
-    session: createSessionRuntime({ ...options, store }),
-    plugs: createPlugController({ store: new SettingsPlugStore(store) }),
+    session: createSessionRuntime({ ...options, store, plugs }),
+    plugs,
   };
 }

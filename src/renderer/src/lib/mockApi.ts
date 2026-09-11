@@ -150,7 +150,13 @@ export function createMockApi(): FocusPlugApi {
           detail: "Kill window reached — Discord",
         });
         policyBus.emit({ type: "kill", targets: ["discord.exe"], reason });
+        policyBus.emit({
+          type: "plug_off",
+          deviceIds: ["console-lamp", "tv-outlet"],
+          reason: reason,
+        });
         appendLog("kill", "Force-quit Discord (mock countdown elapsed)");
+        appendLog("plug_off", "off · console-lamp, tv-outlet");
         return;
       }
       patchState({ countdownSec: remaining });
@@ -280,7 +286,13 @@ export function createMockApi(): FocusPlugApi {
         detail: "Demo Kill — Discord force-quit",
       });
       policyBus.emit({ type: "kill", targets: result.killed, reason: "Demo Kill" });
+      policyBus.emit({
+        type: "plug_off",
+        deviceIds: ["console-lamp", "tv-outlet"],
+        reason: "demo",
+      });
       appendLog("kill", "Demo Kill · discord.exe");
+      appendLog("plug_off", "off · console-lamp, tv-outlet");
       return result;
     },
     onSessionState: (cb) => sessionBus.on(cb),

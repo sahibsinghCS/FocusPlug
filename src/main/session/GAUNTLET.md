@@ -1,6 +1,6 @@
 # Session-wiring gauntlet
 
-Bar: **Golden-path proof** Docs → Discord → countdown → kill → return → unlock, plus **Demo Kill** instant path.
+Bar: **Golden-path proof** Docs → Discord → countdown → kill **+ plug_off** → return → unlock **+ plug_on**, plus **Demo Kill** instant path that also cuts enabled plugs. Never command `isStudyPc`. Zero plugs must not throw.
 
 This stream owns `src/main/session/**` and main-process IPC glue. Window/desk/kill APIs are Win32-first; the orchestrator is proven with injectable monitors and a recording killer so the path does not need a Windows desktop.
 
@@ -20,9 +20,11 @@ The dump must show, in order:
 1. `SESSION_START`
 2. Docs/Chrome + `at_desk` → `ON_TASK`
 3. Discord focus → `DISTRACTED` + `start_countdown` + live `countdownSec` 10 → 9 → …
-4. Fuse elapsed → `ProcessKiller.kill` with Discord matchers (never the `*blocklist*` sentinel)
-5. Return to Docs + at desk → `unlock` + `ON_TASK`
-6. `DEMO_KILL` → immediate `KillResult` with non-empty matchers (not a stub)
+4. Fuse elapsed → `ProcessKiller.kill` with Discord matchers (never the `*blocklist*` sentinel) **and** `PlugController.off` for every enabled non-study-PC plug. Log: `kill` + `plug_off` with device ids.
+5. Return to Docs + at desk → `unlock` + `ON_TASK` **and** `PlugController.on`. Log: `unlock` + `plug_on` with device ids.
+6. `DEMO_KILL` → immediate `KillResult` with non-empty matchers (not a stub) **and** `plug_off` all enabled plugs
+7. Zero-plug inventory: kill / Demo Kill / unlock still succeed (no throw)
+8. `isStudyPc` devices never appear in `off` / `on` arguments
 
 ## Windows golden path (manual — real Win32)
 
@@ -44,6 +46,10 @@ Hard fail:
 - Kill never runs after 10s on Discord
 - Unlock does not fire after returning to Docs + at desk
 - `*blocklist*` is passed into `ProcessKiller.kill`
+- Demo Kill or fuse kill skips enabled plugs
+- Unlock does not restore plugs
+- Any plug command is sent for an `isStudyPc` device
+- Empty plug inventory throws
 
 ## Notes for Linux cloud VMs
 
