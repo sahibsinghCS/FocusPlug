@@ -1,0 +1,1036 @@
+{
+  "ranAt": "2026-09-11T08:58:20.887Z",
+  "bar": [
+    "1. Start session with Docs/Chrome-style allowlist focus",
+    "2. Distracted by Discord (or simulated FocusSnapshot with matchedBlock)",
+    "3. UI/state shows Distracted + countdown",
+    "4. Kill fires on blocklist target (or simulated host evidence)",
+    "5. Return to allowlist + at_desk → Unlocked",
+    "6. Demo Kill instant path works"
+  ],
+  "verdict": "PASS",
+  "host": "linux x64",
+  "node": "v22.14.0",
+  "killCalls": [
+    [
+      "Discord.exe"
+    ],
+    [
+      "discord",
+      "discord.exe",
+      "steam",
+      "steam.exe",
+      "steamwebhelper",
+      "epicgameslauncher",
+      "epicgameslauncher.exe",
+      "epic games",
+      "leagueclient",
+      "leagueclient.exe",
+      "league of legends",
+      "valorant",
+      "valorant.exe",
+      "fortnite",
+      "fortniteclient-win64-shipping.exe",
+      "cs2",
+      "cs2.exe",
+      "csgo.exe",
+      "minecraft",
+      "minecraftlauncher.exe",
+      "roblox",
+      "robloxplayerbeta.exe"
+    ],
+    [
+      "discord",
+      "discord.exe",
+      "steam",
+      "steam.exe",
+      "steamwebhelper",
+      "epicgameslauncher",
+      "epicgameslauncher.exe",
+      "epic games",
+      "leagueclient",
+      "leagueclient.exe",
+      "league of legends",
+      "valorant",
+      "valorant.exe",
+      "fortnite",
+      "fortniteclient-win64-shipping.exe",
+      "cs2",
+      "cs2.exe",
+      "csgo.exe",
+      "minecraft",
+      "minecraftlauncher.exe",
+      "roblox",
+      "robloxplayerbeta.exe"
+    ]
+  ],
+  "demoKill": {
+    "killed": [
+      "steam.exe (pid 300)",
+      "discord.exe (pid 202)"
+    ],
+    "errors": []
+  },
+  "ipcChannels": [
+    "focusplug:policy:event",
+    "focusplug:log:event",
+    "focusplug:session:state",
+    "focusplug:focus:snapshot",
+    "focusplug:desk:snapshot"
+  ],
+  "persistedLogKinds": [
+    "desk",
+    "focus",
+    "decision",
+    "session",
+    "kill",
+    "policy"
+  ],
+  "steps": [
+    {
+      "id": "observe-off",
+      "title": "Session OFF + Discord focus",
+      "state": {
+        "sessionActive": false,
+        "focus": {
+          "ts": 1000000,
+          "processName": "Discord.exe",
+          "windowTitle": "Friends - Discord",
+          "matchedAllow": false,
+          "matchedBlock": true,
+          "blockEntryId": "discord"
+        },
+        "desk": {
+          "ts": 1000000,
+          "label": "at_desk",
+          "confidence": 0.94,
+          "webcamEnabled": true
+        },
+        "decision": "IDLE",
+        "countdownSec": 0,
+        "detail": "Session off — observe only"
+      },
+      "policyTypes": [
+        "status",
+        "status",
+        "status"
+      ],
+      "logTail": [
+        {
+          "kind": "desk",
+          "detail": "at_desk · 94% · webcam on"
+        },
+        {
+          "kind": "focus",
+          "detail": "Discord.exe — Friends - Discord · block"
+        },
+        {
+          "kind": "decision",
+          "detail": "IDLE · Session off — observe only"
+        }
+      ],
+      "running": [
+        "chrome.exe#100",
+        "Discord.exe#200",
+        "steam.exe#300",
+        "explorer.exe#400",
+        "System#4",
+        "Code.exe#500"
+      ],
+      "killedPids": []
+    },
+    {
+      "id": "start-docs",
+      "title": "Start session on Chrome/Docs at desk",
+      "state": {
+        "sessionActive": true,
+        "focus": {
+          "ts": 1000250,
+          "processName": "chrome.exe",
+          "windowTitle": "Essay - Google Docs - Google Chrome",
+          "matchedAllow": true,
+          "matchedBlock": false
+        },
+        "desk": {
+          "ts": 1000250,
+          "label": "at_desk",
+          "confidence": 0.94,
+          "webcamEnabled": true
+        },
+        "decision": "ON_TASK",
+        "countdownSec": 0,
+        "detail": "On task: chrome.exe"
+      },
+      "policyTypes": [
+        "status",
+        "status",
+        "status",
+        "status",
+        "status",
+        "status"
+      ],
+      "logTail": [
+        {
+          "kind": "decision",
+          "detail": "ON_TASK · On task: chrome.exe"
+        },
+        {
+          "kind": "session",
+          "detail": "Session started"
+        },
+        {
+          "kind": "focus",
+          "detail": "chrome.exe — Essay - Google Docs - Google Chrome · allow"
+        },
+        {
+          "kind": "desk",
+          "detail": "at_desk · 94% · webcam on"
+        },
+        {
+          "kind": "focus",
+          "detail": "Discord.exe — Friends - Discord · block"
+        },
+        {
+          "kind": "decision",
+          "detail": "IDLE · Session off — observe only"
+        }
+      ],
+      "running": [
+        "chrome.exe#100",
+        "Discord.exe#200",
+        "steam.exe#300",
+        "explorer.exe#400",
+        "System#4",
+        "Code.exe#500"
+      ],
+      "killedPids": []
+    },
+    {
+      "id": "discord-countdown",
+      "title": "Discord focus starts countdown",
+      "state": {
+        "sessionActive": true,
+        "focus": {
+          "ts": 1000500,
+          "processName": "Discord.exe",
+          "windowTitle": "Friends - Discord",
+          "matchedAllow": false,
+          "matchedBlock": true,
+          "blockEntryId": "discord"
+        },
+        "desk": {
+          "ts": 1000500,
+          "label": "at_desk",
+          "confidence": 0.94,
+          "webcamEnabled": true
+        },
+        "decision": "DISTRACTED",
+        "countdownSec": 10,
+        "detail": "Distracted: Discord.exe"
+      },
+      "policyTypes": [
+        "status",
+        "status",
+        "status",
+        "status",
+        "status",
+        "status",
+        "start_countdown",
+        "status",
+        "status"
+      ],
+      "logTail": [
+        {
+          "kind": "decision",
+          "detail": "DISTRACTED · Distracted: Discord.exe"
+        },
+        {
+          "kind": "policy",
+          "detail": "start_countdown · blocked_focus · 10s"
+        },
+        {
+          "kind": "focus",
+          "detail": "Discord.exe — Friends - Discord · block"
+        },
+        {
+          "kind": "decision",
+          "detail": "ON_TASK · On task: chrome.exe"
+        },
+        {
+          "kind": "session",
+          "detail": "Session started"
+        },
+        {
+          "kind": "focus",
+          "detail": "chrome.exe — Essay - Google Docs - Google Chrome · allow"
+        },
+        {
+          "kind": "desk",
+          "detail": "at_desk · 94% · webcam on"
+        },
+        {
+          "kind": "focus",
+          "detail": "Discord.exe — Friends - Discord · block"
+        }
+      ],
+      "running": [
+        "chrome.exe#100",
+        "Discord.exe#200",
+        "steam.exe#300",
+        "explorer.exe#400",
+        "System#4",
+        "Code.exe#500"
+      ],
+      "killedPids": []
+    },
+    {
+      "id": "kill-discord",
+      "title": "Countdown elapsed → kill Discord",
+      "state": {
+        "sessionActive": true,
+        "focus": {
+          "ts": 1000500,
+          "processName": "Discord.exe",
+          "windowTitle": "Friends - Discord",
+          "matchedAllow": false,
+          "matchedBlock": true,
+          "blockEntryId": "discord"
+        },
+        "desk": {
+          "ts": 1000500,
+          "label": "at_desk",
+          "confidence": 0.94,
+          "webcamEnabled": true
+        },
+        "decision": "DISTRACTED",
+        "countdownSec": 0,
+        "detail": "Distracted: Discord.exe"
+      },
+      "policyTypes": [
+        "status",
+        "status",
+        "status",
+        "status",
+        "status",
+        "status",
+        "start_countdown",
+        "status",
+        "status",
+        "status",
+        "kill",
+        "status"
+      ],
+      "logTail": [
+        {
+          "kind": "kill",
+          "detail": "Kill · blocked_focus · killed Discord.exe (pid 200)"
+        },
+        {
+          "kind": "decision",
+          "detail": "DISTRACTED · Distracted: Discord.exe"
+        },
+        {
+          "kind": "policy",
+          "detail": "start_countdown · blocked_focus · 10s"
+        },
+        {
+          "kind": "focus",
+          "detail": "Discord.exe — Friends - Discord · block"
+        },
+        {
+          "kind": "decision",
+          "detail": "ON_TASK · On task: chrome.exe"
+        },
+        {
+          "kind": "session",
+          "detail": "Session started"
+        },
+        {
+          "kind": "focus",
+          "detail": "chrome.exe — Essay - Google Docs - Google Chrome · allow"
+        },
+        {
+          "kind": "desk",
+          "detail": "at_desk · 94% · webcam on"
+        }
+      ],
+      "running": [
+        "chrome.exe#100",
+        "steam.exe#300",
+        "explorer.exe#400",
+        "System#4",
+        "Code.exe#500"
+      ],
+      "killedPids": [
+        200
+      ]
+    },
+    {
+      "id": "return-unlock",
+      "title": "Return to Chrome/Docs + at_desk",
+      "state": {
+        "sessionActive": true,
+        "focus": {
+          "ts": 1010750,
+          "processName": "chrome.exe",
+          "windowTitle": "Essay - Google Docs - Google Chrome",
+          "matchedAllow": true,
+          "matchedBlock": false
+        },
+        "desk": {
+          "ts": 1010750,
+          "label": "at_desk",
+          "confidence": 0.94,
+          "webcamEnabled": true
+        },
+        "decision": "ON_TASK",
+        "countdownSec": 0,
+        "detail": "On task: chrome.exe"
+      },
+      "policyTypes": [
+        "status",
+        "status",
+        "status",
+        "status",
+        "status",
+        "status",
+        "start_countdown",
+        "status",
+        "status",
+        "status",
+        "kill",
+        "status",
+        "unlock",
+        "status",
+        "status"
+      ],
+      "logTail": [
+        {
+          "kind": "decision",
+          "detail": "ON_TASK · On task: chrome.exe"
+        },
+        {
+          "kind": "policy",
+          "detail": "unlock"
+        },
+        {
+          "kind": "focus",
+          "detail": "chrome.exe — Essay - Google Docs - Google Chrome · allow"
+        },
+        {
+          "kind": "kill",
+          "detail": "Kill · blocked_focus · killed Discord.exe (pid 200)"
+        },
+        {
+          "kind": "decision",
+          "detail": "DISTRACTED · Distracted: Discord.exe"
+        },
+        {
+          "kind": "policy",
+          "detail": "start_countdown · blocked_focus · 10s"
+        },
+        {
+          "kind": "focus",
+          "detail": "Discord.exe — Friends - Discord · block"
+        },
+        {
+          "kind": "decision",
+          "detail": "ON_TASK · On task: chrome.exe"
+        }
+      ],
+      "running": [
+        "chrome.exe#100",
+        "steam.exe#300",
+        "explorer.exe#400",
+        "System#4",
+        "Code.exe#500"
+      ],
+      "killedPids": [
+        200
+      ]
+    },
+    {
+      "id": "demo-kill",
+      "title": "Demo Kill instant blocklist termination",
+      "state": {
+        "sessionActive": true,
+        "focus": {
+          "ts": 1010750,
+          "processName": "chrome.exe",
+          "windowTitle": "Essay - Google Docs - Google Chrome",
+          "matchedAllow": true,
+          "matchedBlock": false
+        },
+        "desk": {
+          "ts": 1010750,
+          "label": "at_desk",
+          "confidence": 0.94,
+          "webcamEnabled": true
+        },
+        "decision": "ON_TASK",
+        "countdownSec": 0,
+        "detail": "On task: chrome.exe"
+      },
+      "policyTypes": [
+        "status",
+        "status",
+        "status",
+        "status",
+        "status",
+        "status",
+        "start_countdown",
+        "status",
+        "status",
+        "status",
+        "kill",
+        "status",
+        "unlock",
+        "status",
+        "status",
+        "status"
+      ],
+      "logTail": [
+        {
+          "kind": "kill",
+          "detail": "Demo Kill · demo_kill · killed steam.exe (pid 300), discord.exe (pid 202)"
+        },
+        {
+          "kind": "decision",
+          "detail": "ON_TASK · On task: chrome.exe"
+        },
+        {
+          "kind": "policy",
+          "detail": "unlock"
+        },
+        {
+          "kind": "focus",
+          "detail": "chrome.exe — Essay - Google Docs - Google Chrome · allow"
+        },
+        {
+          "kind": "kill",
+          "detail": "Kill · blocked_focus · killed Discord.exe (pid 200)"
+        },
+        {
+          "kind": "decision",
+          "detail": "DISTRACTED · Distracted: Discord.exe"
+        },
+        {
+          "kind": "policy",
+          "detail": "start_countdown · blocked_focus · 10s"
+        },
+        {
+          "kind": "focus",
+          "detail": "Discord.exe — Friends - Discord · block"
+        }
+      ],
+      "running": [
+        "chrome.exe#100",
+        "explorer.exe#400",
+        "System#4",
+        "Code.exe#500"
+      ],
+      "killedPids": [
+        200,
+        300,
+        202
+      ]
+    },
+    {
+      "id": "desk-away-kill",
+      "title": "High-conf away → kill running blocklist",
+      "state": {
+        "sessionActive": true,
+        "focus": {
+          "ts": 1011000,
+          "processName": "chrome.exe",
+          "windowTitle": "Essay - Google Docs - Google Chrome",
+          "matchedAllow": true,
+          "matchedBlock": false
+        },
+        "desk": {
+          "ts": 1011000,
+          "label": "away",
+          "confidence": 0.92,
+          "webcamEnabled": true
+        },
+        "decision": "AWAY",
+        "countdownSec": 0,
+        "detail": "Away from desk"
+      },
+      "policyTypes": [
+        "status",
+        "status",
+        "status",
+        "status",
+        "status",
+        "status",
+        "start_countdown",
+        "status",
+        "status",
+        "status",
+        "kill",
+        "status",
+        "unlock",
+        "status",
+        "status",
+        "status",
+        "status",
+        "start_countdown",
+        "status",
+        "kill",
+        "status"
+      ],
+      "logTail": [
+        {
+          "kind": "kill",
+          "detail": "Kill · desk_away · killed VALORANT.exe (pid 600), steam.exe (pid 301)"
+        },
+        {
+          "kind": "decision",
+          "detail": "AWAY · Away from desk"
+        },
+        {
+          "kind": "policy",
+          "detail": "start_countdown · desk_away · 10s"
+        },
+        {
+          "kind": "desk",
+          "detail": "away · 92% · webcam on"
+        },
+        {
+          "kind": "kill",
+          "detail": "Demo Kill · demo_kill · killed steam.exe (pid 300), discord.exe (pid 202)"
+        },
+        {
+          "kind": "decision",
+          "detail": "ON_TASK · On task: chrome.exe"
+        },
+        {
+          "kind": "policy",
+          "detail": "unlock"
+        },
+        {
+          "kind": "focus",
+          "detail": "chrome.exe — Essay - Google Docs - Google Chrome · allow"
+        }
+      ],
+      "running": [
+        "chrome.exe#100",
+        "explorer.exe#400",
+        "System#4",
+        "Code.exe#500"
+      ],
+      "killedPids": [
+        200,
+        300,
+        202,
+        600,
+        301
+      ]
+    },
+    {
+      "id": "uncertain-hold",
+      "title": "Uncertain desk must not desk-only kill",
+      "state": {
+        "sessionActive": true,
+        "focus": {
+          "ts": 1021250,
+          "processName": "chrome.exe",
+          "windowTitle": "Essay - Google Docs - Google Chrome",
+          "matchedAllow": true,
+          "matchedBlock": false
+        },
+        "desk": {
+          "ts": 1021250,
+          "label": "uncertain",
+          "confidence": 0.99,
+          "webcamEnabled": true
+        },
+        "decision": "IDLE",
+        "countdownSec": 0,
+        "detail": "Allowlisted focus, uncertain desk — holding desk-only kill"
+      },
+      "policyTypes": [
+        "status",
+        "status",
+        "status",
+        "status",
+        "status",
+        "status",
+        "start_countdown",
+        "status",
+        "status",
+        "status",
+        "kill",
+        "status",
+        "unlock",
+        "status",
+        "status",
+        "status",
+        "status",
+        "start_countdown",
+        "status",
+        "kill",
+        "status",
+        "status",
+        "status",
+        "status"
+      ],
+      "logTail": [
+        {
+          "kind": "decision",
+          "detail": "IDLE · Allowlisted focus, uncertain desk — holding desk-only kill"
+        },
+        {
+          "kind": "desk",
+          "detail": "uncertain · 99% · webcam on"
+        },
+        {
+          "kind": "kill",
+          "detail": "Kill · desk_away · killed VALORANT.exe (pid 600), steam.exe (pid 301)"
+        },
+        {
+          "kind": "decision",
+          "detail": "AWAY · Away from desk"
+        },
+        {
+          "kind": "policy",
+          "detail": "start_countdown · desk_away · 10s"
+        },
+        {
+          "kind": "desk",
+          "detail": "away · 92% · webcam on"
+        },
+        {
+          "kind": "kill",
+          "detail": "Demo Kill · demo_kill · killed steam.exe (pid 300), discord.exe (pid 202)"
+        },
+        {
+          "kind": "decision",
+          "detail": "ON_TASK · On task: chrome.exe"
+        }
+      ],
+      "running": [
+        "chrome.exe#100",
+        "explorer.exe#400",
+        "System#4",
+        "Code.exe#500",
+        "steam.exe#302"
+      ],
+      "killedPids": [
+        200,
+        300,
+        202,
+        600,
+        301
+      ]
+    }
+  ],
+  "assertions": [
+    {
+      "name": "session off does not arm countdown",
+      "pass": true,
+      "detail": "{\"sessionActive\":false,\"focus\":{\"ts\":1000000,\"processName\":\"Discord.exe\",\"windowTitle\":\"Friends - Discord\",\"matchedAllow\":false,\"matchedBlock\":true,\"blockEntryId\":\"discord\"},\"desk\":{\"ts\":1000000,\"label\":\"at_desk\",\"confidence\":0.94,\"webcamEnabled\":true},\"decision\":\"IDLE\",\"countdownSec\":0,\"detail\":\"Session off — observe only\"}"
+    },
+    {
+      "name": "session off decision is IDLE",
+      "pass": true,
+      "detail": "IDLE · Session off — observe only"
+    },
+    {
+      "name": "observe-only does not kill Discord",
+      "pass": true,
+      "detail": "killed="
+    },
+    {
+      "name": "no ProcessKiller calls while observing",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "1. sessionActive after start",
+      "pass": true,
+      "detail": "{\"sessionActive\":true,\"focus\":{\"ts\":1000250,\"processName\":\"chrome.exe\",\"windowTitle\":\"Essay - Google Docs - Google Chrome\",\"matchedAllow\":true,\"matchedBlock\":false},\"desk\":{\"ts\":1000250,\"label\":\"at_desk\",\"confidence\":0.94,\"webcamEnabled\":true},\"decision\":\"ON_TASK\",\"countdownSec\":0,\"detail\":\"On task: chrome.exe\"}"
+    },
+    {
+      "name": "1. Chrome/Docs matchedAllow",
+      "pass": true,
+      "detail": "{\"ts\":1000250,\"processName\":\"chrome.exe\",\"windowTitle\":\"Essay - Google Docs - Google Chrome\",\"matchedAllow\":true,\"matchedBlock\":false}"
+    },
+    {
+      "name": "1. decision ON_TASK",
+      "pass": true,
+      "detail": "ON_TASK · On task: chrome.exe"
+    },
+    {
+      "name": "1. countdown idle",
+      "pass": true,
+      "detail": "0"
+    },
+    {
+      "name": "1. desk at_desk",
+      "pass": true,
+      "detail": "{\"ts\":1000250,\"label\":\"at_desk\",\"confidence\":0.94,\"webcamEnabled\":true}"
+    },
+    {
+      "name": "1. Discord still running before violation",
+      "pass": true,
+      "detail": "killed="
+    },
+    {
+      "name": "2. matchedBlock Discord",
+      "pass": true,
+      "detail": "{\"ts\":1000500,\"processName\":\"Discord.exe\",\"windowTitle\":\"Friends - Discord\",\"matchedAllow\":false,\"matchedBlock\":true,\"blockEntryId\":\"discord\"}"
+    },
+    {
+      "name": "3. decision DISTRACTED",
+      "pass": true,
+      "detail": "DISTRACTED · Distracted: Discord.exe"
+    },
+    {
+      "name": "3. countdown remaining equals fuse (10s)",
+      "pass": true,
+      "detail": "10"
+    },
+    {
+      "name": "3. start_countdown emitted",
+      "pass": true,
+      "detail": "status,status,status,status,status,status,start_countdown,status,status"
+    },
+    {
+      "name": "3. start_countdown reason is blocked_focus",
+      "pass": true,
+      "detail": "{\"type\":\"start_countdown\",\"reason\":\"blocked_focus\",\"seconds\":10}"
+    },
+    {
+      "name": "3. Discord not killed during countdown",
+      "pass": true,
+      "detail": "killed="
+    },
+    {
+      "name": "3b. countdown remaining after 4s is 6",
+      "pass": true,
+      "detail": "6"
+    },
+    {
+      "name": "3b. still DISTRACTED before fuse end",
+      "pass": true,
+      "detail": "DISTRACTED"
+    },
+    {
+      "name": "3b. Discord still alive at T-6s",
+      "pass": true,
+      "detail": "killed="
+    },
+    {
+      "name": "4. countdown cleared after kill",
+      "pass": true,
+      "detail": "0"
+    },
+    {
+      "name": "4. policy emitted kill",
+      "pass": true,
+      "detail": "status,status,status,status,status,status,start_countdown,status,status,status,kill,status"
+    },
+    {
+      "name": "4. kill targets include Discord process",
+      "pass": true,
+      "detail": "{\"type\":\"kill\",\"targets\":[\"Discord.exe\"],\"reason\":\"blocked_focus\"}"
+    },
+    {
+      "name": "4. Discord.exe pid 200 terminated",
+      "pass": true,
+      "detail": "killed=200 running=chrome.exe,steam.exe,explorer.exe,System,Code.exe"
+    },
+    {
+      "name": "4. chrome.exe study process still running",
+      "pass": true,
+      "detail": "killed=200"
+    },
+    {
+      "name": "4. Code.exe still running",
+      "pass": true,
+      "detail": "killed=200"
+    },
+    {
+      "name": "4. explorer.exe still running",
+      "pass": true,
+      "detail": "killed=200"
+    },
+    {
+      "name": "4. System pid 4 not killed",
+      "pass": true,
+      "detail": "killed=200"
+    },
+    {
+      "name": "4. blocked-focus kill did not require steam (foreground target only)",
+      "pass": true,
+      "detail": "steam killed early? killed=200"
+    },
+    {
+      "name": "4. session log recorded kill",
+      "pass": true,
+      "detail": "[{\"ts\":1010500,\"kind\":\"kill\",\"detail\":\"Kill · blocked_focus · killed Discord.exe (pid 200)\"},{\"ts\":1000500,\"kind\":\"decision\",\"detail\":\"DISTRACTED · Distracted: Discord.exe\"},{\"ts\":1000500,\"kind\":\"policy\",\"detail\":\"start_countdown · blocked_focus · 10s\"},{\"ts\":1000500,\"kind\":\"focus\",\"detail\":\"Discord.exe — Friends - Discord · block\"},{\"ts\":1000250,\"kind\":\"decision\",\"detail\":\"ON_TASK · On task: chrome.exe\"},{\"ts\":1000250,\"kind\":\"session\",\"detail\":\"Session started\"}]"
+    },
+    {
+      "name": "5. decision ON_TASK after return",
+      "pass": true,
+      "detail": "ON_TASK · On task: chrome.exe"
+    },
+    {
+      "name": "5. countdown 0 after unlock",
+      "pass": true,
+      "detail": "0"
+    },
+    {
+      "name": "5. policy emitted unlock",
+      "pass": true,
+      "detail": "status,status,status,status,status,status,start_countdown,status,status,status,kill,status,unlock,status,status"
+    },
+    {
+      "name": "5. chrome still running after unlock",
+      "pass": true,
+      "detail": "killed=200"
+    },
+    {
+      "name": "6. Demo Kill returned a result",
+      "pass": true,
+      "detail": "steam.exe (pid 300) | discord.exe (pid 202)"
+    },
+    {
+      "name": "6. Demo Kill terminated discord stand-in",
+      "pass": true,
+      "detail": "killed pids=200,300,202 result=steam.exe (pid 300) | discord.exe (pid 202)"
+    },
+    {
+      "name": "6. Demo Kill terminated steam (enabled blocklist)",
+      "pass": true,
+      "detail": "killed pids=200,300,202 result=steam.exe (pid 300) | discord.exe (pid 202)"
+    },
+    {
+      "name": "6. Demo Kill did not kill chrome",
+      "pass": true,
+      "detail": "steam.exe (pid 300) | discord.exe (pid 202)"
+    },
+    {
+      "name": "6. Demo Kill did not kill Code",
+      "pass": true,
+      "detail": "killed=200,300,202"
+    },
+    {
+      "name": "6. Demo Kill log event",
+      "pass": true,
+      "detail": "[{\"ts\":1010750,\"kind\":\"kill\",\"detail\":\"Demo Kill · demo_kill · killed steam.exe (pid 300), discord.exe (pid 202)\"},{\"ts\":1010500,\"kind\":\"kill\",\"detail\":\"Kill · blocked_focus · killed Discord.exe (pid 200)\"}]"
+    },
+    {
+      "name": "6. countdown remains 0 after Demo Kill",
+      "pass": true,
+      "detail": "0"
+    },
+    {
+      "name": "desk-away decision AWAY",
+      "pass": true,
+      "detail": "AWAY · Away from desk"
+    },
+    {
+      "name": "desk-away starts countdown",
+      "pass": true,
+      "detail": "10"
+    },
+    {
+      "name": "desk-away does not kill immediately",
+      "pass": true,
+      "detail": "killed=200,300,202"
+    },
+    {
+      "name": "desk-away killed VALORANT",
+      "pass": true,
+      "detail": "killed=200,300,202,600,301 running=chrome.exe,explorer.exe,System,Code.exe"
+    },
+    {
+      "name": "desk-away killed steam respawn",
+      "pass": true,
+      "detail": "killed=200,300,202,600,301"
+    },
+    {
+      "name": "desk-away never killed chrome study PC",
+      "pass": true,
+      "detail": "killed=200,300,202,600,301"
+    },
+    {
+      "name": "uncertain desk does not kill steam",
+      "pass": true,
+      "detail": "killed=200,300,202,600,301"
+    },
+    {
+      "name": "uncertain desk is not AWAY-enforced",
+      "pass": true,
+      "detail": "IDLE · Allowlisted focus, uncertain desk — holding desk-only kill"
+    },
+    {
+      "name": "low-confidence away does not kill",
+      "pass": true,
+      "detail": "killed=200,300,202,600,301"
+    },
+    {
+      "name": "stopped session does not kill new Discord",
+      "pass": true,
+      "detail": "killed=200,300,202,600,301"
+    },
+    {
+      "name": "stopped session is IDLE observe-only",
+      "pass": true,
+      "detail": "{\"sessionActive\":false,\"focus\":{\"ts\":1041750,\"processName\":\"Discord.exe\",\"windowTitle\":\"Friends - Discord\",\"matchedAllow\":false,\"matchedBlock\":true,\"blockEntryId\":\"discord\"},\"desk\":{\"ts\":1041750,\"label\":\"at_desk\",\"confidence\":0.94,\"webcamEnabled\":true},\"decision\":\"IDLE\",\"countdownSec\":0,\"detail\":\"Session off — observe only\"}"
+    },
+    {
+      "name": "ProcessKiller never received *blocklist* sentinel",
+      "pass": true,
+      "detail": "[[\"Discord.exe\"],[\"discord\",\"discord.exe\",\"steam\",\"steam.exe\",\"steamwebhelper\",\"epicgameslauncher\",\"epicgameslauncher.exe\",\"epic games\",\"leagueclient\",\"leagueclient.exe\",\"league of legends\",\"valorant\",\"valorant.exe\",\"fortnite\",\"fortniteclient-win64-shipping.exe\",\"cs2\",\"cs2.exe\",\"csgo.exe\",\"minecraft\",\"minecraftlauncher.exe\",\"roblox\",\"robloxplayerbeta.exe\"],[\"discord\",\"discord.exe\",\"steam\",\"steam.exe\",\"steamwebhelper\",\"epicgameslauncher\",\"epicgameslauncher.exe\",\"epic games\",\"leagueclient\",\"leagueclient.exe\",\"league of legends\",\"valorant\",\"valorant.exe\",\"fortnite\",\"fortniteclient-win64-shipping.exe\",\"cs2\",\"cs2.exe\",\"csgo.exe\",\"minecraft\",\"minecraftlauncher.exe\",\"roblox\",\"robloxplayerbeta.exe\"]]"
+    },
+    {
+      "name": "IPC push focusplug:session:state",
+      "pass": true,
+      "detail": "focusplug:policy:event, focusplug:log:event, focusplug:session:state, focusplug:focus:snapshot, focusplug:desk:snapshot"
+    },
+    {
+      "name": "IPC push focusplug:policy:event",
+      "pass": true,
+      "detail": "focusplug:policy:event, focusplug:log:event, focusplug:session:state, focusplug:focus:snapshot, focusplug:desk:snapshot"
+    },
+    {
+      "name": "IPC push focusplug:focus:snapshot",
+      "pass": true,
+      "detail": "focusplug:policy:event, focusplug:log:event, focusplug:session:state, focusplug:focus:snapshot, focusplug:desk:snapshot"
+    },
+    {
+      "name": "IPC push focusplug:desk:snapshot",
+      "pass": true,
+      "detail": "focusplug:policy:event, focusplug:log:event, focusplug:session:state, focusplug:focus:snapshot, focusplug:desk:snapshot"
+    },
+    {
+      "name": "IPC push focusplug:log:event",
+      "pass": true,
+      "detail": "focusplug:policy:event, focusplug:log:event, focusplug:session:state, focusplug:focus:snapshot, focusplug:desk:snapshot"
+    },
+    {
+      "name": "session log persisted to disk",
+      "pass": true,
+      "detail": "count=25"
+    },
+    {
+      "name": "persisted log includes session start",
+      "pass": true,
+      "detail": "[{\"ts\":1041500,\"kind\":\"session\",\"detail\":\"Session stopped — observe only\"},{\"ts\":1000250,\"kind\":\"session\",\"detail\":\"Session started\"}]"
+    },
+    {
+      "name": "persisted log includes Demo Kill",
+      "pass": true,
+      "detail": "[{\"ts\":1021000,\"kind\":\"kill\",\"detail\":\"Kill · desk_away · killed VALORANT.exe (pid 600), steam.exe (pid 301)\"},{\"ts\":1010750,\"kind\":\"kill\",\"detail\":\"Demo Kill · demo_kill · killed steam.exe (pid 300), discord.exe (pid 202)\"},{\"ts\":1010500,\"kind\":\"kill\",\"detail\":\"Kill · blocked_focus · killed Discord.exe (pid 200)\"}]"
+    },
+    {
+      "name": "settings persist with defaults",
+      "pass": true,
+      "detail": "{\"countdownSec\":10,\"deskThreshold\":0.6,\"strictMode\":true,\"webcamEnabled\":true}"
+    }
+  ]
+}

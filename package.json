@@ -15,6 +15,8 @@
     "build": "npm run typecheck && electron-vite build",
     "start": "electron-vite preview",
     "test": "vitest run",
+    "test:session": "vitest run src/main/session",
+    "gauntlet:session": "tsx --tsconfig tsconfig.node.json src/main/session/gauntlet.ts",
     "typecheck": "npm run check:contracts && npm run typecheck:node && npm run typecheck:web",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json",
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json",

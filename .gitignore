@@ -12,3 +12,5 @@ Thumbs.db
 .idea/
 .vscode/
 *.local
+.tmp-session-*
+.tmp-store-*
