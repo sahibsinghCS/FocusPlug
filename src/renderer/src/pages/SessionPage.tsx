@@ -50,7 +50,6 @@ export function SessionPage(): JSX.Element {
           <div className="scope-lock">
             <span className={toneClass(flag.tone)}>{flag.label}</span>
             <span>{state.sessionActive ? "Locked to allowlist" : "Observe only"}</span>
-            {plugNote ? <span className="tone-warn">{plugNote}</span> : null}
           </div>
         </section>
 
@@ -78,7 +77,10 @@ export function SessionPage(): JSX.Element {
           <div className="outlet-row">
             {outlets.length === 0 ? (
               <div className="outlet">
-                <span className="outlet-lamp" />
+                <div className="socket-wells" aria-hidden="true">
+                  <span className="socket-well" />
+                  <span className="socket-well" />
+                </div>
                 <span className="outlet-name">No outlets</span>
                 <span className="outlet-rocker">Add on Plugs</span>
               </div>
@@ -91,7 +93,10 @@ export function SessionPage(): JSX.Element {
                     plug.enabled && plug.powerOn !== false && "is-on",
                   )}
                 >
-                  <span className="outlet-lamp" />
+                  <div className="socket-wells" aria-hidden="true">
+                    <span className="socket-well" />
+                    <span className="socket-well" />
+                  </div>
                   <span className="outlet-name">{plug.name}</span>
                   <span className="outlet-rocker">
                     {plug.enabled ? (plug.powerOn === false ? "Cut" : "On") : "Off"}
@@ -100,6 +105,7 @@ export function SessionPage(): JSX.Element {
               ))
             )}
           </div>
+          {plugNote ? <p className="setting-copy">{plugNote}. Never the study PC.</p> : null}
         </section>
 
         <section className="tape" aria-label="Tape">

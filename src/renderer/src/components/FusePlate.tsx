@@ -25,6 +25,8 @@ const INNER_C = 2 * Math.PI * INNER_R;
 export function FusePlate(props: FusePlateProps): JSX.Element {
   const fuseProgress = props.idle ? 1 : Math.min(1, Math.max(0, props.seconds / Math.max(props.total, 1)));
   const deskProgress = props.deskConfidence === null ? 0 : Math.min(1, Math.max(0, props.deskConfidence));
+  const fuseComplete = fuseProgress >= 0.995;
+  const deskComplete = deskProgress >= 0.995;
   const fuseColor = props.idle
     ? props.decisionTone === "live"
       ? "#f4efe4"
@@ -69,8 +71,8 @@ export function FusePlate(props: FusePlateProps): JSX.Element {
             stroke={fuseColor}
             strokeWidth="7"
             strokeLinecap="round"
-            strokeDasharray={OUTER_C}
-            strokeDashoffset={OUTER_C * (1 - fuseProgress)}
+            strokeDasharray={fuseComplete ? undefined : OUTER_C}
+            strokeDashoffset={fuseComplete ? undefined : OUTER_C * (1 - fuseProgress)}
             transform={`rotate(-90 ${CX} ${CY})`}
           />
           <circle
@@ -81,8 +83,8 @@ export function FusePlate(props: FusePlateProps): JSX.Element {
             stroke={deskColor}
             strokeWidth="5"
             strokeLinecap="round"
-            strokeDasharray={INNER_C}
-            strokeDashoffset={INNER_C * (1 - deskProgress)}
+            strokeDasharray={deskComplete ? undefined : INNER_C}
+            strokeDashoffset={deskComplete ? undefined : INNER_C * (1 - deskProgress)}
             transform={`rotate(-90 ${CX} ${CY})`}
           />
         </svg>

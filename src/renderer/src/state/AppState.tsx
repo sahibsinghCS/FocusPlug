@@ -173,6 +173,20 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
           plugs: listedPlugs,
         });
         setLog(nextLog);
+        const snaps: Record<string, PlugSnapshot> = {};
+        await Promise.all(
+          listedPlugs.map(async (plug) => {
+            try {
+              snaps[plug.id] = await api.plugsTest(plug.id);
+            } catch {
+              // Leave unpolled if the driver is down.
+            }
+          }),
+        );
+        if (cancelled) {
+          return;
+        }
+        setPlugSnapshots(snaps);
         setReady(true);
       } catch (caught) {
         if (!cancelled) {
