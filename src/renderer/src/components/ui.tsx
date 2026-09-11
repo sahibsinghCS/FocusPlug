@@ -239,8 +239,17 @@ export function StatusPill(props: {
       </span>
     </>
   );
+  const shell =
+    props.tone === "lime"
+      ? "border-fp-lime/30 bg-fp-lime/[0.08]"
+      : props.tone === "red"
+        ? "border-fp-red/30 bg-fp-red/[0.08]"
+        : props.tone === "amber"
+          ? "border-fp-amber/30 bg-fp-amber/[0.08]"
+          : "border-fp-line bg-fp-elev/80";
   const classes = cn(
-    "inline-flex h-7 max-w-full items-center gap-1.5 rounded-md border border-fp-line bg-fp-elev/80 px-2",
+    "inline-flex h-7 max-w-full items-center gap-1.5 rounded-md border px-2",
+    shell,
     props.onClick && "fp-btn hover:border-fp-line-strong hover:bg-fp-hover",
   );
   if (props.onClick) {

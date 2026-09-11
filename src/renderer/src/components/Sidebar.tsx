@@ -46,7 +46,7 @@ export function Sidebar(props: {
                 "fp-btn group relative flex items-center rounded-md text-[13px]",
                 props.collapsed ? "h-9 justify-center" : "h-9 gap-2.5 px-2",
                 active
-                  ? "bg-fp-lime/10 text-fp-ink"
+                  ? "bg-white/[0.07] text-fp-ink"
                   : "text-fp-mute hover:bg-fp-hover hover:text-fp-ink",
               )}
             >
@@ -66,23 +66,17 @@ export function Sidebar(props: {
         })}
       </nav>
 
-      <div className={cn("border-t border-fp-line p-1.5", props.collapsed && "flex justify-center")}>
+      <div className="flex justify-center border-t border-fp-line p-1.5">
         <button
           type="button"
           onClick={props.onToggle}
           aria-expanded={!props.collapsed}
           aria-controls="fp-sidebar"
-          className={cn(
-            "fp-btn flex h-8 items-center gap-2 rounded-md px-2 text-[11px] text-fp-faint hover:bg-fp-hover hover:text-fp-ink",
-            props.collapsed && "w-full justify-center px-0",
-          )}
+          aria-label={props.collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          data-tip={props.collapsed ? "Expand sidebar (Ctrl+B)" : "Collapse sidebar (Ctrl+B)"}
+          className="fp-btn flex h-8 w-full items-center justify-center rounded-md text-fp-faint hover:bg-fp-hover hover:text-fp-ink"
         >
           <IconChevron dir={props.collapsed ? "right" : "left"} className="h-3.5 w-3.5" />
-          {props.collapsed ? (
-            <span className="sr-only">Expand sidebar</span>
-          ) : (
-            <span>Collapse</span>
-          )}
         </button>
       </div>
     </aside>

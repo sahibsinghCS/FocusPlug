@@ -46,12 +46,12 @@ export function PlugsPage(): JSX.Element {
   }
 
   return (
-    <div className="mx-auto flex max-w-[920px] flex-col gap-5 px-7 py-6">
+    <div className="mx-auto flex max-w-[920px] flex-col gap-4 px-7 py-5">
       <header>
         <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-fp-faint">
           Outlets
         </p>
-        <h1 className="mt-1 text-[22px] font-semibold tracking-tight">Smart plugs</h1>
+        <h1 className="mt-1 text-[18px] font-semibold tracking-tight">Smart plugs</h1>
         <p className="mt-1 text-[13px] text-fp-mute">
           Optional kill targets for lamps, fans, and other fun devices. Demo Kill and the
           countdown overlay cut every armed plug.

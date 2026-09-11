@@ -25,9 +25,7 @@ export function Titlebar(props: {
           <p className="flex items-baseline gap-2 leading-none">
             <span className="text-[13px] font-semibold tracking-tight">FocusPlug</span>
             {app.usingMock ? (
-              <span className="rounded border border-fp-line px-1 py-px font-mono text-[9px] uppercase tracking-[0.14em] text-fp-faint">
-                Mock
-              </span>
+              <span className="sr-only">Using mock IPC</span>
             ) : null}
           </p>
         </div>

@@ -57,12 +57,12 @@ export function ListPage(props: ListPageProps): JSX.Element {
   }
 
   return (
-    <div className="mx-auto flex max-w-[860px] flex-col gap-5 px-7 py-6">
+    <div className="mx-auto flex max-w-[860px] flex-col gap-4 px-7 py-5">
       <header>
         <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-fp-faint">
           {isAllow ? "Study apps" : "Kill targets"}
         </p>
-        <h1 className="mt-1 text-[22px] font-semibold tracking-tight">
+        <h1 className="mt-1 text-[18px] font-semibold tracking-tight">
           {isAllow ? "Allowlist" : "Blocklist"}
         </h1>
         <p className="mt-1 text-[13px] text-fp-mute">
