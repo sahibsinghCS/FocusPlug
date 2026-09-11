@@ -2,7 +2,7 @@ import type { JSX, ReactNode } from "react";
 import { cn } from "../lib/cn";
 import type { Tone } from "../lib/format";
 
-export function Led(props: { tone: Tone; live?: boolean }): JSX.Element {
+export function Led(props: { tone: Tone; live?: boolean; className?: string }): JSX.Element {
   const color =
     props.tone === "lime"
       ? "bg-fp-lime shadow-[0_0_8px_rgba(212,255,58,0.85)]"
@@ -10,10 +10,15 @@ export function Led(props: { tone: Tone; live?: boolean }): JSX.Element {
         ? "bg-fp-red shadow-[0_0_8px_rgba(255,45,85,0.9)]"
         : props.tone === "amber"
           ? "bg-fp-amber shadow-[0_0_8px_rgba(255,176,32,0.85)]"
-          : "bg-zinc-600";
+          : "bg-[#4b5568]";
   return (
     <span
-      className={cn("inline-block h-1.5 w-1.5 rounded-full", color, props.live && "led-live")}
+      className={cn(
+        "inline-block h-1.5 w-1.5 shrink-0 rounded-full",
+        color,
+        props.live && "led-live",
+        props.className,
+      )}
       aria-hidden="true"
     />
   );
@@ -32,13 +37,13 @@ export function Toggle(props: {
       aria-label={props.label}
       onClick={() => props.onChange(!props.checked)}
       className={cn(
-        "relative h-5 w-9 rounded-full transition-colors",
-        props.checked ? "bg-fp-lime" : "bg-zinc-700",
+        "fp-btn relative h-5 w-9 rounded-full",
+        props.checked ? "bg-fp-lime" : "bg-[#3f4654]",
       )}
     >
       <span
         className={cn(
-          "absolute top-0.5 h-4 w-4 rounded-full bg-fp-bg shadow transition-all",
+          "absolute top-0.5 h-4 w-4 rounded-full bg-fp-bg shadow transition-[left] duration-150",
           props.checked ? "left-[18px]" : "left-0.5",
         )}
       />
@@ -51,13 +56,17 @@ export function PrimaryButton(props: {
   onClick?: () => void;
   disabled?: boolean;
   submit?: boolean;
+  className?: string;
 }): JSX.Element {
   return (
     <button
       type={props.submit ? "submit" : "button"}
       disabled={props.disabled}
       onClick={props.onClick}
-      className="inline-flex h-9 items-center justify-center rounded-md bg-fp-lime px-3.5 text-[13px] font-semibold text-fp-bg transition hover:bg-[#e2ff6a] disabled:cursor-not-allowed disabled:opacity-40"
+      className={cn(
+        "fp-btn inline-flex h-8 items-center justify-center rounded-md bg-fp-lime px-3 text-[13px] font-semibold text-fp-mark-ink shadow-fp-lime hover:bg-[#e2ff6a] disabled:cursor-not-allowed disabled:opacity-40",
+        props.className,
+      )}
     >
       {props.children}
     </button>
@@ -68,13 +77,17 @@ export function GhostButton(props: {
   children: ReactNode;
   onClick: () => void;
   disabled?: boolean;
+  className?: string;
 }): JSX.Element {
   return (
     <button
       type="button"
       disabled={props.disabled}
       onClick={props.onClick}
-      className="inline-flex h-9 items-center justify-center rounded-md border border-fp-line-strong bg-transparent px-3.5 text-[13px] font-medium text-fp-ink transition hover:bg-fp-hover disabled:cursor-not-allowed disabled:opacity-40"
+      className={cn(
+        "fp-btn inline-flex h-8 items-center justify-center rounded-md border border-fp-line-strong bg-transparent px-3 text-[13px] font-medium text-fp-ink hover:bg-fp-hover disabled:cursor-not-allowed disabled:opacity-40",
+        props.className,
+      )}
     >
       {props.children}
     </button>
@@ -93,7 +106,33 @@ export function DangerButton(props: {
       disabled={props.disabled}
       onClick={props.onClick}
       className={cn(
-        "inline-flex h-10 items-center justify-center gap-2 rounded-md bg-fp-red px-4 text-[13px] font-semibold tracking-wide text-white shadow-[0_0_28px_rgba(255,45,85,0.28)] transition hover:bg-[#ff4d6d] disabled:cursor-not-allowed disabled:opacity-40",
+        "fp-btn inline-flex h-9 items-center justify-center gap-2 rounded-md bg-fp-red px-4 text-[13px] font-semibold tracking-wide text-white shadow-fp-red hover:bg-[#ff4d6d] disabled:cursor-not-allowed disabled:opacity-40",
+        props.className,
+      )}
+    >
+      {props.children}
+    </button>
+  );
+}
+
+export function IconButton(props: {
+  children: ReactNode;
+  onClick: () => void;
+  label: string;
+  pressed?: boolean;
+  tip?: string;
+  className?: string;
+}): JSX.Element {
+  return (
+    <button
+      type="button"
+      aria-label={props.label}
+      aria-pressed={props.pressed}
+      data-tip={props.tip}
+      onClick={props.onClick}
+      className={cn(
+        "fp-btn inline-flex h-7 w-7 items-center justify-center rounded-md text-fp-mute hover:bg-fp-hover hover:text-fp-ink",
+        props.pressed && "bg-white/5 text-fp-ink",
         props.className,
       )}
     >
@@ -130,7 +169,7 @@ export function TextInput(props: {
       placeholder={props.placeholder}
       onChange={(event) => props.onChange(event.target.value)}
       className={cn(
-        "h-9 w-full rounded-md border border-fp-line bg-fp-elev px-3 text-[13px] text-fp-ink placeholder:text-fp-faint",
+        "fp-control h-8 w-full px-3 text-[13px] placeholder:text-fp-faint",
         props.mono && "font-mono text-[12px]",
       )}
     />
@@ -150,7 +189,7 @@ export function Select<T extends string>(props: {
       onChange={(event) => {
         props.onChange(event.target.value as T);
       }}
-      className="h-9 w-full rounded-md border border-fp-line bg-fp-elev px-3 text-[13px] text-fp-ink"
+      className="fp-control h-8 w-full px-3 text-[13px]"
     >
       {props.options.map((option) => (
         <option key={option.value} value={option.value}>
@@ -179,5 +218,46 @@ export function Chip(props: { tone: Tone; children: ReactNode }): JSX.Element {
     >
       {props.children}
     </span>
+  );
+}
+
+export function StatusPill(props: {
+  label: string;
+  detail: string;
+  tone: Tone;
+  live?: boolean;
+  onClick?: () => void;
+}): JSX.Element {
+  const body = (
+    <>
+      <Led tone={props.tone} live={props.live} />
+      <span className="hidden text-[10px] font-semibold uppercase tracking-[0.14em] text-fp-faint sm:inline">
+        {props.label}
+      </span>
+      <span className="max-w-[9rem] truncate font-mono text-[11px] text-fp-ink tabular">
+        {props.detail}
+      </span>
+    </>
+  );
+  const classes = cn(
+    "inline-flex h-7 max-w-full items-center gap-1.5 rounded-md border border-fp-line bg-fp-elev/80 px-2",
+    props.onClick && "fp-btn hover:border-fp-line-strong hover:bg-fp-hover",
+  );
+  if (props.onClick) {
+    return (
+      <button
+        type="button"
+        onClick={props.onClick}
+        className={classes}
+        aria-label={`${props.label}: ${props.detail}`}
+      >
+        {body}
+      </button>
+    );
+  }
+  return (
+    <div className={classes} aria-label={`${props.label}: ${props.detail}`}>
+      {body}
+    </div>
   );
 }
