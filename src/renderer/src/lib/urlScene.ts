@@ -1,4 +1,4 @@
-export type SceneName = "default" | "live" | "distracted";
+export type SceneName = "default" | "live" | "distracted" | "away" | "recovered";
 
 export interface UrlScene {
   countdown: number | null;
@@ -6,24 +6,31 @@ export interface UrlScene {
   freeze: boolean;
 }
 
-function readParam(name: string): string | null {
-  const search = new URLSearchParams(window.location.search);
-  const hash = window.location.hash;
+function readParam(search: string, hash: string, name: string): string | null {
+  const query = new URLSearchParams(search);
   const hashQuery = hash.includes("?") ? hash.slice(hash.indexOf("?") + 1) : "";
   const hashParams = new URLSearchParams(hashQuery);
-  return search.get(name) ?? hashParams.get(name);
+  return query.get(name) ?? hashParams.get(name);
 }
 
-export function readUrlScene(): UrlScene {
-  const rawCountdown = readParam("countdown");
+export function parseUrlScene(search: string, hash: string): UrlScene {
+  const rawCountdown = readParam(search, hash, "countdown");
   const parsed = rawCountdown ? Number.parseInt(rawCountdown, 10) : Number.NaN;
   const countdown = Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-  const sceneParam = readParam("scene");
+  const sceneParam = readParam(search, hash, "scene");
   let scene: SceneName = "default";
   if (sceneParam === "live") {
     scene = "live";
+  } else if (sceneParam === "away") {
+    scene = "away";
+  } else if (sceneParam === "recovered") {
+    scene = "recovered";
   } else if (sceneParam === "distracted" || countdown !== null) {
     scene = "distracted";
   }
-  return { countdown, scene, freeze: readParam("freeze") !== null };
+  return { countdown, scene, freeze: readParam(search, hash, "freeze") !== null };
+}
+
+export function readUrlScene(): UrlScene {
+  return parseUrlScene(window.location.search, window.location.hash);
 }
