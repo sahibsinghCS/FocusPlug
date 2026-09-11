@@ -146,10 +146,15 @@ describe("groupLogEvents", () => {
       (group) => group.summary.includes("Kill") && group.summary.includes("Unlock"),
     );
     expect(enforcement).toBeDefined();
+    expect(enforcement?.summary).toBe(
+      "Distracted → Countdown → Kill → Plug off → Unlock → Plug on",
+    );
     const stages = enforcement?.events.map((event) => event.stage) ?? [];
     expect(stages).toContain("countdown");
     expect(stages).toContain("consequence");
     expect(stages).toContain("recovery");
+    const armed = groups.find((group) => group.summary.includes("Session started"));
+    expect(armed?.id).not.toBe(enforcement?.id);
   });
 
   it("splits Demo Kill from an already recovered kill chain", () => {

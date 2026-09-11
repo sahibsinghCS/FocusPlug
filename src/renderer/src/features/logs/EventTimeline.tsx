@@ -15,7 +15,7 @@ export function EventTimeline(props: { groups: readonly TimelineGroup[] }): JSX.
         return (
           <section key={group.id} className="border-b border-fp-line" aria-label={group.summary}>
             <header className="sticky top-0 z-10 flex items-baseline gap-3 bg-fp-bg/95 px-6 py-2 backdrop-blur-sm">
-              <h2 className="min-w-0 flex-1 text-[12px] font-medium leading-snug text-zinc-200 break-words">
+              <h2 className="min-w-0 flex-1 truncate text-[12px] font-medium leading-snug text-zinc-200" title={group.summary}>
                 {group.summary}
               </h2>
               <p className="shrink-0 font-mono text-[10px] tabular text-fp-faint">

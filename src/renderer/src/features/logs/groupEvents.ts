@@ -2,6 +2,30 @@ import type { LogEventView } from "./eventModel";
 
 const CLUSTER_GAP_MS = 45_000;
 
+const STAGE_RANK: Record<LogEventView["stage"], number> = {
+  sensor: 0,
+  decision: 1,
+  countdown: 2,
+  consequence: 3,
+  recovery: 4,
+  config: 5,
+};
+
+function compareCausal(left: LogEventView, right: LogEventView): number {
+  const delta = left.event.ts - right.event.ts;
+  if (Math.abs(delta) >= 500) {
+    return delta;
+  }
+  const rank = STAGE_RANK[left.stage] - STAGE_RANK[right.stage];
+  if (rank !== 0) {
+    return rank;
+  }
+  if (delta !== 0) {
+    return delta;
+  }
+  return left.key.localeCompare(right.key);
+}
+
 export interface TimelineGroup {
   id: string;
   summary: string;
@@ -15,12 +39,7 @@ export function groupLogEvents(views: readonly LogEventView[]): TimelineGroup[] 
     return [];
   }
 
-  const chronological = [...views].sort((left, right) => {
-    if (left.event.ts !== right.event.ts) {
-      return left.event.ts - right.event.ts;
-    }
-    return left.key.localeCompare(right.key);
-  });
+  const chronological = [...views].sort(compareCausal);
 
   const clusters: LogEventView[][] = [];
   for (const view of chronological) {
@@ -106,6 +125,9 @@ function shouldStartGroup(current: readonly LogEventView[], next: LogEventView):
   if (episodeClosed(current) && opensNewEpisode(next)) {
     return true;
   }
+  if (shouldSplitArmedFromFuse(current, next)) {
+    return true;
+  }
   return false;
 }
 
@@ -138,6 +160,30 @@ function opensNewEpisode(view: LogEventView): boolean {
   return false;
 }
 
+function shouldSplitArmedFromFuse(current: readonly LogEventView[], next: LogEventView): boolean {
+  if (!armedQuietCluster(current)) {
+    return false;
+  }
+  const lastOnTask = [...current].reverse().find((event) => event.title === "On task");
+  if (!lastOnTask || next.event.ts - lastOnTask.event.ts < 5_000) {
+    return false;
+  }
+  return opensNewEpisode(next) || next.kind === "focus";
+}
+
+function armedQuietCluster(events: readonly LogEventView[]): boolean {
+  const armed = events.some((event) => event.title === "On task" || isSessionStart(event));
+  const alreadyFusing = events.some(
+    (event) =>
+      event.stage === "countdown" ||
+      event.kind === "kill" ||
+      event.kind === "demo" ||
+      event.title === "Distracted" ||
+      event.title === "Away",
+  );
+  return armed && !alreadyFusing;
+}
+
 function summarizeGroup(events: readonly LogEventView[]): string {
   const tokens: string[] = [];
   for (const event of events) {
@@ -149,8 +195,24 @@ function summarizeGroup(events: readonly LogEventView[]): string {
   if (tokens.length === 0) {
     return events[0]?.kindLabel ?? "Events";
   }
+  const spine = tokens.filter((token) => SPINE_HEADLINE.has(token));
+  if (spine.length >= 2) {
+    return spine.join(" → ");
+  }
   return tokens.join(" → ");
 }
+
+const SPINE_HEADLINE = new Set([
+  "Distracted",
+  "Away",
+  "Countdown",
+  "Cancelled",
+  "Kill",
+  "Demo Kill",
+  "Plug off",
+  "Unlock",
+  "Plug on",
+]);
 
 function flowToken(event: LogEventView): string | null {
   if (event.kind === "focus") {

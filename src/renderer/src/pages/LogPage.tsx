@@ -59,8 +59,8 @@ export function LogPage(): JSX.Element {
         }
       }
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
   }, [helpOpen, query]);
 
   useEffect(() => {
@@ -102,12 +102,14 @@ export function LogPage(): JSX.Element {
           </p>
           <h1 className="mt-0.5 text-[17px] font-semibold tracking-tight">Session log</h1>
           <p className="mt-1 text-[12px] text-fp-mute">
-            Sensor → Decision → Countdown → Kill / Plug off → Unlock / Plug on
+            Causal timeline of real session events
             {newest ? (
               <span className="text-fp-faint">
-                {` · ${formatClock(newest.event.ts)} · ${formatRelative(newest.event.ts, now)}`}
+                {` · latest ${formatClock(newest.event.ts)} · ${formatRelative(newest.event.ts, now)}`}
               </span>
-            ) : null}
+            ) : (
+              " · empty until Start session"
+            )}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
