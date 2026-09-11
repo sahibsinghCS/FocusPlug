@@ -6,8 +6,18 @@ export {
   sceneIsOccluded,
   UNCERTAIN_MIN_PROB,
 } from "./classify";
-export { BlazeFaceDetector, DESK_MODEL_ID, getSharedDetector } from "./detector";
 export { decodeImageBuffer } from "./frame";
+export {
+  BLAZEFACE_GRAPH_ID,
+  BlazeFaceDeskModel,
+  createDeskModel,
+  DEFAULT_DESK_MODEL_ID,
+  deskModelFactory,
+  getSharedDeskModel,
+  resolveDeskModelId,
+  StubDeskModel,
+  YourModel,
+} from "./model";
 export {
   createDeskMonitor,
   DEFAULT_DESK_INTERVAL_MS,

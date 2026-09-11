@@ -4,8 +4,11 @@ import { analyzeDeskFrame } from "./analyze";
 import { deskRoot } from "./assets";
 import { ScriptedFrameSource } from "./camera";
 import { AT_DESK_MIN_PROB } from "./classify";
-import { BlazeFaceDetector, DESK_MODEL_ID } from "./detector";
 import { decodeImageBuffer } from "./frame";
+import type { DeskModel } from "@shared/types";
+import { createDeskModel } from "./model/factory";
+import { runModelSeamUnitChecks } from "./model/unit-checks";
+import type { RunnableDeskModel } from "./model/types";
 import { DeskMonitor } from "./monitor";
 import { runClassifyUnitChecks } from "./unit-checks";
 import type { DeskAnalysis, RgbFrame } from "./types";
@@ -61,13 +64,13 @@ function assert(assertions: Assertion[], name: string, pass: boolean, detail: st
 
 async function main(): Promise<void> {
   const assertions: Assertion[] = [];
-  const unitChecks = runClassifyUnitChecks();
+  const unitChecks = [...runClassifyUnitChecks(), ...(await runModelSeamUnitChecks())];
   for (const check of unitChecks) {
     assert(assertions, `unit: ${check.name}`, check.pass, check.detail);
   }
 
-  const detector = new BlazeFaceDetector();
-  await detector.init();
+  const model = createDeskModel("blazeface");
+  await model.init();
 
   const names = ["face.jpg", "covered.jpg", "empty.jpg", "noise.jpg"];
   const fixtures: FixtureResult[] = [];
@@ -78,7 +81,7 @@ async function main(): Promise<void> {
       repeats.push(
         await analyzeDeskFrame({
           frame: loaded.frame,
-          detector,
+          model,
           ts: 1_000 + i,
           webcamEnabled: true,
         }),
@@ -148,7 +151,7 @@ async function main(): Promise<void> {
   const scripted = new ScriptedFrameSource(sequenceFrames.map((item) => item.frame));
   const monitor = new DeskMonitor({
     source: scripted,
-    detector,
+    model,
     intervalMs: 10,
     enabled: true,
     now: () => 42,
@@ -205,10 +208,63 @@ async function main(): Promise<void> {
     JSON.stringify(camOff ?? null),
   );
 
+  const stubModel = createDeskModel("stub");
+  const stubOnFace = await analyzeDeskFrame({
+    frame: face ? loadFixture("face.jpg").frame : null,
+    model: stubModel,
+    ts: 2_000,
+    webcamEnabled: true,
+  });
+  assert(
+    assertions,
+    "factory stub on face fixture is uncertain (never at_desk/away)",
+    stubOnFace.snapshot.label === "uncertain" && stubOnFace.snapshot.confidence === 0,
+    JSON.stringify(stubOnFace.snapshot),
+  );
+
+  const stubSource = new ScriptedFrameSource([
+    face ? loadFixture("face.jpg").frame : null,
+    covered ? loadFixture("covered.jpg").frame : null,
+  ]);
+  const stubMonitor = new DeskMonitor({
+    source: stubSource,
+    model: stubModel,
+    intervalMs: 10,
+    enabled: true,
+    now: () => 99,
+  });
+  await stubSource.start();
+  const stubStep1 = await stubMonitor.step();
+  const stubStep2 = await stubMonitor.step();
+  stubMonitor.stop();
+  assert(
+    assertions,
+    "stub monitor session stays uncertain without crashing",
+    stubStep1.label === "uncertain" &&
+      stubStep1.confidence === 0 &&
+      stubStep2.label === "uncertain" &&
+      stubStep2.confidence === 0,
+    JSON.stringify({ stubStep1, stubStep2 }),
+  );
+
+  const customModel = createDeskModel("custom");
+  const customOnFace = await analyzeDeskFrame({
+    frame: face ? loadFixture("face.jpg").frame : null,
+    model: customModel,
+    ts: 3_000,
+    webcamEnabled: true,
+  });
+  assert(
+    assertions,
+    "unimplemented custom model is uncertain (safe until Timmy implements infer)",
+    customOnFace.snapshot.label === "uncertain" && customOnFace.snapshot.confidence === 0,
+    JSON.stringify(customOnFace.snapshot),
+  );
+
   const report: GauntletReport = {
     ranAt: new Date().toISOString(),
-    model: DESK_MODEL_ID,
-    backend: detector.backend(),
+    model: model.id,
+    backend: modelBackend(model),
     unitChecks,
     fixtures: fixtures.map((fixture) => ({
       id: fixture.id,
@@ -260,6 +316,14 @@ async function main(): Promise<void> {
     console.error(`Gauntlet FAIL (${failed.length} assertion(s))`);
     process.exitCode = 1;
   }
+}
+
+function modelBackend(model: DeskModel): string {
+  const extra = model as RunnableDeskModel;
+  if (typeof extra.backend === "function") {
+    return extra.backend();
+  }
+  return "n/a";
 }
 
 void main().catch((error: unknown) => {

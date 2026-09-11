@@ -1,14 +1,20 @@
-import { classifyDesk, faceAreaRatio, isUsableFace, sceneIsOccluded } from "./classify";
-import { DESK_MODEL_ID } from "./detector";
-import { frameStats } from "./frame";
-import type { BlazeFaceDetector } from "./detector";
+import type { DeskFrame, DeskModel, DeskModelOutput } from "@shared/types";
+import type { DeskModelResult, RunnableDeskModel } from "./model/types";
 import type { DeskAnalysis, DeskDebug, RgbFrame } from "./types";
 
-function debugStub(
-  reason: string,
-  backend: string,
-  extras?: Partial<DeskDebug>,
-): DeskDebug {
+function isDeskModelResult(value: DeskModelOutput): value is DeskModelResult {
+  return "debug" in value && typeof value.debug === "object" && value.debug !== null;
+}
+
+function modelBackend(model: DeskModel): string {
+  const candidate = model as RunnableDeskModel;
+  if (typeof candidate.backend === "function") {
+    return candidate.backend();
+  }
+  return "n/a";
+}
+
+function baseDebug(model: DeskModel, reason: string): DeskDebug {
   return {
     reason,
     faceCount: 0,
@@ -17,87 +23,82 @@ function debugStub(
     meanLuma: 0,
     lumaStd: 0,
     largestFaceAreaRatio: 0,
-    backend,
-    model: DESK_MODEL_ID,
-    ...extras,
+    backend: modelBackend(model),
+    model: model.id,
   };
 }
 
+function asDeskFrame(frame: RgbFrame | DeskFrame): DeskFrame {
+  return frame;
+}
+
+/**
+ * Single analyze path: call `DeskModel.infer(frame)` only.
+ * Webcam-off / missing frame never reach infer — the frozen contract
+ * requires a `DeskFrame`, and uncertain is safe (no desk-only kill).
+ */
 export async function analyzeDeskFrame(options: {
-  frame: RgbFrame | null;
-  detector: BlazeFaceDetector;
+  frame: RgbFrame | DeskFrame | null;
+  model: DeskModel;
   ts: number;
   webcamEnabled: boolean;
 }): Promise<DeskAnalysis> {
-  const backend = options.detector.backend();
-
   if (!options.webcamEnabled) {
     return {
-      snapshot: classifyDesk({
+      snapshot: {
         ts: options.ts,
+        label: "uncertain",
+        confidence: 0,
         webcamEnabled: false,
-        frame: null,
-        faces: [],
-      }),
-      debug: debugStub("webcam-disabled", backend),
+      },
+      debug: baseDebug(options.model, "webcam-disabled"),
     };
   }
 
   if (!options.frame) {
     return {
-      snapshot: classifyDesk({
+      snapshot: {
         ts: options.ts,
+        label: "uncertain",
+        confidence: 0,
         webcamEnabled: true,
-        frame: null,
-        faces: [],
-      }),
-      debug: debugStub("no-frame", backend),
+      },
+      debug: baseDebug(options.model, "no-frame"),
     };
   }
 
   try {
-    const stats = frameStats(options.frame);
-    const faces = await options.detector.detect(options.frame);
-    const usable = faces.filter((face) => isUsableFace(face, stats));
+    const inference = await options.model.infer(asDeskFrame(options.frame));
+    const faces = inference.faces ?? [];
     const maxProbability = faces.reduce(
       (max, face) => Math.max(max, face.probability),
       0,
     );
-    const largest = faces[0]
-      ? faces.reduce((best, face) =>
-          faceAreaRatio(face, stats) > faceAreaRatio(best, stats) ? face : best,
-        )
-      : undefined;
-    const occluded = sceneIsOccluded(stats);
+    const debug = {
+      ...baseDebug(options.model, "inference"),
+      faceCount: faces.length,
+      maxProbability,
+      ...(isDeskModelResult(inference) ? inference.debug : {}),
+    };
     return {
-      snapshot: classifyDesk({
+      snapshot: {
         ts: options.ts,
+        label: inference.label,
+        confidence: inference.confidence,
         webcamEnabled: true,
-        frame: stats,
-        faces,
-      }),
-      debug: {
-        reason: occluded ? "occluded-frame" : "inference",
-        faceCount: faces.length,
-        usableFaceCount: usable.length,
-        maxProbability,
-        meanLuma: stats.meanLuma,
-        lumaStd: stats.lumaStd,
-        largestFaceAreaRatio: largest ? faceAreaRatio(largest, stats) : 0,
-        backend,
-        model: DESK_MODEL_ID,
       },
+      debug,
     };
   } catch (error) {
-    const message = error instanceof Error ? error.message : "detect-failed";
+    const message = error instanceof Error ? error.message : "infer-failed";
     return {
-      snapshot: classifyDesk({
+      snapshot: {
         ts: options.ts,
+        label: "uncertain",
+        confidence: 0,
         webcamEnabled: true,
-        frame: null,
-        faces: [],
-      }),
-      debug: debugStub("detect-error", backend, { reason: `detect-error:${message}` }),
+      },
+      debug: baseDebug(options.model, `infer-error:${message}`),
     };
   }
 }

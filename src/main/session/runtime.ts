@@ -28,7 +28,10 @@ export function createSessionRuntime(options: SessionRuntimeOptions): SessionCon
     loadAllowlist: () => store.loadAllowlist(),
     loadBlocklist: () => store.loadBlocklist(),
   });
-  const deskMonitor = createDeskMonitor({ enabled: settings.webcamEnabled });
+  const deskMonitor = createDeskMonitor({
+    enabled: settings.webcamEnabled,
+    modelId: settings.deskModelId,
+  });
   const killer = createProcessKiller({
     getAllowlistMatchers: () =>
       store.loadAllowlist().flatMap((entry) => (entry.enabled ? entry.match : [])),

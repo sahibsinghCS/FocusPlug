@@ -1,8 +1,12 @@
 import type { DeskMonitor as DeskMonitorContract } from "@shared/ipc";
-import type { DeskSnapshot } from "@shared/types";
+import type { DeskModel, DeskModelId, DeskSnapshot } from "@shared/types";
 import { analyzeDeskFrame } from "./analyze";
 import { createDefaultFrameSource } from "./camera";
-import { BlazeFaceDetector, getSharedDetector } from "./detector";
+import {
+  DEFAULT_DESK_MODEL_ID,
+  getSharedDeskModel,
+  resolveDeskModelId,
+} from "./model/factory";
 import type { FrameSource } from "./types";
 
 export const DEFAULT_DESK_INTERVAL_MS = 250;
@@ -11,7 +15,8 @@ export interface DeskMonitorOptions {
   enabled?: boolean;
   intervalMs?: number;
   source?: FrameSource;
-  detector?: BlazeFaceDetector;
+  model?: DeskModel;
+  modelId?: DeskModelId;
   now?: () => number;
 }
 
@@ -21,8 +26,9 @@ export class DeskMonitor implements DeskMonitorContract {
   private readonly now: () => number;
   private source: FrameSource | null;
   private readonly injectedSource: FrameSource | undefined;
-  private readonly injectedDetector: BlazeFaceDetector | undefined;
-  private detector: BlazeFaceDetector | null = null;
+  private readonly injectedModel: DeskModel | undefined;
+  private modelId: DeskModelId;
+  private model: DeskModel | null = null;
   private callback: ((snap: DeskSnapshot) => void) | null = null;
   private running = false;
   private loopGen = 0;
@@ -33,8 +39,10 @@ export class DeskMonitor implements DeskMonitorContract {
     this.intervalMs = options.intervalMs ?? DEFAULT_DESK_INTERVAL_MS;
     this.now = options.now ?? Date.now;
     this.injectedSource = options.source;
-    this.injectedDetector = options.detector;
+    this.injectedModel = options.model;
+    this.modelId = resolveDeskModelId(options.modelId);
     this.source = options.source ?? null;
+    this.model = options.model ?? null;
   }
 
   start(cb: (snap: DeskSnapshot) => void): void {
@@ -76,12 +84,24 @@ export class DeskMonitor implements DeskMonitorContract {
     }
   }
 
+  /** Swap the factory model (ignored when a model instance was injected). */
+  setModelId(id: DeskModelId): void {
+    const next = resolveDeskModelId(id);
+    if (this.modelId === next) {
+      return;
+    }
+    this.modelId = next;
+    if (!this.injectedModel) {
+      this.model = null;
+    }
+  }
+
   /** One capture + classify cycle. Used by the live loop and the gauntlet. */
   async step(): Promise<DeskSnapshot> {
     await this.ensureReady();
-    const detector = this.detector;
-    if (!detector) {
-      throw new Error("Desk detector is not ready");
+    const model = this.model;
+    if (!model) {
+      throw new Error("Desk model is not ready");
     }
     let frame = null;
     if (this.enabled && this.source) {
@@ -93,7 +113,7 @@ export class DeskMonitor implements DeskMonitorContract {
     }
     const analysis = await analyzeDeskFrame({
       frame,
-      detector,
+      model,
       ts: this.now(),
       webcamEnabled: this.enabled,
     });
@@ -110,8 +130,8 @@ export class DeskMonitor implements DeskMonitorContract {
   }
 
   private async ensureReady(): Promise<void> {
-    if (!this.detector) {
-      this.detector = this.injectedDetector ?? (await getSharedDetector());
+    if (!this.model) {
+      this.model = this.injectedModel ?? (await getSharedDeskModel(this.modelId));
     }
     if (!this.source) {
       this.source = this.injectedSource ?? (await createDefaultFrameSource());
@@ -128,7 +148,10 @@ export class DeskMonitor implements DeskMonitorContract {
 }
 
 export function createDeskMonitor(options: DeskMonitorOptions = {}): DeskMonitor {
-  return new DeskMonitor(options);
+  return new DeskMonitor({
+    ...options,
+    modelId: resolveDeskModelId(options.modelId ?? DEFAULT_DESK_MODEL_ID),
+  });
 }
 
 function delay(ms: number): Promise<void> {

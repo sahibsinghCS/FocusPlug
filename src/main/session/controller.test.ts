@@ -388,6 +388,7 @@ describe("FocusPlugStore persistence", () => {
       deskThreshold: 0.7,
       strictMode: true,
       webcamEnabled: false,
+      deskModelId: "blazeface",
     });
     store.appendSessionLog({ ts: 10, kind: "session", detail: "started" });
     store.appendSessionLog({ ts: 11, kind: "kill", detail: "discord" });
