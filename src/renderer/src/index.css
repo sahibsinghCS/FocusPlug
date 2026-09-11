@@ -36,26 +36,36 @@
   --font-sans: Geist, "Segoe UI Variable", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
 
-  --color-fp-bg: #09090b;
-  --color-fp-sidebar: #0c0c0e;
-  --color-fp-panel: #111113;
-  --color-fp-elev: #161618;
-  --color-fp-hover: #1c1c20;
-  --color-fp-line: rgba(255, 255, 255, 0.075);
-  --color-fp-line-strong: rgba(255, 255, 255, 0.14);
-  --color-fp-ink: #f4f4f5;
-  --color-fp-mute: #a1a1aa;
-  --color-fp-faint: #71717a;
-  --color-fp-lime: #d4ff3a;
-  --color-fp-red: #ff2d55;
-  --color-fp-amber: #ffb020;
+  --color-fp-bg: #10110e;
+  --color-fp-sidebar: #0e0f0c;
+  --color-fp-panel: #161713;
+  --color-fp-elev: #1c1d18;
+  --color-fp-hover: #24251f;
+  --color-fp-line: rgba(232, 230, 214, 0.12);
+  --color-fp-line-strong: rgba(232, 230, 214, 0.22);
+  --color-fp-ink: #eceadf;
+  --color-fp-mute: #9a9788;
+  --color-fp-faint: #6e6c61;
+  --color-fp-lime: #c8dd4a;
+  --color-fp-red: #e61919;
+  --color-fp-amber: #c4922a;
   --color-fp-blue: #6b8cff;
+
+  --ease-fp: cubic-bezier(0.16, 1, 0.3, 1);
+  --z-grain: 40;
+  --z-overlay: 50;
+  --z-skip: 70;
 }
 
 html,
 body,
 #root {
   height: 100%;
+  min-height: 100dvh;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
@@ -76,7 +86,7 @@ body {
 
 ::selection {
   background: var(--color-fp-lime);
-  color: #09090b;
+  color: #10110e;
 }
 
 button,
@@ -105,13 +115,79 @@ button {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #27272a;
-  border-radius: 99px;
+  background: #2a2b24;
   border: 2px solid var(--color-fp-bg);
 }
 
 .tabular {
   font-variant-numeric: tabular-nums;
+}
+
+.skip-link {
+  position: absolute;
+  left: 12px;
+  top: -48px;
+  z-index: var(--z-skip);
+  background: var(--color-fp-lime);
+  color: #10110e;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.skip-link:focus {
+  top: 12px;
+}
+
+.fp-grain {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-grain);
+  pointer-events: none;
+  opacity: 0.045;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.fp-scan {
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 2px,
+    rgba(0, 0, 0, 0.18) 2px,
+    rgba(0, 0, 0, 0.18) 3px
+  );
+}
+
+.hazard-band {
+  background-color: rgba(230, 25, 25, 0.08);
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(230, 25, 25, 0.18) 0 10px,
+    transparent 10px 20px
+  );
+}
+
+input[type="range"] {
+  appearance: none;
+  height: 2px;
+  background: var(--color-fp-line-strong);
+  outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  background: var(--color-fp-lime);
+  border: 0;
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  background: var(--color-fp-lime);
+  border: 0;
 }
 
 @keyframes led-pulse {
@@ -138,21 +214,58 @@ button {
 @keyframes overlay-glow {
   0%,
   100% {
-    opacity: 0.42;
+    opacity: 0.34;
   }
   50% {
-    opacity: 0.72;
+    opacity: 0.58;
+  }
+}
+
+@keyframes fuse-tick {
+  from {
+    opacity: 0.7;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes skeleton-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
   }
 }
 
 .led-live {
-  animation: led-pulse 1.6s ease-in-out infinite;
+  animation: led-pulse 1.6s var(--ease-fp) infinite;
 }
 
 .overlay-num {
-  animation: overlay-pop 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation: overlay-pop 160ms var(--ease-fp);
 }
 
 .overlay-glow {
-  animation: overlay-glow 1.15s ease-in-out infinite;
+  animation: overlay-glow 1.15s var(--ease-fp) infinite;
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #1c1d18 0%, #2a2b24 50%, #1c1d18 100%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s var(--ease-fp) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .led-live,
+  .overlay-num,
+  .overlay-glow,
+  .skeleton {
+    animation: none;
+  }
 }

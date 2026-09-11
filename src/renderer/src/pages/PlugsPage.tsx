@@ -4,7 +4,17 @@ import { cn } from "../lib/cn";
 import { plugPowerLabel } from "../lib/format";
 import { looksLikeStudyPc, PLUG_PROTOCOLS, STUDY_PC_WARNING, type PlugView } from "../lib/plugsUi";
 import { useAppState } from "../state/AppState";
-import { Chip, GhostButton, PrimaryButton, Select, TextInput, Toggle } from "../components/ui";
+import {
+  Chip,
+  GhostButton,
+  PageChrome,
+  PrimaryButton,
+  Select,
+  Surface,
+  TextButton,
+  TextInput,
+  Toggle,
+} from "../components/ui";
 
 const PROTOCOL_OPTIONS: ReadonlyArray<{ value: PlugProtocol; label: string }> = PLUG_PROTOCOLS.map(
   (protocol) => ({ value: protocol, label: protocol }),
@@ -46,30 +56,18 @@ export function PlugsPage(): JSX.Element {
   }
 
   return (
-    <div className="mx-auto flex max-w-[920px] flex-col gap-5 px-7 py-6">
-      <header>
-        <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-fp-faint">
-          Outlets
-        </p>
-        <h1 className="mt-1 text-[22px] font-semibold tracking-tight">Smart plugs</h1>
-        <p className="mt-1 text-[13px] text-fp-mute">
-          Optional kill targets for lamps, fans, and other fun devices. Demo Kill and the
-          countdown overlay cut every armed plug.
-        </p>
-        <p className="mt-2 font-mono text-[12px] text-fp-faint">
-          {enabledCount} enabled · {app.plugs.length} total
-        </p>
-      </header>
-
-      <aside
-        className="rounded-lg border border-fp-amber/40 bg-fp-amber/[0.08] px-4 py-3"
-        role="note"
-      >
-        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-fp-amber">
+    <PageChrome
+      title="Smart plugs"
+      description="Optional kill targets for lamps, fans, and other fun devices. Demo Kill and the countdown overlay cut every armed plug."
+      meta={`${enabledCount} enabled  ${app.plugs.length} total`}
+      maxWidthClassName="max-w-[920px]"
+    >
+      <aside className="border border-fp-amber/40 bg-fp-amber/[0.08] px-4 py-3" role="note">
+        <p className="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-fp-amber">
           Safety
         </p>
         <p className="mt-1 text-[14px] font-medium text-fp-ink">{STUDY_PC_WARNING}</p>
-        <p className="mt-1 text-[12px] text-fp-mute">
+        <p className="mt-1 max-w-[65ch] text-[12px] leading-relaxed text-fp-mute">
           Do not add the machine running FocusPlug, a PSU, or any outlet that would drop the
           session. Mock is the filming path; kasa and http talk LAN only.
         </p>
@@ -79,19 +77,17 @@ export function PlugsPage(): JSX.Element {
         onSubmit={(event) => {
           void onAdd(event);
         }}
-        className="rounded-lg border border-fp-line bg-fp-panel p-4"
+        className="border border-fp-line bg-fp-panel p-4"
       >
         <div className="grid gap-3 md:grid-cols-[1fr_1.2fr_140px_auto] md:items-end">
           <label>
-            <span className="text-[11px] uppercase tracking-[0.16em] text-fp-faint">Name</span>
+            <span className="text-[12px] text-fp-mute">Name</span>
             <div className="mt-1.5">
               <TextInput value={name} onChange={setName} placeholder="Desk lamp" />
             </div>
           </label>
           <label>
-            <span className="text-[11px] uppercase tracking-[0.16em] text-fp-faint">
-              Address
-            </span>
+            <span className="text-[12px] text-fp-mute">Address</span>
             <div className="mt-1.5">
               <TextInput
                 value={address}
@@ -102,9 +98,7 @@ export function PlugsPage(): JSX.Element {
             </div>
           </label>
           <label>
-            <span className="text-[11px] uppercase tracking-[0.16em] text-fp-faint">
-              Protocol
-            </span>
+            <span className="text-[12px] text-fp-mute">Protocol</span>
             <div className="mt-1.5">
               <Select
                 value={protocol}
@@ -119,30 +113,35 @@ export function PlugsPage(): JSX.Element {
         {formError ? <p className="mt-2 text-[12px] text-fp-red">{formError}</p> : null}
       </form>
 
-      <ul className="divide-y divide-fp-line overflow-hidden rounded-lg border border-fp-line bg-fp-panel">
-        {app.plugs.length === 0 ? (
-          <li className="px-4 py-10 text-center text-[13px] text-fp-mute">
-            No plugs yet. Add a mock device to film the outlet cut.
-          </li>
-        ) : (
-          app.plugs.map((plug) => (
-            <PlugRow
-              key={plug.id}
-              plug={plug}
-              onToggle={(enabled) => {
-                void app.setPlugEnabled(plug.id, enabled);
-              }}
-              onTest={(powerOn) => {
-                void app.testPlug(plug.id, powerOn);
-              }}
-              onRemove={() => {
-                void app.removePlug(plug.id);
-              }}
-            />
-          ))
-        )}
-      </ul>
-    </div>
+      <Surface>
+        <ul>
+          {app.plugs.length === 0 ? (
+            <li className="px-4 py-12">
+              <p className="text-[15px] font-medium">No plugs yet</p>
+              <p className="mt-1 max-w-[48ch] text-[13px] leading-relaxed text-fp-mute">
+                Add a mock device to film the outlet cut. Keep the study PC off this list.
+              </p>
+            </li>
+          ) : (
+            app.plugs.map((plug) => (
+              <PlugRow
+                key={plug.id}
+                plug={plug}
+                onToggle={(enabled) => {
+                  void app.setPlugEnabled(plug.id, enabled);
+                }}
+                onTest={(powerOn) => {
+                  void app.testPlug(plug.id, powerOn);
+                }}
+                onRemove={() => {
+                  void app.removePlug(plug.id);
+                }}
+              />
+            ))
+          )}
+        </ul>
+      </Surface>
+    </PageChrome>
   );
 }
 
@@ -156,16 +155,16 @@ function PlugRow(props: {
   const powerTone = plug.error ? "red" : !plug.online ? "mute" : plug.powerOn ? "lime" : "red";
 
   return (
-    <li className="flex flex-col gap-3 px-4 py-3 lg:flex-row lg:items-center">
+    <li className="flex flex-col gap-3 border-b border-fp-line px-4 py-3 last:border-b-0 lg:flex-row lg:items-center">
       <div className="flex min-w-0 flex-1 items-center gap-3">
         <span
           className={cn(
-            "h-1.5 w-1.5 shrink-0 rounded-full",
+            "h-1.5 w-1.5 shrink-0",
             plug.enabled && plug.online && plug.powerOn
               ? "bg-fp-lime"
               : plug.online
                 ? "bg-fp-amber"
-                : "bg-zinc-600",
+                : "bg-[#5a584e]",
           )}
         />
         <div className="min-w-0">
@@ -185,14 +184,9 @@ function PlugRow(props: {
         />
         <GhostButton onClick={() => props.onTest(false)}>Test off</GhostButton>
         <GhostButton onClick={() => props.onTest(true)}>Test on</GhostButton>
-        <button
-          type="button"
-          onClick={props.onRemove}
-          className="rounded-md px-2 py-1 text-[11px] font-medium text-fp-faint transition hover:bg-white/5 hover:text-fp-red"
-          aria-label={`Remove ${plug.name}`}
-        >
+        <TextButton onClick={props.onRemove} ariaLabel={`Remove ${plug.name}`}>
           Remove
-        </button>
+        </TextButton>
       </div>
     </li>
   );

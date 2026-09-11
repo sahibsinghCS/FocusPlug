@@ -84,7 +84,7 @@ function createWindow(): void {
     show: false,
     autoHideMenuBar: true,
     title: "FocusPlug",
-    backgroundColor: "#0b0f14",
+    backgroundColor: "#10110e",
     webPreferences: {
       preload: join(__dirname, "../preload/index.js"),
       contextIsolation: true,

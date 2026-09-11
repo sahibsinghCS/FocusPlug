@@ -1,6 +1,6 @@
 import type { JSX } from "react";
 import type { DeskModelId } from "@shared/ipc";
-import { Field, GhostButton, Select, Toggle } from "../components/ui";
+import { Field, GhostButton, PageChrome, Select, Surface, Toggle } from "../components/ui";
 import { deskModelLabel } from "../lib/format";
 import { DESK_MODEL_IDS } from "../lib/plugsUi";
 import { useAppState } from "../state/AppState";
@@ -14,16 +14,11 @@ export function SettingsPage(): JSX.Element {
   const { settings } = app;
 
   return (
-    <div className="mx-auto flex max-w-[720px] flex-col gap-5 px-7 py-6">
-      <header>
-        <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-fp-faint">Policy</p>
-        <h1 className="mt-1 text-[22px] font-semibold tracking-tight">Settings</h1>
-        <p className="mt-1 text-[13px] text-fp-mute">
-          Countdown fuse, desk-presence threshold, Desk AI model seam, and strict on-task rules.
-        </p>
-      </header>
-
-      <section className="space-y-6 rounded-lg border border-fp-line bg-fp-panel p-5">
+    <PageChrome
+      title="Settings"
+      description="Countdown fuse, desk-presence threshold, Desk AI model seam, and strict on-task rules."
+    >
+      <Surface className="space-y-6 p-5">
         <Field
           label="Countdown"
           hint="Seconds between distracted/away and force-quit. Cancels if you return to an allowlisted app."
@@ -67,9 +62,9 @@ export function SettingsPage(): JSX.Element {
         </Field>
 
         <div className="flex items-center justify-between gap-4 border-t border-fp-line pt-5">
-          <div>
+          <div className="max-w-[65ch]">
             <p className="text-[13px] font-medium">Strict mode</p>
-            <p className="mt-0.5 text-[12px] text-fp-mute">
+            <p className="mt-0.5 text-[12px] leading-relaxed text-fp-mute">
               On-task requires allowlisted focus and at-desk presence.
             </p>
           </div>
@@ -83,10 +78,10 @@ export function SettingsPage(): JSX.Element {
         </div>
 
         <div className="flex items-center justify-between gap-4 border-t border-fp-line pt-5">
-          <div>
+          <div className="max-w-[65ch]">
             <p className="text-[13px] font-medium">Desk AI webcam</p>
-            <p className="mt-0.5 text-[12px] text-fp-mute">
-              On-device presence. Load-bearing for away detection — never uploaded.
+            <p className="mt-0.5 text-[12px] leading-relaxed text-fp-mute">
+              On-device presence. Load-bearing for away detection, never uploaded.
             </p>
           </div>
           <Toggle
@@ -115,17 +110,17 @@ export function SettingsPage(): JSX.Element {
               />
             </div>
             <p className="mt-2 text-[12px] text-fp-mute">
-              Current: <span className="font-mono text-fp-ink">{settings.deskModelId}</span>.
-              Swap rules and file layout:{" "}
+              Current: <span className="font-mono text-fp-ink">{settings.deskModelId}</span>. Swap
+              rules and file layout:{" "}
               <span className="font-mono text-fp-lime">docs/MODEL-SEAM.md</span>.
             </p>
           </Field>
         </div>
-      </section>
+      </Surface>
 
-      <section className="rounded-lg border border-fp-line bg-fp-panel p-5">
-        <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-fp-faint">Filming</p>
-        <p className="mt-2 text-[13px] text-fp-mute">
+      <Surface className="p-5">
+        <p className="text-[13px] font-medium">Filming</p>
+        <p className="mt-2 max-w-[65ch] text-[13px] leading-relaxed text-fp-mute">
           Preview the kill overlay without waiting for Discord. Uses the current countdown length.
         </p>
         <div className="mt-3">
@@ -135,7 +130,7 @@ export function SettingsPage(): JSX.Element {
             Preview kill overlay
           </GhostButton>
         </div>
-      </section>
-    </div>
+      </Surface>
+    </PageChrome>
   );
 }

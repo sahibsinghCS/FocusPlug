@@ -3,7 +3,7 @@ import type { AppEntry } from "@shared/types";
 import { newEntryId } from "../lib/ids";
 import { cn } from "../lib/cn";
 import { useAppState } from "../state/AppState";
-import { PrimaryButton, TextInput, Toggle } from "../components/ui";
+import { PageChrome, PrimaryButton, Surface, TextButton, TextInput, Toggle } from "../components/ui";
 
 interface ListPageProps {
   kind: "allow" | "block";
@@ -57,41 +57,30 @@ export function ListPage(props: ListPageProps): JSX.Element {
   }
 
   return (
-    <div className="mx-auto flex max-w-[860px] flex-col gap-5 px-7 py-6">
-      <header>
-        <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-fp-faint">
-          {isAllow ? "Study apps" : "Kill targets"}
-        </p>
-        <h1 className="mt-1 text-[22px] font-semibold tracking-tight">
-          {isAllow ? "Allowlist" : "Blocklist"}
-        </h1>
-        <p className="mt-1 text-[13px] text-fp-mute">
-          {isAllow
-            ? "Foreground apps that count as on-task. Chrome, Docs, Word, VS Code."
-            : "Processes FocusPlug force-quits after the countdown. Discord, Steam, games."}
-        </p>
-        <p className="mt-2 font-mono text-[12px] text-fp-faint">
-          {enabledCount} enabled · {entries.length} total
-        </p>
-      </header>
-
+    <PageChrome
+      title={isAllow ? "Allowlist" : "Blocklist"}
+      description={
+        isAllow
+          ? "Foreground apps that count as on-task. Chrome, Docs, Word, VS Code."
+          : "Processes FocusPlug force-quits after the countdown. Discord, Steam, games."
+      }
+      meta={`${enabledCount} enabled  ${entries.length} total`}
+    >
       <form
         onSubmit={(event) => {
           void onAdd(event);
         }}
-        className="rounded-lg border border-fp-line bg-fp-panel p-4"
+        className="border border-fp-line bg-fp-panel p-4"
       >
         <div className="grid gap-3 md:grid-cols-[1fr_1.4fr_auto] md:items-end">
           <label>
-            <span className="text-[11px] uppercase tracking-[0.16em] text-fp-faint">Name</span>
+            <span className="text-[12px] text-fp-mute">Name</span>
             <div className="mt-1.5">
               <TextInput value={name} onChange={setName} placeholder={isAllow ? "Obsidian" : "Spotify"} />
             </div>
           </label>
           <label>
-            <span className="text-[11px] uppercase tracking-[0.16em] text-fp-faint">
-              Match tokens
-            </span>
+            <span className="text-[12px] text-fp-mute">Match tokens</span>
             <div className="mt-1.5">
               <TextInput
                 value={match}
@@ -106,42 +95,51 @@ export function ListPage(props: ListPageProps): JSX.Element {
         {formError ? <p className="mt-2 text-[12px] text-fp-red">{formError}</p> : null}
       </form>
 
-      <ul className="divide-y divide-fp-line overflow-hidden rounded-lg border border-fp-line bg-fp-panel">
-        {entries.length === 0 ? (
-          <li className="px-4 py-10 text-center text-[13px] text-fp-mute">No apps yet.</li>
-        ) : (
-          entries.map((entry) => (
-            <EntryRow
-              key={entry.id}
-              entry={entry}
-              accent={isAllow ? "lime" : "red"}
-              onToggle={async (enabled) => {
-                await persist(
-                  entries.map((item) => (item.id === entry.id ? { ...item, enabled } : item)),
-                );
-              }}
-              onMatch={async (nextMatch) => {
-                await persist(
-                  entries.map((item) =>
-                    item.id === entry.id ? { ...item, match: nextMatch } : item,
-                  ),
-                );
-              }}
-              onName={async (nextName) => {
-                await persist(
-                  entries.map((item) =>
-                    item.id === entry.id ? { ...item, name: nextName } : item,
-                  ),
-                );
-              }}
-              onDelete={async () => {
-                await persist(entries.filter((item) => item.id !== entry.id));
-              }}
-            />
-          ))
-        )}
-      </ul>
-    </div>
+      <Surface>
+        <ul>
+          {entries.length === 0 ? (
+            <li className="px-4 py-12">
+              <p className="text-[15px] font-medium">No apps yet</p>
+              <p className="mt-1 max-w-[48ch] text-[13px] leading-relaxed text-fp-mute">
+                {isAllow
+                  ? "Add the study app you want to stay in. Match tokens can be a process name or a window title fragment."
+                  : "Add Discord, Steam, or any leak process. Enabled entries are what the countdown will kill."}
+              </p>
+            </li>
+          ) : (
+            entries.map((entry) => (
+              <EntryRow
+                key={entry.id}
+                entry={entry}
+                accent={isAllow ? "lime" : "red"}
+                onToggle={async (enabled) => {
+                  await persist(
+                    entries.map((item) => (item.id === entry.id ? { ...item, enabled } : item)),
+                  );
+                }}
+                onMatch={async (nextMatch) => {
+                  await persist(
+                    entries.map((item) =>
+                      item.id === entry.id ? { ...item, match: nextMatch } : item,
+                    ),
+                  );
+                }}
+                onName={async (nextName) => {
+                  await persist(
+                    entries.map((item) =>
+                      item.id === entry.id ? { ...item, name: nextName } : item,
+                    ),
+                  );
+                }}
+                onDelete={async () => {
+                  await persist(entries.filter((item) => item.id !== entry.id));
+                }}
+              />
+            ))
+          )}
+        </ul>
+      </Surface>
+    </PageChrome>
   );
 }
 
@@ -157,16 +155,16 @@ function EntryRow(props: {
   const [matchText, setMatchText] = useState(props.entry.match.join(", "));
 
   return (
-    <li className="flex flex-col gap-3 px-4 py-3 md:flex-row md:items-center">
+    <li className="flex flex-col gap-3 border-b border-fp-line px-4 py-3 last:border-b-0 md:flex-row md:items-center">
       <div className="flex min-w-0 flex-1 items-center gap-3">
         <span
           className={cn(
-            "h-1.5 w-1.5 shrink-0 rounded-full",
+            "h-1.5 w-1.5 shrink-0",
             props.entry.enabled
               ? props.accent === "lime"
                 ? "bg-fp-lime"
                 : "bg-fp-red"
-              : "bg-zinc-600",
+              : "bg-[#5a584e]",
           )}
         />
         <input
@@ -207,14 +205,9 @@ function EntryRow(props: {
           }}
           label={`Enable ${props.entry.name}`}
         />
-        <button
-          type="button"
-          onClick={() => void props.onDelete()}
-          className="rounded-md px-2 py-1 text-[11px] font-medium text-fp-faint transition hover:bg-white/5 hover:text-fp-red"
-          aria-label={`Remove ${props.entry.name}`}
-        >
+        <TextButton onClick={() => void props.onDelete()} ariaLabel={`Remove ${props.entry.name}`}>
           Remove
-        </button>
+        </TextButton>
       </div>
     </li>
   );
