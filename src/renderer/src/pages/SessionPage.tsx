@@ -115,25 +115,68 @@ export function SessionPage(): JSX.Element {
         </dl>
       </section>
 
-      <section className="flex min-h-0 flex-1 flex-col">
-        <div className="flex items-center justify-between border-b border-fp-line px-6 py-2">
-          <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-fp-faint">
-            Recent events
-          </p>
-          <p className="font-mono text-[11px] text-fp-faint">{app.log.length}</p>
-        </div>
-        <div className="min-h-0 flex-1 overflow-auto">
-          {app.log.length === 0 ? (
-            <p className="px-6 py-8 text-[13px] text-fp-mute">
-              No events yet. Start a session to record window, desk, and kill activity.
+      <section className="flex min-h-0 flex-1">
+        <div className="flex min-w-0 flex-1 flex-col border-r border-fp-line">
+          <div className="flex items-center justify-between border-b border-fp-line px-6 py-2">
+            <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-fp-faint">
+              Recent events
             </p>
-          ) : (
-            <ol>
-              {app.log.slice(0, 40).map((event, index) => (
-                <LogRow key={`${event.ts}-${event.kind}-${index}`} event={event} />
+            <p className="font-mono text-[11px] text-fp-faint">{app.log.length}</p>
+          </div>
+          <div className="min-h-0 flex-1 overflow-auto">
+            {app.log.length === 0 ? (
+              <p className="px-6 py-6 text-[13px] text-fp-mute">
+                No events yet. Start a session to record activity.
+              </p>
+            ) : (
+              <ol>
+                {app.log.slice(0, 40).map((event, index) => (
+                  <LogRow key={`${event.ts}-${event.kind}-${index}`} event={event} />
+                ))}
+              </ol>
+            )}
+          </div>
+        </div>
+        <div className="flex w-[280px] shrink-0 flex-col">
+          <div className="border-b border-fp-line px-4 py-2">
+            <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-fp-faint">
+              Armed lists
+            </p>
+          </div>
+          <div className="min-h-0 flex-1 overflow-auto px-4 py-3">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-fp-lime">
+              Allow · {app.lists.allowlist.filter((e) => e.enabled).length}
+            </p>
+            <ul className="mt-2 space-y-1">
+              {app.lists.allowlist.map((entry) => (
+                <li
+                  key={entry.id}
+                  className={cn(
+                    "truncate text-[12px]",
+                    entry.enabled ? "text-zinc-300" : "text-zinc-600 line-through",
+                  )}
+                >
+                  {entry.name}
+                </li>
               ))}
-            </ol>
-          )}
+            </ul>
+            <p className="mt-4 text-[10px] font-semibold uppercase tracking-[0.16em] text-fp-red">
+              Block · {app.lists.blocklist.filter((e) => e.enabled).length}
+            </p>
+            <ul className="mt-2 space-y-1">
+              {app.lists.blocklist.map((entry) => (
+                <li
+                  key={entry.id}
+                  className={cn(
+                    "truncate text-[12px]",
+                    entry.enabled ? "text-zinc-300" : "text-zinc-600 line-through",
+                  )}
+                >
+                  {entry.name}
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       </section>
 
@@ -188,7 +231,7 @@ function LogRow(props: { event: SessionEvent }): JSX.Element {
   const kind = props.event.kind.toLowerCase();
   const kill = kind.includes("kill") || kind === "demo";
   return (
-    <li className="grid grid-cols-[76px_84px_minmax(0,1fr)] gap-3 border-b border-fp-line px-6 py-1.5">
+    <li className="grid grid-cols-[76px_84px_minmax(0,1fr)] gap-3 border-b border-fp-line px-6 py-1">
       <time className="font-mono text-[11px] text-fp-faint tabular">{formatClock(props.event.ts)}</time>
       <span
         className={cn(

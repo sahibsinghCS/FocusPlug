@@ -21,16 +21,13 @@ export function LogPage(): JSX.Element {
   }, [app.log, query]);
 
   return (
-    <div className="mx-auto flex max-w-[860px] flex-col gap-5 px-7 py-6">
-      <header className="flex items-end justify-between gap-4">
+    <div className="flex h-full min-h-0 flex-col">
+      <header className="flex items-end justify-between gap-4 border-b border-fp-line px-6 py-4">
         <div>
           <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-fp-faint">
             Timeline
           </p>
-          <h1 className="mt-1 text-[22px] font-semibold tracking-tight">Session log</h1>
-          <p className="mt-1 text-[13px] text-fp-mute">
-            Starts, decisions, countdowns, kills, unlocks.
-          </p>
+          <h1 className="mt-1 text-[17px] font-semibold tracking-tight">Session log</h1>
         </div>
         <div className="w-56">
           <TextInput value={query} onChange={setQuery} placeholder="Filter events" />
@@ -38,18 +35,15 @@ export function LogPage(): JSX.Element {
       </header>
 
       {rows.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-fp-line px-6 py-16 text-center">
-          <p className="text-[14px] font-medium">No events yet</p>
-          <p className="mt-1 text-[13px] text-fp-mute">
-            Start a session to record window, desk, and kill activity.
-          </p>
-        </div>
+        <p className="px-6 py-8 text-[13px] text-fp-mute">
+          No events yet. Start a session to record window, desk, and kill activity.
+        </p>
       ) : (
-        <ol className="overflow-hidden rounded-lg border border-fp-line bg-fp-panel">
+        <ol className="min-h-0 flex-1 overflow-auto">
           {rows.map((event, index) => (
             <li
               key={`${event.ts}-${event.kind}-${index}`}
-              className="grid grid-cols-[88px_92px_1fr] gap-3 border-b border-fp-line px-4 py-2.5 last:border-b-0"
+              className="grid grid-cols-[88px_92px_1fr] gap-3 border-b border-fp-line px-6 py-2"
             >
               <time className="font-mono text-[11px] text-fp-faint tabular">
                 {formatClock(event.ts)}
