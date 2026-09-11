@@ -1,292 +1,117 @@
 import type { JSX } from "react";
-import type { SessionEvent } from "@shared/ipc";
-import { cn } from "../lib/cn";
+import { Chip } from "../components/ui";
+import { DecisionHero } from "../features/session/DecisionHero";
+import { EventTimeline } from "../features/session/EventTimeline";
+import { SensorRail } from "../features/session/SensorRail";
+import { SessionActions } from "../features/session/SessionActions";
+import { SessionClock } from "../features/session/SessionClock";
+import { SessionErrorBanner, SessionLoading } from "../features/session/SessionStatus";
 import {
-  decisionLabel,
-  decisionTone,
-  deskPrimary,
-  formatClock,
-  formatConfidence,
-  padCountdown,
-  plugKillNote,
-  plugStatusLine,
-  windowPrimary,
-  windowSecondary,
-} from "../lib/format";
+  buildTimelinePreview,
+  deskSensor,
+  plugsSensor,
+  sessionClockView,
+  windowSensor,
+} from "../features/session/model";
+import { useSessionElapsed } from "../features/session/useSessionElapsed";
+import "../features/session/session.css";
 import { enabledPlugViews } from "../lib/plugsUi";
-import { IconBolt } from "../lib/icons";
 import { useAppState } from "../state/AppState";
-import { Chip, DangerButton, GhostButton, Led, PrimaryButton } from "../components/ui";
 
 export function SessionPage(): JSX.Element {
   const app = useAppState();
-  const { state } = app;
-  const tone = decisionTone(state.decision);
-  const countdownIdle = !app.countdown;
-  const windowName = resolveAppName(windowPrimary(state.focus), app.lists);
-  const deskText = state.desk
-    ? `${deskPrimary(state.desk)} · ${formatConfidence(state.desk.confidence)}`
-    : "Desk AI standby";
-  const countdownText = countdownIdle
-    ? `Idle · ${app.settings.countdownSec}s`
-    : `${padCountdown(app.countdown?.seconds ?? 0)}s · ${app.countdown?.reason ?? "fuse"}`;
-  const armedPlugs = enabledPlugViews(app.plugs);
-  const plugNote = plugKillNote(app.plugs);
-  const plugBody =
-    app.plugs.length === 0
-      ? "No outlets configured"
-      : armedPlugs.length === 0
-        ? "None armed — Demo Kill will not cut outlets"
-        : "Armed plugs cut on kill overlay / Demo Kill";
+  const { elapsedSec } = useSessionElapsed(app.state.sessionActive, app.log);
+
+  if (!app.ready) {
+    return <SessionLoading />;
+  }
+
+  const clock = sessionClockView({
+    sessionActive: app.state.sessionActive,
+    elapsedSec,
+    countdownSec: app.countdown?.seconds ?? 0,
+    fuseSec: app.settings.countdownSec,
+  });
+  const sensors = [
+    windowSensor(app.state.focus, app.lists),
+    deskSensor(app.state.desk, app.settings.deskModelId),
+    plugsSensor(app.plugs),
+  ];
+  const preview = buildTimelinePreview(app.log);
+  const killNote = demoKillNote(app);
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <header className="flex items-center justify-between gap-4 border-b border-fp-line px-6 py-3">
+    <div className="flex h-full min-h-0 flex-col px-5 py-4 min-[1100px]:px-6">
+      <header className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-fp-faint">Home</p>
-          <h1 className="text-[17px] font-semibold tracking-tight">Session</h1>
+          <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-fp-faint">
+            Command center
+          </p>
+          <p className="truncate text-[13px] text-fp-mute">
+            One decision. Live sensors. Kill is the consequence.
+          </p>
         </div>
         <div className="flex items-center gap-2">
-          {state.sessionActive ? (
-            <>
-              <Chip tone={tone}>Live</Chip>
-              <GhostButton onClick={() => void app.stopSession()}>Stop</GhostButton>
-            </>
-          ) : (
-            <PrimaryButton onClick={() => void app.startSession()}>Start session</PrimaryButton>
-          )}
+          {app.usingMock ? <Chip tone="amber">Renderer mock</Chip> : <Chip tone="lime">Live IPC</Chip>}
+          <Chip tone={app.settings.strictMode ? "lime" : "mute"}>
+            {app.settings.strictMode ? "Strict" : "Loose"}
+          </Chip>
         </div>
       </header>
 
-      <section className="border-b border-fp-line px-6 py-5">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-fp-faint">
-              Decision
-            </p>
-            <p
-              className={cn(
-                "mt-1 text-[32px] font-semibold tracking-tight",
-                tone === "lime"
-                  ? "text-fp-lime"
-                  : tone === "red"
-                    ? "text-fp-red"
-                    : tone === "amber"
-                      ? "text-fp-amber"
-                      : "text-fp-ink",
-              )}
-            >
-              {decisionLabel(state.decision)}
-            </p>
-            <p className="mt-1 max-w-xl truncate text-[13px] text-fp-mute" title={state.detail}>
-              {state.detail}
-            </p>
-            {plugNote ? (
-              <p className="mt-1 max-w-xl text-[12px] text-fp-amber" title={plugNote}>
-                {plugNote} — never the study PC
-              </p>
-            ) : null}
-          </div>
-          <div className="text-right">
-            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-fp-faint">
-              Countdown
-            </p>
-            <p
-              className={cn(
-                "mt-1 font-mono text-[32px] font-bold leading-none tabular",
-                countdownIdle ? "text-zinc-500" : "text-fp-red",
-              )}
-            >
-              {countdownIdle
-                ? padCountdown(app.settings.countdownSec)
-                : padCountdown(app.countdown?.seconds ?? 0)}
-            </p>
-            <p className="mt-1 text-[12px] text-fp-faint">
-              {countdownIdle ? `Idle · ${app.settings.countdownSec}s fuse` : countdownText}
-            </p>
-          </div>
+      {app.error ? (
+        <div className="mt-3">
+          <SessionErrorBanner message={app.error} onDismiss={app.clearError} />
         </div>
+      ) : null}
 
-        <dl className="mt-5 grid grid-cols-2 gap-x-8 gap-y-3 border-t border-fp-line pt-4 lg:grid-cols-3">
-          <Meta
-            label="Window"
-            live={Boolean(state.focus && state.focus.matchedAllow)}
-            warn={Boolean(state.focus?.matchedBlock)}
-            title={windowName}
-            body={windowSecondary(state.focus)}
+      <div className="mt-3 grid min-h-0 gap-3 min-[960px]:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.85fr)]">
+        <DecisionHero
+          decision={app.state.decision}
+          detail={app.state.detail}
+          sessionActive={app.state.sessionActive}
+        />
+        <div className="flex min-w-0 flex-col gap-3">
+          <SessionClock clock={clock} />
+          <SessionActions
+            sessionActive={app.state.sessionActive}
+            onStart={() => {
+              void app.startSession();
+            }}
+            onStop={() => {
+              void app.stopSession();
+            }}
+            onDemoKill={() => {
+              void app.demoKill();
+            }}
+            killNote={killNote}
           />
-          <Meta
-            label="Desk AI"
-            live={state.desk?.label === "at_desk"}
-            warn={state.desk?.label === "away"}
-            title={deskText}
-            body={
-              state.desk
-                ? state.desk.webcamEnabled
-                  ? `Webcam on · ${app.settings.deskModelId}`
-                  : "Webcam off"
-                : "Presence model idle"
-            }
-          />
-          <Meta
-            label="Plugs"
-            live={armedPlugs.some((plug) => plug.online && plug.powerOn === true)}
-            warn={armedPlugs.length > 0 && armedPlugs.every((plug) => plug.powerOn === false)}
-            title={plugStatusLine(app.plugs)}
-            body={plugBody}
-          />
-        </dl>
-      </section>
-
-      <section className="flex min-h-0 flex-1">
-        <div className="flex min-w-0 flex-1 flex-col border-r border-fp-line">
-          <div className="flex items-center justify-between border-b border-fp-line px-6 py-2">
-            <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-fp-faint">
-              Recent events
-            </p>
-            <p className="font-mono text-[11px] text-fp-faint">{app.log.length}</p>
-          </div>
-          <div className="min-h-0 flex-1 overflow-auto">
-            {app.log.length === 0 ? (
-              <p className="px-6 py-6 text-[13px] text-fp-mute">
-                No events yet. Start a session to record activity.
-              </p>
-            ) : (
-              <ol>
-                {app.log.slice(0, 40).map((event, index) => (
-                  <LogRow key={`${event.ts}-${event.kind}-${index}`} event={event} />
-                ))}
-              </ol>
-            )}
-          </div>
         </div>
-        <div className="flex w-[280px] shrink-0 flex-col">
-          <div className="border-b border-fp-line px-4 py-2">
-            <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-fp-faint">
-              Armed lists
-            </p>
-          </div>
-          <div className="min-h-0 flex-1 overflow-auto px-4 py-3">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-fp-lime">
-              Allow · {app.lists.allowlist.filter((e) => e.enabled).length}
-            </p>
-            <ul className="mt-2 space-y-1">
-              {app.lists.allowlist.map((entry) => (
-                <li
-                  key={entry.id}
-                  className={cn(
-                    "truncate text-[12px]",
-                    entry.enabled ? "text-zinc-300" : "text-zinc-600 line-through",
-                  )}
-                >
-                  {entry.name}
-                </li>
-              ))}
-            </ul>
-            <p className="mt-4 text-[10px] font-semibold uppercase tracking-[0.16em] text-fp-red">
-              Block · {app.lists.blocklist.filter((e) => e.enabled).length}
-            </p>
-            <ul className="mt-2 space-y-1">
-              {app.lists.blocklist.map((entry) => (
-                <li
-                  key={entry.id}
-                  className={cn(
-                    "truncate text-[12px]",
-                    entry.enabled ? "text-zinc-300" : "text-zinc-600 line-through",
-                  )}
-                >
-                  {entry.name}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      </section>
-
-      <footer className="flex items-center justify-between gap-4 border-t border-fp-red/40 bg-fp-red/[0.07] px-6 py-3">
-        <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-fp-red">Danger</p>
-          <p className="text-[13px] text-zinc-300">
-            Demo Kill — instant blocklist force-quit for filming. Never kills the study PC.
-          </p>
-          <p className="mt-0.5 text-[12px] text-zinc-400">
-            {armedPlugs.length > 0
-              ? `Also cuts ${armedPlugs.length} enabled plug${armedPlugs.length === 1 ? "" : "s"}: ${armedPlugs.map((plug) => plug.name).join(", ")}.`
-              : "Also cuts plugs when any are enabled."}
-            {app.killResult
-              ? ` · killed ${app.killResult.killed.length ? app.killResult.killed.join(", ") : "nothing"}`
-              : ""}
-          </p>
-        </div>
-        <DangerButton onClick={() => void app.demoKill()} className="shrink-0 uppercase tracking-[0.12em]">
-          <IconBolt className="h-4 w-4" />
-          Demo Kill
-        </DangerButton>
-      </footer>
-    </div>
-  );
-}
-
-function Meta(props: {
-  label: string;
-  title: string;
-  body: string;
-  live?: boolean;
-  warn?: boolean;
-}): JSX.Element {
-  const tone = props.warn ? "red" : props.live ? "lime" : "mute";
-  return (
-    <div className="min-w-0">
-      <div className="flex items-center gap-2">
-        <Led tone={tone} live={props.live && !props.warn} />
-        <dt className="text-[11px] font-medium uppercase tracking-[0.14em] text-fp-faint">
-          {props.label}
-        </dt>
       </div>
-      <dd className="mt-1 min-w-0">
-        <p className="truncate text-[14px] font-medium" title={props.title}>
-          {props.title}
-        </p>
-        <p className="truncate text-[12px] text-fp-mute" title={props.body}>
-          {props.body}
-        </p>
-      </dd>
+
+      <div className="mt-3 shrink-0">
+        <SensorRail sensors={sensors} />
+      </div>
+
+      <div className="mt-3 flex min-h-0 flex-1 flex-col">
+        <EventTimeline preview={preview} />
+      </div>
     </div>
   );
 }
 
-function LogRow(props: { event: SessionEvent }): JSX.Element {
-  const kind = props.event.kind.toLowerCase();
-  const kill = kind.includes("kill") || kind === "demo";
-  return (
-    <li className="grid grid-cols-[76px_84px_minmax(0,1fr)] gap-3 border-b border-fp-line px-6 py-1">
-      <time className="font-mono text-[11px] text-fp-faint tabular">{formatClock(props.event.ts)}</time>
-      <span
-        className={cn(
-          "font-mono text-[11px] font-medium uppercase tracking-[0.08em]",
-          kill ? "text-fp-red" : "text-fp-mute",
-        )}
-      >
-        {props.event.kind}
-      </span>
-      <span className="truncate text-[13px] text-zinc-300" title={props.event.detail}>
-        {props.event.detail}
-      </span>
-    </li>
-  );
-}
-
-function resolveAppName(
-  processName: string,
-  lists: { allowlist: Array<{ name: string; match: string[] }>; blocklist: Array<{ name: string; match: string[] }> },
-): string {
-  const needle = processName.toLowerCase();
-  if (needle === "no foreground app") {
-    return processName;
+function demoKillNote(app: ReturnType<typeof useAppState>): string {
+  const armed = enabledPlugViews(app.plugs);
+  const plugBit =
+    armed.length > 0
+      ? `Cuts ${armed.length} enabled plug${armed.length === 1 ? "" : "s"}: ${armed
+          .map((plug) => plug.name)
+          .join(", ")}. Never the study PC.`
+      : "Cuts plugs when any are enabled. Never the study PC.";
+  if (!app.killResult) {
+    return plugBit;
   }
-  const all = [...lists.allowlist, ...lists.blocklist];
-  const hit = all.find((entry) =>
-    entry.match.some((token) => needle.includes(token.toLowerCase()) || token.toLowerCase().includes(needle)),
-  );
-  return hit?.name ?? processName;
+  const killed =
+    app.killResult.killed.length > 0 ? app.killResult.killed.join(", ") : "nothing";
+  return `${plugBit} Last kill: ${killed}.`;
 }

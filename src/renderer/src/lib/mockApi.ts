@@ -67,6 +67,13 @@ const LIVE_DESK: DeskSnapshot = {
   webcamEnabled: true,
 };
 
+const AWAY_DESK: DeskSnapshot = {
+  ts: 0,
+  label: "away",
+  confidence: 0.91,
+  webcamEnabled: true,
+};
+
 type Listener<T> = (payload: T) => void;
 
 function createBus<T>(): {
@@ -473,6 +480,26 @@ function buildInitialState(
       detail: "Distracted: Discord",
     };
   }
+  if (scene.scene === "away") {
+    return {
+      sessionActive: true,
+      focus: { ...LIVE_FOCUS, ts },
+      desk: { ...AWAY_DESK, ts, webcamEnabled: settings.webcamEnabled },
+      decision: "AWAY",
+      countdownSec: 0,
+      detail: "Away · high-confidence desk absence",
+    };
+  }
+  if (scene.scene === "recovered") {
+    return {
+      sessionActive: true,
+      focus: { ...LIVE_FOCUS, ts },
+      desk: { ...LIVE_DESK, ts, webcamEnabled: settings.webcamEnabled },
+      decision: "ON_TASK",
+      countdownSec: 0,
+      detail: "Unlocked — allowlisted focus · at desk",
+    };
+  }
   return { ...DEFAULT_SESSION_STATE };
 }
 
@@ -495,6 +522,28 @@ function buildInitialLog(scene: ReturnType<typeof readUrlScene>): SessionEvent[]
       { ts: ts - 800, kind: "decision", detail: "DISTRACTED · Discord" },
       { ts: ts - 1600, kind: "focus", detail: "Discord — #general" },
       { ts: ts - 5000, kind: "session", detail: "Session started" },
+    ];
+  }
+  if (scene.scene === "away") {
+    return [
+      { ts, kind: "decision", detail: "AWAY · high-confidence desk absence" },
+      { ts: ts - 900, kind: "desk", detail: "away · 91%" },
+      { ts: ts - 4000, kind: "decision", detail: "ON_TASK · Allowlisted focus · at desk" },
+      { ts: ts - 5200, kind: "session", detail: "Session started" },
+    ];
+  }
+  if (scene.scene === "recovered") {
+    return [
+      { ts, kind: "unlock", detail: "Unlocked — back on task" },
+      { ts: ts - 400, kind: "plug_on", detail: "on · desk-lamp" },
+      { ts: ts - 800, kind: "decision", detail: "ON_TASK · Allowlisted focus · at desk" },
+      { ts: ts - 1400, kind: "kill", detail: "Distracted: Discord · discord.exe" },
+      { ts: ts - 1600, kind: "plug_off", detail: "off · desk-lamp" },
+      { ts: ts - 4200, kind: "countdown", detail: "start_countdown · Distracted: Discord · 10s" },
+      { ts: ts - 5000, kind: "decision", detail: "DISTRACTED · Discord" },
+      { ts: ts - 5600, kind: "focus", detail: "Discord — #general" },
+      { ts: ts - 12000, kind: "decision", detail: "ON_TASK · Allowlisted focus · at desk" },
+      { ts: ts - 13200, kind: "session", detail: "Session started" },
     ];
   }
   return [];
