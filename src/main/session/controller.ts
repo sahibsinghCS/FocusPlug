@@ -1,24 +1,33 @@
 import { DEFAULT_SESSION_STATE } from "../../shared/defaults.ts";
-import type {
-  AppLists,
-  AppSettings,
-  DeskMonitor,
-  KillResult,
-  PolicyEngine as PolicyEngineSeam,
-  ProcessKiller,
-  SessionState,
-  WindowMonitor,
+import {
+  PLUG_DRIVER_NOT_IMPLEMENTED,
+  type AppLists,
+  type AppSettings,
+  type DeskMonitor,
+  type KillResult,
+  type PolicyEngine as PolicyEngineSeam,
+  type ProcessKiller,
+  type SessionState,
+  type WindowMonitor,
 } from "../../shared/ipc.ts";
 import { PolicyEngine } from "../../shared/policy/index.ts";
 import type {
   AppEntry,
+  DeskModelId,
   DeskSnapshot,
   FocusSnapshot,
+  PlugDevice,
+  PlugSnapshot,
   PolicyEvent,
   PolicyInput,
   SessionEvent,
 } from "../../shared/types.ts";
-import { normalizeSettings } from "../store/appStore.ts";
+import {
+  cloneSettings,
+  isDeskModelId,
+  normalizePlugDevice,
+  normalizeSettings,
+} from "../store/appStore.ts";
 import type { SessionPush } from "./push.ts";
 import { demoKillMatchers, expandKillTargets } from "./targets.ts";
 
@@ -118,7 +127,29 @@ function requirePatch(value: unknown): Partial<AppSettings> {
     }
     patch.webcamEnabled = record.webcamEnabled;
   }
+  if ("deskModelId" in record) {
+    if (!isDeskModelId(record.deskModelId)) {
+      throw new Error("deskModelId must be stub, blazeface, or custom");
+    }
+    patch.deskModelId = record.deskModelId;
+  }
+  if ("plugs" in record) {
+    if (!Array.isArray(record.plugs)) {
+      throw new Error("plugs must be an array of PlugDevice objects");
+    }
+    patch.plugs = record.plugs.map((item, index) => requirePlugDevice(item, `plugs[${index}]`));
+  }
   return patch;
+}
+
+function requirePlugDevice(value: unknown, label = "plug"): PlugDevice {
+  const plug = normalizePlugDevice(value);
+  if (plug === null) {
+    throw new Error(
+      `${label} must be a PlugDevice with isStudyPc=false (study PC plugs are forbidden)`,
+    );
+  }
+  return plug;
 }
 
 function formatKill(reason: string, result: KillResult): string {
@@ -285,7 +316,7 @@ export class SessionController {
   }
 
   getSettings(): AppSettings {
-    return { ...this.loadSettings() };
+    return cloneSettings(this.loadSettings());
   }
 
   setSettings(patch: unknown): AppSettings {
@@ -294,7 +325,7 @@ export class SessionController {
     this.syncDeskEnabled(next.webcamEnabled);
     this.appendLog(
       "settings",
-      `countdown=${next.countdownSec}s · strict=${next.strictMode} · deskThreshold=${next.deskThreshold} · webcam=${next.webcamEnabled}`,
+      `countdown=${next.countdownSec}s · strict=${next.strictMode} · deskThreshold=${next.deskThreshold} · webcam=${next.webcamEnabled} · deskModel=${next.deskModelId} · plugs=${next.plugs.length}`,
     );
     this.publishState();
     if (this.sessionActive) {
@@ -320,6 +351,73 @@ export class SessionController {
       this.enqueueEvaluate();
     }
     return next.webcamEnabled;
+  }
+
+  getDeskModelId(): DeskModelId {
+    return this.loadSettings().deskModelId;
+  }
+
+  setDeskModelId(id: unknown): DeskModelId {
+    if (!isDeskModelId(id)) {
+      throw new Error("deskModelId must be stub, blazeface, or custom");
+    }
+    const next = normalizeSettings({ ...this.loadSettings(), deskModelId: id });
+    this.store.saveSettings(next);
+    this.appendLog("desk", `Desk model set to ${next.deskModelId}`);
+    return next.deskModelId;
+  }
+
+  listPlugs(): PlugDevice[] {
+    return this.loadSettings().plugs.map((plug) => ({ ...plug }));
+  }
+
+  addPlug(value: unknown): PlugDevice[] {
+    const plug = requirePlugDevice(value);
+    const current = this.loadSettings();
+    if (current.plugs.some((existing) => existing.id === plug.id)) {
+      throw new Error("Plug already exists");
+    }
+    const next = normalizeSettings({
+      ...current,
+      plugs: [...current.plugs, plug],
+    });
+    this.store.saveSettings(next);
+    this.appendLog("plugs", `Added ${plug.name} (${plug.protocol})`);
+    return next.plugs.map((item) => ({ ...item }));
+  }
+
+  removePlug(deviceId: unknown): PlugDevice[] {
+    if (typeof deviceId !== "string" || deviceId.length === 0) {
+      throw new Error("deviceId must be a non-empty string");
+    }
+    const current = this.loadSettings();
+    if (!current.plugs.some((plug) => plug.id === deviceId)) {
+      throw new Error("Plug not found");
+    }
+    const next = normalizeSettings({
+      ...current,
+      plugs: current.plugs.filter((plug) => plug.id !== deviceId),
+    });
+    this.store.saveSettings(next);
+    this.appendLog("plugs", `Removed ${deviceId}`);
+    return next.plugs.map((item) => ({ ...item }));
+  }
+
+  testPlug(deviceId: unknown): PlugSnapshot {
+    if (typeof deviceId !== "string" || deviceId.length === 0) {
+      throw new Error("deviceId must be a non-empty string");
+    }
+    const found = this.loadSettings().plugs.some((plug) => plug.id === deviceId);
+    if (!found) {
+      throw new Error("Plug not found");
+    }
+    return {
+      ts: this.now(),
+      deviceId,
+      online: false,
+      powerOn: null,
+      error: PLUG_DRIVER_NOT_IMPLEMENTED,
+    };
   }
 
   async demoKill(): Promise<KillResult> {
@@ -430,6 +528,18 @@ export class SessionController {
           this.appendLog("decision", `${event.decision} · ${event.detail}`);
         }
         return;
+      case "plug_off":
+      case "plug_on":
+        this.appendLog(
+          "plug",
+          `${event.type} · ${event.reason} · ${event.deviceIds.join(", ") || "none"}`,
+        );
+        return;
+      default: {
+        const _exhaustive: never = event;
+        void _exhaustive;
+        return;
+      }
     }
   }
 
@@ -499,7 +609,7 @@ export class SessionController {
   }
 
   private loadSettings(): AppSettings {
-    return normalizeSettings(this.store.loadSettings());
+    return cloneSettings(normalizeSettings(this.store.loadSettings()));
   }
 
   private syncDeskEnabled(enabled: boolean): void {

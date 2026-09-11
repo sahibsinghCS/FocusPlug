@@ -9,6 +9,9 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["src/shared/policy/**/*.test.ts", "src/main/session/**/*.test.ts"],
+    include: [
+      "src/shared/**/*.test.ts",
+      "src/main/session/**/*.test.ts",
+    ],
   },
 });

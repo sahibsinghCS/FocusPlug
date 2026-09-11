@@ -10,7 +10,13 @@ import {
 import { dirname, join } from "node:path";
 import { DEFAULT_SETTINGS } from "../../shared/defaults.ts";
 import type { AppSettings, Store } from "../../shared/ipc.ts";
-import type { AppEntry, SessionEvent } from "../../shared/types.ts";
+import type {
+  AppEntry,
+  DeskModelId,
+  PlugDevice,
+  PlugProtocol,
+  SessionEvent,
+} from "../../shared/types.ts";
 import { ListsJsonStore } from "./lists.ts";
 
 const MAX_SESSION_LOG = 1000;
@@ -44,6 +50,75 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
+const DESK_MODEL_IDS: readonly DeskModelId[] = ["stub", "blazeface", "custom"];
+const PLUG_PROTOCOLS: readonly PlugProtocol[] = ["kasa", "http", "mock"];
+
+export function isDeskModelId(value: unknown): value is DeskModelId {
+  return (DESK_MODEL_IDS as readonly string[]).includes(value as string);
+}
+
+export function isPlugProtocol(value: unknown): value is PlugProtocol {
+  return (PLUG_PROTOCOLS as readonly string[]).includes(value as string);
+}
+
+/** Accept only explicit `isStudyPc: false`. Study-PC plugs are never persisted. */
+export function normalizePlugDevice(raw: unknown): PlugDevice | null {
+  if (typeof raw !== "object" || raw === null) {
+    return null;
+  }
+  const record = raw as Record<string, unknown>;
+  if (typeof record.id !== "string" || record.id.length === 0) {
+    return null;
+  }
+  if (typeof record.name !== "string" || record.name.length === 0) {
+    return null;
+  }
+  if (!isPlugProtocol(record.protocol)) {
+    return null;
+  }
+  if (typeof record.address !== "string" || record.address.length === 0) {
+    return null;
+  }
+  if (typeof record.enabled !== "boolean") {
+    return null;
+  }
+  if (record.isStudyPc !== false) {
+    return null;
+  }
+  return {
+    id: record.id,
+    name: record.name,
+    protocol: record.protocol,
+    address: record.address,
+    enabled: record.enabled,
+    isStudyPc: false,
+  };
+}
+
+export function normalizePlugs(raw: unknown): PlugDevice[] {
+  if (!Array.isArray(raw)) {
+    return DEFAULT_SETTINGS.plugs.map((plug) => ({ ...plug }));
+  }
+  const seen = new Set<string>();
+  const plugs: PlugDevice[] = [];
+  for (const item of raw) {
+    const plug = normalizePlugDevice(item);
+    if (plug === null || seen.has(plug.id)) {
+      continue;
+    }
+    seen.add(plug.id);
+    plugs.push({ ...plug });
+  }
+  return plugs;
+}
+
+export function cloneSettings(settings: AppSettings): AppSettings {
+  return {
+    ...settings,
+    plugs: settings.plugs.map((plug) => ({ ...plug })),
+  };
+}
+
 export function normalizeSettings(raw: Partial<AppSettings> | null | undefined): AppSettings {
   const countdownRaw = isFiniteNumber(raw?.countdownSec)
     ? raw.countdownSec
@@ -59,6 +134,8 @@ export function normalizeSettings(raw: Partial<AppSettings> | null | undefined):
       typeof raw?.webcamEnabled === "boolean"
         ? raw.webcamEnabled
         : DEFAULT_SETTINGS.webcamEnabled,
+    deskModelId: isDeskModelId(raw?.deskModelId) ? raw.deskModelId : DEFAULT_SETTINGS.deskModelId,
+    plugs: normalizePlugs(raw?.plugs),
   };
 }
 
@@ -128,11 +205,11 @@ export class FocusPlugStore implements Store {
       return { ...this.settingsCache };
     }
     const loaded = parseSettings(readJson(this.settingsPath));
-    this.settingsCache = loaded ?? { ...DEFAULT_SETTINGS };
+    this.settingsCache = loaded ?? cloneSettings(DEFAULT_SETTINGS);
     if (loaded === null) {
       this.persistSettings();
     }
-    return { ...this.settingsCache };
+    return cloneSettings(this.settingsCache);
   }
 
   saveSettings(settings: AppSettings): void {

@@ -3,4 +3,12 @@ export {
   createListsStore,
   type ListsStore,
 } from "./lists.ts";
-export { FocusPlugStore, createAppStore, normalizeSettings } from "./appStore.ts";
+export {
+  FocusPlugStore,
+  cloneSettings,
+  createAppStore,
+  isDeskModelId,
+  normalizePlugDevice,
+  normalizePlugs,
+  normalizeSettings,
+} from "./appStore.ts";

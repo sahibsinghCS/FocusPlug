@@ -6,6 +6,8 @@ import {
   IPC_PUSH,
   type AppEntry,
   type AppSettings,
+  type DeskModelId,
+  type PlugDevice,
 } from "@shared/ipc";
 import { createSessionRuntime, type SessionController, type SessionPush } from "./session";
 
@@ -47,6 +49,20 @@ function registerIpc(controller: SessionController): void {
   ipcMain.handle(IPC_INVOKE.LOG_GET, () => controller.getLog());
   ipcMain.handle(IPC_INVOKE.DESK_SET_ENABLED, (_event, enabled: boolean) =>
     controller.setDeskEnabled(enabled),
+  );
+  ipcMain.handle(IPC_INVOKE.DESK_GET_MODEL_ID, () => controller.getDeskModelId());
+  ipcMain.handle(IPC_INVOKE.DESK_SET_MODEL_ID, (_event, id: DeskModelId) =>
+    controller.setDeskModelId(id),
+  );
+  ipcMain.handle(IPC_INVOKE.PLUGS_LIST, () => controller.listPlugs());
+  ipcMain.handle(IPC_INVOKE.PLUGS_ADD, (_event, device: PlugDevice) =>
+    controller.addPlug(device),
+  );
+  ipcMain.handle(IPC_INVOKE.PLUGS_REMOVE, (_event, deviceId: string) =>
+    controller.removePlug(deviceId),
+  );
+  ipcMain.handle(IPC_INVOKE.PLUGS_TEST, (_event, deviceId: string) =>
+    controller.testPlug(deviceId),
   );
   ipcMain.handle(IPC_INVOKE.DEMO_KILL, async () => controller.demoKill());
 }
