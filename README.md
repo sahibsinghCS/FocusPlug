@@ -14,4 +14,14 @@ That presence signal is load-bearing, not a dashboard widget. Session off is obs
 
 The interface is an enforcement console, not a wellness tracker: live Decision (On task / Distracted / Away / Idle), window and Desk AI readouts, an opaque kill overlay, a session event log, and a **Demo Kill** control so a two-minute film can show the consequence without waiting on Discord. We never power off the study PC. We never tutor. The product is the kill — and the AI is what makes the kill honest when you walk away.
 
-**Run (Windows, Node 22.12+):** `git clone https://github.com/sahibsinghCS/FocusPlug.git && cd FocusPlug && npm install && npm run dev`. Live window match and `taskkill` are Win32; Linux can boot the UI. Film the 2–3 min golden path in [docs/DEMO-SCRIPT.md](docs/DEMO-SCRIPT.md). Paste AI tools into Devpost from [docs/AI-DISCLOSURE.md](docs/AI-DISCLOSURE.md). Drop stills at `docs/screenshots/01-on-task.png`, `02-kill-overlay.png`, `03-desk-away.png`, `04-session-log.png`, `05-demo-kill.png`. Electron + React + Tailwind. MIT. Hyperbloom September (due 14 Sep 2026, 5:00pm EDT).
+**Run (Windows, Node 22.12+):** `git clone https://github.com/sahibsinghCS/FocusPlug.git && cd FocusPlug && npm install && npm run dev`. Live window match and `taskkill` are Win32; Linux can boot the UI. Film the 2–3 min golden path in [docs/DEMO-SCRIPT.md](docs/DEMO-SCRIPT.md). Paste AI tools into Devpost from [docs/AI-DISCLOSURE.md](docs/AI-DISCLOSURE.md). Electron + React + Tailwind. MIT. Hyperbloom September (due 14 Sep 2026, 5:00pm EDT).
+
+![On task — Desk AI at desk](docs/screenshots/01-on-task.png)
+
+![Kill overlay — Discord fuse](docs/screenshots/02-kill-overlay.png)
+
+![Desk AI away — covered lens](docs/screenshots/03-desk-away.png)
+
+![Session log — countdown, kill, unlock](docs/screenshots/04-session-log.png)
+
+![Demo Kill footer](docs/screenshots/05-demo-kill.png)

@@ -35,7 +35,7 @@ If the desk-away beat is messy, cut it to 10 seconds (cover lens → **Away** la
 
 ## Still captures (placeholders)
 
-Save under `docs/screenshots/` (create the folder when filming). Freeze the overlay with `#/?scene=distracted&countdown=8&freeze=1` only for stills, not the live take.
+Save PNGs at the paths below (create `docs/screenshots/` when filming). Freeze the overlay with `#/?scene=distracted&countdown=8&freeze=1` only for stills, not the live take. Broken images here are slots, not missing product.
 
 | File | When to grab | Judge should read |
 | --- | --- | --- |
@@ -45,7 +45,15 @@ Save under `docs/screenshots/` (create the folder when filming). Freeze the over
 | `04-session-log.png` | After kill + unlock | `kill` / `unlock` are real events |
 | `05-demo-kill.png` | Footer **Demo Kill** in frame | Reliable demo path |
 
-Link these from the README screenshot table once the PNGs exist.
+![On task — Desk AI at desk](screenshots/01-on-task.png)
+
+![Kill overlay — Discord fuse](screenshots/02-kill-overlay.png)
+
+![Desk AI away — covered lens](screenshots/03-desk-away.png)
+
+![Session log — countdown, kill, unlock](screenshots/04-session-log.png)
+
+![Demo Kill footer](screenshots/05-demo-kill.png)
 
 ## Hard fails (reshoot)
 
