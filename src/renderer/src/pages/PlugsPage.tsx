@@ -80,8 +80,8 @@ export function PlugsPage(): JSX.Element {
           }}
           className="border-b border-fp-line px-7 py-5"
         >
-          <div className="grid gap-3 md:grid-cols-[1fr_1.2fr_132px_auto] md:items-end">
-            <label>
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="min-w-[12rem] flex-1">
               <span className="text-[12px] text-fp-faint">Name</span>
               <div className="mt-1.5">
                 <TextInput
@@ -94,7 +94,7 @@ export function PlugsPage(): JSX.Element {
                 />
               </div>
             </label>
-            <label>
+            <label className="min-w-[16rem] flex-[1.2]">
               <span className="text-[12px] text-fp-faint">Address</span>
               <div className="mt-1.5">
                 <TextInput
@@ -108,7 +108,7 @@ export function PlugsPage(): JSX.Element {
                 />
               </div>
             </label>
-            <label>
+            <label className="w-[8.5rem] shrink-0">
               <span className="text-[12px] text-fp-faint">Protocol</span>
               <div className="mt-1.5">
                 <Select
@@ -119,7 +119,9 @@ export function PlugsPage(): JSX.Element {
                 />
               </div>
             </label>
-            <PrimaryButton submit>Add plug</PrimaryButton>
+            <div className="shrink-0 pb-px">
+              <PrimaryButton submit>Add plug</PrimaryButton>
+            </div>
           </div>
           {formError ? <p className="mt-2 text-[12px] text-fp-kill">{formError}</p> : null}
         </form>
