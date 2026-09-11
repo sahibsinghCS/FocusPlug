@@ -1,5 +1,5 @@
 {
-  "ranAt": "2026-09-11T12:37:20.985Z",
+  "ranAt": "2026-09-11T12:42:18.247Z",
   "model": "blazeface",
   "backend": "cpu",
   "unitChecks": [
@@ -51,7 +51,7 @@
     {
       "name": "stub never returns at_desk/away",
       "pass": true,
-      "detail": "[{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0}]"
+      "detail": "[{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0}]"
     },
     {
       "name": "factory stub id is stub",
@@ -61,7 +61,7 @@
     {
       "name": "factory stub never returns at_desk/away",
       "pass": true,
-      "detail": "[{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0}]"
+      "detail": "[{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0}]"
     },
     {
       "name": "your-model id is custom",
@@ -71,7 +71,7 @@
     {
       "name": "unimplemented your-model stays uncertain (safe default)",
       "pass": true,
-      "detail": "[{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0}]"
+      "detail": "[{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0}]"
     },
     {
       "name": "factory custom id is custom",
@@ -87,6 +87,11 @@
       "name": "factory blazeface id is blazeface",
       "pass": true,
       "detail": "blazeface"
+    },
+    {
+      "name": "DeskModelFactory.create matches createDeskModel",
+      "pass": true,
+      "detail": "factory seam"
     },
     {
       "name": "unknown settings id falls back to blazeface",
@@ -362,7 +367,7 @@
     {
       "name": "unit: stub never returns at_desk/away",
       "pass": true,
-      "detail": "[{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0}]"
+      "detail": "[{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0}]"
     },
     {
       "name": "unit: factory stub id is stub",
@@ -372,7 +377,7 @@
     {
       "name": "unit: factory stub never returns at_desk/away",
       "pass": true,
-      "detail": "[{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0}]"
+      "detail": "[{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0}]"
     },
     {
       "name": "unit: your-model id is custom",
@@ -382,7 +387,7 @@
     {
       "name": "unit: unimplemented your-model stays uncertain (safe default)",
       "pass": true,
-      "detail": "[{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0}]"
+      "detail": "[{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0}]"
     },
     {
       "name": "unit: factory custom id is custom",
@@ -398,6 +403,11 @@
       "name": "unit: factory blazeface id is blazeface",
       "pass": true,
       "detail": "blazeface"
+    },
+    {
+      "name": "unit: DeskModelFactory.create matches createDeskModel",
+      "pass": true,
+      "detail": "factory seam"
     },
     {
       "name": "unit: unknown settings id falls back to blazeface",

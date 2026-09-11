@@ -1,17 +1,17 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import type { DeskFrame } from "@shared/types";
 import { analyzeDeskFrame } from "../analyze";
 import { deskRoot } from "../assets";
 import { ScriptedFrameSource } from "../camera";
 import { decodeImageBuffer } from "../frame";
 import { DeskMonitor } from "../monitor";
+import type { RgbFrame } from "../types";
 import { createDeskModel, deskModelFactory, resolveDeskModelId } from "./factory";
 import { StubDeskModel } from "./stub";
 import { YourModel } from "./your-model";
 
-function loadFaceFrame(): DeskFrame {
+function loadFaceFrame(): RgbFrame {
   const buffer = readFileSync(join(deskRoot(), "fixtures", "face.jpg"));
   return decodeImageBuffer(buffer);
 }
