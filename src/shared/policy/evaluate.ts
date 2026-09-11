@@ -1,5 +1,5 @@
 import { ALL_BLOCKLIST_TARGET } from "./constants";
-import type { Decision, DeskSnapshot, FocusSnapshot, PolicyInput } from "../types";
+import type { Decision, DeskSnapshot, FocusSnapshot, PolicyEvent, PolicyInput } from "../types";
 
 export type DeskPresence = "present" | "away" | "uncertain";
 export type FocusKind = "allow" | "block" | "other" | "none";
@@ -121,6 +121,36 @@ export function classify(input: PolicyInput): ClassifiedPolicy {
     onTask: false,
     violation: null,
   };
+}
+
+/**
+ * Device ids to attach to `plug_off` / `plug_on`. Empty means emit neither.
+ *
+ * `plugsArmed` defaults to true when ids exist (session setting omitted).
+ * Whitespace-only ids are dropped. The returned array is a copy.
+ */
+export function plugDeviceIds(input: PolicyInput): string[] {
+  const ids = input.enabledPlugIds ?? [];
+  const armed = input.plugsArmed ?? ids.length > 0;
+  if (!armed) {
+    return [];
+  }
+  return unique(ids.map((id) => id.trim()).filter((id) => id.length > 0));
+}
+
+export function plugEventFor(
+  type: "plug_off" | "plug_on",
+  input: PolicyInput,
+  reason: string,
+): Extract<PolicyEvent, { type: "plug_off" | "plug_on" }> | null {
+  if (!input.sessionActive) {
+    return null;
+  }
+  const deviceIds = plugDeviceIds(input);
+  if (deviceIds.length === 0) {
+    return null;
+  }
+  return { type, deviceIds, reason };
 }
 
 /**

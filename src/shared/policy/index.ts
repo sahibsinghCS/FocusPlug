@@ -6,6 +6,8 @@ export {
   focusKind,
   isOnTask,
   killTargetsFor,
+  plugDeviceIds,
+  plugEventFor,
 } from "./evaluate";
 export type {
   ClassifiedPolicy,
