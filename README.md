@@ -1,75 +1,27 @@
 # FocusPlug
 
-**Local study-session enforcer** — detects when you leave the assignment (window + AI desk presence), force-quits Discord/games, and unlocks only when you’re back on task.
+**Local study-session enforcer.** Detects when you leave the assignment (foreground window + on-device AI desk presence), force-quits Discord and games, and unlocks only when you are back on task.
 
-> Not a tutor chatbot. Not a gentle reminder app. Never kills the study PC.
+> Not a tutor. Not a Pomodoro. Never kills the study PC.
 
-## Run on Windows
+Homework is open. Discord is where the session actually happens. Students know the pattern: a Docs tab for the screenshot, a game or chat client for the hours. Focus timers lose that fight because they only measure time. They cannot see that you tabbed to Discord. They cannot see that you left the chair. After a week the notification is just another badge to dismiss.
 
-Prerequisites: [Node.js 22.12+](https://nodejs.org/) (includes npm).
+FocusPlug is a local Windows enforcer for a real study session. You allowlist the assignment — Chrome, Google Docs, Word, VS Code, Notion — and blocklist the usual leaks: Discord, Steam, Epic, common games. When a session is live, two sensors decide whether you are still on the work.
 
-```powershell
-git clone https://github.com/sahibsinghCS/FocusPlug.git
-cd FocusPlug
-npm install
-npm run dev
-```
+The first sensor is the focused window: process name and title, matched against those lists. The second is Desk AI — an on-device MediaPipe BlazeFace model on the webcam. It emits `at_desk`, `away`, or `uncertain` with a confidence score. Frames stay on the machine. No cloud vision API. Uncertain is a first-class label: the policy will not start a desk-only kill on a maybe.
 
-That cold install + `npm run dev` starts Vite and opens an **Electron** window titled FocusPlug (placeholder chrome until the UI/session streams land).
+That presence signal is load-bearing, not a dashboard widget. Session off is observe-only. Session on plus a blocked window starts a ten-second fuse, then FocusPlug force-quits the blocked process. High-confidence desk-away starts the same fuse and kills running blocklist apps even if Discord is only in the background. Return to an allowlisted window while you are actually at the desk and the session unlocks; recover before zero and the countdown cancels. Default strict mode will not call you **On task** unless both the window and the body are on the assignment.
 
-| Script | What it does |
-| --- | --- |
-| `npm run dev` | Electron + Vite HMR (daily development) |
-| `npm run build` | Typecheck + production compile into `out/` |
-| `npm start` | Launch the production build (`electron-vite preview`) |
-| `npm run typecheck` | Verify `src/shared/types.ts` matches `docs/CONTRACTS.md` and `tsc` passes |
+The interface is an enforcement console, not a wellness tracker: live Decision (On task / Distracted / Away / Idle), window and Desk AI readouts, an opaque kill overlay, a session event log, and a **Demo Kill** control so a two-minute film can show the consequence without waiting on Discord. We never power off the study PC. We never tutor. The product is the kill — and the AI is what makes the kill honest when you walk away.
 
-Windows-first: foreground window matching and process kill land in later workstreams. The Linux Chromium sandbox is disabled in the main process so the same `npm run dev` path can boot in VMs/containers.
+**Run (Windows, Node 22.12+):** `git clone https://github.com/sahibsinghCS/FocusPlug.git && cd FocusPlug && npm install && npm run dev`. Live window match and `taskkill` are Win32; Linux can boot the UI. Film the 2–3 min golden path in [docs/DEMO-SCRIPT.md](docs/DEMO-SCRIPT.md). Paste AI tools into Devpost from [docs/AI-DISCLOSURE.md](docs/AI-DISCLOSURE.md). Electron + React + Tailwind. MIT. Hyperbloom September (due 14 Sep 2026, 5:00pm EDT).
 
-## Golden path (90s demo)
+![On task — Desk AI at desk](docs/screenshots/01-on-task.png)
 
-1. **Start session** with Google Docs / Chrome on the allowlist  
-2. Open **Discord**  
-3. UI shows **Distracted: Discord** + desk status + **10s countdown**  
-4. Discord is **force-quit / blocked**  
-5. Return to Docs + at desk → **Unlocked**  
-6. Big **Demo Kill** button for reliable filming  
+![Kill overlay — Discord fuse](docs/screenshots/02-kill-overlay.png)
 
-## MVP features
+![Desk AI away — covered lens](docs/screenshots/03-desk-away.png)
 
-- Session start / stop  
-- Editable **allowlist** (study apps) and **blocklist** (Discord, Steam, games)  
-- Focused-window detector  
-- **AI desk-presence** (webcam + on-device model) — load-bearing for Hyperbloom / SPEED  
-- Countdown before kill (default 10s; cancels if back on task)  
-- Unlock on return  
-- Demo Kill  
-- Session event log  
-- Polished dark UI  
+![Session log — countdown, kill, unlock](docs/screenshots/04-session-log.png)
 
-### Stretch
-- Smart-plug kill for *secondary* fun devices only (never the study PC)  
-- Mac parity  
-
-## Stack
-
-Windows-first **Electron + Vite + React + Tailwind + TypeScript**. Shared types and IPC live in `src/shared/` (`docs/CONTRACTS.md`). Local JSON persistence in Electron `userData` (wired in later streams).
-
-## AI tools disclosure
-
-*(Fill before Hyperbloom submit — list models, APIs, and coding assistants used.)*
-
-## Demo script (2–3 min)
-
-1. Problem (students “study” with Discord open) — 10s  
-2. Live golden path — 60–90s  
-3. One line: “AI decides at-desk vs away; the kill is the consequence” — 15s  
-4. What’s next — 10s  
-
-## Hackathon note
-
-Primary submit: **Hyperbloom September** (Sep 14, 2026 @ 5:00pm EDT), then Education ML multi-submit rooms. In-window commits + AI disclosure required.
-
-## License
-
-MIT
+![Demo Kill footer](docs/screenshots/05-demo-kill.png)
