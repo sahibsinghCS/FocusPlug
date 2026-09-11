@@ -15,8 +15,8 @@ export interface HttpPlugHostOptions {
 }
 
 /**
- * Generic HTTP plug adapter. POSTs `onUrl` / `offUrl` for non-Kasa devices
- * (Tasmota, Shelly, DIY). No vendor cloud required.
+ * Generic HTTP plug adapter. Frozen PlugDevice only has `address`, so this
+ * POSTs `{address}/on` and `{address}/off` (Tasmota, Shelly, DIY). No cloud.
  */
 export class HttpPlugHost implements PlugHost {
   readonly protocol = "http" as const;

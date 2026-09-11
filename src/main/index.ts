@@ -9,7 +9,8 @@ import {
   type DeskModelId,
   type PlugDevice,
 } from "@shared/ipc";
-import { createSessionRuntime, type SessionController, type SessionPush } from "./session";
+import { assertControllable, type PlugController } from "./plugs";
+import { createFocusPlugRuntime, type SessionController, type SessionPush } from "./session";
 
 let session: SessionController | null = null;
 
@@ -31,7 +32,7 @@ function createElectronPush(): SessionPush {
   };
 }
 
-function registerIpc(controller: SessionController): void {
+function registerIpc(controller: SessionController, plugs: PlugController): void {
   ipcMain.handle(IPC_INVOKE.SESSION_START, async () => controller.start());
   ipcMain.handle(IPC_INVOKE.SESSION_STOP, async () => controller.stop());
   ipcMain.handle(IPC_INVOKE.SESSION_GET_STATE, () => controller.getState());
@@ -55,16 +56,32 @@ function registerIpc(controller: SessionController): void {
     controller.setDeskModelId(id),
   );
   ipcMain.handle(IPC_INVOKE.PLUGS_LIST, () => controller.listPlugs());
-  ipcMain.handle(IPC_INVOKE.PLUGS_ADD, (_event, device: PlugDevice) =>
-    controller.addPlug(device),
-  );
+  ipcMain.handle(IPC_INVOKE.PLUGS_ADD, (_event, device: PlugDevice) => {
+    assertControllable(device);
+    return controller.addPlug(device);
+  });
   ipcMain.handle(IPC_INVOKE.PLUGS_REMOVE, (_event, deviceId: string) =>
     controller.removePlug(deviceId),
   );
-  ipcMain.handle(IPC_INVOKE.PLUGS_TEST, (_event, deviceId: string) =>
-    controller.testPlug(deviceId),
-  );
-  ipcMain.handle(IPC_INVOKE.DEMO_KILL, async () => controller.demoKill());
+  ipcMain.handle(IPC_INVOKE.PLUGS_TEST, async (_event, deviceId: string) => {
+    controller.testPlug(deviceId);
+    const snaps = await plugs.snapshot([deviceId]);
+    const snap = snaps[0];
+    if (!snap) {
+      throw new Error("Plug not found");
+    }
+    return snap;
+  });
+  ipcMain.handle(IPC_INVOKE.DEMO_KILL, async () => {
+    const result = await controller.demoKill();
+    try {
+      await plugs.cutSecondary();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`Demo Kill plug cut failed: ${message}`);
+    }
+    return result;
+  });
 }
 
 function createWindow(): void {
@@ -107,11 +124,12 @@ if (process.platform === "linux") {
 
 app.whenReady().then(() => {
   electronApp.setAppUserModelId("com.focusplug.app");
-  session = createSessionRuntime({
+  const runtime = createFocusPlugRuntime({
     userDataDir: app.getPath("userData"),
     push: createElectronPush(),
   });
-  registerIpc(session);
+  session = runtime.session;
+  registerIpc(runtime.session, runtime.plugs);
 
   app.on("browser-window-created", (_event, window) => {
     optimizer.watchWindowShortcuts(window);
