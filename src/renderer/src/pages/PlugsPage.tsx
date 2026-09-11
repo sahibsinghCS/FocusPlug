@@ -1,199 +1,179 @@
 import { useMemo, useState, type FormEvent, type JSX } from "react";
 import type { PlugProtocol } from "@shared/ipc";
-import { cn } from "../lib/cn";
-import { plugPowerLabel } from "../lib/format";
-import { looksLikeStudyPc, PLUG_PROTOCOLS, STUDY_PC_WARNING, type PlugView } from "../lib/plugsUi";
+import { PrimaryButton } from "../components/ui";
+import {
+  ConfigHeader,
+  ConfigPage,
+  errorMessage,
+  FieldMessage,
+  LabeledInput,
+  Notice,
+  PlugDeviceRow,
+  PlugOnboarding,
+  plugReturned,
+  ProtocolPicker,
+  protocolCard,
+  useSaveState,
+  validatePlugDraft,
+} from "../features/config";
+import { STUDY_PC_WARNING } from "../lib/plugsUi";
 import { useAppState } from "../state/AppState";
-import { Chip, GhostButton, PrimaryButton, Select, TextInput, Toggle } from "../components/ui";
-
-const PROTOCOL_OPTIONS: ReadonlyArray<{ value: PlugProtocol; label: string }> = PLUG_PROTOCOLS.map(
-  (protocol) => ({ value: protocol, label: protocol }),
-);
 
 export function PlugsPage(): JSX.Element {
   const app = useAppState();
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
-  const [protocol, setProtocol] = useState<PlugProtocol>("mock");
-  const [formError, setFormError] = useState<string | null>(null);
+  const [protocol, setProtocol] = useState<PlugProtocol>("kasa");
+  const [field, setField] = useState<"name" | "address" | "protocol" | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const save = useSaveState();
+  const [rowBusy, setRowBusy] = useState<string | null>(null);
+  const card = protocolCard(protocol);
+  const firstRun = app.plugs.length === 0;
 
-  const enabledCount = useMemo(
-    () => app.plugs.filter((plug) => plug.enabled).length,
-    [app.plugs],
-  );
+  const meta = useMemo(() => {
+    const armed = app.plugs.filter((plug) => plug.enabled).length;
+    return `${armed} armed · ${app.plugs.length} total`;
+  }, [app.plugs]);
 
   async function onAdd(event: FormEvent): Promise<void> {
     event.preventDefault();
-    const trimmedName = name.trim();
-    const trimmedAddress = address.trim();
-    if (trimmedName.length === 0) {
-      setFormError("Name is required");
+    const error = validatePlugDraft({ name, address, protocol });
+    if (error) {
+      setField(error.field);
+      setMessage(error.message);
       return;
     }
-    if (trimmedAddress.length === 0) {
-      setFormError("Address is required");
-      return;
+    setField(null);
+    setMessage(null);
+    save.begin();
+    const draft = { name: name.trim(), address: address.trim(), protocol };
+    try {
+      const returned = await app.addPlug(draft);
+      if (!returned.some((plug) => plug.name === draft.name && plug.address === draft.address)) {
+        save.fail("Add returned without this plug");
+        return;
+      }
+      setName("");
+      setAddress("");
+      save.succeed();
+    } catch (caught) {
+      save.fail(errorMessage(caught, "Could not add plug"));
     }
-    if (looksLikeStudyPc(trimmedName)) {
-      setFormError(STUDY_PC_WARNING);
-      return;
-    }
-    setFormError(null);
-    await app.addPlug({ name: trimmedName, address: trimmedAddress, protocol });
-    setName("");
-    setAddress("");
-    setProtocol("mock");
   }
 
   return (
-    <div className="mx-auto flex max-w-[920px] flex-col gap-4 px-7 py-5">
-      <header>
-        <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-fp-faint">
-          Outlets
-        </p>
-        <h1 className="mt-1 text-[18px] font-semibold tracking-tight">Smart plugs</h1>
-        <p className="mt-1 text-[13px] text-fp-mute">
-          Optional kill targets for lamps, fans, and other fun devices. Demo Kill and the
-          countdown overlay cut every armed plug.
-        </p>
-        <p className="mt-2 font-mono text-[12px] text-fp-faint">
-          {enabledCount} enabled · {app.plugs.length} total
-        </p>
-      </header>
+    <ConfigPage>
+      <ConfigHeader
+        kicker="Outlets"
+        title="Smart plugs"
+        description="Optional kill targets for lamps and other fun devices. Demo Kill and the countdown overlay cut every armed plug."
+        meta={meta}
+      />
 
-      <aside
-        className="rounded-lg border border-fp-amber/40 bg-fp-amber/[0.08] px-4 py-3"
-        role="note"
-      >
-        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-fp-amber">
-          Safety
-        </p>
-        <p className="mt-1 text-[14px] font-medium text-fp-ink">{STUDY_PC_WARNING}</p>
-        <p className="mt-1 text-[12px] text-fp-mute">
-          Do not add the machine running FocusPlug, a PSU, or any outlet that would drop the
-          session. Mock is the filming path; kasa and http talk LAN only.
-        </p>
-      </aside>
+      {firstRun ? (
+        <PlugOnboarding />
+      ) : (
+        <Notice tone="amber" title="Never the study PC" role="note">
+          <p className="font-medium">{STUDY_PC_WARNING}</p>
+        </Notice>
+      )}
 
       <form
         onSubmit={(event) => {
           void onAdd(event);
         }}
-        className="rounded-lg border border-fp-line bg-fp-panel p-4"
+        className="space-y-3 rounded-md border border-fp-line bg-fp-panel p-3"
+        aria-busy={save.saving}
       >
-        <div className="grid gap-3 md:grid-cols-[1fr_1.2fr_140px_auto] md:items-end">
-          <label>
-            <span className="text-[11px] uppercase tracking-[0.16em] text-fp-faint">Name</span>
-            <div className="mt-1.5">
-              <TextInput value={name} onChange={setName} placeholder="Desk lamp" />
-            </div>
-          </label>
-          <label>
-            <span className="text-[11px] uppercase tracking-[0.16em] text-fp-faint">
-              Address
-            </span>
-            <div className="mt-1.5">
-              <TextInput
-                value={address}
-                onChange={setAddress}
-                placeholder="192.168.1.40 or mock://lamp"
-                mono
-              />
-            </div>
-          </label>
-          <label>
-            <span className="text-[11px] uppercase tracking-[0.16em] text-fp-faint">
-              Protocol
-            </span>
-            <div className="mt-1.5">
-              <Select
-                value={protocol}
-                onChange={setProtocol}
-                options={PROTOCOL_OPTIONS}
-                ariaLabel="Plug protocol"
-              />
-            </div>
-          </label>
-          <PrimaryButton submit>Add plug</PrimaryButton>
+        <ProtocolPicker value={protocol} onChange={setProtocol} disabled={save.saving} />
+        <div className="grid gap-2 md:grid-cols-[minmax(0,12rem)_1fr_auto] md:items-end">
+          <LabeledInput
+            id="plug-name"
+            label="Name"
+            value={name}
+            onChange={setName}
+            placeholder="RGB lamp"
+            disabled={save.saving}
+            invalid={field === "name"}
+            describedBy="plug-add-msg"
+          />
+          <div>
+            <LabeledInput
+              id="plug-address"
+              label={card.addressLabel}
+              value={address}
+              onChange={setAddress}
+              placeholder={card.addressPlaceholder}
+              mono
+              disabled={save.saving}
+              invalid={field === "address"}
+              describedBy="plug-add-help plug-add-msg"
+            />
+            <p id="plug-add-help" className="mt-1 text-[11px] text-fp-faint">
+              {card.addressHelp}
+            </p>
+          </div>
+          <PrimaryButton submit disabled={save.saving}>
+            {save.saving ? "Adding…" : "Add plug"}
+          </PrimaryButton>
         </div>
-        {formError ? <p className="mt-2 text-[12px] text-fp-red">{formError}</p> : null}
+        {message ? (
+          <FieldMessage id="plug-add-msg" tone="red">
+            {message}
+          </FieldMessage>
+        ) : save.state.status === "error" ? (
+          <FieldMessage id="plug-add-msg" tone="red">
+            {save.state.message}
+          </FieldMessage>
+        ) : save.state.status === "saved" ? (
+          <p className="text-[11px] text-fp-lime" aria-live="polite">
+            Plug added — probe it before a session.
+          </p>
+        ) : null}
       </form>
 
-      <ul className="divide-y divide-fp-line overflow-hidden rounded-lg border border-fp-line bg-fp-panel">
-        {app.plugs.length === 0 ? (
-          <li className="px-4 py-10 text-center text-[13px] text-fp-mute">
-            No plugs yet. Add a mock device to film the outlet cut.
+      <ul className="divide-y divide-fp-line overflow-hidden rounded-md border border-fp-line bg-fp-panel">
+        {firstRun ? (
+          <li className="px-4 py-8 text-center text-[13px] text-fp-mute">
+            No plugs yet. Pick Kasa, HTTP, or Mock, then add a fun device — never the study PC.
           </li>
         ) : (
           app.plugs.map((plug) => (
-            <PlugRow
+            <PlugDeviceRow
               key={plug.id}
               plug={plug}
-              onToggle={(enabled) => {
-                void app.setPlugEnabled(plug.id, enabled);
+              busy={rowBusy === plug.id}
+              onToggle={async (enabled) => {
+                setRowBusy(plug.id);
+                try {
+                  const returned = await app.setPlugEnabled(plug.id, enabled);
+                  const updated = returned.find((item) => item.id === plug.id);
+                  if (!updated || updated.enabled !== enabled) {
+                    throw new Error("Enable toggle did not persist");
+                  }
+                } finally {
+                  setRowBusy(null);
+                }
               }}
-              onTest={(powerOn) => {
-                void app.testPlug(plug.id, powerOn);
+              onTest={async (powerOn) => {
+                return await app.testPlug(plug.id, powerOn);
               }}
-              onRemove={() => {
-                void app.removePlug(plug.id);
+              onRemove={async () => {
+                setRowBusy(plug.id);
+                try {
+                  const returned = await app.removePlug(plug.id);
+                  if (plugReturned(returned, plug.id)) {
+                    throw new Error("Remove returned the deleted plug");
+                  }
+                } finally {
+                  setRowBusy(null);
+                }
               }}
             />
           ))
         )}
       </ul>
-    </div>
-  );
-}
-
-function PlugRow(props: {
-  plug: PlugView;
-  onToggle: (enabled: boolean) => void;
-  onTest: (powerOn: boolean) => void;
-  onRemove: () => void;
-}): JSX.Element {
-  const { plug } = props;
-  const powerTone = plug.error ? "red" : !plug.online ? "mute" : plug.powerOn ? "lime" : "red";
-
-  return (
-    <li className="flex flex-col gap-3 px-4 py-3 lg:flex-row lg:items-center">
-      <div className="flex min-w-0 flex-1 items-center gap-3">
-        <span
-          className={cn(
-            "h-1.5 w-1.5 shrink-0 rounded-full",
-            plug.enabled && plug.online && plug.powerOn
-              ? "bg-fp-lime"
-              : plug.online
-                ? "bg-fp-amber"
-                : "bg-zinc-600",
-          )}
-        />
-        <div className="min-w-0">
-          <p className="truncate text-[13px] font-medium text-fp-ink">{plug.name}</p>
-          <p className="truncate font-mono text-[11px] text-fp-faint" title={plug.address}>
-            {plug.address}
-          </p>
-        </div>
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <Chip tone="mute">{plug.protocol}</Chip>
-        <Chip tone={powerTone}>{plugPowerLabel(plug)}</Chip>
-        <Toggle
-          checked={plug.enabled}
-          onChange={props.onToggle}
-          label={`Enable ${plug.name}`}
-        />
-        <GhostButton onClick={() => props.onTest(false)}>Test off</GhostButton>
-        <GhostButton onClick={() => props.onTest(true)}>Test on</GhostButton>
-        <button
-          type="button"
-          onClick={props.onRemove}
-          className="rounded-md px-2 py-1 text-[11px] font-medium text-fp-faint transition hover:bg-white/5 hover:text-fp-red"
-          aria-label={`Remove ${plug.name}`}
-        >
-          Remove
-        </button>
-      </div>
-    </li>
+    </ConfigPage>
   );
 }

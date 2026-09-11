@@ -15,11 +15,8 @@ export default defineConfig({
       "src/main/desk/**/*.test.ts",
       "src/main/plugs/**/*.test.ts",
       "src/renderer/src/lib/**/*.test.ts",
-<<<<<<< HEAD
       "src/renderer/src/features/session/**/*.test.ts",
-=======
       "src/renderer/src/features/config/**/*.test.ts",
->>>>>>> 55f0bf1 (feat(config): list, plug, and desk-model helpers for Phase 3 UX)
     ],
   },
 });

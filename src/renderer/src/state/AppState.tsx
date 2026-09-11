@@ -21,7 +21,6 @@ import type {
   SessionEvent,
   SessionState,
 } from "@shared/ipc";
-import { PLUG_DRIVER_NOT_IMPLEMENTED } from "@shared/ipc";
 import type { AppEntry } from "@shared/types";
 import { DEFAULT_SESSION_STATE, DEFAULT_SETTINGS } from "@shared/defaults";
 import { getApi } from "../lib/api";
@@ -60,15 +59,15 @@ interface AppStateValue {
   startSession: () => Promise<void>;
   stopSession: () => Promise<void>;
   demoKill: () => Promise<void>;
-  setAllowlist: (entries: AppEntry[]) => Promise<void>;
-  setBlocklist: (entries: AppEntry[]) => Promise<void>;
+  setAllowlist: (entries: AppEntry[]) => Promise<AppLists>;
+  setBlocklist: (entries: AppEntry[]) => Promise<AppLists>;
   patchSettings: (patch: Partial<AppSettings>) => Promise<void>;
   setDeskEnabled: (enabled: boolean) => Promise<void>;
-  setDeskModelId: (id: DeskModelId) => Promise<void>;
-  addPlug: (draft: PlugDraft) => Promise<void>;
-  removePlug: (deviceId: string) => Promise<void>;
-  setPlugEnabled: (deviceId: string, enabled: boolean) => Promise<void>;
-  testPlug: (deviceId: string, powerOn: boolean) => Promise<void>;
+  setDeskModelId: (id: DeskModelId) => Promise<DeskModelId>;
+  addPlug: (draft: PlugDraft) => Promise<PlugDevice[]>;
+  removePlug: (deviceId: string) => Promise<PlugDevice[]>;
+  setPlugEnabled: (deviceId: string, enabled: boolean) => Promise<PlugDevice[]>;
+  testPlug: (deviceId: string, powerOn: boolean) => Promise<PlugSnapshot>;
   previewCountdown: (seconds: number, reason: string) => void;
   clearError: () => void;
 }
@@ -98,13 +97,15 @@ function applyPlugPower(
 }
 
 function overlayTestSnapshot(snap: PlugSnapshot, intendedPower: boolean): PlugSnapshot {
-  const stub = snap.error === PLUG_DRIVER_NOT_IMPLEMENTED || snap.powerOn === null;
+  if (snap.error && snap.error.trim().length > 0) {
+    return snap;
+  }
   return {
     ts: snap.ts,
     deviceId: snap.deviceId,
-    online: stub ? true : snap.online,
+    online: snap.online,
     powerOn: intendedPower,
-    error: stub ? undefined : snap.error,
+    error: snap.error,
   };
 }
 
@@ -242,6 +243,22 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
     }
   }, []);
 
+  const runWithResult = useCallback(
+    async <T,>(task: () => Promise<T>, fallback: string): Promise<T> => {
+      setError(null);
+      try {
+        return await task();
+      } catch (caught) {
+        const message = caught instanceof Error && caught.message.trim().length > 0
+          ? caught.message
+          : fallback;
+        setError(message);
+        throw caught instanceof Error ? caught : new Error(message);
+      }
+    },
+    [],
+  );
+
   const startSession = useCallback(async (): Promise<void> => {
     await run(async () => {
       setState(await api.sessionStart());
@@ -266,21 +283,25 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
   }, [api, clearLocalTimer, run]);
 
   const setAllowlist = useCallback(
-    async (entries: AppEntry[]): Promise<void> => {
-      await run(async () => {
-        setLists(await api.listsSetAllow(entries));
+    async (entries: AppEntry[]): Promise<AppLists> => {
+      return await runWithResult(async () => {
+        const next = await api.listsSetAllow(entries);
+        setLists(next);
+        return next;
       }, "Failed to save allowlist");
     },
-    [api, run],
+    [api, runWithResult],
   );
 
   const setBlocklist = useCallback(
-    async (entries: AppEntry[]): Promise<void> => {
-      await run(async () => {
-        setLists(await api.listsSetBlock(entries));
+    async (entries: AppEntry[]): Promise<AppLists> => {
+      return await runWithResult(async () => {
+        const next = await api.listsSetBlock(entries);
+        setLists(next);
+        return next;
       }, "Failed to save blocklist");
     },
-    [api, run],
+    [api, runWithResult],
   );
 
   const patchSettings = useCallback(
@@ -308,18 +329,19 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
   );
 
   const setDeskModelId = useCallback(
-    async (id: DeskModelId): Promise<void> => {
-      await run(async () => {
+    async (id: DeskModelId): Promise<DeskModelId> => {
+      return await runWithResult(async () => {
         const deskModelId = await api.deskSetModelId(id);
         setSettings((current) => ({ ...current, deskModelId }));
+        return deskModelId;
       }, "Failed to save desk model");
     },
-    [api, run],
+    [api, runWithResult],
   );
 
   const addPlug = useCallback(
-    async (draft: PlugDraft): Promise<void> => {
-      await run(async () => {
+    async (draft: PlugDraft): Promise<PlugDevice[]> => {
+      return await runWithResult(async () => {
         if (looksLikeStudyPc(draft.name)) {
           throw new Error(STUDY_PC_WARNING);
         }
@@ -333,23 +355,15 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
         };
         const plugs = await api.plugsAdd(device);
         setSettings((current) => ({ ...current, plugs }));
-        setPlugSnapshots((current) => ({
-          ...current,
-          [device.id]: {
-            ts: Date.now(),
-            deviceId: device.id,
-            online: true,
-            powerOn: true,
-          },
-        }));
+        return plugs;
       }, "Failed to add plug");
     },
-    [api, run],
+    [api, runWithResult],
   );
 
   const removePlug = useCallback(
-    async (deviceId: string): Promise<void> => {
-      await run(async () => {
+    async (deviceId: string): Promise<PlugDevice[]> => {
+      return await runWithResult(async () => {
         const plugs = await api.plugsRemove(deviceId);
         setSettings((current) => ({ ...current, plugs }));
         setPlugSnapshots((current) => {
@@ -357,34 +371,38 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
           delete next[deviceId];
           return next;
         });
+        return plugs;
       }, "Failed to remove plug");
     },
-    [api, run],
+    [api, runWithResult],
   );
 
   const setPlugEnabled = useCallback(
-    async (deviceId: string, enabled: boolean): Promise<void> => {
-      await run(async () => {
+    async (deviceId: string, enabled: boolean): Promise<PlugDevice[]> => {
+      return await runWithResult(async () => {
         const plugs = settings.plugs.map((plug) =>
           plug.id === deviceId ? { ...plug, enabled, isStudyPc: false as const } : plug,
         );
-        setSettings(await api.settingsSet({ plugs }));
+        const next = await api.settingsSet({ plugs });
+        setSettings(next);
+        return next.plugs;
       }, "Failed to update plug");
     },
-    [api, run, settings.plugs],
+    [api, runWithResult, settings.plugs],
   );
 
   const testPlug = useCallback(
-    async (deviceId: string, powerOn: boolean): Promise<void> => {
-      await run(async () => {
+    async (deviceId: string, powerOn: boolean): Promise<PlugSnapshot> => {
+      return await runWithResult(async () => {
         const snap = await api.plugsTest(deviceId);
         setPlugSnapshots((current) => ({
           ...current,
           [deviceId]: overlayTestSnapshot(snap, powerOn),
         }));
+        return snap;
       }, "Failed to test plug");
     },
-    [api, run],
+    [api, runWithResult],
   );
 
   const countdown = useMemo((): LocalCountdown | null => {
