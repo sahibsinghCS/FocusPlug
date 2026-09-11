@@ -6,8 +6,10 @@ import {
   deskPrimary,
   formatConfidence,
   padCountdown,
+  plugStatusLine,
   windowPrimary,
 } from "../lib/format";
+import { enabledPlugViews, type PlugView } from "../lib/plugsUi";
 import { DangerButton } from "./ui";
 
 interface CountdownOverlayProps {
@@ -15,6 +17,7 @@ interface CountdownOverlayProps {
   total: number;
   reason: string;
   state: SessionState;
+  plugs?: readonly PlugView[];
   onDemoKill: () => void;
 }
 
@@ -28,6 +31,9 @@ export function CountdownOverlay(props: CountdownOverlayProps): JSX.Element {
   const deskText = props.state.desk
     ? `${deskPrimary(props.state.desk)} ${formatConfidence(props.state.desk.confidence)}`
     : "Desk AI standby";
+  const armed = enabledPlugViews(props.plugs ?? []);
+  const plugText =
+    armed.length > 0 ? `${plugStatusLine(props.plugs ?? [])} · will cut` : "No plugs armed";
 
   return (
     <div
@@ -39,9 +45,10 @@ export function CountdownOverlay(props: CountdownOverlayProps): JSX.Element {
       <div className="overlay-glow pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,45,85,0.38),transparent_58%)]" />
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,rgba(0,0,0,0.45),transparent_18%,transparent_82%,rgba(0,0,0,0.55))]" />
 
-      <div className="relative z-10 flex justify-center gap-2 px-6 pt-6">
+      <div className="relative z-10 flex flex-wrap justify-center gap-2 px-6 pt-6">
         <HudChip k="Window" v={windowText} />
         <HudChip k="Desk AI" v={deskText} />
+        <HudChip k="Plugs" v={plugText} danger={armed.length > 0} />
         <HudChip k="Decision" v={decisionLabel(props.state.decision)} danger />
       </div>
 
@@ -78,6 +85,11 @@ export function CountdownOverlay(props: CountdownOverlayProps): JSX.Element {
         <p className="mt-2 font-mono text-[12px] uppercase tracking-[0.22em] text-zinc-500">
           Return to an allowlisted app to cancel
         </p>
+        {armed.length > 0 ? (
+          <p className="mt-2 max-w-lg text-center text-[13px] text-fp-amber">
+            Enabled plugs cut with the kill — never the study PC
+          </p>
+        ) : null}
       </div>
 
       <div className="relative z-10 flex flex-col items-center gap-3 pb-8">

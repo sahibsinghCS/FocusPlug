@@ -137,6 +137,30 @@ export function TextInput(props: {
   );
 }
 
+export function Select<T extends string>(props: {
+  value: T;
+  onChange: (value: T) => void;
+  options: ReadonlyArray<{ value: T; label: string }>;
+  ariaLabel?: string;
+}): JSX.Element {
+  return (
+    <select
+      value={props.value}
+      aria-label={props.ariaLabel}
+      onChange={(event) => {
+        props.onChange(event.target.value as T);
+      }}
+      className="h-9 w-full rounded-md border border-fp-line bg-fp-elev px-3 text-[13px] text-fp-ink"
+    >
+      {props.options.map((option) => (
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 export function Chip(props: { tone: Tone; children: ReactNode }): JSX.Element {
   const palette =
     props.tone === "lime"

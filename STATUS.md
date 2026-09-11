@@ -13,4 +13,5 @@
 - **policy-plugs** merged to `main` (PR #10). Critic WIN. Kill/unlock emit `plug_off`/`plug_on` for enabled fun plugs.
 - **smart-plug-core** merged to `main` (PR #15). Critic WIN. Kasa/HTTP/mock `PlugController`, hard protect, settings `plugs` default `[]`.
 - **model-seam** merged to `main` (PR #13). Critic WIN. `DeskModel.infer(frame)` factory (stub / blazeface / custom).
-- **session-plugs** ready (PR #11): consumes frozen `deviceIds` / `PlugSnapshot[]` from policy; Demo Kill cuts enabled plugs; study-PC never commanded. Independent critic **WIN**.
+- **session-plugs** merged to `main` (PR #11). Critic WIN. Consumes frozen `deviceIds` / `PlugSnapshot[]` from policy; Demo Kill cuts enabled plugs; study-PC never commanded.
+- **ui-plugs** in progress: renderer Plugs panel + Settings `deskModelId` selector on frozen IPC (`plugs:*`, `desk:*ModelId`). No parallel channels.

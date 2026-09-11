@@ -8,9 +8,12 @@ import {
   formatClock,
   formatConfidence,
   padCountdown,
+  plugKillNote,
+  plugStatusLine,
   windowPrimary,
   windowSecondary,
 } from "../lib/format";
+import { enabledPlugViews } from "../lib/plugsUi";
 import { IconBolt } from "../lib/icons";
 import { useAppState } from "../state/AppState";
 import { Chip, DangerButton, GhostButton, Led, PrimaryButton } from "../components/ui";
@@ -27,6 +30,14 @@ export function SessionPage(): JSX.Element {
   const countdownText = countdownIdle
     ? `Idle · ${app.settings.countdownSec}s`
     : `${padCountdown(app.countdown?.seconds ?? 0)}s · ${app.countdown?.reason ?? "fuse"}`;
+  const armedPlugs = enabledPlugViews(app.plugs);
+  const plugNote = plugKillNote(app.plugs);
+  const plugBody =
+    app.plugs.length === 0
+      ? "No outlets configured"
+      : armedPlugs.length === 0
+        ? "None armed — Demo Kill will not cut outlets"
+        : "Armed plugs cut on kill overlay / Demo Kill";
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -70,6 +81,11 @@ export function SessionPage(): JSX.Element {
             <p className="mt-1 max-w-xl truncate text-[13px] text-fp-mute" title={state.detail}>
               {state.detail}
             </p>
+            {plugNote ? (
+              <p className="mt-1 max-w-xl text-[12px] text-fp-amber" title={plugNote}>
+                {plugNote} — never the study PC
+              </p>
+            ) : null}
           </div>
           <div className="text-right">
             <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-fp-faint">
@@ -91,7 +107,7 @@ export function SessionPage(): JSX.Element {
           </div>
         </div>
 
-        <dl className="mt-5 grid grid-cols-2 gap-x-8 gap-y-3 border-t border-fp-line pt-4">
+        <dl className="mt-5 grid grid-cols-2 gap-x-8 gap-y-3 border-t border-fp-line pt-4 lg:grid-cols-3">
           <Meta
             label="Window"
             live={Boolean(state.focus && state.focus.matchedAllow)}
@@ -107,10 +123,17 @@ export function SessionPage(): JSX.Element {
             body={
               state.desk
                 ? state.desk.webcamEnabled
-                  ? "Webcam on · on-device model"
+                  ? `Webcam on · ${app.settings.deskModelId}`
                   : "Webcam off"
                 : "Presence model idle"
             }
+          />
+          <Meta
+            label="Plugs"
+            live={armedPlugs.some((plug) => plug.online && plug.powerOn === true)}
+            warn={armedPlugs.length > 0 && armedPlugs.every((plug) => plug.powerOn === false)}
+            title={plugStatusLine(app.plugs)}
+            body={plugBody}
           />
         </dl>
       </section>
@@ -181,10 +204,15 @@ export function SessionPage(): JSX.Element {
       </section>
 
       <footer className="flex items-center justify-between gap-4 border-t border-fp-red/40 bg-fp-red/[0.07] px-6 py-3">
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-fp-red">Danger</p>
-          <p className="truncate text-[13px] text-zinc-300">
+          <p className="text-[13px] text-zinc-300">
             Demo Kill — instant blocklist force-quit for filming. Never kills the study PC.
+          </p>
+          <p className="mt-0.5 text-[12px] text-zinc-400">
+            {armedPlugs.length > 0
+              ? `Also cuts ${armedPlugs.length} enabled plug${armedPlugs.length === 1 ? "" : "s"}: ${armedPlugs.map((plug) => plug.name).join(", ")}.`
+              : "Also cuts plugs when any are enabled."}
             {app.killResult
               ? ` · killed ${app.killResult.killed.length ? app.killResult.killed.join(", ") : "nothing"}`
               : ""}

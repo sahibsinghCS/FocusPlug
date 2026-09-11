@@ -1,6 +1,13 @@
 import type { JSX } from "react";
-import { Field, GhostButton, Toggle } from "../components/ui";
+import type { DeskModelId } from "@shared/ipc";
+import { Field, GhostButton, Select, Toggle } from "../components/ui";
+import { deskModelLabel } from "../lib/format";
+import { DESK_MODEL_IDS } from "../lib/plugsUi";
 import { useAppState } from "../state/AppState";
+
+const MODEL_OPTIONS: ReadonlyArray<{ value: DeskModelId; label: string }> = DESK_MODEL_IDS.map(
+  (id) => ({ value: id, label: deskModelLabel(id) }),
+);
 
 export function SettingsPage(): JSX.Element {
   const app = useAppState();
@@ -12,7 +19,7 @@ export function SettingsPage(): JSX.Element {
         <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-fp-faint">Policy</p>
         <h1 className="mt-1 text-[22px] font-semibold tracking-tight">Settings</h1>
         <p className="mt-1 text-[13px] text-fp-mute">
-          Countdown fuse, desk-presence threshold, and strict on-task rules.
+          Countdown fuse, desk-presence threshold, Desk AI model seam, and strict on-task rules.
         </p>
       </header>
 
@@ -90,6 +97,29 @@ export function SettingsPage(): JSX.Element {
             }}
             label="Desk AI webcam"
           />
+        </div>
+
+        <div className="border-t border-fp-line pt-5">
+          <Field
+            label="Desk model"
+            hint="IPC-persisted seam for the on-device presence detector. Stub skips inference, BlazeFace is the shipped graph, custom is Timmy's drop-in."
+          >
+            <div className="max-w-xs">
+              <Select
+                value={settings.deskModelId}
+                onChange={(next) => {
+                  void app.setDeskModelId(next);
+                }}
+                options={MODEL_OPTIONS}
+                ariaLabel="Desk model"
+              />
+            </div>
+            <p className="mt-2 text-[12px] text-fp-mute">
+              Current: <span className="font-mono text-fp-ink">{settings.deskModelId}</span>.
+              Swap rules and file layout:{" "}
+              <span className="font-mono text-fp-lime">docs/MODEL-SEAM.md</span>.
+            </p>
+          </Field>
         </div>
       </section>
 

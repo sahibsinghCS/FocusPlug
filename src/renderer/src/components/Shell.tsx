@@ -5,6 +5,7 @@ import {
   IconBlock,
   IconLog,
   IconMark,
+  IconPlug,
   IconSession,
   IconSettings,
 } from "../lib/icons";
@@ -16,12 +17,14 @@ import { CountdownOverlay } from "./CountdownOverlay";
 import { SessionPage } from "../pages/SessionPage";
 import { ListPage } from "../pages/ListPage";
 import { SettingsPage } from "../pages/SettingsPage";
+import { PlugsPage } from "../pages/PlugsPage";
 import { LogPage } from "../pages/LogPage";
 
 const ICONS: Record<RouteId, (props: { className?: string }) => JSX.Element> = {
   session: IconSession,
   allowlist: IconAllow,
   blocklist: IconBlock,
+  plugs: IconPlug,
   settings: IconSettings,
   log: IconLog,
 };
@@ -111,6 +114,7 @@ export function Shell(): JSX.Element {
           {route === "session" ? <SessionPage /> : null}
           {route === "allowlist" ? <ListPage kind="allow" /> : null}
           {route === "blocklist" ? <ListPage kind="block" /> : null}
+          {route === "plugs" ? <PlugsPage /> : null}
           {route === "settings" ? <SettingsPage /> : null}
           {route === "log" ? <LogPage /> : null}
         </main>
@@ -122,6 +126,7 @@ export function Shell(): JSX.Element {
           total={app.countdown.total}
           reason={app.countdown.reason}
           state={app.state}
+          plugs={app.plugs}
           onDemoKill={() => {
             void app.demoKill();
           }}

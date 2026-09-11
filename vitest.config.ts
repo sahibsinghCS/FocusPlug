@@ -14,6 +14,7 @@ export default defineConfig({
       "src/main/session/**/*.test.ts",
       "src/main/desk/**/*.test.ts",
       "src/main/plugs/**/*.test.ts",
+      "src/renderer/src/lib/**/*.test.ts",
     ],
   },
 });

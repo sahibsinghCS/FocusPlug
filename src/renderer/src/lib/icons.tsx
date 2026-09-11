@@ -56,6 +56,26 @@ export function IconBlock(props: IconProps): JSX.Element {
   );
 }
 
+export function IconPlug(props: IconProps): JSX.Element {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" className={props.className} aria-hidden="true">
+      <path
+        d="M6 3.2v3.1M10 3.2v3.1"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
+      <path
+        d="M4.4 6.4h7.2v2.1c0 2.2-1.8 4-4 4h-.8c-2.2 0-4-1.8-4-4V6.4Z"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinejoin="round"
+      />
+      <path d="M8 12.5v1.3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function IconSettings(props: IconProps): JSX.Element {
   return (
     <svg viewBox="0 0 16 16" fill="none" className={props.className} aria-hidden="true">
