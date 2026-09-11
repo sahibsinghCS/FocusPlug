@@ -1,0 +1,32 @@
+{
+  "bar": "Mock off→on; protect rejects study-PC; unknown id errors cleanly; zero-plug boot",
+  "passed": true,
+  "ts": 1789130125232,
+  "steps": [
+    {
+      "name": "mock-off",
+      "ok": true,
+      "detail": "[{\"id\":\"lamp\",\"ok\":true,\"on\":false}]"
+    },
+    {
+      "name": "mock-on",
+      "ok": true,
+      "detail": "[{\"id\":\"lamp\",\"ok\":true,\"on\":true}]"
+    },
+    {
+      "name": "protect-study-pc",
+      "ok": true,
+      "detail": "Refused to control study PC plug \"study-pc\" (study)"
+    },
+    {
+      "name": "unknown-id",
+      "ok": true,
+      "detail": "Unknown plug id: missing"
+    },
+    {
+      "name": "zero-plugs-boot",
+      "ok": true,
+      "detail": "count=0"
+    }
+  ]
+}

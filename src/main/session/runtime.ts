@@ -9,6 +9,8 @@ import type { SessionPush } from "./push.ts";
 export interface SessionRuntimeOptions {
   userDataDir: string;
   push: SessionPush;
+  /** Shared JSON store. Pass the same instance used by PlugController. */
+  store?: SessionControllerOptions["store"];
   now?: () => number;
   tickIntervalMs?: number;
 }
@@ -18,7 +20,7 @@ export interface SessionRuntimeOptions {
  * blocklist killer. Tests should construct SessionController with mocks instead.
  */
 export function createSessionRuntime(options: SessionRuntimeOptions): SessionController {
-  const store = createAppStore(options.userDataDir);
+  const store = options.store ?? createAppStore(options.userDataDir);
   const settings = store.loadSettings();
   const windowMonitor = new FocusWindowMonitor({
     reader: createPlatformForegroundReader(),
