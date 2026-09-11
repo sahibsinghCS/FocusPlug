@@ -14,16 +14,16 @@ export function SettingsPage(): JSX.Element {
   const { settings } = app;
 
   return (
-    <div className="mx-auto flex max-w-[720px] flex-col gap-5 px-7 py-6">
+    <div className="mx-auto flex max-w-[720px] flex-col gap-4 px-7 py-5">
       <header>
         <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-fp-faint">Policy</p>
-        <h1 className="mt-1 text-[22px] font-semibold tracking-tight">Settings</h1>
+        <h1 className="mt-1 text-[18px] font-semibold tracking-tight">Settings</h1>
         <p className="mt-1 text-[13px] text-fp-mute">
           Countdown fuse, desk-presence threshold, Desk AI model seam, and strict on-task rules.
         </p>
       </header>
 
-      <section className="space-y-6 rounded-lg border border-fp-line bg-fp-panel p-5">
+      <section className="space-y-4 rounded-lg border border-fp-line bg-fp-panel p-4">
         <Field
           label="Countdown"
           hint="Seconds between distracted/away and force-quit. Cancels if you return to an allowlisted app."
@@ -66,7 +66,7 @@ export function SettingsPage(): JSX.Element {
           </div>
         </Field>
 
-        <div className="flex items-center justify-between gap-4 border-t border-fp-line pt-5">
+        <div className="flex items-center justify-between gap-4 border-t border-fp-line pt-3">
           <div>
             <p className="text-[13px] font-medium">Strict mode</p>
             <p className="mt-0.5 text-[12px] text-fp-mute">
@@ -82,7 +82,7 @@ export function SettingsPage(): JSX.Element {
           />
         </div>
 
-        <div className="flex items-center justify-between gap-4 border-t border-fp-line pt-5">
+        <div className="flex items-center justify-between gap-4 border-t border-fp-line pt-3">
           <div>
             <p className="text-[13px] font-medium">Desk AI webcam</p>
             <p className="mt-0.5 text-[12px] text-fp-mute">
@@ -99,7 +99,7 @@ export function SettingsPage(): JSX.Element {
           />
         </div>
 
-        <div className="border-t border-fp-line pt-5">
+        <div className="border-t border-fp-line pt-3">
           <Field
             label="Desk model"
             hint="IPC-persisted seam for the on-device presence detector. Stub skips inference, BlazeFace is the shipped graph, custom is Timmy's drop-in."
@@ -123,7 +123,7 @@ export function SettingsPage(): JSX.Element {
         </div>
       </section>
 
-      <section className="rounded-lg border border-fp-line bg-fp-panel p-5">
+      <section className="rounded-lg border border-fp-line bg-fp-panel p-4">
         <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-fp-faint">Filming</p>
         <p className="mt-2 text-[13px] text-fp-mute">
           Preview the kill overlay without waiting for Discord. Uses the current countdown length.

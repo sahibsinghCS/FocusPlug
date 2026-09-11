@@ -63,6 +63,17 @@ export function formatClock(ts: number): string {
   return date.toLocaleTimeString([], { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 
+export function formatHmClock(ts: number): string {
+  if (!Number.isFinite(ts)) {
+    throw new Error("timestamp must be a finite number");
+  }
+  return new Date(ts).toLocaleTimeString([], {
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export function formatRelative(ts: number, now: number): string {
   const delta = Math.max(0, now - ts);
   if (delta < 2000) return "just now";
@@ -114,4 +125,56 @@ export function plugStatusLine(plugs: readonly PlugView[]): string {
 
 export function plugKillNote(plugs: readonly PlugView[]): string | null {
   return plugKillNoteFromViews(plugs);
+}
+
+export interface ChromeStatus {
+  label: string;
+  detail: string;
+  tone: Tone;
+  live: boolean;
+}
+
+export function sessionChrome(state: SessionState): ChromeStatus {
+  if (!state.sessionActive) {
+    return { label: "Session", detail: "Standby", tone: "mute", live: false };
+  }
+  return {
+    label: "Session",
+    detail: decisionLabel(state.decision),
+    tone: decisionTone(state.decision),
+    live: true,
+  };
+}
+
+export function deskChrome(desk: DeskSnapshot | null): ChromeStatus {
+  if (!desk) {
+    return { label: "Desk AI", detail: "Standby", tone: "mute", live: false };
+  }
+  if (!desk.webcamEnabled) {
+    return { label: "Desk AI", detail: "Webcam off", tone: "mute", live: false };
+  }
+  return {
+    label: "Desk AI",
+    detail: `${deskLabel(desk.label)} ${formatConfidence(desk.confidence)}`,
+    tone: deskTone(desk.label),
+    live: desk.label === "at_desk",
+  };
+}
+
+export function plugChrome(plugs: readonly PlugView[]): ChromeStatus {
+  if (plugs.length === 0) {
+    return { label: "Plugs", detail: "None", tone: "mute", live: false };
+  }
+  const armed = plugs.filter((plug) => plug.enabled);
+  if (armed.length === 0) {
+    return { label: "Plugs", detail: "Idle", tone: "mute", live: false };
+  }
+  const on = armed.filter((plug) => plug.powerOn === true).length;
+  const allOff = armed.every((plug) => plug.powerOn === false);
+  return {
+    label: "Plugs",
+    detail: `${armed.length} armed`,
+    tone: allOff ? "red" : on > 0 ? "lime" : "amber",
+    live: on > 0,
+  };
 }

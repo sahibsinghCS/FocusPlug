@@ -1,36 +1,17 @@
-import { useEffect, useState, type JSX } from "react";
-import { parseRoute, routeHash, type RouteId, ROUTES } from "../lib/routes";
-import {
-  IconAllow,
-  IconBlock,
-  IconLog,
-  IconMark,
-  IconPlug,
-  IconSession,
-  IconSettings,
-} from "../lib/icons";
-import { cn } from "../lib/cn";
-import { decisionTone, sessionModeLabel } from "../lib/format";
-import { Led } from "./ui";
+import { useCallback, useEffect, useState, type JSX } from "react";
+import { parseRoute, type RouteId, ROUTES, navigate } from "../lib/routes";
+import { loadCollapsedPref, persistCollapsedPref, resolveSidebarCollapsed } from "../lib/shellPref";
 import { useAppState } from "../state/AppState";
 import { CountdownOverlay } from "./CountdownOverlay";
+import { Titlebar } from "./Titlebar";
+import { Sidebar } from "./Sidebar";
 import { SessionPage } from "../pages/SessionPage";
 import { ListPage } from "../pages/ListPage";
 import { SettingsPage } from "../pages/SettingsPage";
 import { PlugsPage } from "../pages/PlugsPage";
 import { LogPage } from "../pages/LogPage";
 
-const ICONS: Record<RouteId, (props: { className?: string }) => JSX.Element> = {
-  session: IconSession,
-  allowlist: IconAllow,
-  blocklist: IconBlock,
-  plugs: IconPlug,
-  settings: IconSettings,
-  log: IconLog,
-};
-
-export function Shell(): JSX.Element {
-  const app = useAppState();
+function useHashRoute(): RouteId {
   const [route, setRoute] = useState<RouteId>(() => parseRoute(window.location.hash));
 
   useEffect(() => {
@@ -44,73 +25,97 @@ export function Shell(): JSX.Element {
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
 
+  return route;
+}
+
+function useSidebarCollapsed(): {
+  collapsed: boolean;
+  toggle: () => void;
+} {
+  const [pref, setPref] = useState<boolean | null>(() => loadCollapsedPref());
+  const [width, setWidth] = useState(() => window.innerWidth);
+
+  useEffect(() => {
+    const onResize = (): void => {
+      setWidth(window.innerWidth);
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  const collapsed = resolveSidebarCollapsed(pref, width);
+
+  const toggle = useCallback((): void => {
+    const next = !resolveSidebarCollapsed(pref, window.innerWidth);
+    setPref(next);
+    persistCollapsedPref(next);
+  }, [pref]);
+
+  return { collapsed, toggle };
+}
+
+export function Shell(): JSX.Element {
+  const app = useAppState();
+  const route = useHashRoute();
+  const sidebar = useSidebarCollapsed();
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent): void => {
+      const meta = event.metaKey || event.ctrlKey;
+      if (meta && event.key.toLowerCase() === "b") {
+        event.preventDefault();
+        sidebar.toggle();
+        return;
+      }
+      if (event.altKey && event.key >= "1" && event.key <= "6") {
+        const index = Number(event.key) - 1;
+        const target = ROUTES[index];
+        if (target) {
+          event.preventDefault();
+          navigate(target.id);
+        }
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [sidebar.toggle]);
+
   return (
-    <div className="flex h-full min-h-0 bg-fp-bg text-fp-ink">
-      <aside className="flex w-[232px] shrink-0 flex-col border-r border-fp-line bg-fp-sidebar">
-        <div className="flex items-center gap-2.5 px-4 py-5">
-          <IconMark className="h-8 w-8 text-fp-lime" />
-          <div className="min-w-0">
-            <p className="text-[14px] font-semibold tracking-tight">FocusPlug</p>
-            <p className="text-[11px] text-fp-faint">Study session enforcer</p>
-          </div>
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-fp-bg text-fp-ink">
+      <a href="#fp-main" className="fp-skip">
+        Skip to main
+      </a>
+      <Titlebar
+        route={route}
+        collapsed={sidebar.collapsed}
+        onToggleSidebar={sidebar.toggle}
+      />
+      {app.error && route !== "session" ? (
+        <div
+          className="flex items-center justify-between gap-3 border-b border-fp-red/30 bg-fp-red/10 px-4 py-1.5 text-[12px] text-fp-red"
+          role="alert"
+        >
+          <p className="min-w-0 truncate">{app.error}</p>
+          <button
+            type="button"
+            className="fp-btn shrink-0 rounded px-2 py-0.5 text-[11px] uppercase tracking-[0.12em] hover:bg-fp-red/15"
+            onClick={() => app.clearError()}
+          >
+            Dismiss
+          </button>
         </div>
-
-        <nav className="flex flex-1 flex-col gap-0.5 px-2">
-          {ROUTES.map((item) => {
-            const Icon = ICONS[item.id];
-            const active = route === item.id;
-            return (
-              <a
-                key={item.id}
-                href={routeHash(item.id)}
-                className={cn(
-                  "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-[13px] transition",
-                  active
-                    ? "bg-white/5 text-fp-ink"
-                    : "text-fp-mute hover:bg-white/[0.03] hover:text-fp-ink",
-                )}
-              >
-                <span
-                  className={cn(
-                    "h-4 w-0.5 rounded-full",
-                    active ? "bg-fp-lime" : "bg-transparent",
-                  )}
-                />
-                <Icon className="h-4 w-4 shrink-0" />
-                <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="font-medium">{item.label}</span>
-                  <span className={cn("text-[11px]", active ? "text-fp-faint" : "text-zinc-600")}>
-                    {item.hint}
-                  </span>
-                </span>
-              </a>
-            );
-          })}
-        </nav>
-
-        <div className="border-t border-fp-line px-4 py-3">
-          <div className="flex items-center gap-2 text-[11px] text-fp-faint">
-            <Led
-              tone={app.state.sessionActive ? decisionTone(app.state.decision) : "mute"}
-              live={app.state.sessionActive}
-            />
-            <span className="uppercase tracking-[0.16em]">
-              {sessionModeLabel(app.state)}
-            </span>
-            <span className="ml-auto font-mono text-[10px] text-fp-faint">
-              {app.state.decision}
-            </span>
-          </div>
-        </div>
-      </aside>
-
-      <div className="flex min-w-0 flex-1 flex-col">
-        {app.error ? (
-          <div className="border-b border-fp-red/30 bg-fp-red/10 px-6 py-2 text-[12px] text-fp-red" role="alert">
-            {app.error}
-          </div>
-        ) : null}
-        <main className="min-h-0 flex-1 overflow-auto">
+      ) : null}
+      <div className="flex min-h-0 min-w-0 flex-1">
+        <Sidebar
+          route={route}
+          collapsed={sidebar.collapsed}
+          onToggle={sidebar.toggle}
+        />
+        <main
+          id="fp-main"
+          className="min-h-0 min-w-0 flex-1 overflow-auto"
+          tabIndex={-1}
+        >
           {route === "session" ? <SessionPage /> : null}
           {route === "allowlist" ? <ListPage kind="allow" /> : null}
           {route === "blocklist" ? <ListPage kind="block" /> : null}

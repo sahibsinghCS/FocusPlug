@@ -56,7 +56,7 @@ export function LogPage(): JSX.Element {
               >
                 {event.kind}
               </span>
-              <span className="truncate text-[13px] text-zinc-300" title={event.detail}>
+              <span className="truncate text-[13px] text-fp-ink/80" title={event.detail}>
                 {event.detail}
               </span>
             </li>
