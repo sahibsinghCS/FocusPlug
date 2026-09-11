@@ -65,23 +65,23 @@
     },
     {
       "ts": 1010500,
-      "kind": "unlock",
-      "detail": "Unlocked — back on task"
-    },
-    {
-      "ts": 1010500,
       "kind": "plug_on",
       "detail": "on · console-lamp, tv-outlet"
     },
     {
-      "ts": 1010250,
-      "kind": "kill",
-      "detail": "blocked_focus · killed discord.exe (pid 44552)"
+      "ts": 1010500,
+      "kind": "unlock",
+      "detail": "Unlocked — back on task"
     },
     {
       "ts": 1010250,
       "kind": "plug_off",
       "detail": "off · console-lamp, tv-outlet"
+    },
+    {
+      "ts": 1010250,
+      "kind": "kill",
+      "detail": "blocked_focus · killed discord.exe (pid 44552)"
     },
     {
       "ts": 1000250,

@@ -353,12 +353,13 @@ describe("SessionController", () => {
     h.clock.advance(10_000);
     await h.controller.tick();
     expect(h.killer.calls.length).toBe(1);
-    expect(h.plugs.offCalls).toEqual([[]]);
-    expect(logKinds(h.controller)).toContain("plug_off");
+    expect(policyTypes(h.trace)).toContain("kill");
+    expect(policyTypes(h.trace)).not.toContain("plug_off");
+    expect(h.plugs.offCalls).toEqual([]);
     await expect(h.controller.demoKill()).resolves.toMatchObject({
       killed: ["discord.exe (pid 44552)"],
     });
-    expect(h.plugs.offCalls.length).toBe(2);
+    expect(h.plugs.offCalls).toEqual([[]]);
   });
 
   it("never sends plug commands for isStudyPc, even when policy asks", async () => {
@@ -456,7 +457,10 @@ describe("SessionController", () => {
   });
 
   it("does not kill twice while still on the blocked app after fuse", async () => {
-    const h = makeHarness({ settings: { ...DEFAULT_SETTINGS, countdownSec: 1 } });
+    const h = makeHarness({
+      plugs: SAMPLE_PLUGS,
+      settings: { ...DEFAULT_SETTINGS, countdownSec: 1, plugs: SAMPLE_PLUGS },
+    });
     await h.controller.start();
     h.window.emit(discordFocus(h.clock.ms));
     h.desk.emit(presentDesk(h.clock.ms));
@@ -465,6 +469,7 @@ describe("SessionController", () => {
     await h.controller.tick();
     expect(h.killer.calls.length).toBe(1);
     expect(h.plugs.offCalls.length).toBe(1);
+    expect(h.plugs.offCalls[0]).toEqual(enabledPlugIds(SAMPLE_PLUGS));
     h.clock.advance(1000);
     await h.controller.tick();
     expect(h.killer.calls.length).toBe(1);

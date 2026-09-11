@@ -1,6 +1,6 @@
 # FocusPlug MVP
 
-## Status (2026-09-11T13:00Z)
+## Status (2026-09-11T12:52Z)
 - **Foundation** merged to `main` (PR #1).
 - **window-monitor** merged to `main` (PR #4). Critic WIN.
 - **process-kill** merged to `main` (PR #2). Critic WIN (25/25).
