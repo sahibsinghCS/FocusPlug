@@ -96,9 +96,19 @@ export function PlugDeviceRow(props: {
       </div>
       <div className="mt-1 flex flex-wrap items-center gap-2 pl-3.5">
         {probe ? (
-          <p className="font-mono text-[11px] text-fp-mute" aria-live="polite">
-            Last probe{intent ? ` · test ${intent}` : ""} · {formatProbe(probe)}
-          </p>
+          <div className="space-y-0.5">
+            <p className="font-mono text-[11px] text-fp-mute" aria-live="polite">
+              Last probe{intent ? ` · test ${intent}` : ""} · {formatProbe(probe)}
+            </p>
+            {intent &&
+            probe.powerOn !== null &&
+            (intent === "on") !== probe.powerOn ? (
+              <p className="text-[11px] text-fp-amber">
+                Driver reported {probe.powerOn ? "on" : "off"}. Test probes status;
+                kill / Demo Kill send off.
+              </p>
+            ) : null}
+          </div>
         ) : plug.probed && plug.error ? (
           <p className="font-mono text-[11px] text-fp-red">{plug.error}</p>
         ) : (

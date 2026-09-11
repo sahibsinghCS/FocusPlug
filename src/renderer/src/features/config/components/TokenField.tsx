@@ -42,6 +42,7 @@ export function TokenField(props: {
         "flex min-h-8 min-w-0 flex-wrap items-center gap-1 rounded-md border bg-fp-elev px-1.5 py-1",
         props.invalid ? "border-fp-red/60" : "border-fp-line",
         props.disabled && "opacity-40",
+        "focus-within:outline focus-within:outline-2 focus-within:outline-offset-1 focus-within:outline-fp-lime",
       )}
     >
       <ul className="flex min-w-0 flex-wrap items-center gap-1" aria-label="Match tokens">

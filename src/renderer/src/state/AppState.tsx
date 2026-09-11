@@ -96,19 +96,6 @@ function applyPlugPower(
   return next;
 }
 
-function overlayTestSnapshot(snap: PlugSnapshot, intendedPower: boolean): PlugSnapshot {
-  if (snap.error && snap.error.trim().length > 0) {
-    return snap;
-  }
-  return {
-    ts: snap.ts,
-    deviceId: snap.deviceId,
-    online: snap.online,
-    powerOn: intendedPower,
-    error: snap.error,
-  };
-}
-
 export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
   const { api, usingMock } = useMemo(() => getApi(), []);
   const [ready, setReady] = useState(false);
@@ -397,10 +384,10 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
         const snap = await api.plugsTest(deviceId);
         setPlugSnapshots((current) => ({
           ...current,
-          [deviceId]: overlayTestSnapshot(snap, powerOn),
+          [deviceId]: snap,
         }));
         return snap;
-      }, "Failed to test plug");
+      }, powerOn ? "Failed to test plug on" : "Failed to test plug off");
     },
     [api, runWithResult],
   );
