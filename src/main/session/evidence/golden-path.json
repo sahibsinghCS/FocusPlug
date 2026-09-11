@@ -1,6 +1,6 @@
 {
   "name": "golden-path",
-  "bar": "Docs→Discord→countdown→kill→return→unlock plus Demo Kill instant path",
+  "bar": "Docs→Discord→countdown→kill+plug_off→unlock+plug_on plus Demo Kill cuts plugs",
   "platform": "linux",
   "passed": true,
   "settings": {
@@ -21,17 +21,25 @@
     "status",
     "status",
     "kill",
+    "plug_off",
     "status",
     "unlock",
+    "plug_on",
     "status",
     "status",
-    "kill"
+    "kill",
+    "plug_off"
   ],
   "log": [
     {
       "ts": 1010500,
       "kind": "demo",
       "detail": "Demo Kill · killed discord.exe (pid 99)"
+    },
+    {
+      "ts": 1010500,
+      "kind": "plug_off",
+      "detail": "off · console-lamp, tv-outlet"
     },
     {
       "ts": 1010500,
@@ -44,9 +52,19 @@
       "detail": "Unlocked — back on task"
     },
     {
+      "ts": 1010500,
+      "kind": "plug_on",
+      "detail": "on · console-lamp, tv-outlet"
+    },
+    {
       "ts": 1010250,
       "kind": "kill",
       "detail": "blocked_focus · killed discord.exe (pid 44552)"
+    },
+    {
+      "ts": 1010250,
+      "kind": "plug_off",
+      "detail": "off · console-lamp, tv-outlet"
     },
     {
       "ts": 1000250,
@@ -119,12 +137,20 @@
       "killed": [
         "discord.exe (pid 44552)"
       ],
+      "plugOff": [
+        "console-lamp",
+        "tv-outlet"
+      ],
       "countdownSec": 0
     },
     {
       "action": "return_docs_unlock",
       "decision": "ON_TASK",
-      "policyIncludes": "unlock"
+      "policyIncludes": "unlock",
+      "plugOn": [
+        "console-lamp",
+        "tv-outlet"
+      ]
     },
     {
       "action": "DEMO_KILL",
@@ -157,6 +183,10 @@
         "minecraftlauncher.exe",
         "roblox",
         "robloxplayerbeta.exe"
+      ],
+      "plugOff": [
+        "console-lamp",
+        "tv-outlet"
       ]
     }
   ]

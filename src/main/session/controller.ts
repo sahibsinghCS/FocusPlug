@@ -451,7 +451,11 @@ export class SessionController {
     this.push.policyEvent(event);
     const [result] = await Promise.all([
       this.runKill(matchers),
+<<<<<<< HEAD
       this.cutEnabledPlugs("demo"),
+=======
+      this.cutEnabledPlugs(),
+>>>>>>> 29af9dc (Record golden-path evidence for kill+plug_off and unlock+plug_on.)
     ]);
     this.appendLog("demo", formatKill("Demo Kill", result));
     this.state = {
