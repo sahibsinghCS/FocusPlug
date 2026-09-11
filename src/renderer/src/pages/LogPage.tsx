@@ -4,15 +4,6 @@ import { cn } from "../lib/cn";
 import { useAppState } from "../state/AppState";
 import { TextInput } from "../components/ui";
 
-function kindTone(kind: string): string {
-  const key = kind.toLowerCase();
-  if (key.includes("kill") || key === "demo") return "text-fp-red";
-  if (key.includes("decision") || key === "session") return "text-fp-lime";
-  if (key.includes("desk")) return "text-fp-amber";
-  if (key.includes("focus") || key.includes("policy")) return "text-fp-blue";
-  return "text-fp-mute";
-}
-
 export function LogPage(): JSX.Element {
   const app = useAppState();
   const [query, setQuery] = useState("");
@@ -66,7 +57,7 @@ export function LogPage(): JSX.Element {
               <span
                 className={cn(
                   "font-mono text-[11px] font-medium uppercase tracking-[0.08em]",
-                  kindTone(event.kind),
+                  event.kind.toLowerCase().includes("kill") ? "text-fp-red" : "text-fp-mute",
                 )}
               >
                 {event.kind}

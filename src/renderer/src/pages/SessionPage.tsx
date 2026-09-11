@@ -5,14 +5,11 @@ import {
   decisionLabel,
   decisionTone,
   deskPrimary,
-  deskTone,
-  focusFlag,
   formatClock,
   formatConfidence,
   padCountdown,
   windowPrimary,
   windowSecondary,
-  type Tone,
 } from "../lib/format";
 import { IconBolt } from "../lib/icons";
 import { useAppState } from "../state/AppState";
@@ -21,11 +18,15 @@ import { Chip, DangerButton, GhostButton, Led, PrimaryButton } from "../componen
 export function SessionPage(): JSX.Element {
   const app = useAppState();
   const { state } = app;
-  const flag = focusFlag(state.focus);
-  const deskToneValue: Tone = state.desk ? deskTone(state.desk.label) : "mute";
-  const decision = decisionTone(state.decision);
+  const tone = decisionTone(state.decision);
   const countdownIdle = !app.countdown;
   const windowName = resolveAppName(windowPrimary(state.focus), app.lists);
+  const deskText = state.desk
+    ? `${deskPrimary(state.desk)} · ${formatConfidence(state.desk.confidence)}`
+    : "Desk AI standby";
+  const countdownText = countdownIdle
+    ? `Idle · ${app.settings.countdownSec}s`
+    : `${padCountdown(app.countdown?.seconds ?? 0)}s · ${app.countdown?.reason ?? "fuse"}`;
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -37,7 +38,7 @@ export function SessionPage(): JSX.Element {
         <div className="flex items-center gap-2">
           {state.sessionActive ? (
             <>
-              <Chip tone={decision}>Live</Chip>
+              <Chip tone={tone}>Live</Chip>
               <GhostButton onClick={() => void app.stopSession()}>Stop</GhostButton>
             </>
           ) : (
@@ -46,49 +47,68 @@ export function SessionPage(): JSX.Element {
         </div>
       </header>
 
-      <section className="border-b border-fp-line">
-        <PropertyRow
-          kicker="Window"
-          tone={flag.tone}
-          live={Boolean(state.focus)}
-          title={windowName}
-          body={windowSecondary(state.focus)}
-          chip={flag.label}
-        />
-        <PropertyRow
-          kicker="Desk AI"
-          tone={deskToneValue}
-          live={Boolean(state.desk?.webcamEnabled)}
-          title={deskPrimary(state.desk)}
-          body={
-            state.desk
-              ? `${formatConfidence(state.desk.confidence)} confidence · ${state.desk.webcamEnabled ? "cam on" : "cam off"}`
-              : "Webcam + on-device presence model"
-          }
-          chip={state.desk?.webcamEnabled ? "Cam on" : "Cam off"}
-          meter={state.desk ? state.desk.confidence : null}
-        />
-        <PropertyRow
-          kicker="Decision"
-          tone={decision}
-          live={state.sessionActive}
-          title={decisionLabel(state.decision)}
-          body={state.detail}
-          chip={state.sessionActive ? "Armed" : "Observe"}
-        />
-        <PropertyRow
-          kicker="Countdown"
-          tone={countdownIdle ? "mute" : "red"}
-          live={!countdownIdle}
-          title={countdownIdle ? "Idle" : padCountdown(app.countdown?.seconds ?? 0)}
-          body={
-            countdownIdle
-              ? `${app.settings.countdownSec}s fuse when a blocked app takes focus or you leave the desk`
-              : (app.countdown?.reason ?? "")
-          }
-          chip={countdownIdle ? "Idle" : "Fuse"}
-          monoTitle={!countdownIdle}
-        />
+      <section className="border-b border-fp-line px-6 py-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-fp-faint">
+              Decision
+            </p>
+            <p
+              className={cn(
+                "mt-1 text-[32px] font-semibold tracking-tight",
+                tone === "lime"
+                  ? "text-fp-lime"
+                  : tone === "red"
+                    ? "text-fp-red"
+                    : tone === "amber"
+                      ? "text-fp-amber"
+                      : "text-fp-ink",
+              )}
+            >
+              {decisionLabel(state.decision)}
+            </p>
+            <p className="mt-1 max-w-xl truncate text-[13px] text-fp-mute" title={state.detail}>
+              {state.detail}
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-fp-faint">
+              Countdown
+            </p>
+            <p
+              className={cn(
+                "mt-1 font-mono text-[32px] font-bold leading-none tabular",
+                countdownIdle ? "text-zinc-600" : "text-fp-red",
+              )}
+            >
+              {countdownIdle ? "—" : padCountdown(app.countdown?.seconds ?? 0)}
+            </p>
+            <p className="mt-1 text-[12px] text-fp-faint">{countdownText}</p>
+          </div>
+        </div>
+
+        <dl className="mt-5 grid grid-cols-2 gap-x-8 gap-y-3 border-t border-fp-line pt-4">
+          <Meta
+            label="Window"
+            live={Boolean(state.focus && state.focus.matchedAllow)}
+            warn={Boolean(state.focus?.matchedBlock)}
+            title={windowName}
+            body={windowSecondary(state.focus)}
+          />
+          <Meta
+            label="Desk AI"
+            live={state.desk?.label === "at_desk"}
+            warn={state.desk?.label === "away"}
+            title={deskText}
+            body={
+              state.desk
+                ? state.desk.webcamEnabled
+                  ? "Webcam on · on-device model"
+                  : "Webcam off"
+                : "Presence model idle"
+            }
+          />
+        </dl>
       </section>
 
       <section className="flex min-h-0 flex-1 flex-col">
@@ -132,65 +152,46 @@ export function SessionPage(): JSX.Element {
   );
 }
 
-function PropertyRow(props: {
-  kicker: string;
-  tone: Tone;
-  live?: boolean;
+function Meta(props: {
+  label: string;
   title: string;
   body: string;
-  chip: string;
-  meter?: number | null;
-  monoTitle?: boolean;
+  live?: boolean;
+  warn?: boolean;
 }): JSX.Element {
+  const tone = props.warn ? "red" : props.live ? "lime" : "mute";
   return (
-    <div className="grid grid-cols-[108px_minmax(0,1fr)_auto] items-center gap-3 border-b border-fp-line px-6 py-2.5 last:border-b-0">
+    <div className="min-w-0">
       <div className="flex items-center gap-2">
-        <Led tone={props.tone} live={props.live} />
-        <h2 className="text-[11px] font-medium uppercase tracking-[0.14em] text-fp-faint">
-          {props.kicker}
-        </h2>
+        <Led tone={tone} live={props.live && !props.warn} />
+        <dt className="text-[11px] font-medium uppercase tracking-[0.14em] text-fp-faint">
+          {props.label}
+        </dt>
       </div>
-      <div className="min-w-0">
-        <p
-          className={cn(
-            "truncate text-[14px] font-medium tracking-tight",
-            props.monoTitle && "font-mono text-[18px] font-bold tabular text-fp-red",
-          )}
-          title={props.title}
-        >
+      <dd className="mt-1 min-w-0">
+        <p className="truncate text-[14px] font-medium" title={props.title}>
           {props.title}
         </p>
         <p className="truncate text-[12px] text-fp-mute" title={props.body}>
           {props.body}
         </p>
-        {props.meter !== null && props.meter !== undefined ? (
-          <div className="mt-1.5 h-0.5 overflow-hidden rounded-full bg-white/10">
-            <div
-              className="h-full rounded-full bg-fp-lime"
-              style={{ width: `${Math.round(Math.min(1, Math.max(0, props.meter)) * 100)}%` }}
-            />
-          </div>
-        ) : null}
-      </div>
-      <Chip tone={props.tone}>{props.chip}</Chip>
+      </dd>
     </div>
   );
 }
 
 function LogRow(props: { event: SessionEvent }): JSX.Element {
   const kind = props.event.kind.toLowerCase();
-  const tone =
-    kind.includes("kill") || kind === "demo"
-      ? "text-fp-red"
-      : kind.includes("decision") || kind === "session"
-        ? "text-fp-lime"
-        : kind.includes("desk")
-          ? "text-fp-amber"
-          : "text-fp-blue";
+  const kill = kind.includes("kill") || kind === "demo";
   return (
     <li className="grid grid-cols-[76px_84px_minmax(0,1fr)] gap-3 border-b border-fp-line px-6 py-1.5">
       <time className="font-mono text-[11px] text-fp-faint tabular">{formatClock(props.event.ts)}</time>
-      <span className={cn("font-mono text-[11px] font-medium uppercase tracking-[0.08em]", tone)}>
+      <span
+        className={cn(
+          "font-mono text-[11px] font-medium uppercase tracking-[0.08em]",
+          kill ? "text-fp-red" : "text-fp-mute",
+        )}
+      >
         {props.event.kind}
       </span>
       <span className="truncate text-[13px] text-zinc-300" title={props.event.detail}>
