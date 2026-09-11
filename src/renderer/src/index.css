@@ -1,5 +1,57 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: Geist;
+  src: url("./assets/fonts/geist-latin-wght.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("./assets/fonts/ibm-plex-mono-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("./assets/fonts/ibm-plex-mono-500.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("./assets/fonts/ibm-plex-mono-700.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@theme {
+  --font-sans: Geist, "Segoe UI Variable", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+  --color-fp-bg: #09090b;
+  --color-fp-sidebar: #0c0c0e;
+  --color-fp-panel: #111113;
+  --color-fp-elev: #161618;
+  --color-fp-hover: #1c1c20;
+  --color-fp-line: rgba(255, 255, 255, 0.075);
+  --color-fp-line-strong: rgba(255, 255, 255, 0.14);
+  --color-fp-ink: #f4f4f5;
+  --color-fp-mute: #a1a1aa;
+  --color-fp-faint: #71717a;
+  --color-fp-lime: #d4ff3a;
+  --color-fp-red: #ff2d55;
+  --color-fp-amber: #ffb020;
+  --color-fp-blue: #6b8cff;
+}
+
 html,
 body,
 #root {
@@ -8,13 +60,101 @@ body,
 
 body {
   margin: 0;
-  background: #0b0f14;
-  color: #e8eef5;
-  font-family:
-    Inter,
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    Segoe UI,
-    sans-serif;
+  color-scheme: dark;
+  background: var(--color-fp-bg);
+  color: var(--color-fp-ink);
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01" on, "cv11" on;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-synthesis: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+::selection {
+  background: var(--color-fp-lime);
+  color: #09090b;
+}
+
+button,
+input,
+textarea,
+select {
+  font-family: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-fp-lime);
+  outline-offset: 2px;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #27272a;
+  border-radius: 99px;
+  border: 2px solid var(--color-fp-bg);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes led-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+@keyframes overlay-pop {
+  from {
+    transform: scale(1.06);
+    filter: blur(2px);
+    opacity: 0.7;
+  }
+  to {
+    transform: scale(1);
+    filter: blur(0);
+    opacity: 1;
+  }
+}
+
+@keyframes overlay-glow {
+  0%,
+  100% {
+    opacity: 0.42;
+  }
+  50% {
+    opacity: 0.72;
+  }
+}
+
+.led-live {
+  animation: led-pulse 1.6s ease-in-out infinite;
+}
+
+.overlay-num {
+  animation: overlay-pop 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.overlay-glow {
+  animation: overlay-glow 1.15s ease-in-out infinite;
 }
