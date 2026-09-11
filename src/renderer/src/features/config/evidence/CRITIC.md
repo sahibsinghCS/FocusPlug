@@ -11,4 +11,4 @@
 
 **Haven / AGPL:** original FocusPlug UI. No Haven source or assets.
 
-**Checks:** `npm run typecheck` and `npm test` (178) pass. Add/toggle/remove plug and `deskSetModelId` remain on frozen IPC.
+**Rebase:** onto `06b3123` (session command center #18 + shell chrome #21). Config UX unchanged aside from shell padding/title density. Toggle keeps `fp-btn` tokens plus `disabled`.
