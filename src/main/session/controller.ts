@@ -10,7 +10,7 @@ import {
   type SessionState,
   type WindowMonitor,
 } from "../../shared/ipc.ts";
-import { PolicyEngine } from "../../shared/policy/index.ts";
+import { enabledFunPlugIds, PolicyEngine, type PolicyEngineInput } from "../../shared/policy/index.ts";
 import type {
   AppEntry,
   DeskModelId,
@@ -19,7 +19,6 @@ import type {
   PlugDevice,
   PlugSnapshot,
   PolicyEvent,
-  PolicyInput,
   SessionEvent,
 } from "../../shared/types.ts";
 import {
@@ -555,12 +554,13 @@ export class SessionController {
     }
   }
 
-  private buildPolicyInput(sessionActive: boolean, settings?: AppSettings): PolicyInput {
+  private buildPolicyInput(sessionActive: boolean, settings?: AppSettings): PolicyEngineInput {
     const resolved = settings ?? this.loadSettings();
     const ts = this.now();
     const focus =
       this.focus === null ? null : { ...this.focus, ts: Math.max(this.focus.ts, ts) };
     const desk = this.desk === null ? null : { ...this.desk, ts: Math.max(this.desk.ts, ts) };
+    const enabledPlugIds = enabledFunPlugIds(resolved.plugs);
     return {
       sessionActive,
       focus,
@@ -568,6 +568,9 @@ export class SessionController {
       countdownSec: resolved.countdownSec,
       deskThreshold: resolved.deskThreshold,
       strictMode: resolved.strictMode,
+      enabledPlugIds,
+      plugsArmed: enabledPlugIds.length > 0,
+      plugs: resolved.plugs,
     };
   }
 

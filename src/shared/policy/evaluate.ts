@@ -1,5 +1,26 @@
 import { ALL_BLOCKLIST_TARGET } from "./constants";
-import type { Decision, DeskSnapshot, FocusSnapshot, PolicyInput } from "../types";
+import type {
+  Decision,
+  DeskSnapshot,
+  FocusSnapshot,
+  PlugDevice,
+  PolicyEvent,
+  PolicyInput,
+} from "../types";
+
+/**
+ * Policy-local step input. Frozen `PolicyInput` does not carry plug fields —
+ * those live on `AppSettings.plugs`. Session wiring may pass them here.
+ *
+ * `enabledPlugIds`: from store; empty = no plug events.
+ * `plugsArmed`: session setting; default true when plugs exist.
+ * `plugs`: optional devices used to derive ids and to refuse the study PC.
+ */
+export interface PolicyEngineInput extends PolicyInput {
+  enabledPlugIds?: string[];
+  plugsArmed?: boolean;
+  plugs?: readonly PlugDevice[];
+}
 
 export type DeskPresence = "present" | "away" | "uncertain";
 export type FocusKind = "allow" | "block" | "other" | "none";
@@ -123,6 +144,55 @@ export function classify(input: PolicyInput): ClassifiedPolicy {
   };
 }
 
+/** Enabled fun-plug ids. Study-PC devices are never included. */
+export function enabledFunPlugIds(plugs: readonly PlugDevice[] | undefined): string[] {
+  if (plugs === undefined || plugs.length === 0) {
+    return [];
+  }
+  return unique(
+    plugs
+      .filter((device) => isFunPlug(device))
+      .map((device) => device.id.trim())
+      .filter((id) => id.length > 0),
+  );
+}
+
+/**
+ * Device ids to attach to `plug_off` / `plug_on`. Empty means emit neither.
+ *
+ * `enabledPlugIds` wins when present (including `[]`). Otherwise ids come from
+ * enabled `plugs`. `plugsArmed` defaults to true when the resolved ids exist.
+ * Study-PC devices are never emitted. The returned array is a copy.
+ */
+export function plugDeviceIds(input: PolicyEngineInput): string[] {
+  const studyPcIds = studyPcIdSet(input.plugs);
+  const explicitPresent = input.enabledPlugIds !== undefined;
+  const explicit = (input.enabledPlugIds ?? [])
+    .map((id) => id.trim())
+    .filter((id) => id.length > 0 && !studyPcIds.has(id));
+  const ids = unique(explicitPresent ? explicit : enabledFunPlugIds(input.plugs));
+  const armed = input.plugsArmed ?? ids.length > 0;
+  if (!armed) {
+    return [];
+  }
+  return ids;
+}
+
+export function plugEventFor(
+  type: "plug_off" | "plug_on",
+  input: PolicyEngineInput,
+  reason: string,
+): Extract<PolicyEvent, { type: "plug_off" | "plug_on" }> | null {
+  if (!input.sessionActive) {
+    return null;
+  }
+  const deviceIds = plugDeviceIds(input);
+  if (deviceIds.length === 0) {
+    return null;
+  }
+  return { type, deviceIds, reason };
+}
+
 /**
  * Process names to kill for the current snapshots. Allowlisted focus is never
  * included. Desk-away always adds the all-blocklist sentinel so wiring can
@@ -177,4 +247,25 @@ function idleDetail(focus: FocusKind, desk: DeskPresence): string {
 
 function unique(items: string[]): string[] {
   return [...new Set(items)];
+}
+
+function isStudyPc(device: PlugDevice): boolean {
+  return (device as { isStudyPc?: unknown }).isStudyPc !== false;
+}
+
+function isFunPlug(device: PlugDevice): boolean {
+  return device.enabled === true && !isStudyPc(device);
+}
+
+function studyPcIdSet(plugs: readonly PlugDevice[] | undefined): Set<string> {
+  const ids = new Set<string>();
+  if (plugs === undefined) {
+    return ids;
+  }
+  for (const device of plugs) {
+    if (isStudyPc(device)) {
+      ids.add(device.id);
+    }
+  }
+  return ids;
 }

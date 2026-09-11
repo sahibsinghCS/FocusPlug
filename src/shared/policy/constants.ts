@@ -1,7 +1,8 @@
-/** Machine-readable reasons on `start_countdown` / `kill` events. */
+/** Machine-readable reasons on `start_countdown` / `kill` / plug events. */
 export const REASONS = {
   blockedFocus: "blocked_focus",
   deskAway: "desk_away",
+  unlock: "unlock",
 } as const;
 
 export type PolicyReason = (typeof REASONS)[keyof typeof REASONS];

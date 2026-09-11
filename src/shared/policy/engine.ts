@@ -1,6 +1,6 @@
 import { REASONS, SESSION_OFF_DETAIL, type PolicyReason } from "./constants";
-import { classify, killTargetsFor } from "./evaluate";
-import type { PolicyEvent, PolicyInput } from "../types";
+import { classify, killTargetsFor, plugEventFor, type PolicyEngineInput } from "./evaluate";
+import type { PolicyEvent } from "../types";
 
 export interface PolicyState {
   /** Monotonic clock derived from snapshot `ts` values (epoch ms). */
@@ -27,7 +27,7 @@ export const INITIAL_POLICY_STATE: PolicyState = {
  */
 export function stepPolicy(
   state: PolicyState,
-  input: PolicyInput,
+  input: PolicyEngineInput,
 ): { state: PolicyState; events: PolicyEvent[] } {
   const next: PolicyState = {
     lastTs: currentTs(state.lastTs, input),
@@ -69,6 +69,7 @@ export function stepPolicy(
     }
     if (recovering) {
       events.push({ type: "unlock" });
+      pushPlug(events, input, "plug_on", REASONS.unlock);
     }
     events.push({
       type: "status",
@@ -129,11 +130,13 @@ export function stepPolicy(
   if (next.countdownStartedAt !== null) {
     const duration = durationMs(input.countdownSec);
     if (duration !== null && now - next.countdownStartedAt >= duration) {
+      const killReason = next.countdownReason ?? REASONS.blockedFocus;
       events.push({
         type: "kill",
         targets: [...next.countdownTargets],
-        reason: next.countdownReason ?? REASONS.blockedFocus,
+        reason: killReason,
       });
+      pushPlug(events, input, "plug_off", killReason);
       next.locked = true;
       next.countdownStartedAt = null;
       next.countdownReason = null;
@@ -153,14 +156,14 @@ export function stepPolicy(
 export class PolicyEngine {
   private state: PolicyState = { ...INITIAL_POLICY_STATE, countdownTargets: [] };
 
-  step(input: PolicyInput): PolicyEvent[] {
+  step(input: PolicyEngineInput): PolicyEvent[] {
     const result = stepPolicy(this.state, input);
     this.state = result.state;
     return result.events;
   }
 }
 
-function currentTs(lastTs: number, input: PolicyInput): number {
+function currentTs(lastTs: number, input: PolicyEngineInput): number {
   let now = lastTs;
   if (input.focus !== null && Number.isFinite(input.focus.ts)) {
     now = Math.max(now, input.focus.ts);
@@ -191,4 +194,16 @@ function durationMs(countdownSec: number): number | null {
 
 function unique(items: string[]): string[] {
   return [...new Set(items)];
+}
+
+function pushPlug(
+  events: PolicyEvent[],
+  input: PolicyEngineInput,
+  type: "plug_off" | "plug_on",
+  reason: string,
+): void {
+  const event = plugEventFor(type, input, reason);
+  if (event !== null) {
+    events.push(event);
+  }
 }
