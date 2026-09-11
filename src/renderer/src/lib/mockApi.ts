@@ -4,18 +4,18 @@ import {
   DEFAULT_SESSION_STATE,
   DEFAULT_SETTINGS,
 } from "@shared/defaults";
-import type {
-  AppEntry,
-  AppLists,
-  AppSettings,
-  DeskSnapshot,
-  FocusPlugApi,
-  FocusSnapshot,
-  KillResult,
+import {
   PLUG_DRIVER_NOT_IMPLEMENTED,
-  PolicyEvent,
-  SessionEvent,
-  SessionState,
+  type AppEntry,
+  type AppLists,
+  type AppSettings,
+  type DeskSnapshot,
+  type FocusPlugApi,
+  type FocusSnapshot,
+  type KillResult,
+  type PolicyEvent,
+  type SessionEvent,
+  type SessionState,
 } from "@shared/ipc";
 import { readUrlScene } from "./urlScene";
 
