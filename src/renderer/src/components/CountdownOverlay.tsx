@@ -31,7 +31,7 @@ export function CountdownOverlay(props: CountdownOverlayProps): JSX.Element {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col bg-[#070204]/[0.97]"
+      className="fixed inset-0 z-50 flex flex-col bg-[#090104]"
       role="alertdialog"
       aria-modal="true"
       aria-label={`Force-quit in ${props.seconds} seconds`}
