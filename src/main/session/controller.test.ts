@@ -5,11 +5,13 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 import { DEFAULT_BLOCKLIST, DEFAULT_SETTINGS } from "../../shared/defaults.ts";
 import { ALL_BLOCKLIST_TARGET } from "../../shared/policy/index.ts";
-import type { AppEntry, PolicyEvent } from "../../shared/types.ts";
+import type { AppEntry, PlugDevice, PolicyEvent } from "../../shared/types.ts";
+import { SAMPLE_PLUGS } from "./fixtures.ts";
 import { SessionController } from "./controller.ts";
 import {
   MutableClock,
   RecordingKiller,
+  RecordingPlugController,
   ScriptedDeskMonitor,
   ScriptedWindowMonitor,
   awayDesk,
@@ -19,7 +21,7 @@ import {
   docsFocus,
   presentDesk,
 } from "./harness.ts";
-import { demoKillMatchers, expandKillTargets } from "./targets.ts";
+import { demoKillMatchers, enabledPlugIds, expandKillTargets } from "./targets.ts";
 
 const EVIDENCE_DIR = join(dirname(fileURLToPath(import.meta.url)), "evidence");
 
@@ -28,28 +30,45 @@ interface Harness {
   window: ScriptedWindowMonitor;
   desk: ScriptedDeskMonitor;
   killer: RecordingKiller;
+  plugs: RecordingPlugController;
   clock: MutableClock;
   store: ReturnType<typeof createMemoryStore>;
   trace: ReturnType<typeof createRecordingPush>["trace"];
 }
 
-function makeHarness(init?: Parameters<typeof createMemoryStore>[0]): Harness {
+function makeHarness(
+  init?: Parameters<typeof createMemoryStore>[0] & { plugDevices?: PlugDevice[] },
+): Harness {
   const clock = new MutableClock();
   const window = new ScriptedWindowMonitor();
   const desk = new ScriptedDeskMonitor();
   const killer = new RecordingKiller();
-  const store = createMemoryStore(init);
+  const plugDevices = init?.plugDevices ?? init?.plugs ?? init?.settings?.plugs ?? [];
+  const plugs = new RecordingPlugController(plugDevices);
+  const store = createMemoryStore({
+    ...init,
+    plugs: plugDevices,
+    settings: {
+      ...(init?.settings ?? DEFAULT_SETTINGS),
+      plugs: plugDevices,
+    },
+  });
   const { push, trace } = createRecordingPush();
   const controller = new SessionController({
     windowMonitor: window,
     deskMonitor: desk,
     killer,
+    plugs,
     store,
     push,
     now: clock.now,
     tickIntervalMs: 0,
   });
-  return { controller, window, desk, killer, clock, store, trace };
+  return { controller, window, desk, killer, plugs, clock, store, trace };
+}
+
+function expectNoStudyPc(ids: string[] | undefined): void {
+  expect(ids?.includes("study-pc") ?? false).toBe(false);
 }
 
 function policyTypes(trace: Harness["trace"]): PolicyEvent["type"][] {
@@ -82,6 +101,11 @@ describe("expandKillTargets", () => {
   it("demo kill uses live blocklist or default fallback", () => {
     expect(demoKillMatchers(DEFAULT_BLOCKLIST, null).length).toBeGreaterThan(0);
     expect(demoKillMatchers([], discordFocus(1)).includes("discord.exe")).toBe(true);
+  });
+
+  it("enabled plug ids skip study-PC and disabled devices", () => {
+    expect(enabledPlugIds(SAMPLE_PLUGS)).toEqual(["console-lamp", "tv-outlet"]);
+    expect(enabledPlugIds([])).toEqual([]);
   });
 });
 
@@ -117,7 +141,10 @@ describe("SessionController", () => {
   });
 
   it("gauntlet: Docs→Discord→countdown→kill→return→unlock + Demo Kill", async () => {
-    const h = makeHarness({ settings: { ...DEFAULT_SETTINGS, countdownSec: 10, strictMode: true } });
+    const h = makeHarness({
+      plugs: SAMPLE_PLUGS,
+      settings: { ...DEFAULT_SETTINGS, countdownSec: 10, strictMode: true, plugs: SAMPLE_PLUGS },
+    });
     const steps: Array<Record<string, unknown>> = [];
 
     const started = await h.controller.start();
@@ -175,6 +202,7 @@ describe("SessionController", () => {
     await h.controller.tick();
     const afterKill = h.controller.getState();
     expect(policyTypes(h.trace)).toContain("kill");
+    expect(policyTypes(h.trace)).toContain("plug_off");
     expect(h.killer.calls.length).toBe(1);
     const killMatchers = h.killer.calls[0];
     expect(killMatchers).toBeDefined();
@@ -182,10 +210,15 @@ describe("SessionController", () => {
     expect(killMatchers?.includes(ALL_BLOCKLIST_TARGET)).toBe(false);
     expect(afterKill.countdownSec).toBe(0);
     expect(logKinds(h.controller)).toContain("kill");
+    expect(logKinds(h.controller)).toContain("plug_off");
+    expect(h.plugs.offCalls.length).toBe(1);
+    expect(h.plugs.offCalls[0]).toEqual(enabledPlugIds(SAMPLE_PLUGS));
+    expectNoStudyPc(h.plugs.offCalls[0]);
     steps.push({
       action: "fuse_elapsed_kill",
       matchers: killMatchers,
       killed: h.killer.result.killed,
+      plugOff: h.plugs.offCalls[0],
       countdownSec: afterKill.countdownSec,
     });
 
@@ -196,11 +229,17 @@ describe("SessionController", () => {
     const unlocked = h.controller.getState();
     expect(unlocked.decision).toBe("ON_TASK");
     expect(policyTypes(h.trace)).toContain("unlock");
+    expect(policyTypes(h.trace)).toContain("plug_on");
     expect(logKinds(h.controller)).toContain("unlock");
+    expect(logKinds(h.controller)).toContain("plug_on");
+    expect(h.plugs.onCalls.length).toBe(1);
+    expect(h.plugs.onCalls[0]).toEqual(enabledPlugIds(SAMPLE_PLUGS));
+    expectNoStudyPc(h.plugs.onCalls[0]);
     steps.push({
       action: "return_docs_unlock",
       decision: unlocked.decision,
       policyIncludes: "unlock",
+      plugOn: h.plugs.onCalls[0],
     });
 
     h.killer.calls.length = 0;
@@ -210,17 +249,22 @@ describe("SessionController", () => {
     expect(demo.errors).toEqual([]);
     expect(h.killer.calls.length).toBe(1);
     expect(h.killer.calls[0]?.length).toBeGreaterThan(0);
+    expect(h.plugs.offCalls.length).toBe(2);
+    expect(h.plugs.offCalls[1]).toEqual(enabledPlugIds(SAMPLE_PLUGS));
+    expectNoStudyPc(h.plugs.offCalls[1]);
     expect(policyTypes(h.trace).filter((type) => type === "kill").length).toBeGreaterThanOrEqual(2);
+    expect(policyTypes(h.trace).filter((type) => type === "plug_off").length).toBeGreaterThanOrEqual(2);
     expect(logKinds(h.controller)).toContain("demo");
     steps.push({
       action: "DEMO_KILL",
       result: demo,
       matchers: h.killer.calls[0],
+      plugOff: h.plugs.offCalls[1],
     });
 
     const evidence = {
       name: "golden-path",
-      bar: "Docs→Discord→countdown→kill→return→unlock plus Demo Kill instant path",
+      bar: "Docs→Discord→countdown→kill+plug_off→unlock+plug_on plus Demo Kill cuts plugs",
       platform: process.platform,
       passed: true,
       settings: h.controller.getSettings(),
@@ -282,17 +326,102 @@ describe("SessionController", () => {
     expect(matchers.some((matcher) => matcher.toLowerCase().includes("steam"))).toBe(true);
   });
 
-  it("DEMO_KILL immediately kills blocklist matchers without a countdown", async () => {
-    const h = makeHarness();
+  it("DEMO_KILL immediately kills blocklist matchers and cuts enabled plugs", async () => {
+    const h = makeHarness({ plugs: SAMPLE_PLUGS });
     const result = await h.controller.demoKill();
     expect(result.killed.length).toBeGreaterThan(0);
     expect(h.killer.calls.length).toBe(1);
     expect(h.killer.calls[0]?.length).toBeGreaterThan(0);
+    expect(h.plugs.offCalls.length).toBe(1);
+    expect(h.plugs.offCalls[0]).toEqual(enabledPlugIds(SAMPLE_PLUGS));
+    expectNoStudyPc(h.plugs.offCalls[0]);
     expect(h.controller.getState().countdownSec).toBe(0);
     expect(logKinds(h.controller)).toContain("demo");
+    expect(logKinds(h.controller)).toContain("plug_off");
     expect(h.trace.policies.some((event) => event.type === "kill" && event.reason === "demo")).toBe(
       true,
     );
+    expect(h.trace.policies.some((event) => event.type === "plug_off")).toBe(true);
+  });
+
+  it("zero plugs still kills and never throws", async () => {
+    const h = makeHarness({ plugDevices: [] });
+    await h.controller.start();
+    h.window.emit(discordFocus(h.clock.ms));
+    h.desk.emit(presentDesk(h.clock.ms));
+    await h.controller.flush();
+    h.clock.advance(10_000);
+    await h.controller.tick();
+    expect(h.killer.calls.length).toBe(1);
+    expect(policyTypes(h.trace)).toContain("kill");
+    expect(policyTypes(h.trace)).not.toContain("plug_off");
+    expect(h.plugs.offCalls).toEqual([]);
+    await expect(h.controller.demoKill()).resolves.toMatchObject({
+      killed: ["discord.exe (pid 44552)"],
+    });
+    expect(h.plugs.offCalls).toEqual([[]]);
+  });
+
+  it("never sends plug commands for isStudyPc, even when policy asks", async () => {
+    const h = makeHarness({ plugs: SAMPLE_PLUGS });
+    const scripted: PolicyEvent[] = [
+      { type: "plug_off", deviceIds: ["study-pc", "console-lamp"], reason: "forced" },
+      { type: "status", decision: "DISTRACTED", detail: "forced plug_off" },
+    ];
+    const scriptedController = new SessionController({
+      windowMonitor: h.window,
+      deskMonitor: h.desk,
+      killer: h.killer,
+      plugs: h.plugs,
+      store: h.store,
+      push: {
+        sessionState: () => undefined,
+        policyEvent: (event) => h.trace.policies.push(event),
+        focusSnapshot: () => undefined,
+        deskSnapshot: () => undefined,
+        sessionEvent: (event) => h.trace.events.push(event),
+      },
+      policyFactory: () => ({
+        step: () => {
+          const events = scripted.splice(0, scripted.length);
+          return events;
+        },
+      }),
+      now: h.clock.now,
+      tickIntervalMs: 0,
+    });
+    await scriptedController.start();
+    await scriptedController.tick();
+    expect(h.plugs.offCalls.length).toBeGreaterThanOrEqual(1);
+    for (const call of h.plugs.offCalls) {
+      expectNoStudyPc(call);
+      expect(call).toContain("console-lamp");
+    }
+  });
+
+  it("consumes plug_on after unlock and swallows plug host errors", async () => {
+    const h = makeHarness({
+      plugs: SAMPLE_PLUGS,
+      settings: { ...DEFAULT_SETTINGS, countdownSec: 1, plugs: SAMPLE_PLUGS },
+    });
+    h.plugs.failWith = "tapo unreachable";
+    await h.controller.start();
+    h.window.emit(discordFocus(h.clock.ms));
+    h.desk.emit(presentDesk(h.clock.ms));
+    await h.controller.flush();
+    h.clock.advance(1000);
+    await h.controller.tick();
+    expect(h.killer.calls.length).toBe(1);
+    expect(h.plugs.offCalls.length).toBe(1);
+    expect(logKinds(h.controller)).toContain("plug_off");
+
+    h.window.emit(docsFocus(h.clock.ms));
+    h.desk.emit(presentDesk(h.clock.ms));
+    await h.controller.flush();
+    expect(policyTypes(h.trace)).toContain("unlock");
+    expect(h.plugs.onCalls.length).toBe(1);
+    expectNoStudyPc(h.plugs.onCalls[0]);
+    expect(logKinds(h.controller)).toContain("plug_on");
   });
 
   it("lists and settings persist through the store and affect the live loop", async () => {
@@ -328,7 +457,10 @@ describe("SessionController", () => {
   });
 
   it("does not kill twice while still on the blocked app after fuse", async () => {
-    const h = makeHarness({ settings: { ...DEFAULT_SETTINGS, countdownSec: 1 } });
+    const h = makeHarness({
+      plugs: SAMPLE_PLUGS,
+      settings: { ...DEFAULT_SETTINGS, countdownSec: 1, plugs: SAMPLE_PLUGS },
+    });
     await h.controller.start();
     h.window.emit(discordFocus(h.clock.ms));
     h.desk.emit(presentDesk(h.clock.ms));
@@ -336,9 +468,12 @@ describe("SessionController", () => {
     h.clock.advance(1000);
     await h.controller.tick();
     expect(h.killer.calls.length).toBe(1);
+    expect(h.plugs.offCalls.length).toBe(1);
+    expect(h.plugs.offCalls[0]).toEqual(enabledPlugIds(SAMPLE_PLUGS));
     h.clock.advance(1000);
     await h.controller.tick();
     expect(h.killer.calls.length).toBe(1);
+    expect(h.plugs.offCalls.length).toBe(1);
   });
 
   it("250ms ticker publishes live remaining countdown without new snapshots", async () => {

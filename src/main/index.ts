@@ -72,16 +72,7 @@ function registerIpc(controller: SessionController, plugs: PlugController): void
     }
     return snap;
   });
-  ipcMain.handle(IPC_INVOKE.DEMO_KILL, async () => {
-    const result = await controller.demoKill();
-    try {
-      await plugs.cutSecondary();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.error(`Demo Kill plug cut failed: ${message}`);
-    }
-    return result;
-  });
+  ipcMain.handle(IPC_INVOKE.DEMO_KILL, async () => controller.demoKill());
 }
 
 function createWindow(): void {

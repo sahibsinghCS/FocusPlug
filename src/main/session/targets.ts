@@ -1,6 +1,7 @@
 import { DEFAULT_BLOCKLIST } from "../../shared/defaults.ts";
 import { ALL_BLOCKLIST_TARGET } from "../../shared/policy/index.ts";
-import type { AppEntry, FocusSnapshot } from "../../shared/types.ts";
+import type { AppEntry, FocusSnapshot, PlugDevice } from "../../shared/types.ts";
+import { resolveSessionPlugIds } from "./plugActions.ts";
 
 function uniqueMatchers(matchers: readonly string[]): string[] {
   const out: string[] = [];
@@ -68,4 +69,12 @@ export function demoKillMatchers(
     return uniqueMatchers([focus.processName, ...fallback]);
   }
   return fallback;
+}
+
+/**
+ * Demo Kill / fuse kill: every enabled non-study-PC plug.
+ * Empty inventory returns [] — callers must not throw.
+ */
+export function enabledPlugIds(devices: readonly PlugDevice[]): string[] {
+  return resolveSessionPlugIds(devices);
 }

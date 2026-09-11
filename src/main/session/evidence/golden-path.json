@@ -1,6 +1,6 @@
 {
   "name": "golden-path",
-  "bar": "Docs→Discord→countdown→kill→return→unlock plus Demo Kill instant path",
+  "bar": "Docs→Discord→countdown→kill+plug_off→unlock+plug_on plus Demo Kill cuts plugs",
   "platform": "linux",
   "passed": true,
   "settings": {
@@ -9,7 +9,24 @@
     "strictMode": true,
     "webcamEnabled": true,
     "deskModelId": "blazeface",
-    "plugs": []
+    "plugs": [
+      {
+        "id": "console-lamp",
+        "name": "Console lamp",
+        "protocol": "mock",
+        "address": "127.0.0.1",
+        "enabled": true,
+        "isStudyPc": false
+      },
+      {
+        "id": "tv-outlet",
+        "name": "TV outlet",
+        "protocol": "mock",
+        "address": "127.0.0.2",
+        "enabled": true,
+        "isStudyPc": false
+      }
+    ]
   },
   "policyEventTypes": [
     "status",
@@ -21,11 +38,14 @@
     "status",
     "status",
     "kill",
+    "plug_off",
     "status",
     "unlock",
+    "plug_on",
     "status",
     "status",
-    "kill"
+    "kill",
+    "plug_off"
   ],
   "log": [
     {
@@ -35,13 +55,28 @@
     },
     {
       "ts": 1010500,
+      "kind": "plug_off",
+      "detail": "off · console-lamp, tv-outlet"
+    },
+    {
+      "ts": 1010500,
       "kind": "decision",
       "detail": "ON_TASK · On task: chrome.exe"
     },
     {
       "ts": 1010500,
+      "kind": "plug_on",
+      "detail": "on · console-lamp, tv-outlet"
+    },
+    {
+      "ts": 1010500,
       "kind": "unlock",
       "detail": "Unlocked — back on task"
+    },
+    {
+      "ts": 1010250,
+      "kind": "plug_off",
+      "detail": "off · console-lamp, tv-outlet"
     },
     {
       "ts": 1010250,
@@ -119,12 +154,20 @@
       "killed": [
         "discord.exe (pid 44552)"
       ],
+      "plugOff": [
+        "console-lamp",
+        "tv-outlet"
+      ],
       "countdownSec": 0
     },
     {
       "action": "return_docs_unlock",
       "decision": "ON_TASK",
-      "policyIncludes": "unlock"
+      "policyIncludes": "unlock",
+      "plugOn": [
+        "console-lamp",
+        "tv-outlet"
+      ]
     },
     {
       "action": "DEMO_KILL",
@@ -157,6 +200,10 @@
         "minecraftlauncher.exe",
         "roblox",
         "robloxplayerbeta.exe"
+      ],
+      "plugOff": [
+        "console-lamp",
+        "tv-outlet"
       ]
     }
   ]
