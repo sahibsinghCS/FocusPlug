@@ -1,0 +1,539 @@
+import { DEFAULT_SESSION_STATE } from "../../shared/defaults.ts";
+import type {
+  AppLists,
+  AppSettings,
+  DeskMonitor,
+  KillResult,
+  PolicyEngine as PolicyEngineSeam,
+  ProcessKiller,
+  SessionState,
+  WindowMonitor,
+} from "../../shared/ipc.ts";
+import { PolicyEngine } from "../../shared/policy/index.ts";
+import type {
+  AppEntry,
+  DeskSnapshot,
+  FocusSnapshot,
+  PolicyEvent,
+  PolicyInput,
+  SessionEvent,
+} from "../../shared/types.ts";
+import { normalizeSettings } from "../store/appStore.ts";
+import type { SessionPush } from "./push.ts";
+import { demoKillMatchers, expandKillTargets } from "./targets.ts";
+
+export const DEFAULT_SESSION_TICK_MS = 250;
+
+/** JSON persistence used by the session loop. Returns are synchronous. */
+export interface SessionStore {
+  loadAllowlist(): AppEntry[];
+  saveAllowlist(entries: AppEntry[]): void;
+  loadBlocklist(): AppEntry[];
+  saveBlocklist(entries: AppEntry[]): void;
+  loadSettings(): AppSettings;
+  saveSettings(settings: AppSettings): void;
+  appendSessionLog(event: SessionEvent): void;
+  loadSessionLog(): SessionEvent[];
+}
+
+export interface SessionControllerOptions {
+  windowMonitor: WindowMonitor;
+  deskMonitor: DeskMonitor;
+  killer: ProcessKiller;
+  store: SessionStore;
+  push: SessionPush;
+  policyFactory?: () => PolicyEngineSeam;
+  now?: () => number;
+  /** Policy/countdown loop interval. `0` disables the timer (tests drive `flush`). */
+  tickIntervalMs?: number;
+}
+
+function cloneState(state: SessionState): SessionState {
+  return {
+    sessionActive: state.sessionActive,
+    focus: state.focus === null ? null : { ...state.focus },
+    desk: state.desk === null ? null : { ...state.desk },
+    decision: state.decision,
+    countdownSec: state.countdownSec,
+    detail: state.detail,
+  };
+}
+
+function cloneEntries(entries: AppEntry[]): AppEntry[] {
+  return entries.map((entry) => ({
+    ...entry,
+    match: [...entry.match],
+  }));
+}
+
+function isAppEntry(value: unknown): value is AppEntry {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const record = value as Record<string, unknown>;
+  return (
+    typeof record.id === "string" &&
+    record.id.length > 0 &&
+    typeof record.name === "string" &&
+    Array.isArray(record.match) &&
+    record.match.every((item) => typeof item === "string") &&
+    typeof record.enabled === "boolean"
+  );
+}
+
+function requireEntries(value: unknown, label: string): AppEntry[] {
+  if (!Array.isArray(value) || !value.every(isAppEntry)) {
+    throw new Error(`${label} must be an array of AppEntry objects`);
+  }
+  return cloneEntries(value);
+}
+
+function requirePatch(value: unknown): Partial<AppSettings> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error("settings patch must be an object");
+  }
+  const record = value as Record<string, unknown>;
+  const patch: Partial<AppSettings> = {};
+  if ("countdownSec" in record) {
+    if (typeof record.countdownSec !== "number" || !Number.isFinite(record.countdownSec)) {
+      throw new Error("countdownSec must be a finite number");
+    }
+    patch.countdownSec = record.countdownSec;
+  }
+  if ("deskThreshold" in record) {
+    if (typeof record.deskThreshold !== "number" || !Number.isFinite(record.deskThreshold)) {
+      throw new Error("deskThreshold must be a finite number");
+    }
+    patch.deskThreshold = record.deskThreshold;
+  }
+  if ("strictMode" in record) {
+    if (typeof record.strictMode !== "boolean") {
+      throw new Error("strictMode must be a boolean");
+    }
+    patch.strictMode = record.strictMode;
+  }
+  if ("webcamEnabled" in record) {
+    if (typeof record.webcamEnabled !== "boolean") {
+      throw new Error("webcamEnabled must be a boolean");
+    }
+    patch.webcamEnabled = record.webcamEnabled;
+  }
+  return patch;
+}
+
+function formatKill(reason: string, result: KillResult): string {
+  const killed = result.killed.length > 0 ? result.killed.join(", ") : "nothing";
+  const errors = result.errors.length > 0 ? `; errors: ${result.errors.join("; ")}` : "";
+  return `${reason} · killed ${killed}${errors}`;
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error && error.message.trim().length > 0
+    ? error.message
+    : String(error);
+}
+
+/**
+ * Session orchestrator: monitors → PolicyEngine.step → countdown IPC →
+ * ProcessKiller → unlock. Injectable seams so the golden path can be proven
+ * without Win32.
+ */
+export class SessionController {
+  private readonly windowMonitor: WindowMonitor;
+  private readonly deskMonitor: DeskMonitor;
+  private readonly killer: ProcessKiller;
+  private readonly store: SessionStore;
+  private readonly push: SessionPush;
+  private readonly policyFactory: () => PolicyEngineSeam;
+  private readonly now: () => number;
+  private readonly tickIntervalMs: number;
+
+  private policy: PolicyEngineSeam;
+  private generation = 0;
+  private sessionActive = false;
+  private focus: FocusSnapshot | null = null;
+  private desk: DeskSnapshot | null = null;
+  private state: SessionState = cloneState(DEFAULT_SESSION_STATE);
+  private countdownStartedAt: number | null = null;
+  private countdownDurationSec = 0;
+  private lastLoggedDecision: SessionState["decision"] | null = null;
+  private timer: ReturnType<typeof setInterval> | null = null;
+  private queue: Promise<void> = Promise.resolve();
+
+  constructor(options: SessionControllerOptions) {
+    this.windowMonitor = options.windowMonitor;
+    this.deskMonitor = options.deskMonitor;
+    this.killer = options.killer;
+    this.store = options.store;
+    this.push = options.push;
+    this.policyFactory = options.policyFactory ?? (() => new PolicyEngine());
+    this.now = options.now ?? Date.now;
+    this.tickIntervalMs = options.tickIntervalMs ?? DEFAULT_SESSION_TICK_MS;
+    this.policy = this.policyFactory();
+    this.syncDeskEnabled(this.loadSettings().webcamEnabled);
+  }
+
+  async start(): Promise<SessionState> {
+    if (this.sessionActive) {
+      await this.stop();
+    }
+    const gen = ++this.generation;
+    this.sessionActive = true;
+    this.policy = this.policyFactory();
+    this.clearFuse();
+    this.lastLoggedDecision = null;
+    this.state = {
+      ...cloneState(DEFAULT_SESSION_STATE),
+      sessionActive: true,
+      focus: this.focus,
+      desk: this.desk,
+      decision: "IDLE",
+      countdownSec: 0,
+      detail: "Session started",
+    };
+
+    this.windowMonitor.start((snap) => {
+      if (this.generation !== gen || !this.sessionActive) {
+        return;
+      }
+      this.focus = snap;
+      this.push.focusSnapshot({ ...snap });
+      this.enqueueEvaluate();
+    });
+    this.deskMonitor.start((snap) => {
+      if (this.generation !== gen || !this.sessionActive) {
+        return;
+      }
+      this.desk = snap;
+      this.push.deskSnapshot({ ...snap });
+      this.enqueueEvaluate();
+    });
+    this.startTicker(gen);
+    this.appendLog("session", "Session started");
+    this.publishState();
+    this.enqueueEvaluate();
+    await this.flush();
+    return cloneState(this.state);
+  }
+
+  async stop(): Promise<SessionState> {
+    this.generation += 1;
+    this.sessionActive = false;
+    this.stopTicker();
+    this.windowMonitor.stop();
+    this.deskMonitor.stop();
+    this.clearFuse();
+
+    const idleInput = this.buildPolicyInput(false);
+    const events = this.policy.step(idleInput);
+    for (const event of events) {
+      this.push.policyEvent(event);
+      if (event.type === "cancel_countdown") {
+        this.appendLog("countdown", "cancel_countdown");
+      }
+      if (event.type === "status") {
+        this.lastLoggedDecision = event.decision;
+      }
+    }
+    this.policy = this.policyFactory();
+    this.state = {
+      ...cloneState(DEFAULT_SESSION_STATE),
+      focus: this.focus,
+      desk: this.desk,
+    };
+    this.appendLog("session", "Session stopped — observe only");
+    this.publishState();
+    await this.flush();
+    return cloneState(this.state);
+  }
+
+  getState(): SessionState {
+    return cloneState({
+      ...this.state,
+      countdownSec: this.remainingCountdown(),
+      focus: this.focus,
+      desk: this.desk,
+      sessionActive: this.sessionActive,
+    });
+  }
+
+  getLists(): AppLists {
+    return {
+      allowlist: cloneEntries(this.store.loadAllowlist()),
+      blocklist: cloneEntries(this.store.loadBlocklist()),
+    };
+  }
+
+  setAllowlist(entries: unknown): AppLists {
+    this.store.saveAllowlist(requireEntries(entries, "allowlist"));
+    const lists = this.getLists();
+    this.appendLog("lists", `Allowlist updated (${lists.allowlist.length} apps)`);
+    if (this.sessionActive) {
+      this.enqueueEvaluate();
+    }
+    return lists;
+  }
+
+  setBlocklist(entries: unknown): AppLists {
+    this.store.saveBlocklist(requireEntries(entries, "blocklist"));
+    const lists = this.getLists();
+    this.appendLog("lists", `Blocklist updated (${lists.blocklist.length} apps)`);
+    if (this.sessionActive) {
+      this.enqueueEvaluate();
+    }
+    return lists;
+  }
+
+  getSettings(): AppSettings {
+    return { ...this.loadSettings() };
+  }
+
+  setSettings(patch: unknown): AppSettings {
+    const next = normalizeSettings({ ...this.loadSettings(), ...requirePatch(patch) });
+    this.store.saveSettings(next);
+    this.syncDeskEnabled(next.webcamEnabled);
+    this.appendLog(
+      "settings",
+      `countdown=${next.countdownSec}s · strict=${next.strictMode} · deskThreshold=${next.deskThreshold} · webcam=${next.webcamEnabled}`,
+    );
+    this.publishState();
+    if (this.sessionActive) {
+      this.enqueueEvaluate();
+    }
+    return { ...next };
+  }
+
+  getLog(): SessionEvent[] {
+    return this.store.loadSessionLog();
+  }
+
+  setDeskEnabled(enabled: unknown): boolean {
+    if (typeof enabled !== "boolean") {
+      throw new Error("enabled must be a boolean");
+    }
+    const next = normalizeSettings({ ...this.loadSettings(), webcamEnabled: enabled });
+    this.store.saveSettings(next);
+    this.syncDeskEnabled(enabled);
+    this.appendLog("desk", enabled ? "Webcam enabled" : "Webcam disabled");
+    this.publishState();
+    if (this.sessionActive) {
+      this.enqueueEvaluate();
+    }
+    return next.webcamEnabled;
+  }
+
+  async demoKill(): Promise<KillResult> {
+    this.clearFuse();
+    const matchers = demoKillMatchers(this.store.loadBlocklist(), this.focus);
+    const result = await this.runKill(matchers);
+    const event: PolicyEvent = {
+      type: "kill",
+      targets: matchers,
+      reason: "demo",
+    };
+    this.push.policyEvent(event);
+    this.appendLog("demo", formatKill("Demo Kill", result));
+    this.state = {
+      ...this.state,
+      countdownSec: 0,
+      detail:
+        result.killed.length > 0
+          ? `Demo Kill — ${result.killed.join(", ")}`
+          : `Demo Kill — ${result.errors[0] ?? "no matching processes"}`,
+    };
+    this.publishState();
+    return {
+      killed: [...result.killed],
+      errors: [...result.errors],
+    };
+  }
+
+  /** Drain in-flight policy/kill work. Tests use this after injecting snapshots. */
+  async flush(): Promise<void> {
+    await this.queue;
+  }
+
+  /** Advance the policy loop using the injected clock (tests / stalled monitors). */
+  async tick(): Promise<void> {
+    this.enqueueEvaluate();
+    await this.flush();
+  }
+
+  private enqueueEvaluate(): void {
+    this.queue = this.queue.then(
+      () => this.evaluateOnce(),
+      () => this.evaluateOnce(),
+    );
+  }
+
+  private async evaluateOnce(): Promise<void> {
+    if (!this.sessionActive) {
+      return;
+    }
+    const gen = this.generation;
+    const settings = this.loadSettings();
+    const input = this.buildPolicyInput(true, settings);
+    const events = this.policy.step(input);
+    if (this.generation !== gen || !this.sessionActive) {
+      return;
+    }
+    for (const event of events) {
+      this.push.policyEvent(event);
+      await this.applyPolicyEvent(event);
+      if (this.generation !== gen || !this.sessionActive) {
+        return;
+      }
+    }
+    this.state = {
+      sessionActive: true,
+      focus: this.focus,
+      desk: this.desk,
+      decision: this.state.decision,
+      countdownSec: this.remainingCountdown(),
+      detail: this.state.detail,
+    };
+    this.publishState();
+  }
+
+  private async applyPolicyEvent(event: PolicyEvent): Promise<void> {
+    switch (event.type) {
+      case "start_countdown":
+        this.countdownStartedAt = this.now();
+        this.countdownDurationSec = event.seconds;
+        this.appendLog(
+          "countdown",
+          `start_countdown · ${event.reason} · ${event.seconds}s`,
+        );
+        return;
+      case "cancel_countdown":
+        this.clearFuse();
+        this.appendLog("countdown", "cancel_countdown");
+        return;
+      case "kill": {
+        this.clearFuse();
+        const matchers = expandKillTargets(event.targets, this.store.loadBlocklist());
+        const result = await this.runKill(matchers);
+        this.appendLog("kill", formatKill(event.reason, result));
+        return;
+      }
+      case "unlock":
+        this.appendLog("unlock", "Unlocked — back on task");
+        return;
+      case "status":
+        this.state = {
+          ...this.state,
+          decision: event.decision,
+          detail: event.detail,
+        };
+        if (this.lastLoggedDecision !== event.decision) {
+          this.lastLoggedDecision = event.decision;
+          this.appendLog("decision", `${event.decision} · ${event.detail}`);
+        }
+        return;
+    }
+  }
+
+  private async runKill(matchers: string[]): Promise<KillResult> {
+    try {
+      const result = await Promise.resolve(this.killer.kill(matchers));
+      return {
+        killed: [...result.killed],
+        errors: [...result.errors],
+      };
+    } catch (error) {
+      return { killed: [], errors: [errorMessage(error)] };
+    }
+  }
+
+  private buildPolicyInput(sessionActive: boolean, settings?: AppSettings): PolicyInput {
+    const resolved = settings ?? this.loadSettings();
+    const ts = this.now();
+    const focus =
+      this.focus === null ? null : { ...this.focus, ts: Math.max(this.focus.ts, ts) };
+    const desk = this.desk === null ? null : { ...this.desk, ts: Math.max(this.desk.ts, ts) };
+    return {
+      sessionActive,
+      focus,
+      desk,
+      countdownSec: resolved.countdownSec,
+      deskThreshold: resolved.deskThreshold,
+      strictMode: resolved.strictMode,
+    };
+  }
+
+  private remainingCountdown(): number {
+    if (this.countdownStartedAt === null) {
+      return 0;
+    }
+    const remainingMs =
+      this.countdownStartedAt + this.countdownDurationSec * 1000 - this.now();
+    if (remainingMs <= 0) {
+      return 0;
+    }
+    return Math.max(1, Math.ceil(remainingMs / 1000));
+  }
+
+  private clearFuse(): void {
+    this.countdownStartedAt = null;
+    this.countdownDurationSec = 0;
+  }
+
+  private startTicker(gen: number): void {
+    this.stopTicker();
+    if (this.tickIntervalMs <= 0) {
+      return;
+    }
+    this.timer = setInterval(() => {
+      if (this.generation !== gen || !this.sessionActive) {
+        return;
+      }
+      this.enqueueEvaluate();
+    }, this.tickIntervalMs);
+  }
+
+  private stopTicker(): void {
+    if (this.timer !== null) {
+      clearInterval(this.timer);
+      this.timer = null;
+    }
+  }
+
+  private loadSettings(): AppSettings {
+    return normalizeSettings(this.store.loadSettings());
+  }
+
+  private syncDeskEnabled(enabled: boolean): void {
+    this.deskMonitor.setEnabled(enabled);
+    if (this.desk !== null) {
+      this.desk = { ...this.desk, webcamEnabled: enabled, ts: this.now() };
+      this.state = { ...this.state, desk: this.desk };
+      this.push.deskSnapshot({ ...this.desk });
+    }
+  }
+
+  private publishState(): void {
+    const next = cloneState({
+      ...this.state,
+      sessionActive: this.sessionActive,
+      focus: this.focus,
+      desk: this.desk,
+      countdownSec: this.sessionActive ? this.remainingCountdown() : 0,
+    });
+    this.state = next;
+    this.push.sessionState(cloneState(next));
+  }
+
+  private appendLog(kind: string, detail: string): void {
+    const event: SessionEvent = { ts: this.now(), kind, detail };
+    try {
+      this.store.appendSessionLog(event);
+    } catch (error) {
+      console.error("Failed to persist session log:", errorMessage(error));
+    }
+    this.push.sessionEvent({ ...event });
+  }
+}
+
+export function createSessionController(options: SessionControllerOptions): SessionController {
+  return new SessionController(options);
+}

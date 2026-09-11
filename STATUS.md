@@ -1,10 +1,11 @@
 # FocusPlug MVP
 
-## Status (2026-09-11T08:45Z)
-- **Foundation** merged to `main` (PR #1): Electron + Vite + React + Tailwind + TypeScript scaffold, shared contracts in `src/shared/`.
-- **window-monitor** merged to `main` (PR #4): FocusSnapshots + allow/block list matching + JSON list store. Critic WIN.
-- **process-kill** merged to `main` (PR #2): Windows blocklist terminator with allowlist safety. Critic WIN (25/25).
-- **desk-ai** merged to `main` (PR #6): on-device MediaPipe BlazeFace desk presence (`src/main/desk/**`). Critic WIN; fixture gauntlet PASS.
-- **policy-engine** merged to `main` (PR #5): pure `PolicyEngine.step` + table-driven tests. Critic WIN.
-- **ui-shell** ready for review (PR #3 `agent/ui-shell`): polished dark session UI + kill overlay in `src/renderer/**`. Rebased onto latest main. Visual gauntlet critic **WIN** (Linear/Raycast bar; overlay unmistakable).
-- Next: `agent/session-wiring`, then `agent/polish-hyperbloom`.
+## Status (2026-09-11T09:05Z)
+- **Foundation** merged to `main` (PR #1).
+- **window-monitor** merged to `main` (PR #4). Critic WIN.
+- **process-kill** merged to `main` (PR #2). Critic WIN (25/25).
+- **desk-ai** merged to `main` (PR #6). Critic WIN.
+- **policy-engine** merged to `main` (PR #5). Critic WIN.
+- **ui-shell** merged to `main` (PR #3). Critic WIN.
+- **session-wiring** ready for review (PR #7 `cursor/session-wiring-7843`): golden path + Demo Kill + persisted log + real IPC. Independent critic **WIN**. Evidence in `src/main/session/evidence/`.
+- Next: `agent/polish-hyperbloom`.
