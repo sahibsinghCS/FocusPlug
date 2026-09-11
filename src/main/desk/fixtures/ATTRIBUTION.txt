@@ -1,0 +1,4 @@
+face.jpg — MediaPipe public portrait test asset (storage.googleapis.com/mediapipe-assets/portrait.jpg), re-encoded baseline JPEG.
+empty.jpg — empty interior photograph from Unsplash (photo-1497366216548-37526070297c), re-encoded baseline JPEG.
+covered.jpg / noise.jpg — synthetic webcam-cover and sensor-static frames generated with ffmpeg geq (no person).
+models/blazeface — TensorFlow.js MediaPipe BlazeFace graph model (tfhub tensorflow/blazeface).
