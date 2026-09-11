@@ -2,7 +2,6 @@ import type { JSX } from "react";
 import type { SessionState } from "@shared/ipc";
 import { IconBolt } from "../lib/icons";
 import {
-  decisionLabel,
   deskPrimary,
   formatConfidence,
   padCountdown,
@@ -24,95 +23,58 @@ interface CountdownOverlayProps {
 export function CountdownOverlay(props: CountdownOverlayProps): JSX.Element {
   const total = Math.max(props.total, props.seconds, 1);
   const progress = props.seconds / total;
-  const radius = 132;
-  const circumference = 2 * Math.PI * radius;
-  const offset = circumference * (1 - progress);
   const windowText = windowPrimary(props.state.focus);
   const deskText = props.state.desk
     ? `${deskPrimary(props.state.desk)} ${formatConfidence(props.state.desk.confidence)}`
     : "Desk AI standby";
   const armed = enabledPlugViews(props.plugs ?? []);
-  const plugText =
-    armed.length > 0 ? `${plugStatusLine(props.plugs ?? [])} · will cut` : "No plugs armed";
+  const plugText = armed.length > 0 ? `${plugStatusLine(props.plugs ?? [])}, will cut` : "No plugs armed";
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col bg-[#090104]"
+      className="fixed inset-0 z-50 flex flex-col bg-fp-well"
       role="alertdialog"
       aria-modal="true"
       aria-label={`Force-quit in ${props.seconds} seconds`}
     >
-      <div className="overlay-glow pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,45,85,0.38),transparent_58%)]" />
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,rgba(0,0,0,0.45),transparent_18%,transparent_82%,rgba(0,0,0,0.55))]" />
+      <div
+        className="h-[3px] origin-left bg-fp-kill transition-transform duration-1000 ease-linear"
+        style={{ transform: `scaleX(${progress})` }}
+        aria-hidden="true"
+      />
 
-      <div className="relative z-10 flex flex-wrap justify-center gap-2 px-6 pt-6">
-        <HudChip k="Window" v={windowText} />
-        <HudChip k="Desk AI" v={deskText} />
-        <HudChip k="Plugs" v={plugText} danger={armed.length > 0} />
-        <HudChip k="Decision" v={decisionLabel(props.state.decision)} danger />
-      </div>
-
-      <div className="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-center px-6">
-        <p className="text-[13px] font-semibold uppercase tracking-[0.52em] text-fp-red">
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-8">
+        <p className="text-[13px] font-medium tracking-[0.18em] text-fp-kill">
           Killing blocked apps in
         </p>
-
-        <div className="relative mt-3 flex h-[min(42vh,340px)] w-[min(42vh,340px)] items-center justify-center">
-          <svg className="absolute inset-0 h-full w-full" viewBox="0 0 300 300" aria-hidden="true">
-            <circle cx="150" cy="150" r={radius} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="10" />
-            <circle
-              cx="150"
-              cy="150"
-              r={radius}
-              fill="none"
-              stroke="#ff2d55"
-              strokeWidth="10"
-              strokeLinecap="round"
-              strokeDasharray={circumference}
-              strokeDashoffset={offset}
-              transform="rotate(-90 150 150)"
-            />
-          </svg>
-          <p
-            key={props.seconds}
-            className="overlay-num font-mono text-[min(28vw,200px)] font-bold leading-none tabular text-white drop-shadow-[0_0_48px_rgba(255,45,85,0.7)]"
-          >
-            {padCountdown(props.seconds)}
-          </p>
-        </div>
-
-        <p className="mt-2 max-w-xl text-center text-[17px] text-zinc-200">{props.reason}</p>
-        <p className="mt-2 font-mono text-[12px] uppercase tracking-[0.22em] text-zinc-500">
-          Return to an allowlisted app to cancel
+        <p
+          key={props.seconds}
+          className="fuse-tick mt-2 font-display text-[min(32vw,220px)] font-extrabold leading-none tracking-[-0.06em] text-fp-ink tabular"
+        >
+          {padCountdown(props.seconds)}
         </p>
+        <p className="mt-4 max-w-xl text-center text-[18px] text-fp-ink">{props.reason}</p>
+        <p className="mt-3 max-w-lg text-center font-mono text-[12px] text-fp-faint">
+          {windowText}
+          {"  "}
+          {deskText}
+          {"  "}
+          {plugText}
+        </p>
+        <p className="mt-2 text-[13px] text-fp-mute">Return to an allowlisted app to cancel</p>
         {armed.length > 0 ? (
-          <p className="mt-2 max-w-lg text-center text-[13px] text-fp-amber">
-            Enabled plugs cut with the kill — never the study PC
+          <p className="mt-2 max-w-lg text-center text-[13px] text-fp-warn">
+            Enabled plugs cut with the kill. Never the study PC.
           </p>
         ) : null}
       </div>
 
-      <div className="relative z-10 flex flex-col items-center gap-3 pb-8">
-        <DangerButton onClick={props.onDemoKill} className="min-w-[240px] uppercase tracking-[0.14em]">
+      <div className="flex justify-center pb-10">
+        <DangerButton onClick={props.onDemoKill} className="min-w-[220px]">
           <IconBolt className="h-4 w-4" />
-          Demo Kill — skip wait
+          Demo Kill, skip wait
         </DangerButton>
       </div>
-    </div>
-  );
-}
-
-function HudChip(props: { k: string; v: string; danger?: boolean }): JSX.Element {
-  return (
-    <div
-      className={`rounded-md border px-3 py-1.5 ${
-        props.danger
-          ? "border-fp-red/40 bg-fp-red/10"
-          : "border-white/10 bg-black/40"
-      }`}
-    >
-      <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-zinc-500">{props.k}</p>
-      <p className="max-w-[220px] truncate font-mono text-[12px] text-zinc-100">{props.v}</p>
     </div>
   );
 }

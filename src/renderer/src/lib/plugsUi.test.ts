@@ -30,7 +30,7 @@ const fan: PlugDevice = {
 
 describe("plugsUi", () => {
   it("keeps the study-PC warning copy frozen", () => {
-    expect(STUDY_PC_WARNING).toBe("Secondary fun devices only — never the study PC");
+    expect(STUDY_PC_WARNING).toBe("Secondary fun devices only. Never the study PC.");
     expect(looksLikeStudyPc("Study PC")).toBe(true);
     expect(looksLikeStudyPc("study-pc")).toBe(true);
     expect(looksLikeStudyPc("Desk lamp")).toBe(false);
@@ -45,7 +45,7 @@ describe("plugsUi", () => {
       lamp: { ts: 1, deviceId: "lamp", online: true, powerOn: true },
     });
     expect(enabledPlugDevices([lamp, fan]).map((plug) => plug.id)).toEqual(["lamp"]);
-    expect(summarizePlugs(views)).toBe("1 armed · 1 on");
+    expect(summarizePlugs(views)).toBe("1 armed, 1 on");
     expect(plugKillNote(views)).toBe("Kill overlay cuts 1 enabled plug (Desk lamp)");
   });
 });

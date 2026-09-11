@@ -9,7 +9,7 @@ import type {
 import type { PlugView } from "./plugsUi";
 import { plugKillNote as plugKillNoteFromViews, summarizePlugs } from "./plugsUi";
 
-export type Tone = "lime" | "red" | "amber" | "mute";
+export type Tone = "live" | "kill" | "warn" | "mute";
 
 export function decisionLabel(decision: Decision): string {
   if (decision === "ON_TASK") return "On task";
@@ -19,9 +19,9 @@ export function decisionLabel(decision: Decision): string {
 }
 
 export function decisionTone(decision: Decision): Tone {
-  if (decision === "ON_TASK") return "lime";
-  if (decision === "DISTRACTED") return "red";
-  if (decision === "AWAY") return "amber";
+  if (decision === "ON_TASK") return "live";
+  if (decision === "DISTRACTED") return "kill";
+  if (decision === "AWAY") return "warn";
   return "mute";
 }
 
@@ -32,8 +32,8 @@ export function deskLabel(label: DeskLabel): string {
 }
 
 export function deskTone(label: DeskLabel): Tone {
-  if (label === "at_desk") return "lime";
-  if (label === "away") return "amber";
+  if (label === "at_desk") return "live";
+  if (label === "away") return "warn";
   return "mute";
 }
 
@@ -45,12 +45,12 @@ export function focusFlag(focus: FocusSnapshot | null): {
     return { label: "Waiting", tone: "mute" };
   }
   if (focus.matchedBlock) {
-    return { label: "Blocked", tone: "red" };
+    return { label: "Blocked", tone: "kill" };
   }
   if (focus.matchedAllow) {
-    return { label: "Allowlisted", tone: "lime" };
+    return { label: "Allowlisted", tone: "live" };
   }
-  return { label: "Unmatched", tone: "amber" };
+  return { label: "Unmatched", tone: "warn" };
 }
 
 export function formatConfidence(value: number): string {

@@ -1,6 +1,6 @@
 import type { JSX } from "react";
 import type { DeskModelId } from "@shared/ipc";
-import { Field, GhostButton, Select, Toggle } from "../components/ui";
+import { Field, GhostButton, PageIntro, Select, Toggle } from "../components/ui";
 import { deskModelLabel } from "../lib/format";
 import { DESK_MODEL_IDS } from "../lib/plugsUi";
 import { useAppState } from "../state/AppState";
@@ -14,92 +14,94 @@ export function SettingsPage(): JSX.Element {
   const { settings } = app;
 
   return (
-    <div className="mx-auto flex max-w-[720px] flex-col gap-5 px-7 py-6">
-      <header>
-        <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-fp-faint">Policy</p>
-        <h1 className="mt-1 text-[22px] font-semibold tracking-tight">Settings</h1>
-        <p className="mt-1 text-[13px] text-fp-mute">
-          Countdown fuse, desk-presence threshold, Desk AI model seam, and strict on-task rules.
-        </p>
-      </header>
+    <div className="flex h-full min-h-0 flex-col">
+      <PageIntro kicker="Policy" title="Settings">
+        Countdown fuse, desk-presence threshold, Desk AI model seam, and strict on-task rules.
+      </PageIntro>
 
-      <section className="space-y-6 rounded-lg border border-fp-line bg-fp-panel p-5">
-        <Field
-          label="Countdown"
-          hint="Seconds between distracted/away and force-quit. Cancels if you return to an allowlisted app."
-        >
-          <div className="flex items-center gap-3">
-            <input
-              type="range"
-              min={3}
-              max={30}
-              step={1}
-              value={settings.countdownSec}
-              onChange={(event) => {
-                void app.patchSettings({ countdownSec: Number(event.target.value) });
+      <div className="min-h-0 flex-1 overflow-auto">
+        <section className="space-y-8 px-7 py-6">
+          <Field
+            label="Countdown"
+            hint="Seconds between distracted or away and force-quit. Cancels if you return to an allowlisted app."
+          >
+            <div className="flex max-w-xl items-center gap-4">
+              <input
+                type="range"
+                min={3}
+                max={30}
+                step={1}
+                value={settings.countdownSec}
+                onChange={(event) => {
+                  void app.patchSettings({ countdownSec: Number(event.target.value) });
+                }}
+                className="h-[2px] flex-1"
+              />
+              <span className="w-12 font-mono text-[14px] tabular">{settings.countdownSec}s</span>
+            </div>
+          </Field>
+
+          <Field
+            label="Desk threshold"
+            hint="Minimum confidence before desk-away can start a kill countdown. Uncertain never kills on desk alone."
+          >
+            <div className="flex max-w-xl items-center gap-4">
+              <input
+                type="range"
+                min={0.3}
+                max={0.95}
+                step={0.01}
+                value={settings.deskThreshold}
+                onChange={(event) => {
+                  void app.patchSettings({ deskThreshold: Number(event.target.value) });
+                }}
+                className="h-[2px] flex-1"
+              />
+              <span className="w-12 font-mono text-[14px] tabular">
+                {Math.round(settings.deskThreshold * 100)}%
+              </span>
+            </div>
+          </Field>
+        </section>
+
+        <section className="border-t border-fp-line px-7 py-6">
+          <div className="flex max-w-xl items-center justify-between gap-4">
+            <div>
+              <p className="text-[13px] font-medium">Strict mode</p>
+              <p className="mt-0.5 text-[12px] text-fp-mute">
+                On-task requires allowlisted focus and at-desk presence.
+              </p>
+            </div>
+            <Toggle
+              checked={settings.strictMode}
+              onChange={(next) => {
+                void app.patchSettings({ strictMode: next });
               }}
-              className="h-1 flex-1 accent-fp-lime"
+              label="Strict mode"
             />
-            <span className="w-12 font-mono text-[14px] tabular">{settings.countdownSec}s</span>
           </div>
-        </Field>
+        </section>
 
-        <Field
-          label="Desk threshold"
-          hint="Minimum confidence before desk-away can start a kill countdown. Uncertain never kills on desk alone."
-        >
-          <div className="flex items-center gap-3">
-            <input
-              type="range"
-              min={0.3}
-              max={0.95}
-              step={0.01}
-              value={settings.deskThreshold}
-              onChange={(event) => {
-                void app.patchSettings({ deskThreshold: Number(event.target.value) });
+        <section className="border-t border-fp-line px-7 py-6">
+          <div className="flex max-w-xl items-center justify-between gap-4">
+            <div>
+              <p className="text-[13px] font-medium">Desk AI webcam</p>
+              <p className="mt-0.5 text-[12px] text-fp-mute">
+                On-device presence. Load-bearing for away detection. Never uploaded.
+              </p>
+            </div>
+            <Toggle
+              checked={settings.webcamEnabled}
+              onChange={(next) => {
+                void app.setDeskEnabled(next);
+                void app.patchSettings({ webcamEnabled: next });
               }}
-              className="h-1 flex-1 accent-fp-lime"
+              label="Desk AI webcam"
             />
-            <span className="w-12 font-mono text-[14px] tabular">
-              {Math.round(settings.deskThreshold * 100)}%
-            </span>
           </div>
-        </Field>
+        </section>
 
-        <div className="flex items-center justify-between gap-4 border-t border-fp-line pt-5">
-          <div>
-            <p className="text-[13px] font-medium">Strict mode</p>
-            <p className="mt-0.5 text-[12px] text-fp-mute">
-              On-task requires allowlisted focus and at-desk presence.
-            </p>
-          </div>
-          <Toggle
-            checked={settings.strictMode}
-            onChange={(next) => {
-              void app.patchSettings({ strictMode: next });
-            }}
-            label="Strict mode"
-          />
-        </div>
-
-        <div className="flex items-center justify-between gap-4 border-t border-fp-line pt-5">
-          <div>
-            <p className="text-[13px] font-medium">Desk AI webcam</p>
-            <p className="mt-0.5 text-[12px] text-fp-mute">
-              On-device presence. Load-bearing for away detection — never uploaded.
-            </p>
-          </div>
-          <Toggle
-            checked={settings.webcamEnabled}
-            onChange={(next) => {
-              void app.setDeskEnabled(next);
-              void app.patchSettings({ webcamEnabled: next });
-            }}
-            label="Desk AI webcam"
-          />
-        </div>
-
-        <div className="border-t border-fp-line pt-5">
+        <section className="border-t border-fp-line px-7 py-6">
           <Field
             label="Desk model"
             hint="IPC-persisted seam for the on-device presence detector. Stub skips inference, BlazeFace is the shipped graph, custom is Timmy's drop-in."
@@ -115,27 +117,27 @@ export function SettingsPage(): JSX.Element {
               />
             </div>
             <p className="mt-2 text-[12px] text-fp-mute">
-              Current: <span className="font-mono text-fp-ink">{settings.deskModelId}</span>.
-              Swap rules and file layout:{" "}
-              <span className="font-mono text-fp-lime">docs/MODEL-SEAM.md</span>.
+              Current: <span className="font-mono text-fp-ink">{settings.deskModelId}</span>. Swap
+              rules and file layout:{" "}
+              <span className="font-mono text-fp-live">docs/MODEL-SEAM.md</span>.
             </p>
           </Field>
-        </div>
-      </section>
+        </section>
 
-      <section className="rounded-lg border border-fp-line bg-fp-panel p-5">
-        <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-fp-faint">Filming</p>
-        <p className="mt-2 text-[13px] text-fp-mute">
-          Preview the kill overlay without waiting for Discord. Uses the current countdown length.
-        </p>
-        <div className="mt-3">
-          <GhostButton
-            onClick={() => app.previewCountdown(settings.countdownSec, "Distracted: Discord")}
-          >
-            Preview kill overlay
-          </GhostButton>
-        </div>
-      </section>
+        <section className="border-t border-fp-line px-7 py-6">
+          <p className="text-[13px] font-medium">Filming</p>
+          <p className="mt-1 max-w-xl text-[13px] text-fp-mute">
+            Preview the kill overlay without waiting for Discord. Uses the current countdown length.
+          </p>
+          <div className="mt-3">
+            <GhostButton
+              onClick={() => app.previewCountdown(settings.countdownSec, "Distracted: Discord")}
+            >
+              Preview kill overlay
+            </GhostButton>
+          </div>
+        </section>
+      </div>
     </div>
   );
 }

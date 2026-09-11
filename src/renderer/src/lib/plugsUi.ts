@@ -1,7 +1,7 @@
 import type { DeskModelId, PlugDevice, PlugProtocol, PlugSnapshot } from "@shared/ipc";
 
 /** Exact warning copy for the plugs panel. */
-export const STUDY_PC_WARNING = "Secondary fun devices only — never the study PC";
+export const STUDY_PC_WARNING = "Secondary fun devices only. Never the study PC.";
 
 export const DESK_MODEL_IDS: readonly DeskModelId[] = ["stub", "blazeface", "custom"];
 export const PLUG_PROTOCOLS: readonly PlugProtocol[] = ["kasa", "http", "mock"];
@@ -71,10 +71,10 @@ export function summarizePlugs(views: readonly PlugView[]): string {
   }
   const armed = enabledPlugViews(views);
   if (armed.length === 0) {
-    return `${views.length} plugged in · none armed`;
+    return `${views.length} plugged in, none armed`;
   }
   const on = armed.filter((plug) => plug.powerOn === true).length;
-  return `${armed.length} armed · ${on} on`;
+  return `${armed.length} armed, ${on} on`;
 }
 
 export function plugKillNote(views: readonly PlugView[]): string | null {

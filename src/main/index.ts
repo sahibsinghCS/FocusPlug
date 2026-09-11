@@ -77,14 +77,14 @@ function registerIpc(controller: SessionController, plugs: PlugController): void
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
-    width: 1100,
-    height: 760,
-    minWidth: 880,
-    minHeight: 600,
+    width: 1240,
+    height: 800,
+    minWidth: 960,
+    minHeight: 640,
     show: false,
     autoHideMenuBar: true,
     title: "FocusPlug",
-    backgroundColor: "#0b0f14",
+    backgroundColor: "#14161a",
     webPreferences: {
       preload: join(__dirname, "../preload/index.js"),
       contextIsolation: true,
