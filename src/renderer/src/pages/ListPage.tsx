@@ -85,7 +85,14 @@ export function ListPage(props: ListPageProps): JSX.Element {
             <label>
               <span className="text-[12px] text-fp-faint">Name</span>
               <div className="mt-1.5">
-                <TextInput value={name} onChange={setName} placeholder={isAllow ? "Obsidian" : "Spotify"} />
+                <TextInput
+                  value={name}
+                  onChange={(value) => {
+                    setName(value);
+                    setFormError(null);
+                  }}
+                  placeholder={isAllow ? "Obsidian" : "Spotify"}
+                />
               </div>
             </label>
             <label>
@@ -93,7 +100,10 @@ export function ListPage(props: ListPageProps): JSX.Element {
               <div className="mt-1.5">
                 <TextInput
                   value={match}
-                  onChange={setMatch}
+                  onChange={(value) => {
+                    setMatch(value);
+                    setFormError(null);
+                  }}
                   placeholder="process.exe, title substring"
                   mono
                 />

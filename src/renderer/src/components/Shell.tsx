@@ -49,7 +49,9 @@ export function Shell(): JSX.Element {
                 href={routeHash(item.id)}
                 className={cn(
                   "px-2.5 py-1 text-[13px] transition-colors",
-                  active ? "text-fp-ink" : "text-fp-faint hover:text-fp-ink",
+                  active
+                    ? "font-medium text-fp-ink"
+                    : "text-fp-faint hover:text-fp-ink",
                 )}
               >
                 {item.label}

@@ -80,11 +80,18 @@ export function PlugsPage(): JSX.Element {
           }}
           className="border-b border-fp-line px-7 py-5"
         >
-          <div className="grid gap-3 md:grid-cols-[1fr_1.2fr_140px_auto] md:items-end">
+          <div className="grid gap-3 md:grid-cols-[1fr_1.2fr_132px_auto] md:items-end">
             <label>
               <span className="text-[12px] text-fp-faint">Name</span>
               <div className="mt-1.5">
-                <TextInput value={name} onChange={setName} placeholder="Desk lamp" />
+                <TextInput
+                  value={name}
+                  onChange={(value) => {
+                    setName(value);
+                    setFormError(null);
+                  }}
+                  placeholder="Desk lamp"
+                />
               </div>
             </label>
             <label>
@@ -92,7 +99,10 @@ export function PlugsPage(): JSX.Element {
               <div className="mt-1.5">
                 <TextInput
                   value={address}
-                  onChange={setAddress}
+                  onChange={(value) => {
+                    setAddress(value);
+                    setFormError(null);
+                  }}
                   placeholder="192.168.1.40 or mock://lamp"
                   mono
                 />

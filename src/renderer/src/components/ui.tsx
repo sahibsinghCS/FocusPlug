@@ -13,7 +13,7 @@ export function Lamp(props: { tone: Tone; live?: boolean }): JSX.Element {
           : "bg-fp-line-strong";
   return (
     <span
-      className={cn("inline-block h-1.5 w-1.5", color, props.live && "lamp-live")}
+      className={cn("inline-block h-2 w-2", color, props.live && "lamp-live")}
       aria-hidden="true"
     />
   );
@@ -32,14 +32,14 @@ export function Toggle(props: {
       aria-label={props.label}
       onClick={() => props.onChange(!props.checked)}
       className={cn(
-        "relative h-5 w-9 transition-colors",
-        props.checked ? "bg-fp-ivory" : "bg-fp-hover",
+        "relative h-4 w-8 border border-fp-line-strong transition-colors",
+        props.checked ? "bg-fp-ivory" : "bg-fp-well",
       )}
     >
       <span
         className={cn(
-          "absolute top-0.5 h-4 w-4 bg-fp-bg transition-all",
-          props.checked ? "left-[18px]" : "left-0.5",
+          "absolute top-[3px] h-[8px] w-[8px] transition-all",
+          props.checked ? "left-[18px] bg-fp-well" : "left-[3px] bg-fp-mute",
         )}
       />
     </button>
@@ -57,7 +57,7 @@ export function PrimaryButton(props: {
       type={props.submit ? "submit" : "button"}
       disabled={props.disabled}
       onClick={props.onClick}
-      className="inline-flex h-9 items-center justify-center bg-fp-ivory px-4 text-[13px] font-medium text-fp-well transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
+      className="inline-flex h-9 items-center justify-center whitespace-nowrap bg-fp-ivory px-4 text-[13px] font-medium text-fp-well transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
     >
       {props.children}
     </button>
@@ -74,7 +74,7 @@ export function GhostButton(props: {
       type="button"
       disabled={props.disabled}
       onClick={props.onClick}
-      className="inline-flex h-9 items-center justify-center border border-fp-line-strong bg-transparent px-3.5 text-[13px] font-medium text-fp-ink transition hover:border-fp-ink hover:bg-fp-elev disabled:cursor-not-allowed disabled:opacity-40"
+      className="inline-flex h-9 items-center justify-center whitespace-nowrap border border-fp-line-strong bg-transparent px-3.5 text-[13px] font-medium text-fp-ink transition hover:border-fp-ink hover:bg-fp-elev disabled:cursor-not-allowed disabled:opacity-40"
     >
       {props.children}
     </button>
@@ -93,7 +93,7 @@ export function DangerButton(props: {
       disabled={props.disabled}
       onClick={props.onClick}
       className={cn(
-        "inline-flex h-10 items-center justify-center gap-2 bg-fp-kill px-4 text-[13px] font-semibold tracking-[0.04em] text-white transition hover:bg-[#f04a3e] disabled:cursor-not-allowed disabled:opacity-40",
+        "inline-flex h-10 items-center justify-center gap-2 whitespace-nowrap bg-fp-kill px-4 text-[13px] font-semibold text-white transition hover:bg-[#f04a3e] disabled:cursor-not-allowed disabled:opacity-40",
         props.className,
       )}
     >
@@ -171,7 +171,7 @@ export function Chip(props: { tone: Tone; children: ReactNode }): JSX.Element {
   return (
     <span
       className={cn(
-        "inline-flex items-center border px-2 py-0.5 text-[10px] font-medium tracking-[0.08em]",
+        "inline-flex items-center border px-2 py-0.5 text-[10px] font-medium",
         palette,
       )}
     >

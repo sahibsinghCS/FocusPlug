@@ -73,7 +73,7 @@ export function SessionPage(): JSX.Element {
             <p
               className={cn(
                 "mt-1 font-display text-[clamp(44px,7vw,76px)] font-extrabold leading-[0.92] tracking-[-0.045em] tabular",
-                countdownIdle ? "text-fp-faint" : "text-fp-kill",
+                countdownIdle ? "text-fp-ink/55" : "text-fp-kill",
               )}
             >
               {countdownIdle
@@ -89,39 +89,37 @@ export function SessionPage(): JSX.Element {
         </div>
       </section>
 
-      <section className="grid border-b border-fp-line md:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+      <section className="grid border-b border-fp-line md:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)_minmax(0,1fr)]">
         <Sensor
           label="Window"
           title={windowName}
           body={windowSecondary(state.focus)}
           live={Boolean(state.focus && state.focus.matchedAllow)}
           warn={Boolean(state.focus?.matchedBlock)}
+          emphasis
         />
-        <div className="grid border-t border-fp-line md:border-l md:border-t-0">
-          <Sensor
-            label="Desk AI"
-            title={deskText}
-            body={
-              state.desk
-                ? state.desk.webcamEnabled
-                  ? `Webcam on, ${app.settings.deskModelId}`
-                  : "Webcam off"
-                : "Presence model idle"
-            }
-            live={state.desk?.label === "at_desk"}
-            warn={state.desk?.label === "away"}
-            compact
-          />
-          <Sensor
-            label="Plugs"
-            title={plugStatusLine(app.plugs)}
-            body={plugBody}
-            live={armedPlugs.some((plug) => plug.online && plug.powerOn === true)}
-            warn={armedPlugs.length > 0 && armedPlugs.every((plug) => plug.powerOn === false)}
-            compact
-            last
-          />
-        </div>
+        <Sensor
+          label="Desk AI"
+          title={deskText}
+          body={
+            state.desk
+              ? state.desk.webcamEnabled
+                ? `Webcam on, ${app.settings.deskModelId}`
+                : "Webcam off"
+              : "Presence model idle"
+          }
+          live={state.desk?.label === "at_desk"}
+          warn={state.desk?.label === "away"}
+          rule
+        />
+        <Sensor
+          label="Plugs"
+          title={plugStatusLine(app.plugs)}
+          body={plugBody}
+          live={armedPlugs.some((plug) => plug.online && plug.powerOn === true)}
+          warn={armedPlugs.length > 0 && armedPlugs.every((plug) => plug.powerOn === false)}
+          rule
+        />
       </section>
 
       <section className="flex min-h-0 flex-1">
@@ -213,17 +211,23 @@ function Sensor(props: {
   body: string;
   live?: boolean;
   warn?: boolean;
-  compact?: boolean;
-  last?: boolean;
+  emphasis?: boolean;
+  rule?: boolean;
 }): JSX.Element {
   const tone = props.warn ? "kill" : props.live ? "live" : "mute";
   return (
-    <div className={cn("min-w-0 px-7 py-4", props.compact && !props.last && "border-b border-fp-line")}>
-      <div className="flex items-center justify-between gap-3">
+    <div className={cn("min-w-0 px-7 py-4", props.rule && "md:border-l md:border-fp-line")}>
+      <div className="flex items-center gap-2">
         <p className="text-[12px] text-fp-faint">{props.label}</p>
         <Chip tone={tone}>{props.warn ? "Alert" : props.live ? "Live" : "Idle"}</Chip>
       </div>
-      <p className="mt-1 truncate text-[15px] font-medium tracking-tight" title={props.title}>
+      <p
+        className={cn(
+          "mt-1 truncate font-medium tracking-tight",
+          props.emphasis ? "text-[17px]" : "text-[15px]",
+        )}
+        title={props.title}
+      >
         {props.title}
       </p>
       <p className="truncate text-[12px] text-fp-mute" title={props.body}>
