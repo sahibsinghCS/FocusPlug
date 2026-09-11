@@ -88,7 +88,7 @@ function debugStub(reason: string, backend: string, extras?: Partial<DeskDebug>)
  * Low-level MediaPipe BlazeFace engine. Only the DeskModel adapter should
  * construct this — analyze / monitor talk to `BlazeFaceDeskModel.infer`.
  */
-export class BlazeFaceDetector {
+class BlazeFaceDetector {
   private model: blazeface.BlazeFaceModel | null = null;
   private initPromise: Promise<void> | null = null;
 
@@ -167,7 +167,7 @@ export class BlazeFaceDetector {
 
 let sharedDetector: BlazeFaceDetector | null = null;
 
-export async function getSharedDetector(): Promise<BlazeFaceDetector> {
+async function getSharedDetector(): Promise<BlazeFaceDetector> {
   if (!sharedDetector) {
     sharedDetector = new BlazeFaceDetector();
     await sharedDetector.init();

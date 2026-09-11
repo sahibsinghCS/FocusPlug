@@ -1,6 +1,6 @@
 {
-  "ranAt": "2026-09-11T08:03:31.188Z",
-  "model": "mediapipe-blazeface",
+  "ranAt": "2026-09-11T12:35:34.179Z",
+  "model": "blazeface",
   "backend": "cpu",
   "unitChecks": [
     {
@@ -42,6 +42,61 @@
       "name": "classify is deterministic",
       "pass": true,
       "detail": "{\"present\":{\"ts\":3,\"label\":\"at_desk\",\"confidence\":0.91,\"webcamEnabled\":true},\"again\":{\"ts\":7,\"label\":\"at_desk\",\"confidence\":0.91,\"webcamEnabled\":true}}"
+    },
+    {
+      "name": "stub id is stub",
+      "pass": true,
+      "detail": "stub"
+    },
+    {
+      "name": "stub never returns at_desk/away",
+      "pass": true,
+      "detail": "[{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0}]"
+    },
+    {
+      "name": "factory stub id is stub",
+      "pass": true,
+      "detail": "stub"
+    },
+    {
+      "name": "factory stub never returns at_desk/away",
+      "pass": true,
+      "detail": "[{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0}]"
+    },
+    {
+      "name": "your-model id is custom",
+      "pass": true,
+      "detail": "custom"
+    },
+    {
+      "name": "unimplemented your-model stays uncertain (safe default)",
+      "pass": true,
+      "detail": "[{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0}]"
+    },
+    {
+      "name": "factory custom id is custom",
+      "pass": true,
+      "detail": "custom"
+    },
+    {
+      "name": "factory default is blazeface",
+      "pass": true,
+      "detail": "blazeface"
+    },
+    {
+      "name": "factory blazeface id is blazeface",
+      "pass": true,
+      "detail": "blazeface"
+    },
+    {
+      "name": "unknown settings id falls back to blazeface",
+      "pass": true,
+      "detail": "blazeface"
+    },
+    {
+      "name": "your-model.ts does not import tensorflow or blazeface",
+      "pass": true,
+      "detail": "Timmy's file must stay a pure DeskModel.infer implementation"
     }
   ],
   "fixtures": [
@@ -300,6 +355,61 @@
       "detail": "{\"present\":{\"ts\":3,\"label\":\"at_desk\",\"confidence\":0.91,\"webcamEnabled\":true},\"again\":{\"ts\":7,\"label\":\"at_desk\",\"confidence\":0.91,\"webcamEnabled\":true}}"
     },
     {
+      "name": "unit: stub id is stub",
+      "pass": true,
+      "detail": "stub"
+    },
+    {
+      "name": "unit: stub never returns at_desk/away",
+      "pass": true,
+      "detail": "[{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0}]"
+    },
+    {
+      "name": "unit: factory stub id is stub",
+      "pass": true,
+      "detail": "stub"
+    },
+    {
+      "name": "unit: factory stub never returns at_desk/away",
+      "pass": true,
+      "detail": "[{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0}]"
+    },
+    {
+      "name": "unit: your-model id is custom",
+      "pass": true,
+      "detail": "custom"
+    },
+    {
+      "name": "unit: unimplemented your-model stays uncertain (safe default)",
+      "pass": true,
+      "detail": "[{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0}]"
+    },
+    {
+      "name": "unit: factory custom id is custom",
+      "pass": true,
+      "detail": "custom"
+    },
+    {
+      "name": "unit: factory default is blazeface",
+      "pass": true,
+      "detail": "blazeface"
+    },
+    {
+      "name": "unit: factory blazeface id is blazeface",
+      "pass": true,
+      "detail": "blazeface"
+    },
+    {
+      "name": "unit: unknown settings id falls back to blazeface",
+      "pass": true,
+      "detail": "blazeface"
+    },
+    {
+      "name": "unit: your-model.ts does not import tensorflow or blazeface",
+      "pass": true,
+      "detail": "Timmy's file must stay a pure DeskModel.infer implementation"
+    },
+    {
       "name": "face is deterministic across 3 runs",
       "pass": true,
       "detail": "{\"labels\":[\"at_desk\"],\"confs\":[0.99969482421875,0.99969482421875,0.99969482421875],\"maxP\":[0.99969482421875,0.99969482421875,0.99969482421875]}"
@@ -363,6 +473,21 @@
       "name": "setEnabled(false) yields webcamEnabled=false and not at_desk",
       "pass": true,
       "detail": "{\"id\":\"cam-off\",\"label\":\"uncertain\",\"confidence\":0,\"webcamEnabled\":false}"
+    },
+    {
+      "name": "factory stub on face fixture is uncertain (never at_desk/away)",
+      "pass": true,
+      "detail": "{\"ts\":2000,\"label\":\"uncertain\",\"confidence\":0,\"webcamEnabled\":true}"
+    },
+    {
+      "name": "stub monitor session stays uncertain without crashing",
+      "pass": true,
+      "detail": "{\"stubStep1\":{\"ts\":99,\"label\":\"uncertain\",\"confidence\":0,\"webcamEnabled\":true},\"stubStep2\":{\"ts\":99,\"label\":\"uncertain\",\"confidence\":0,\"webcamEnabled\":true}}"
+    },
+    {
+      "name": "unimplemented custom model is uncertain (safe until Timmy implements infer)",
+      "pass": true,
+      "detail": "{\"ts\":3000,\"label\":\"uncertain\",\"confidence\":0,\"webcamEnabled\":true}"
     }
   ],
   "verdict": "PASS"

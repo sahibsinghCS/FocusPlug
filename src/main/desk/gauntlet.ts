@@ -218,10 +218,7 @@ async function main(): Promise<void> {
   assert(
     assertions,
     "factory stub on face fixture is uncertain (never at_desk/away)",
-    stubOnFace.snapshot.label === "uncertain" &&
-      stubOnFace.snapshot.confidence === 0 &&
-      stubOnFace.snapshot.label !== "at_desk" &&
-      stubOnFace.snapshot.label !== "away",
+    stubOnFace.snapshot.label === "uncertain" && stubOnFace.snapshot.confidence === 0,
     JSON.stringify(stubOnFace.snapshot),
   );
 
