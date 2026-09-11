@@ -3,7 +3,7 @@ import type { AppEntry } from "@shared/types";
 import { newEntryId } from "../lib/ids";
 import { cn } from "../lib/cn";
 import { useAppState } from "../state/AppState";
-import { GhostButton, PrimaryButton, TextInput, Toggle } from "../components/ui";
+import { PrimaryButton, TextInput, Toggle } from "../components/ui";
 
 interface ListPageProps {
   kind: "allow" | "block";
@@ -199,7 +199,7 @@ function EntryRow(props: {
         }}
         className="min-w-0 flex-[1.3] bg-transparent font-mono text-[11px] text-fp-mute outline-none"
       />
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
         <Toggle
           checked={props.entry.enabled}
           onChange={(next) => {
@@ -207,7 +207,14 @@ function EntryRow(props: {
           }}
           label={`Enable ${props.entry.name}`}
         />
-        <GhostButton onClick={() => void props.onDelete()}>Remove</GhostButton>
+        <button
+          type="button"
+          onClick={() => void props.onDelete()}
+          className="rounded-md px-2 py-1 text-[11px] font-medium text-fp-faint transition hover:bg-white/5 hover:text-fp-red"
+          aria-label={`Remove ${props.entry.name}`}
+        >
+          Remove
+        </button>
       </div>
     </li>
   );

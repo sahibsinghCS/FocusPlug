@@ -46,12 +46,12 @@ export function CountdownOverlay(props: CountdownOverlayProps): JSX.Element {
       </div>
 
       <div className="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-center px-6">
-        <p className="text-[12px] font-semibold uppercase tracking-[0.46em] text-fp-red">
+        <p className="text-[13px] font-semibold uppercase tracking-[0.52em] text-fp-red">
           Killing blocked apps in
         </p>
 
-        <div className="relative mt-5 flex h-[300px] w-[300px] items-center justify-center">
-          <svg className="absolute inset-0" viewBox="0 0 300 300" aria-hidden="true">
+        <div className="relative mt-3 flex h-[min(42vh,340px)] w-[min(42vh,340px)] items-center justify-center">
+          <svg className="absolute inset-0 h-full w-full" viewBox="0 0 300 300" aria-hidden="true">
             <circle cx="150" cy="150" r={radius} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="10" />
             <circle
               cx="150"
@@ -68,7 +68,7 @@ export function CountdownOverlay(props: CountdownOverlayProps): JSX.Element {
           </svg>
           <p
             key={props.seconds}
-            className="overlay-num font-mono text-[148px] font-bold leading-none tabular text-white drop-shadow-[0_0_40px_rgba(255,45,85,0.55)]"
+            className="overlay-num font-mono text-[min(28vw,200px)] font-bold leading-none tabular text-white drop-shadow-[0_0_48px_rgba(255,45,85,0.7)]"
           >
             {padCountdown(props.seconds)}
           </p>

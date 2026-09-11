@@ -73,8 +73,13 @@ export function Shell(): JSX.Element {
                     active ? "bg-fp-lime" : "bg-transparent",
                   )}
                 />
-                <Icon className="h-4 w-4" />
-                <span className="flex-1 font-medium">{item.label}</span>
+                <Icon className="h-4 w-4 shrink-0" />
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="font-medium">{item.label}</span>
+                  <span className={cn("text-[11px]", active ? "text-fp-faint" : "text-zinc-600")}>
+                    {item.hint}
+                  </span>
+                </span>
               </a>
             );
           })}
@@ -89,7 +94,9 @@ export function Shell(): JSX.Element {
             <span className="uppercase tracking-[0.16em]">
               {sessionModeLabel(app.state)}
             </span>
-            {app.usingMock ? <span className="ml-auto text-[10px] text-fp-faint">mock</span> : null}
+            <span className="ml-auto font-mono text-[10px] text-fp-faint">
+              {app.state.decision}
+            </span>
           </div>
         </div>
       </aside>

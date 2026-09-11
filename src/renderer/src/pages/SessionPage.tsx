@@ -31,7 +31,7 @@ export function SessionPage(): JSX.Element {
           <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-fp-faint">Home</p>
           <h1 className="mt-1 text-[22px] font-semibold tracking-tight">Session</h1>
           <p className="mt-1 text-[13px] text-fp-mute">
-            Window, desk presence, and kill policy — live while a session is armed.
+            Live window, desk AI, and kill decision.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -146,7 +146,7 @@ function StatusCard(props: {
       <p className="mt-3 truncate text-[18px] font-semibold tracking-tight" title={props.title}>
         {props.title}
       </p>
-      <p className="mt-1 line-clamp-2 min-h-[40px] text-[13px] leading-5 text-fp-mute" title={props.body}>
+      <p className="mt-1 line-clamp-2 text-[13px] leading-5 text-fp-mute" title={props.body}>
         {props.body}
       </p>
       {props.meter !== null && props.meter !== undefined ? (
