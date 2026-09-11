@@ -1,0 +1,161 @@
+{
+  "name": "golden-path",
+  "bar": "Docs→Discord→countdown→kill→return→unlock plus Demo Kill instant path",
+  "platform": "linux",
+  "passed": true,
+  "settings": {
+    "countdownSec": 10,
+    "deskThreshold": 0.6,
+    "strictMode": true,
+    "webcamEnabled": true
+  },
+  "policyEventTypes": [
+    "status",
+    "status",
+    "status",
+    "start_countdown",
+    "status",
+    "status",
+    "status",
+    "status",
+    "kill",
+    "status",
+    "unlock",
+    "status",
+    "status",
+    "kill"
+  ],
+  "log": [
+    {
+      "ts": 1010500,
+      "kind": "demo",
+      "detail": "Demo Kill · killed discord.exe (pid 99)"
+    },
+    {
+      "ts": 1010500,
+      "kind": "decision",
+      "detail": "ON_TASK · On task: chrome.exe"
+    },
+    {
+      "ts": 1010500,
+      "kind": "unlock",
+      "detail": "Unlocked — back on task"
+    },
+    {
+      "ts": 1010250,
+      "kind": "kill",
+      "detail": "blocked_focus · killed discord.exe (pid 44552)"
+    },
+    {
+      "ts": 1000250,
+      "kind": "decision",
+      "detail": "DISTRACTED · Distracted: discord.exe"
+    },
+    {
+      "ts": 1000250,
+      "kind": "countdown",
+      "detail": "start_countdown · blocked_focus · 10s"
+    },
+    {
+      "ts": 1000000,
+      "kind": "decision",
+      "detail": "ON_TASK · On task: chrome.exe"
+    },
+    {
+      "ts": 1000000,
+      "kind": "decision",
+      "detail": "IDLE · Idle — no focused window"
+    },
+    {
+      "ts": 1000000,
+      "kind": "session",
+      "detail": "Session started"
+    }
+  ],
+  "steps": [
+    {
+      "action": "SESSION_START",
+      "state": {
+        "sessionActive": true,
+        "focus": null,
+        "desk": null,
+        "decision": "IDLE",
+        "countdownSec": 0,
+        "detail": "Idle — no focused window"
+      },
+      "log": {
+        "ts": 1000000,
+        "kind": "decision",
+        "detail": "IDLE · Idle — no focused window"
+      }
+    },
+    {
+      "action": "docs_at_desk",
+      "decision": "ON_TASK",
+      "detail": "On task: chrome.exe",
+      "policy": [
+        "status",
+        "status",
+        "status"
+      ]
+    },
+    {
+      "action": "discord_focus",
+      "decision": "DISTRACTED",
+      "countdownSec": 10,
+      "policyIncludes": "start_countdown"
+    },
+    {
+      "action": "countdown_tick",
+      "remaining": 8
+    },
+    {
+      "action": "fuse_elapsed_kill",
+      "matchers": [
+        "discord.exe"
+      ],
+      "killed": [
+        "discord.exe (pid 44552)"
+      ],
+      "countdownSec": 0
+    },
+    {
+      "action": "return_docs_unlock",
+      "decision": "ON_TASK",
+      "policyIncludes": "unlock"
+    },
+    {
+      "action": "DEMO_KILL",
+      "result": {
+        "killed": [
+          "discord.exe (pid 99)"
+        ],
+        "errors": []
+      },
+      "matchers": [
+        "discord",
+        "discord.exe",
+        "steam",
+        "steam.exe",
+        "steamwebhelper",
+        "epicgameslauncher",
+        "epicgameslauncher.exe",
+        "epic games",
+        "leagueclient",
+        "leagueclient.exe",
+        "league of legends",
+        "valorant",
+        "valorant.exe",
+        "fortnite",
+        "fortniteclient-win64-shipping.exe",
+        "cs2",
+        "cs2.exe",
+        "csgo.exe",
+        "minecraft",
+        "minecraftlauncher.exe",
+        "roblox",
+        "robloxplayerbeta.exe"
+      ]
+    }
+  ]
+}

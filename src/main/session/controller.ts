@@ -7,7 +7,6 @@ import type {
   PolicyEngine as PolicyEngineSeam,
   ProcessKiller,
   SessionState,
-  Store,
   WindowMonitor,
 } from "../../shared/ipc.ts";
 import { PolicyEngine } from "../../shared/policy/index.ts";
@@ -25,11 +24,23 @@ import { demoKillMatchers, expandKillTargets } from "./targets.ts";
 
 export const DEFAULT_SESSION_TICK_MS = 250;
 
+/** JSON persistence used by the session loop. Returns are synchronous. */
+export interface SessionStore {
+  loadAllowlist(): AppEntry[];
+  saveAllowlist(entries: AppEntry[]): void;
+  loadBlocklist(): AppEntry[];
+  saveBlocklist(entries: AppEntry[]): void;
+  loadSettings(): AppSettings;
+  saveSettings(settings: AppSettings): void;
+  appendSessionLog(event: SessionEvent): void;
+  loadSessionLog(): SessionEvent[];
+}
+
 export interface SessionControllerOptions {
   windowMonitor: WindowMonitor;
   deskMonitor: DeskMonitor;
   killer: ProcessKiller;
-  store: Store;
+  store: SessionStore;
   push: SessionPush;
   policyFactory?: () => PolicyEngineSeam;
   now?: () => number;
@@ -131,7 +142,7 @@ export class SessionController {
   private readonly windowMonitor: WindowMonitor;
   private readonly deskMonitor: DeskMonitor;
   private readonly killer: ProcessKiller;
-  private readonly store: Store;
+  private readonly store: SessionStore;
   private readonly push: SessionPush;
   private readonly policyFactory: () => PolicyEngineSeam;
   private readonly now: () => number;

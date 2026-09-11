@@ -10,7 +10,7 @@ import {
 import { dirname, join } from "node:path";
 import { DEFAULT_SETTINGS } from "../../shared/defaults.ts";
 import type { AppSettings, Store } from "../../shared/ipc.ts";
-import type { SessionEvent } from "../../shared/types.ts";
+import type { AppEntry, SessionEvent } from "../../shared/types.ts";
 import { ListsJsonStore } from "./lists.ts";
 
 const MAX_SESSION_LOG = 1000;
@@ -107,19 +107,19 @@ export class FocusPlugStore implements Store {
     this.logPath = join(directory, "session-log.json");
   }
 
-  loadAllowlist(): ReturnType<Store["loadAllowlist"]> {
+  loadAllowlist(): AppEntry[] {
     return this.lists.loadAllowlist();
   }
 
-  saveAllowlist(entries: Parameters<Store["saveAllowlist"]>[0]): void {
+  saveAllowlist(entries: AppEntry[]): void {
     this.lists.saveAllowlist(entries);
   }
 
-  loadBlocklist(): ReturnType<Store["loadBlocklist"]> {
+  loadBlocklist(): AppEntry[] {
     return this.lists.loadBlocklist();
   }
 
-  saveBlocklist(entries: Parameters<Store["saveBlocklist"]>[0]): void {
+  saveBlocklist(entries: AppEntry[]): void {
     this.lists.saveBlocklist(entries);
   }
 

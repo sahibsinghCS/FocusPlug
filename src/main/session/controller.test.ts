@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { DEFAULT_BLOCKLIST, DEFAULT_SETTINGS } from "../../shared/defaults.ts";
 import { ALL_BLOCKLIST_TARGET } from "../../shared/policy/index.ts";
 import type { AppEntry, PolicyEvent } from "../../shared/types.ts";
@@ -147,6 +147,9 @@ describe("SessionController", () => {
     expect(distracted.countdownSec).toBe(10);
     expect(policyTypes(h.trace)).toContain("start_countdown");
     expect(logKinds(h.controller)).toContain("countdown");
+    expect(h.trace.focus.some((snap) => snap.matchedBlock)).toBe(true);
+    expect(h.trace.desk.some((snap) => snap.label === "at_desk")).toBe(true);
+    expect(h.trace.states.some((state) => state.countdownSec === 10)).toBe(true);
     steps.push({
       action: "discord_focus",
       decision: distracted.decision,
@@ -157,10 +160,12 @@ describe("SessionController", () => {
     h.clock.advance(1000);
     await h.controller.tick();
     expect(h.controller.getState().countdownSec).toBe(9);
+    expect(h.trace.states.some((state) => state.countdownSec === 9)).toBe(true);
 
     h.clock.advance(1000);
     await h.controller.tick();
     expect(h.controller.getState().countdownSec).toBe(8);
+    expect(h.trace.states.some((state) => state.countdownSec === 8)).toBe(true);
     steps.push({
       action: "countdown_tick",
       remaining: h.controller.getState().countdownSec,
@@ -334,6 +339,41 @@ describe("SessionController", () => {
     h.clock.advance(1000);
     await h.controller.tick();
     expect(h.killer.calls.length).toBe(1);
+  });
+
+  it("250ms ticker publishes live remaining countdown without new snapshots", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_700_000_000_000);
+    const window = new ScriptedWindowMonitor();
+    const desk = new ScriptedDeskMonitor();
+    const killer = new RecordingKiller();
+    const store = createMemoryStore({
+      settings: { ...DEFAULT_SETTINGS, countdownSec: 10 },
+    });
+    const { push, trace } = createRecordingPush();
+    const controller = new SessionController({
+      windowMonitor: window,
+      deskMonitor: desk,
+      killer,
+      store,
+      push,
+      tickIntervalMs: 250,
+    });
+    try {
+      await controller.start();
+      window.emit(discordFocus(Date.now()));
+      desk.emit(presentDesk(Date.now()));
+      await controller.flush();
+      expect(controller.getState().countdownSec).toBe(10);
+
+      await vi.advanceTimersByTimeAsync(1000);
+      await controller.flush();
+      expect(controller.getState().countdownSec).toBe(9);
+      expect(trace.states.some((state) => state.countdownSec === 9)).toBe(true);
+    } finally {
+      await controller.stop();
+      vi.useRealTimers();
+    }
   });
 });
 

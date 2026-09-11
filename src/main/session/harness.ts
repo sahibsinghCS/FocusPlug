@@ -8,7 +8,7 @@ import type {
   DeskMonitor,
   KillResult,
   ProcessKiller,
-  Store,
+  SessionState,
   WindowMonitor,
 } from "../../shared/ipc.ts";
 import type {
@@ -17,8 +17,8 @@ import type {
   FocusSnapshot,
   PolicyEvent,
   SessionEvent,
-  SessionState,
 } from "../../shared/types.ts";
+import type { SessionStore } from "./controller.ts";
 import type { SessionPush } from "./push.ts";
 
 function cloneEntries(entries: AppEntry[]): AppEntry[] {
@@ -106,7 +106,7 @@ export function createMemoryStore(init?: {
   allowlist?: AppEntry[];
   blocklist?: AppEntry[];
   settings?: AppSettings;
-}): Store {
+}): SessionStore {
   let allowlist = cloneEntries(init?.allowlist ?? DEFAULT_ALLOWLIST);
   let blocklist = cloneEntries(init?.blocklist ?? DEFAULT_BLOCKLIST);
   let settings: AppSettings = { ...(init?.settings ?? DEFAULT_SETTINGS) };
