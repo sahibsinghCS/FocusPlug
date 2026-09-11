@@ -19,23 +19,32 @@
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json",
     "check:contracts": "node scripts/check-contracts.mjs",
     "test:window": "node --experimental-strip-types --test src/main/window/match.test.ts src/main/window/monitor.test.ts src/main/store/lists.test.ts",
-    "probe:window": "node --experimental-strip-types src/main/window/probe.ts"
+    "probe:window": "node --experimental-strip-types src/main/window/probe.ts",
+    "test:desk": "tsx --tsconfig tsconfig.node.json src/main/desk/gauntlet.ts"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
+    "@tensorflow-models/blazeface": "^0.1.0",
+    "@tensorflow/tfjs-backend-cpu": "^4.22.0",
+    "@tensorflow/tfjs-converter": "^4.22.0",
+    "@tensorflow/tfjs-core": "^4.22.0",
+    "jpeg-js": "^0.4.4",
+    "pngjs": "^7.0.0",
     "react": "^19.2.1",
     "react-dom": "^19.2.1"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.13",
     "@types/node": "^22.19.1",
+    "@types/pngjs": "^6.0.5",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
     "electron": "^39.2.6",
     "electron-vite": "^5.0.0",
     "tailwindcss": "^4.1.13",
+    "tsx": "^4.20.6",
     "typescript": "^5.9.3",
     "vite": "^7.2.6"
   }

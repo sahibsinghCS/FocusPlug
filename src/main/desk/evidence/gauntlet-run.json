@@ -1,0 +1,369 @@
+{
+  "ranAt": "2026-09-11T08:03:31.188Z",
+  "model": "mediapipe-blazeface",
+  "backend": "cpu",
+  "unitChecks": [
+    {
+      "name": "disabled webcam is never at_desk",
+      "pass": true,
+      "detail": "{\"ts\":1,\"label\":\"uncertain\",\"confidence\":0,\"webcamEnabled\":false}"
+    },
+    {
+      "name": "missing frame is uncertain, not at_desk",
+      "pass": true,
+      "detail": "{\"ts\":2,\"label\":\"uncertain\",\"confidence\":0.15,\"webcamEnabled\":true}"
+    },
+    {
+      "name": "strong face is at_desk with model confidence",
+      "pass": true,
+      "detail": "{\"ts\":3,\"label\":\"at_desk\",\"confidence\":0.91,\"webcamEnabled\":true}"
+    },
+    {
+      "name": "no-face covered/empty frame is away",
+      "pass": true,
+      "detail": "{\"ts\":4,\"label\":\"away\",\"confidence\":0.9,\"webcamEnabled\":true}"
+    },
+    {
+      "name": "BlazeFace phantoms on a covered lens are not at_desk",
+      "pass": true,
+      "detail": "{\"ts\":41,\"label\":\"away\",\"confidence\":0.9,\"webcamEnabled\":true}"
+    },
+    {
+      "name": "tiny face is not at_desk",
+      "pass": true,
+      "detail": "{\"ts\":5,\"label\":\"away\",\"confidence\":0.6725000000000001,\"webcamEnabled\":true}"
+    },
+    {
+      "name": "implausible landmarks are not at_desk",
+      "pass": true,
+      "detail": "{\"ts\":6,\"label\":\"away\",\"confidence\":0.6825000000000001,\"webcamEnabled\":true}"
+    },
+    {
+      "name": "classify is deterministic",
+      "pass": true,
+      "detail": "{\"present\":{\"ts\":3,\"label\":\"at_desk\",\"confidence\":0.91,\"webcamEnabled\":true},\"again\":{\"ts\":7,\"label\":\"at_desk\",\"confidence\":0.91,\"webcamEnabled\":true}}"
+    }
+  ],
+  "fixtures": [
+    {
+      "id": "face",
+      "path": "/workspace/src/main/desk/fixtures/face.jpg",
+      "labels": [
+        "at_desk",
+        "at_desk",
+        "at_desk"
+      ],
+      "confidences": [
+        0.99969482421875,
+        0.99969482421875,
+        0.99969482421875
+      ],
+      "faceCounts": [
+        1,
+        1,
+        1
+      ],
+      "maxProbabilities": [
+        0.99969482421875,
+        0.99969482421875,
+        0.99969482421875
+      ],
+      "meanLuma": 76.52294246899169,
+      "snapshot": {
+        "ts": 1000,
+        "label": "at_desk",
+        "confidence": 0.99969482421875,
+        "webcamEnabled": true
+      },
+      "debug": {
+        "reason": "inference",
+        "faceCount": 1,
+        "usableFaceCount": 1,
+        "maxProbability": 0.99969482421875,
+        "meanLuma": 76.52294246899169,
+        "lumaStd": 60.38954175472119,
+        "largestFaceAreaRatio": 0.059289224484063555,
+        "backend": "cpu",
+        "model": "mediapipe-blazeface"
+      }
+    },
+    {
+      "id": "covered",
+      "path": "/workspace/src/main/desk/fixtures/covered.jpg",
+      "labels": [
+        "away",
+        "away",
+        "away"
+      ],
+      "confidences": [
+        0.9,
+        0.9,
+        0.9
+      ],
+      "faceCounts": [
+        2,
+        2,
+        2
+      ],
+      "maxProbabilities": [
+        0.7250018119812012,
+        0.7250018119812012,
+        0.7250018119812012
+      ],
+      "meanLuma": 3.5671712239583333,
+      "snapshot": {
+        "ts": 1000,
+        "label": "away",
+        "confidence": 0.9,
+        "webcamEnabled": true
+      },
+      "debug": {
+        "reason": "occluded-frame",
+        "faceCount": 2,
+        "usableFaceCount": 0,
+        "maxProbability": 0.7250018119812012,
+        "meanLuma": 3.5671712239583333,
+        "lumaStd": 1.6180680692331642,
+        "largestFaceAreaRatio": 0.12217537826703644,
+        "backend": "cpu",
+        "model": "mediapipe-blazeface"
+      }
+    },
+    {
+      "id": "empty",
+      "path": "/workspace/src/main/desk/fixtures/empty.jpg",
+      "labels": [
+        "away",
+        "away",
+        "away"
+      ],
+      "confidences": [
+        0.92,
+        0.92,
+        0.92
+      ],
+      "faceCounts": [
+        0,
+        0,
+        0
+      ],
+      "maxProbabilities": [
+        0,
+        0,
+        0
+      ],
+      "meanLuma": 107.88891992089289,
+      "snapshot": {
+        "ts": 1000,
+        "label": "away",
+        "confidence": 0.92,
+        "webcamEnabled": true
+      },
+      "debug": {
+        "reason": "inference",
+        "faceCount": 0,
+        "usableFaceCount": 0,
+        "maxProbability": 0,
+        "meanLuma": 107.88891992089289,
+        "lumaStd": 47.945649738757524,
+        "largestFaceAreaRatio": 0,
+        "backend": "cpu",
+        "model": "mediapipe-blazeface"
+      }
+    },
+    {
+      "id": "noise",
+      "path": "/workspace/src/main/desk/fixtures/noise.jpg",
+      "labels": [
+        "away",
+        "away",
+        "away"
+      ],
+      "confidences": [
+        0.92,
+        0.92,
+        0.92
+      ],
+      "faceCounts": [
+        0,
+        0,
+        0
+      ],
+      "maxProbabilities": [
+        0,
+        0,
+        0
+      ],
+      "meanLuma": 127.148388671875,
+      "snapshot": {
+        "ts": 1000,
+        "label": "away",
+        "confidence": 0.92,
+        "webcamEnabled": true
+      },
+      "debug": {
+        "reason": "inference",
+        "faceCount": 0,
+        "usableFaceCount": 0,
+        "maxProbability": 0,
+        "meanLuma": 127.148388671875,
+        "lumaStd": 72.92790391169282,
+        "largestFaceAreaRatio": 0,
+        "backend": "cpu",
+        "model": "mediapipe-blazeface"
+      }
+    }
+  ],
+  "sequence": [
+    {
+      "id": "face",
+      "label": "at_desk",
+      "confidence": 0.99969482421875,
+      "webcamEnabled": true
+    },
+    {
+      "id": "face",
+      "label": "at_desk",
+      "confidence": 0.99969482421875,
+      "webcamEnabled": true
+    },
+    {
+      "id": "covered",
+      "label": "away",
+      "confidence": 0.9,
+      "webcamEnabled": true
+    },
+    {
+      "id": "covered",
+      "label": "away",
+      "confidence": 0.9,
+      "webcamEnabled": true
+    },
+    {
+      "id": "empty",
+      "label": "away",
+      "confidence": 0.92,
+      "webcamEnabled": true
+    },
+    {
+      "id": "face",
+      "label": "at_desk",
+      "confidence": 0.99969482421875,
+      "webcamEnabled": true
+    },
+    {
+      "id": "cam-off",
+      "label": "uncertain",
+      "confidence": 0,
+      "webcamEnabled": false
+    }
+  ],
+  "assertions": [
+    {
+      "name": "unit: disabled webcam is never at_desk",
+      "pass": true,
+      "detail": "{\"ts\":1,\"label\":\"uncertain\",\"confidence\":0,\"webcamEnabled\":false}"
+    },
+    {
+      "name": "unit: missing frame is uncertain, not at_desk",
+      "pass": true,
+      "detail": "{\"ts\":2,\"label\":\"uncertain\",\"confidence\":0.15,\"webcamEnabled\":true}"
+    },
+    {
+      "name": "unit: strong face is at_desk with model confidence",
+      "pass": true,
+      "detail": "{\"ts\":3,\"label\":\"at_desk\",\"confidence\":0.91,\"webcamEnabled\":true}"
+    },
+    {
+      "name": "unit: no-face covered/empty frame is away",
+      "pass": true,
+      "detail": "{\"ts\":4,\"label\":\"away\",\"confidence\":0.9,\"webcamEnabled\":true}"
+    },
+    {
+      "name": "unit: BlazeFace phantoms on a covered lens are not at_desk",
+      "pass": true,
+      "detail": "{\"ts\":41,\"label\":\"away\",\"confidence\":0.9,\"webcamEnabled\":true}"
+    },
+    {
+      "name": "unit: tiny face is not at_desk",
+      "pass": true,
+      "detail": "{\"ts\":5,\"label\":\"away\",\"confidence\":0.6725000000000001,\"webcamEnabled\":true}"
+    },
+    {
+      "name": "unit: implausible landmarks are not at_desk",
+      "pass": true,
+      "detail": "{\"ts\":6,\"label\":\"away\",\"confidence\":0.6825000000000001,\"webcamEnabled\":true}"
+    },
+    {
+      "name": "unit: classify is deterministic",
+      "pass": true,
+      "detail": "{\"present\":{\"ts\":3,\"label\":\"at_desk\",\"confidence\":0.91,\"webcamEnabled\":true},\"again\":{\"ts\":7,\"label\":\"at_desk\",\"confidence\":0.91,\"webcamEnabled\":true}}"
+    },
+    {
+      "name": "face is deterministic across 3 runs",
+      "pass": true,
+      "detail": "{\"labels\":[\"at_desk\"],\"confs\":[0.99969482421875,0.99969482421875,0.99969482421875],\"maxP\":[0.99969482421875,0.99969482421875,0.99969482421875]}"
+    },
+    {
+      "name": "covered is deterministic across 3 runs",
+      "pass": true,
+      "detail": "{\"labels\":[\"away\"],\"confs\":[0.9,0.9,0.9],\"maxP\":[0.7250018119812012,0.7250018119812012,0.7250018119812012]}"
+    },
+    {
+      "name": "empty is deterministic across 3 runs",
+      "pass": true,
+      "detail": "{\"labels\":[\"away\"],\"confs\":[0.92,0.92,0.92],\"maxP\":[0,0,0]}"
+    },
+    {
+      "name": "noise is deterministic across 3 runs",
+      "pass": true,
+      "detail": "{\"labels\":[\"away\"],\"confs\":[0.92,0.92,0.92],\"maxP\":[0,0,0]}"
+    },
+    {
+      "name": "facing camera → at_desk with real model confidence ≥ 0.6",
+      "pass": true,
+      "detail": "{\"snapshot\":{\"ts\":1000,\"label\":\"at_desk\",\"confidence\":0.99969482421875,\"webcamEnabled\":true},\"debug\":{\"reason\":\"inference\",\"faceCount\":1,\"usableFaceCount\":1,\"maxProbability\":0.99969482421875,\"meanLuma\":76.52294246899169,\"lumaStd\":60.38954175472119,\"largestFaceAreaRatio\":0.059289224484063555,\"backend\":\"cpu\",\"model\":\"mediapipe-blazeface\"}}"
+    },
+    {
+      "name": "covered camera ≠ at_desk (away or uncertain)",
+      "pass": true,
+      "detail": "{\"snapshot\":{\"ts\":1000,\"label\":\"away\",\"confidence\":0.9,\"webcamEnabled\":true},\"debug\":{\"reason\":\"occluded-frame\",\"faceCount\":2,\"usableFaceCount\":0,\"maxProbability\":0.7250018119812012,\"meanLuma\":3.5671712239583333,\"lumaStd\":1.6180680692331642,\"largestFaceAreaRatio\":0.12217537826703644,\"backend\":\"cpu\",\"model\":\"mediapipe-blazeface\"}}"
+    },
+    {
+      "name": "empty / leave-frame ≠ at_desk (away or uncertain)",
+      "pass": true,
+      "detail": "{\"snapshot\":{\"ts\":1000,\"label\":\"away\",\"confidence\":0.92,\"webcamEnabled\":true},\"debug\":{\"reason\":\"inference\",\"faceCount\":0,\"usableFaceCount\":0,\"maxProbability\":0,\"meanLuma\":107.88891992089289,\"lumaStd\":47.945649738757524,\"largestFaceAreaRatio\":0,\"backend\":\"cpu\",\"model\":\"mediapipe-blazeface\"}}"
+    },
+    {
+      "name": "noise / no person ≠ at_desk (away or uncertain)",
+      "pass": true,
+      "detail": "{\"snapshot\":{\"ts\":1000,\"label\":\"away\",\"confidence\":0.92,\"webcamEnabled\":true},\"debug\":{\"reason\":\"inference\",\"faceCount\":0,\"usableFaceCount\":0,\"maxProbability\":0,\"meanLuma\":127.148388671875,\"lumaStd\":72.92790391169282,\"largestFaceAreaRatio\":0,\"backend\":\"cpu\",\"model\":\"mediapipe-blazeface\"}}"
+    },
+    {
+      "name": "sequence starts at_desk when facing camera",
+      "pass": true,
+      "detail": "{\"id\":\"face\",\"label\":\"at_desk\",\"confidence\":0.99969482421875,\"webcamEnabled\":true}"
+    },
+    {
+      "name": "covering camera after at_desk is not stuck at_desk",
+      "pass": true,
+      "detail": "{\"afterCover\":{\"id\":\"covered\",\"label\":\"away\",\"confidence\":0.9,\"webcamEnabled\":true},\"afterCover2\":{\"id\":\"covered\",\"label\":\"away\",\"confidence\":0.9,\"webcamEnabled\":true}}"
+    },
+    {
+      "name": "leaving frame after at_desk is not stuck at_desk",
+      "pass": true,
+      "detail": "{\"id\":\"empty\",\"label\":\"away\",\"confidence\":0.92,\"webcamEnabled\":true}"
+    },
+    {
+      "name": "return to camera is at_desk again",
+      "pass": true,
+      "detail": "{\"id\":\"face\",\"label\":\"at_desk\",\"confidence\":0.99969482421875,\"webcamEnabled\":true}"
+    },
+    {
+      "name": "setEnabled(false) yields webcamEnabled=false and not at_desk",
+      "pass": true,
+      "detail": "{\"id\":\"cam-off\",\"label\":\"uncertain\",\"confidence\":0,\"webcamEnabled\":false}"
+    }
+  ],
+  "verdict": "PASS"
+}
