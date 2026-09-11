@@ -1,5 +1,5 @@
 {
-  "ranAt": "2026-09-11T12:50:12.744Z",
+  "ranAt": "2026-09-11T23:48:59.090Z",
   "model": "blazeface",
   "backend": "cpu",
   "unitChecks": [
@@ -69,7 +69,12 @@
       "detail": "custom"
     },
     {
-      "name": "unimplemented your-model stays uncertain (safe default)",
+      "name": "your-model output is a bounded DeskLabel",
+      "pass": true,
+      "detail": "[{\"label\":\"uncertain\",\"confidence\":0.9339826389222493},{\"label\":\"uncertain\",\"confidence\":0.9448903463440768},{\"label\":\"uncertain\",\"confidence\":0.9784003252973025}]"
+    },
+    {
+      "name": "your-model without weights stays uncertain (safe default)",
       "pass": true,
       "detail": "[{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0}]"
     },
@@ -99,15 +104,15 @@
       "detail": "blazeface"
     },
     {
-      "name": "your-model.ts does not import tensorflow or blazeface",
+      "name": "your-model.ts does not duplicate the detector or call the cloud",
       "pass": true,
-      "detail": "Timmy's file must stay a pure DeskModel.infer implementation"
+      "detail": "custom model must reuse the shared adapter (no direct blazeface import) and stay on-device"
     }
   ],
   "fixtures": [
     {
       "id": "face",
-      "path": "/workspace/src/main/desk/fixtures/face.jpg",
+      "path": "C:\\Users\\SS\\FocusPlug-desk-model\\src\\main\\desk\\fixtures\\face.jpg",
       "labels": [
         "at_desk",
         "at_desk",
@@ -149,7 +154,7 @@
     },
     {
       "id": "covered",
-      "path": "/workspace/src/main/desk/fixtures/covered.jpg",
+      "path": "C:\\Users\\SS\\FocusPlug-desk-model\\src\\main\\desk\\fixtures\\covered.jpg",
       "labels": [
         "away",
         "away",
@@ -191,7 +196,7 @@
     },
     {
       "id": "empty",
-      "path": "/workspace/src/main/desk/fixtures/empty.jpg",
+      "path": "C:\\Users\\SS\\FocusPlug-desk-model\\src\\main\\desk\\fixtures\\empty.jpg",
       "labels": [
         "away",
         "away",
@@ -233,7 +238,7 @@
     },
     {
       "id": "noise",
-      "path": "/workspace/src/main/desk/fixtures/noise.jpg",
+      "path": "C:\\Users\\SS\\FocusPlug-desk-model\\src\\main\\desk\\fixtures\\noise.jpg",
       "labels": [
         "away",
         "away",
@@ -385,7 +390,12 @@
       "detail": "custom"
     },
     {
-      "name": "unit: unimplemented your-model stays uncertain (safe default)",
+      "name": "unit: your-model output is a bounded DeskLabel",
+      "pass": true,
+      "detail": "[{\"label\":\"uncertain\",\"confidence\":0.9339826389222493},{\"label\":\"uncertain\",\"confidence\":0.9448903463440768},{\"label\":\"uncertain\",\"confidence\":0.9784003252973025}]"
+    },
+    {
+      "name": "unit: your-model without weights stays uncertain (safe default)",
       "pass": true,
       "detail": "[{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0},{\"label\":\"uncertain\",\"confidence\":0}]"
     },
@@ -415,9 +425,9 @@
       "detail": "blazeface"
     },
     {
-      "name": "unit: your-model.ts does not import tensorflow or blazeface",
+      "name": "unit: your-model.ts does not duplicate the detector or call the cloud",
       "pass": true,
-      "detail": "Timmy's file must stay a pure DeskModel.infer implementation"
+      "detail": "custom model must reuse the shared adapter (no direct blazeface import) and stay on-device"
     },
     {
       "name": "face is deterministic across 3 runs",
@@ -495,9 +505,9 @@
       "detail": "{\"stubStep1\":{\"ts\":99,\"label\":\"uncertain\",\"confidence\":0,\"webcamEnabled\":true},\"stubStep2\":{\"ts\":99,\"label\":\"uncertain\",\"confidence\":0,\"webcamEnabled\":true}}"
     },
     {
-      "name": "unimplemented custom model is uncertain (safe until Timmy implements infer)",
+      "name": "trained custom model calls the face fixture at_desk with real confidence",
       "pass": true,
-      "detail": "{\"ts\":3000,\"label\":\"uncertain\",\"confidence\":0,\"webcamEnabled\":true}"
+      "detail": "{\"ts\":3000,\"label\":\"at_desk\",\"confidence\":0.9971059585928542,\"webcamEnabled\":true}"
     }
   ],
   "verdict": "PASS"

@@ -46,6 +46,30 @@ async function neverPresentOrAway(
   };
 }
 
+async function alwaysValidOutput(name: string, model: DeskModel): Promise<UnitCheckResult> {
+  await model.init();
+  const seen: Array<{ label: string; confidence: number }> = [];
+  for (const frame of frames()) {
+    const result = await model.infer(frame);
+    seen.push({ label: result.label, confidence: result.confidence });
+    const validLabel =
+      result.label === "at_desk" || result.label === "away" || result.label === "uncertain";
+    if (
+      !validLabel ||
+      !Number.isFinite(result.confidence) ||
+      result.confidence < 0 ||
+      result.confidence > 1
+    ) {
+      return {
+        name,
+        pass: false,
+        detail: JSON.stringify({ width: frame.width, result }),
+      };
+    }
+  }
+  return { name, pass: true, detail: JSON.stringify(seen) };
+}
+
 export async function runModelSeamUnitChecks(): Promise<UnitCheckResult[]> {
   const results: UnitCheckResult[] = [];
 
@@ -63,8 +87,16 @@ export async function runModelSeamUnitChecks(): Promise<UnitCheckResult[]> {
 
   const custom = new YourModel();
   check("your-model id is custom", custom.id === "custom", custom.id);
+  results.push(await alwaysValidOutput("your-model output is a bounded DeskLabel", custom));
+
+  const missingWeights = new YourModel(
+    join(deskRoot(), "model", "weights", "does-not-exist.json"),
+  );
   results.push(
-    await neverPresentOrAway("unimplemented your-model stays uncertain (safe default)", custom),
+    await neverPresentOrAway(
+      "your-model without weights stays uncertain (safe default)",
+      missingWeights,
+    ),
   );
 
   check("factory custom id is custom", createDeskModel("custom").id === "custom", createDeskModel("custom").id);
@@ -89,9 +121,9 @@ export async function runModelSeamUnitChecks(): Promise<UnitCheckResult[]> {
 
   const yourModelSrc = readFileSync(join(deskRoot(), "model", "your-model.ts"), "utf8");
   check(
-    "your-model.ts does not import tensorflow or blazeface",
-    !/tensorflow|blazeface/i.test(yourModelSrc),
-    "Timmy's file must stay a pure DeskModel.infer implementation",
+    "your-model.ts does not duplicate the detector or call the cloud",
+    !/@tensorflow-models\/blazeface|https?:\/\//i.test(yourModelSrc),
+    "custom model must reuse the shared adapter (no direct blazeface import) and stay on-device",
   );
 
   return results;

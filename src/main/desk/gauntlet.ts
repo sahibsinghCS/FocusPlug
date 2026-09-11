@@ -256,8 +256,10 @@ async function main(): Promise<void> {
   });
   assert(
     assertions,
-    "unimplemented custom model is uncertain (safe until Timmy implements infer)",
-    customOnFace.snapshot.label === "uncertain" && customOnFace.snapshot.confidence === 0,
+    "trained custom model calls the face fixture at_desk with real confidence",
+    customOnFace.snapshot.label === "at_desk" &&
+      customOnFace.snapshot.confidence > 0.5 &&
+      customOnFace.snapshot.confidence <= 1,
     JSON.stringify(customOnFace.snapshot),
   );
 

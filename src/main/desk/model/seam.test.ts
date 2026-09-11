@@ -63,11 +63,21 @@ describe("DeskModel seam", () => {
     expect(second.label).toBe("uncertain");
   });
 
-  it("unimplemented YourModel is the custom id and stays uncertain", async () => {
+  it("custom YourModel keeps the id and returns a valid, bounded output", async () => {
     const model = createDeskModel("custom");
     await model.init();
     expect(model.id).toBe("custom");
     const result = await model.infer(loadFaceFrame());
-    expect(result).toEqual({ label: "uncertain", confidence: 0 });
+    expect(["at_desk", "away", "uncertain"]).toContain(result.label);
+    expect(result.confidence).toBeGreaterThanOrEqual(0);
+    expect(result.confidence).toBeLessThanOrEqual(1);
+  });
+
+  it("custom YourModel without a weights file degrades to safe uncertain", async () => {
+    const model = new YourModel(join(deskRoot(), "model", "weights", "does-not-exist.json"));
+    await model.init();
+    const result = await model.infer(loadFaceFrame());
+    expect(result.label).toBe("uncertain");
+    expect(result.confidence).toBe(0);
   });
 });
