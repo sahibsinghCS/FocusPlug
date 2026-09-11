@@ -47,5 +47,7 @@ describe("plugsUi", () => {
     expect(enabledPlugDevices([lamp, fan]).map((plug) => plug.id)).toEqual(["lamp"]);
     expect(summarizePlugs(views)).toBe("1 armed · 1 on");
     expect(plugKillNote(views)).toBe("Kill overlay cuts 1 enabled plug (Desk lamp)");
+    expect(views[0]?.probed).toBe(true);
+    expect(views[1]?.probed).toBe(false);
   });
 });
