@@ -4,6 +4,6 @@ export { filterLogEvents, KIND_FILTERS, STATUS_FILTERS, visibleKindFilters } fro
 export type { KindFilterId, StatusFilterId } from "./filters";
 export { formatEventDelta, formatGroupSpan, groupLogEvents } from "./groupEvents";
 export type { TimelineGroup } from "./groupEvents";
-export { GOLDEN_PATH_STEPS, PRODUCT_LABELS, goldenPathProgress } from "./goldenPath";
+export { GOLDEN_PATH_STEPS, PRODUCT_LABELS, CAUSAL_CHAIN_LEGEND, goldenPathProgress } from "./goldenPath";
 export { canCopyTimeline, copyTimeline, formatTimelineCopy } from "./copyTimeline";
 export { goldenSessionEvents } from "./fixtures";

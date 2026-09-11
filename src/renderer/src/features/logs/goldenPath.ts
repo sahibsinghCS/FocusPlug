@@ -49,6 +49,18 @@ export const GOLDEN_PATH_STEPS: readonly GoldenStep[] = [
   },
 ];
 
+export const CAUSAL_CHAIN_LEGEND: ReadonlyArray<{
+  stage: "sensor" | "decision" | "countdown" | "consequence" | "recovery";
+  label: string;
+  hint: string;
+}> = [
+  { stage: "sensor", label: "Sensor", hint: "Window · Desk AI" },
+  { stage: "decision", label: "Decision", hint: "On task · Distracted · Away" },
+  { stage: "countdown", label: "Countdown", hint: "Killing blocked apps in 10s" },
+  { stage: "consequence", label: "Kill / Plug off", hint: "Force-quit · never the study PC" },
+  { stage: "recovery", label: "Unlock / Plug on", hint: "Docs + At desk" },
+];
+
 export const PRODUCT_LABELS = [
   "Start session",
   "On task",

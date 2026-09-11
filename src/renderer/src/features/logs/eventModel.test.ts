@@ -3,6 +3,7 @@ import type { SessionEvent } from "@shared/ipc";
 import goldenPathEvidence from "../../../../main/session/evidence/golden-path.json";
 import { formatTimelineCopy } from "./copyTimeline";
 import { presentEvent, presentLog } from "./eventModel";
+import { resolveEmptyMode } from "./emptyMode";
 import {
   ERROR_COUNTDOWN_CANCEL,
   ERROR_KILL,
@@ -198,5 +199,25 @@ describe("formatTimelineCopy", () => {
 
   it("still formats an empty log", () => {
     expect(formatTimelineCopy([])).toContain("(no events)");
+  });
+});
+
+describe("resolveEmptyMode", () => {
+  it("covers loading, error, empty, filtered, and populated", () => {
+    expect(resolveEmptyMode({ ready: false, error: null, logCount: 0, filteredCount: 0 })).toBe(
+      "loading",
+    );
+    expect(
+      resolveEmptyMode({ ready: true, error: "Failed to load", logCount: 0, filteredCount: 0 }),
+    ).toBe("error");
+    expect(resolveEmptyMode({ ready: true, error: null, logCount: 0, filteredCount: 0 })).toBe(
+      "empty",
+    );
+    expect(resolveEmptyMode({ ready: true, error: null, logCount: 4, filteredCount: 0 })).toBe(
+      "filtered",
+    );
+    expect(resolveEmptyMode({ ready: true, error: "stale", logCount: 4, filteredCount: 2 })).toBe(
+      null,
+    );
   });
 });

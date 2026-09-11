@@ -1,4 +1,4 @@
-export type SceneName = "default" | "live" | "distracted" | "away" | "recovered";
+export type SceneName = "default" | "live" | "distracted" | "away" | "recovered" | "golden";
 
 export interface UrlScene {
   countdown: number | null;
@@ -25,6 +25,8 @@ export function parseUrlScene(search: string, hash: string): UrlScene {
     scene = "away";
   } else if (sceneParam === "recovered") {
     scene = "recovered";
+  } else if (sceneParam === "golden") {
+    scene = "golden";
   } else if (sceneParam === "distracted" || countdown !== null) {
     scene = "distracted";
   }

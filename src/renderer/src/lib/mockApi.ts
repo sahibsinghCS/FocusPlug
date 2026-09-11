@@ -20,6 +20,7 @@ import {
 } from "@shared/ipc";
 import { isDeskModelId } from "./plugsUi";
 import { readUrlScene } from "./urlScene";
+import { goldenSessionEvents } from "../features/logs/fixtures";
 
 function cloneEntries(entries: AppEntry[]): AppEntry[] {
   return entries.map((entry) => ({
@@ -525,6 +526,16 @@ function buildInitialState(
       detail: "Unlocked — allowlisted focus · at desk",
     };
   }
+  if (scene.scene === "golden") {
+    return {
+      sessionActive: true,
+      focus: { ...LIVE_FOCUS, ts },
+      desk: { ...LIVE_DESK, ts, webcamEnabled: settings.webcamEnabled },
+      decision: "ON_TASK",
+      countdownSec: 0,
+      detail: "On task: chrome.exe",
+    };
+  }
   return { ...DEFAULT_SESSION_STATE };
 }
 
@@ -570,6 +581,9 @@ function buildInitialLog(scene: ReturnType<typeof readUrlScene>): SessionEvent[]
       { ts: ts - 12000, kind: "decision", detail: "ON_TASK · Allowlisted focus · at desk" },
       { ts: ts - 13200, kind: "session", detail: "Session started" },
     ];
+  }
+  if (scene.scene === "golden") {
+    return goldenSessionEvents(ts);
   }
   return [];
 }
