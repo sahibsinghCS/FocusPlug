@@ -31,5 +31,8 @@
     "src/renderer/src/**/*.tsx",
     "src/preload/index.d.ts",
     "src/shared/**/*.ts"
+  ],
+  "exclude": [
+    "src/shared/**/*.test.ts"
   ]
 }
