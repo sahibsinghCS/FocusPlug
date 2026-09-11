@@ -277,6 +277,9 @@ function buildInitialLog(scene: ReturnType<typeof readUrlScene>): SessionEvent[]
       { ts: ts - 1200, kind: "desk", detail: "at_desk · 94%" },
       { ts: ts - 2400, kind: "focus", detail: "chrome — Essay draft — Google Docs" },
       { ts: ts - 4000, kind: "session", detail: "Session started" },
+      { ts: ts - 6200, kind: "desk", detail: "webcam enabled" },
+      { ts: ts - 9100, kind: "focus", detail: "chrome — docs.google.com" },
+      { ts: ts - 15000, kind: "settings", detail: "Strict mode on · 10s countdown" },
     ];
   }
   if (scene.scene === "distracted") {
