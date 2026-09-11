@@ -58,12 +58,12 @@ export function ListPage(props: ListPageProps): JSX.Element {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="page">
       <PageIntro
         kicker={isAllow ? "Study apps" : "Kill targets"}
         title={isAllow ? "Allowlist" : "Blocklist"}
         meta={
-          <p className="font-mono text-[12px] text-fp-faint">
+          <p className="page-kicker">
             {enabledCount} enabled
             <span className="block">{entries.length} total</span>
           </p>
@@ -74,91 +74,83 @@ export function ListPage(props: ListPageProps): JSX.Element {
           : "Processes FocusPlug force-quits after the countdown. Discord, Steam, games."}
       </PageIntro>
 
-      <div className="min-h-0 flex-1 overflow-auto">
-        <form
-          onSubmit={(event) => {
-            void onAdd(event);
-          }}
-          className="border-b border-fp-line px-7 py-5"
-        >
-          <div className="grid gap-3 md:grid-cols-[1fr_1.4fr_auto] md:items-end">
-            <label>
-              <span className="text-[12px] text-fp-faint">Name</span>
-              <div className="mt-1.5">
-                <TextInput
-                  value={name}
-                  onChange={(value) => {
-                    setName(value);
-                    setFormError(null);
-                  }}
-                  placeholder={isAllow ? "Obsidian" : "Spotify"}
-                />
-              </div>
-            </label>
-            <label>
-              <span className="text-[12px] text-fp-faint">Match tokens</span>
-              <div className="mt-1.5">
-                <TextInput
-                  value={match}
-                  onChange={(value) => {
-                    setMatch(value);
-                    setFormError(null);
-                  }}
-                  placeholder="process.exe, title substring"
-                  mono
-                />
-              </div>
-            </label>
-            <PrimaryButton submit>Add</PrimaryButton>
-          </div>
-          {formError ? <p className="mt-2 text-[12px] text-fp-kill">{formError}</p> : null}
-        </form>
+      <form
+        onSubmit={(event) => {
+          void onAdd(event);
+        }}
+        className="plate plate-pad"
+      >
+        <div className="field-row">
+          <label className="field field-grow">
+            <span className="field-label">Name</span>
+            <TextInput
+              value={name}
+              onChange={(value) => {
+                setName(value);
+                setFormError(null);
+              }}
+              placeholder={isAllow ? "Obsidian" : "Spotify"}
+            />
+          </label>
+          <label className="field field-grow">
+            <span className="field-label">Match tokens</span>
+            <TextInput
+              value={match}
+              onChange={(value) => {
+                setMatch(value);
+                setFormError(null);
+              }}
+              placeholder="process.exe, title substring"
+              mono
+            />
+          </label>
+          <PrimaryButton submit>Add</PrimaryButton>
+        </div>
+        {formError ? <p className="err">{formError}</p> : null}
+      </form>
 
-        <ul>
-          {entries.length === 0 ? (
-            <li className="px-7 py-12 text-[13px] text-fp-mute">No apps yet.</li>
-          ) : (
-            entries.map((entry, index) => (
-              <EntryRow
-                key={entry.id}
-                entry={entry}
-                accent={isAllow ? "live" : "kill"}
-                odd={index % 2 === 1}
-                onToggle={async (enabled) => {
-                  await persist(
-                    entries.map((item) => (item.id === entry.id ? { ...item, enabled } : item)),
-                  );
-                }}
-                onMatch={async (nextMatch) => {
-                  await persist(
-                    entries.map((item) =>
-                      item.id === entry.id ? { ...item, match: nextMatch } : item,
-                    ),
-                  );
-                }}
-                onName={async (nextName) => {
-                  await persist(
-                    entries.map((item) =>
-                      item.id === entry.id ? { ...item, name: nextName } : item,
-                    ),
-                  );
-                }}
-                onDelete={async () => {
-                  await persist(entries.filter((item) => item.id !== entry.id));
-                }}
-              />
-            ))
-          )}
+      {entries.length === 0 ? (
+        <p className="empty">No apps yet.</p>
+      ) : (
+        <ul className="tile-grid">
+          {entries.map((entry) => (
+            <EntryTile
+              key={entry.id}
+              entry={entry}
+              kind={props.kind}
+              onToggle={async (enabled) => {
+                await persist(
+                  entries.map((item) => (item.id === entry.id ? { ...item, enabled } : item)),
+                );
+              }}
+              onMatch={async (nextMatch) => {
+                await persist(
+                  entries.map((item) =>
+                    item.id === entry.id ? { ...item, match: nextMatch } : item,
+                  ),
+                );
+              }}
+              onName={async (nextName) => {
+                await persist(
+                  entries.map((item) =>
+                    item.id === entry.id ? { ...item, name: nextName } : item,
+                  ),
+                );
+              }}
+              onDelete={async () => {
+                await persist(entries.filter((item) => item.id !== entry.id));
+              }}
+            />
+          ))}
         </ul>
-      </div>
+      )}
     </div>
   );
 }
 
-function EntryRow(props: {
+function EntryTile(props: {
   entry: AppEntry;
-  accent: "live" | "kill";
-  odd: boolean;
+  kind: "allow" | "block";
   onToggle: (enabled: boolean) => Promise<void>;
   onMatch: (match: string[]) => Promise<void>;
   onName: (name: string) => Promise<void>;
@@ -166,25 +158,11 @@ function EntryRow(props: {
 }): JSX.Element {
   const [name, setName] = useState(props.entry.name);
   const [matchText, setMatchText] = useState(props.entry.match.join(", "));
+  const onClass = props.kind === "allow" ? "is-on" : "is-armed";
 
   return (
-    <li
-      className={cn(
-        "flex flex-col gap-3 px-7 py-3 md:flex-row md:items-center",
-        props.odd && "bg-white/[0.015]",
-      )}
-    >
-      <div className="flex min-w-0 flex-1 items-center gap-3">
-        <span
-          className={cn(
-            "h-1.5 w-1.5 shrink-0",
-            props.entry.enabled
-              ? props.accent === "live"
-                ? "bg-fp-live"
-                : "bg-fp-kill"
-              : "bg-fp-line-strong",
-          )}
-        />
+    <li className={cn("app-tile", props.entry.enabled && onClass)}>
+      <div className="tile-top">
         <input
           value={name}
           onChange={(event) => setName(event.target.value)}
@@ -196,8 +174,25 @@ function EntryRow(props: {
               setName(props.entry.name);
             }
           }}
-          className="min-w-0 flex-1 bg-transparent text-[13px] font-medium text-fp-ink outline-none"
+          className="tile-name-input tile-name"
         />
+        <div className="flex items-center gap-2">
+          <Toggle
+            checked={props.entry.enabled}
+            onChange={(next) => {
+              void props.onToggle(next);
+            }}
+            label={`Enable ${props.entry.name}`}
+          />
+          <button
+            type="button"
+            onClick={() => void props.onDelete()}
+            className="icon-btn"
+            aria-label={`Remove ${props.entry.name}`}
+          >
+            <IconClose className="h-4 w-4" />
+          </button>
+        </div>
       </div>
       <input
         value={matchText}
@@ -213,25 +208,8 @@ function EntryRow(props: {
             setMatchText(props.entry.match.join(", "));
           }
         }}
-        className="min-w-0 flex-[1.3] bg-transparent font-mono text-[11px] text-fp-mute outline-none"
+        className="tile-match"
       />
-      <div className="flex items-center gap-2">
-        <Toggle
-          checked={props.entry.enabled}
-          onChange={(next) => {
-            void props.onToggle(next);
-          }}
-          label={`Enable ${props.entry.name}`}
-        />
-        <button
-          type="button"
-          onClick={() => void props.onDelete()}
-          className="p-1.5 text-fp-faint transition hover:text-fp-kill"
-          aria-label={`Remove ${props.entry.name}`}
-        >
-          <IconClose className="h-4 w-4" />
-        </button>
-      </div>
     </li>
   );
 }

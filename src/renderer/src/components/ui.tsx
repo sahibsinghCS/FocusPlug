@@ -5,18 +5,13 @@ import type { Tone } from "../lib/format";
 export function Lamp(props: { tone: Tone; live?: boolean }): JSX.Element {
   const color =
     props.tone === "live"
-      ? "bg-fp-live"
+      ? "tone-live"
       : props.tone === "kill"
-        ? "bg-fp-kill"
+        ? "tone-kill"
         : props.tone === "warn"
-          ? "bg-fp-warn"
-          : "bg-fp-line-strong";
-  return (
-    <span
-      className={cn("inline-block h-2 w-2", color, props.live && "lamp-live")}
-      aria-hidden="true"
-    />
-  );
+          ? "tone-warn"
+          : "tone-mute";
+  return <span className={cn("session-chip-dot", color)} aria-hidden="true" />;
 }
 
 export function Toggle(props: {
@@ -31,17 +26,9 @@ export function Toggle(props: {
       aria-checked={props.checked}
       aria-label={props.label}
       onClick={() => props.onChange(!props.checked)}
-      className={cn(
-        "relative h-4 w-8 border border-fp-line-strong transition-colors",
-        props.checked ? "bg-fp-ivory" : "bg-fp-well",
-      )}
+      className={cn("rocker", props.checked && "is-on")}
     >
-      <span
-        className={cn(
-          "absolute top-[3px] h-[8px] w-[8px] transition-all",
-          props.checked ? "left-[18px] bg-fp-well" : "left-[3px] bg-fp-mute",
-        )}
-      />
+      {props.checked ? "On" : "Off"}
     </button>
   );
 }
@@ -57,7 +44,7 @@ export function PrimaryButton(props: {
       type={props.submit ? "submit" : "button"}
       disabled={props.disabled}
       onClick={props.onClick}
-      className="inline-flex h-9 items-center justify-center whitespace-nowrap bg-fp-ivory px-4 text-[13px] font-medium text-fp-well transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
+      className="act act-solid"
     >
       {props.children}
     </button>
@@ -70,12 +57,7 @@ export function GhostButton(props: {
   disabled?: boolean;
 }): JSX.Element {
   return (
-    <button
-      type="button"
-      disabled={props.disabled}
-      onClick={props.onClick}
-      className="inline-flex h-9 items-center justify-center whitespace-nowrap border border-fp-line-strong bg-transparent px-3.5 text-[13px] font-medium text-fp-ink transition hover:border-fp-ink hover:bg-fp-elev disabled:cursor-not-allowed disabled:opacity-40"
-    >
+    <button type="button" disabled={props.disabled} onClick={props.onClick} className="act">
       {props.children}
     </button>
   );
@@ -92,10 +74,7 @@ export function DangerButton(props: {
       type="button"
       disabled={props.disabled}
       onClick={props.onClick}
-      className={cn(
-        "inline-flex h-10 items-center justify-center gap-2 whitespace-nowrap bg-fp-kill px-4 text-[13px] font-semibold text-white transition hover:bg-[#f04a3e] disabled:cursor-not-allowed disabled:opacity-40",
-        props.className,
-      )}
+      className={cn("kill-plate", props.className)}
     >
       {props.children}
     </button>
@@ -108,10 +87,10 @@ export function Field(props: {
   children: ReactNode;
 }): JSX.Element {
   return (
-    <label className="block">
-      <span className="text-[12px] font-medium text-fp-mute">{props.label}</span>
-      {props.hint ? <p className="mt-1 text-[12px] text-fp-faint">{props.hint}</p> : null}
-      <div className="mt-2">{props.children}</div>
+    <label className="field">
+      <span className="field-label">{props.label}</span>
+      {props.hint ? <span className="setting-copy">{props.hint}</span> : null}
+      {props.children}
     </label>
   );
 }
@@ -127,10 +106,7 @@ export function TextInput(props: {
       value={props.value}
       placeholder={props.placeholder}
       onChange={(event) => props.onChange(event.target.value)}
-      className={cn(
-        "h-9 w-full border border-fp-line bg-fp-well px-3 text-[13px] text-fp-ink placeholder:text-fp-faint",
-        props.mono && "font-mono text-[12px]",
-      )}
+      className={cn("control", props.mono && "font-mono")}
     />
   );
 }
@@ -148,7 +124,7 @@ export function Select<T extends string>(props: {
       onChange={(event) => {
         props.onChange(event.target.value as T);
       }}
-      className="h-9 w-full border border-fp-line bg-fp-well px-3 text-[13px] text-fp-ink"
+      className="control"
     >
       {props.options.map((option) => (
         <option key={option.value} value={option.value}>
@@ -162,22 +138,13 @@ export function Select<T extends string>(props: {
 export function Chip(props: { tone: Tone; children: ReactNode }): JSX.Element {
   const palette =
     props.tone === "live"
-      ? "border-fp-live/40 text-fp-live"
+      ? "tone-live"
       : props.tone === "kill"
-        ? "border-fp-kill/45 text-fp-kill"
+        ? "tone-kill"
         : props.tone === "warn"
-          ? "border-fp-warn/40 text-fp-warn"
-          : "border-fp-line text-fp-mute";
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center border px-2 py-0.5 text-[10px] font-medium",
-        palette,
-      )}
-    >
-      {props.children}
-    </span>
-  );
+          ? "tone-warn"
+          : "tone-mute";
+  return <span className={cn("field-label", palette)}>{props.children}</span>;
 }
 
 export function PageIntro(props: {
@@ -187,17 +154,11 @@ export function PageIntro(props: {
   meta?: ReactNode;
 }): JSX.Element {
   return (
-    <header className="flex items-end justify-between gap-6 border-b border-fp-line px-7 py-6">
+    <header className="page-head">
       <div className="min-w-0">
-        {props.kicker ? (
-          <p className="mb-1 text-[12px] text-fp-faint">{props.kicker}</p>
-        ) : null}
-        <h1 className="font-display text-[28px] font-extrabold leading-[1.05] tracking-[-0.03em]">
-          {props.title}
-        </h1>
-        {props.children ? (
-          <p className="mt-2 max-w-[54ch] text-[13px] leading-relaxed text-fp-mute">{props.children}</p>
-        ) : null}
+        {props.kicker ? <p className="page-kicker">{props.kicker}</p> : null}
+        <h1 className="page-title">{props.title}</h1>
+        {props.children ? <p className="page-lede">{props.children}</p> : null}
       </div>
       {props.meta ? <div className="shrink-0 text-right">{props.meta}</div> : null}
     </header>

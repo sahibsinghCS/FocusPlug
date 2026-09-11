@@ -183,6 +183,34 @@ export function createMockApi(): FocusPlugApi {
   let log: SessionEvent[] = buildInitialLog(scene);
   let countdownTimer: ReturnType<typeof setInterval> | null = null;
   const lastPower = loadStoredPower();
+  if (
+    settings.plugs.length === 0 &&
+    (scene.scene === "live" || scene.scene === "distracted")
+  ) {
+    settings = {
+      ...settings,
+      plugs: clonePlugs([
+        {
+          id: "lamp",
+          name: "Desk lamp",
+          protocol: "mock",
+          address: "mock://lamp",
+          enabled: true,
+          isStudyPc: false,
+        },
+        {
+          id: "fan",
+          name: "Fan",
+          protocol: "mock",
+          address: "mock://fan",
+          enabled: true,
+          isStudyPc: false,
+        },
+      ]),
+    };
+    lastPower.set("lamp", true);
+    lastPower.set("fan", true);
+  }
 
   const sessionBus = createBus<SessionState>();
   const policyBus = createBus<PolicyEvent>();

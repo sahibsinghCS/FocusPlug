@@ -7,9 +7,9 @@ import {
   padCountdown,
   plugStatusLine,
   windowPrimary,
+  windowSecondary,
 } from "../lib/format";
 import { enabledPlugViews, type PlugView } from "../lib/plugsUi";
-import { DangerButton } from "./ui";
 
 interface CountdownOverlayProps {
   seconds: number;
@@ -23,7 +23,8 @@ interface CountdownOverlayProps {
 export function CountdownOverlay(props: CountdownOverlayProps): JSX.Element {
   const total = Math.max(props.total, props.seconds, 1);
   const progress = props.seconds / total;
-  const windowText = windowPrimary(props.state.focus);
+  const accused = props.state.focus ? windowSecondary(props.state.focus) : windowPrimary(props.state.focus);
+  const processName = windowPrimary(props.state.focus);
   const deskText = props.state.desk
     ? `${deskPrimary(props.state.desk)} ${formatConfidence(props.state.desk.confidence)}`
     : "Desk AI standby";
@@ -32,55 +33,56 @@ export function CountdownOverlay(props: CountdownOverlayProps): JSX.Element {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col bg-fp-well"
+      className="lockout"
       role="alertdialog"
       aria-modal="true"
       aria-label={`Force-quit in ${props.seconds} seconds`}
     >
-      <div
-        className="h-[3px] origin-left bg-fp-kill transition-transform duration-1000 ease-linear"
-        style={{ transform: `scaleX(${progress})` }}
-        aria-hidden="true"
-      />
+      <div className="lockout-fuse" style={{ width: `${Math.round(progress * 100)}%` }} aria-hidden="true" />
 
-      <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-8">
-        <p className="text-[13px] font-medium text-fp-kill">
-          Killing blocked apps in
-        </p>
-        <p
-          key={props.seconds}
-          className="fuse-tick mt-2 font-display text-[min(32vw,220px)] font-extrabold leading-none tracking-[-0.06em] text-fp-ink tabular"
-        >
-          {padCountdown(props.seconds)}
-        </p>
-        <p className="mt-4 max-w-xl text-center text-[18px] text-fp-ink">{props.reason}</p>
-        <dl className="mt-6 grid w-full max-w-2xl grid-cols-1 gap-4 sm:grid-cols-3">
-          <div>
-            <dt className="text-[11px] text-fp-faint">Window</dt>
-            <dd className="mt-0.5 truncate font-mono text-[12px] text-fp-mute">{windowText}</dd>
-          </div>
-          <div>
-            <dt className="text-[11px] text-fp-faint">Desk AI</dt>
-            <dd className="mt-0.5 truncate font-mono text-[12px] text-fp-mute">{deskText}</dd>
-          </div>
-          <div>
-            <dt className="text-[11px] text-fp-faint">Plugs</dt>
-            <dd className="mt-0.5 truncate font-mono text-[12px] text-fp-mute">{plugText}</dd>
-          </div>
-        </dl>
-        <p className="mt-4 text-[13px] text-fp-mute">Return to an allowlisted app to cancel</p>
-        {armed.length > 0 ? (
-          <p className="mt-2 max-w-lg text-center text-[13px] text-fp-warn">
-            Enabled plugs cut with the kill. Never the study PC.
-          </p>
-        ) : null}
+      <div className="lockout-top">
+        <p className="lockout-brand">FocusPlug</p>
+        <div className="lockout-copy">
+          <p>Killing blocked apps in</p>
+          <p>{props.reason}</p>
+          <p>Return to an allowlisted app to cancel</p>
+        </div>
       </div>
 
-      <div className="flex justify-center border-t border-fp-line px-8 py-6">
-        <DangerButton onClick={props.onDemoKill} className="min-w-[280px]">
-          <IconBolt className="h-4 w-4" />
+      <div className="lockout-hero">
+        <p key={props.seconds} className="lockout-secs">
+          {padCountdown(props.seconds)}
+        </p>
+        <p className="lockout-window" title={accused}>
+          {accused}
+        </p>
+      </div>
+
+      <div className="lockout-foot">
+        <dl className="lockout-sensors">
+          <div className="lockout-sensor">
+            <dt>Window</dt>
+            <dd>
+              <b>{processName}</b>
+            </dd>
+          </div>
+          <div className="lockout-sensor">
+            <dt>Desk AI</dt>
+            <dd>
+              <b>{deskText}</b>
+            </dd>
+          </div>
+          <div className="lockout-sensor">
+            <dt>Plugs</dt>
+            <dd>
+              <b>{plugText}</b>
+            </dd>
+          </div>
+        </dl>
+        <button type="button" className="lockout-kill" onClick={props.onDemoKill}>
+          <IconBolt className="h-5 w-5" />
           Demo Kill, skip wait
-        </DangerButton>
+        </button>
       </div>
     </div>
   );

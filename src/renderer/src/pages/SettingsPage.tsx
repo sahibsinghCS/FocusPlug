@@ -14,18 +14,18 @@ export function SettingsPage(): JSX.Element {
   const { settings } = app;
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="page">
       <PageIntro kicker="Policy" title="Settings">
         Countdown fuse, desk-presence threshold, Desk AI model seam, and strict on-task rules.
       </PageIntro>
 
-      <div className="min-h-0 flex-1 overflow-auto">
-        <section className="space-y-8 px-7 py-6">
+      <div className="settings-grid">
+        <section className="plate setting-card">
           <Field
             label="Countdown"
             hint="Seconds between distracted or away and force-quit. Cancels if you return to an allowlisted app."
           >
-            <div className="flex max-w-xl items-center gap-4">
+            <div className="fader">
               <input
                 type="range"
                 min={3}
@@ -35,17 +35,18 @@ export function SettingsPage(): JSX.Element {
                 onChange={(event) => {
                   void app.patchSettings({ countdownSec: Number(event.target.value) });
                 }}
-                className="h-[2px] flex-1"
               />
-              <span className="w-12 font-mono text-[14px] tabular">{settings.countdownSec}s</span>
+              <span className="fader-value">{settings.countdownSec}s</span>
             </div>
           </Field>
+        </section>
 
+        <section className="plate setting-card">
           <Field
             label="Desk threshold"
             hint="Minimum confidence before desk-away can start a kill countdown. Uncertain never kills on desk alone."
           >
-            <div className="flex max-w-xl items-center gap-4">
+            <div className="fader">
               <input
                 type="range"
                 min={0.3}
@@ -55,22 +56,17 @@ export function SettingsPage(): JSX.Element {
                 onChange={(event) => {
                   void app.patchSettings({ deskThreshold: Number(event.target.value) });
                 }}
-                className="h-[2px] flex-1"
               />
-              <span className="w-12 font-mono text-[14px] tabular">
-                {Math.round(settings.deskThreshold * 100)}%
-              </span>
+              <span className="fader-value">{Math.round(settings.deskThreshold * 100)}%</span>
             </div>
           </Field>
         </section>
 
-        <section className="border-t border-fp-line px-7 py-6">
-          <div className="flex max-w-xl items-center justify-between gap-4">
+        <section className="plate setting-card">
+          <div className="tile-top">
             <div>
-              <p className="text-[13px] font-medium">Strict mode</p>
-              <p className="mt-0.5 text-[12px] text-fp-mute">
-                On-task requires allowlisted focus and at-desk presence.
-              </p>
+              <p className="setting-name">Strict mode</p>
+              <p className="setting-copy">On-task requires allowlisted focus and at-desk presence.</p>
             </div>
             <Toggle
               checked={settings.strictMode}
@@ -82,13 +78,11 @@ export function SettingsPage(): JSX.Element {
           </div>
         </section>
 
-        <section className="border-t border-fp-line px-7 py-6">
-          <div className="flex max-w-xl items-center justify-between gap-4">
+        <section className="plate setting-card">
+          <div className="tile-top">
             <div>
-              <p className="text-[13px] font-medium">Desk AI webcam</p>
-              <p className="mt-0.5 text-[12px] text-fp-mute">
-                On-device presence. Load-bearing for away detection. Never uploaded.
-              </p>
+              <p className="setting-name">Desk AI webcam</p>
+              <p className="setting-copy">On-device presence. Load-bearing for away detection. Never uploaded.</p>
             </div>
             <Toggle
               checked={settings.webcamEnabled}
@@ -101,41 +95,35 @@ export function SettingsPage(): JSX.Element {
           </div>
         </section>
 
-        <section className="border-t border-fp-line px-7 py-6">
+        <section className="plate setting-card">
           <Field
             label="Desk model"
             hint="IPC-persisted seam for the on-device presence detector. Stub skips inference, BlazeFace is the shipped graph, custom is Timmy's drop-in."
           >
-            <div className="max-w-xs">
-              <Select
-                value={settings.deskModelId}
-                onChange={(next) => {
-                  void app.setDeskModelId(next);
-                }}
-                options={MODEL_OPTIONS}
-                ariaLabel="Desk model"
-              />
-            </div>
-            <p className="mt-2 text-[12px] text-fp-mute">
-              Current: <span className="font-mono text-fp-ink">{settings.deskModelId}</span>. Swap
-              rules and file layout:{" "}
-              <span className="font-mono text-fp-live">docs/MODEL-SEAM.md</span>.
+            <Select
+              value={settings.deskModelId}
+              onChange={(next) => {
+                void app.setDeskModelId(next);
+              }}
+              options={MODEL_OPTIONS}
+              ariaLabel="Desk model"
+            />
+            <p className="setting-copy">
+              Current: {settings.deskModelId}. Swap rules and file layout: docs/MODEL-SEAM.md.
             </p>
           </Field>
         </section>
 
-        <section className="border-t border-fp-line px-7 py-6">
-          <p className="text-[13px] font-medium">Filming</p>
-          <p className="mt-1 max-w-xl text-[13px] text-fp-mute">
+        <section className="plate setting-card">
+          <p className="setting-name">Filming</p>
+          <p className="setting-copy">
             Preview the kill overlay without waiting for Discord. Uses the current countdown length.
           </p>
-          <div className="mt-3">
-            <GhostButton
-              onClick={() => app.previewCountdown(settings.countdownSec, "Distracted: Discord")}
-            >
-              Preview kill overlay
-            </GhostButton>
-          </div>
+          <GhostButton
+            onClick={() => app.previewCountdown(settings.countdownSec, "Distracted: Discord")}
+          >
+            Preview kill overlay
+          </GhostButton>
         </section>
       </div>
     </div>

@@ -11,6 +11,40 @@ import { plugKillNote as plugKillNoteFromViews, summarizePlugs } from "./plugsUi
 
 export type Tone = "live" | "kill" | "warn" | "mute";
 
+export type Atmosphere = "live" | "away" | "kill" | "off";
+
+export function atmosphereFromSession(
+  sessionActive: boolean,
+  decision: Decision,
+  countdownActive: boolean,
+): Atmosphere {
+  if (!sessionActive) return "off";
+  if (countdownActive || decision === "DISTRACTED") return "kill";
+  if (decision === "ON_TASK") return "live";
+  if (decision === "AWAY") return "away";
+  return "off";
+}
+
+export function resolveAppName(
+  processName: string,
+  lists: {
+    allowlist: Array<{ name: string; match: string[] }>;
+    blocklist: Array<{ name: string; match: string[] }>;
+  },
+): string {
+  const needle = processName.toLowerCase();
+  if (needle === "no foreground app") {
+    return processName;
+  }
+  const all = [...lists.allowlist, ...lists.blocklist];
+  const hit = all.find((entry) =>
+    entry.match.some(
+      (token) => needle.includes(token.toLowerCase()) || token.toLowerCase().includes(needle),
+    ),
+  );
+  return hit?.name ?? processName;
+}
+
 export function decisionLabel(decision: Decision): string {
   if (decision === "ON_TASK") return "On task";
   if (decision === "DISTRACTED") return "Distracted";

@@ -4,7 +4,7 @@ import { cn } from "../lib/cn";
 import { plugPowerLabel } from "../lib/format";
 import { looksLikeStudyPc, PLUG_PROTOCOLS, STUDY_PC_WARNING, type PlugView } from "../lib/plugsUi";
 import { useAppState } from "../state/AppState";
-import { Chip, GhostButton, PageIntro, PrimaryButton, Select, TextInput, Toggle } from "../components/ui";
+import { GhostButton, PageIntro, PrimaryButton, Select, TextInput, Toggle } from "../components/ui";
 import { IconClose, IconWarning } from "../lib/icons";
 
 const PROTOCOL_OPTIONS: ReadonlyArray<{ value: PlugProtocol; label: string }> = PLUG_PROTOCOLS.map(
@@ -47,12 +47,12 @@ export function PlugsPage(): JSX.Element {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="page">
       <PageIntro
         kicker="Outlets"
         title="Smart plugs"
         meta={
-          <p className="font-mono text-[12px] text-fp-faint">
+          <p className="page-kicker">
             {enabledCount} enabled
             <span className="block">{app.plugs.length} total</span>
           </p>
@@ -62,148 +62,115 @@ export function PlugsPage(): JSX.Element {
         overlay cut every armed plug.
       </PageIntro>
 
-      <aside className="flex gap-3 border-b border-fp-warn/35 bg-fp-warn/[0.08] px-7 py-4" role="note">
-        <IconWarning className="mt-0.5 h-4 w-4 shrink-0 text-fp-warn" />
+      <aside className="note" role="note">
+        <IconWarning className="h-4 w-4 shrink-0 tone-warn" />
         <div>
-          <p className="text-[13px] font-medium text-fp-ink">{STUDY_PC_WARNING}</p>
-          <p className="mt-1 text-[12px] text-fp-mute">
+          <p className="setting-name">{STUDY_PC_WARNING}</p>
+          <p className="setting-copy">
             Do not add the machine running FocusPlug, a PSU, or any outlet that would drop the
             session. Mock is the filming path. Kasa and HTTP talk LAN only.
           </p>
         </div>
       </aside>
 
-      <div className="min-h-0 flex-1 overflow-auto">
-        <form
-          onSubmit={(event) => {
-            void onAdd(event);
-          }}
-          className="border-b border-fp-line px-7 py-5"
-        >
-          <div className="flex flex-wrap items-end gap-3">
-            <label className="min-w-[12rem] flex-1">
-              <span className="text-[12px] text-fp-faint">Name</span>
-              <div className="mt-1.5">
-                <TextInput
-                  value={name}
-                  onChange={(value) => {
-                    setName(value);
-                    setFormError(null);
-                  }}
-                  placeholder="Desk lamp"
-                />
-              </div>
-            </label>
-            <label className="min-w-[16rem] flex-[1.2]">
-              <span className="text-[12px] text-fp-faint">Address</span>
-              <div className="mt-1.5">
-                <TextInput
-                  value={address}
-                  onChange={(value) => {
-                    setAddress(value);
-                    setFormError(null);
-                  }}
-                  placeholder="192.168.1.40 or mock://lamp"
-                  mono
-                />
-              </div>
-            </label>
-            <label className="w-[8.5rem] shrink-0">
-              <span className="text-[12px] text-fp-faint">Protocol</span>
-              <div className="mt-1.5">
-                <Select
-                  value={protocol}
-                  onChange={setProtocol}
-                  options={PROTOCOL_OPTIONS}
-                  ariaLabel="Plug protocol"
-                />
-              </div>
-            </label>
-            <div className="shrink-0 pb-px">
-              <PrimaryButton submit>Add plug</PrimaryButton>
-            </div>
-          </div>
-          {formError ? <p className="mt-2 text-[12px] text-fp-kill">{formError}</p> : null}
-        </form>
+      <form
+        onSubmit={(event) => {
+          void onAdd(event);
+        }}
+        className="plate plate-pad"
+      >
+        <div className="field-row">
+          <label className="field field-grow">
+            <span className="field-label">Name</span>
+            <TextInput
+              value={name}
+              onChange={(value) => {
+                setName(value);
+                setFormError(null);
+              }}
+              placeholder="Desk lamp"
+            />
+          </label>
+          <label className="field field-grow">
+            <span className="field-label">Address</span>
+            <TextInput
+              value={address}
+              onChange={(value) => {
+                setAddress(value);
+                setFormError(null);
+              }}
+              placeholder="192.168.1.40 or mock://lamp"
+              mono
+            />
+          </label>
+          <label className="field" style={{ width: "8.5rem" }}>
+            <span className="field-label">Protocol</span>
+            <Select
+              value={protocol}
+              onChange={setProtocol}
+              options={PROTOCOL_OPTIONS}
+              ariaLabel="Plug protocol"
+            />
+          </label>
+          <PrimaryButton submit>Add plug</PrimaryButton>
+        </div>
+        {formError ? <p className="err">{formError}</p> : null}
+      </form>
 
-        <ul>
-          {app.plugs.length === 0 ? (
-            <li className="px-7 py-12 text-[13px] text-fp-mute">
-              No plugs yet. Add a mock device to film the outlet cut.
-            </li>
-          ) : (
-            app.plugs.map((plug, index) => (
-              <PlugRow
-                key={plug.id}
-                plug={plug}
-                odd={index % 2 === 1}
-                onToggle={(enabled) => {
-                  void app.setPlugEnabled(plug.id, enabled);
-                }}
-                onTest={(powerOn) => {
-                  void app.testPlug(plug.id, powerOn);
-                }}
-                onRemove={() => {
-                  void app.removePlug(plug.id);
-                }}
-              />
-            ))
-          )}
+      {app.plugs.length === 0 ? (
+        <p className="empty">No plugs yet. Add a mock device to film the outlet cut.</p>
+      ) : (
+        <ul className="socket-grid">
+          {app.plugs.map((plug) => (
+            <PlugSocket
+              key={plug.id}
+              plug={plug}
+              onToggle={(enabled) => {
+                void app.setPlugEnabled(plug.id, enabled);
+              }}
+              onTest={(powerOn) => {
+                void app.testPlug(plug.id, powerOn);
+              }}
+              onRemove={() => {
+                void app.removePlug(plug.id);
+              }}
+            />
+          ))}
         </ul>
-      </div>
+      )}
     </div>
   );
 }
 
-function PlugRow(props: {
+function PlugSocket(props: {
   plug: PlugView;
-  odd: boolean;
   onToggle: (enabled: boolean) => void;
   onTest: (powerOn: boolean) => void;
   onRemove: () => void;
 }): JSX.Element {
   const { plug } = props;
-  const powerTone = plug.error ? "kill" : !plug.online ? "mute" : plug.powerOn ? "live" : "kill";
 
   return (
-    <li
-      className={cn(
-        "flex flex-col gap-3 px-7 py-3 lg:flex-row lg:items-center",
-        props.odd && "bg-white/[0.015]",
-      )}
-    >
-      <div className="flex min-w-0 flex-1 items-center gap-3">
-        <span
-          className={cn(
-            "h-1.5 w-1.5 shrink-0",
-            plug.enabled && plug.online && plug.powerOn
-              ? "bg-fp-live"
-              : plug.online
-                ? "bg-fp-warn"
-                : "bg-fp-line-strong",
-          )}
-        />
-        <div className="min-w-0">
-          <p className="truncate text-[13px] font-medium text-fp-ink">{plug.name}</p>
-          <p className="truncate font-mono text-[11px] text-fp-faint" title={plug.address}>
-            {plug.address}
-          </p>
-        </div>
+    <li className={cn("socket", plug.enabled && plug.powerOn !== false && "is-on")}>
+      <div className="socket-wells" aria-hidden="true">
+        <span className="socket-well" />
+        <span className="socket-well" />
       </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <Chip tone="mute">{plug.protocol}</Chip>
-        <Chip tone={powerTone}>{plugPowerLabel(plug)}</Chip>
-        <Toggle
-          checked={plug.enabled}
-          onChange={props.onToggle}
-          label={`Enable ${plug.name}`}
-        />
+      <div className="min-w-0">
+        <p className="socket-name">{plug.name}</p>
+        <p className="socket-host" title={plug.address}>
+          {plug.protocol} · {plug.address}
+        </p>
+        <p className="setting-copy">{plugPowerLabel(plug)}</p>
+      </div>
+      <div className="socket-actions">
+        <Toggle checked={plug.enabled} onChange={props.onToggle} label={`Enable ${plug.name}`} />
         <GhostButton onClick={() => props.onTest(false)}>Test off</GhostButton>
         <GhostButton onClick={() => props.onTest(true)}>Test on</GhostButton>
         <button
           type="button"
           onClick={props.onRemove}
-          className="p-1.5 text-fp-faint transition hover:text-fp-kill"
+          className="icon-btn"
           aria-label={`Remove ${plug.name}`}
         >
           <IconClose className="h-4 w-4" />

@@ -1,6 +1,5 @@
 import { useMemo, useState, type JSX } from "react";
 import { formatClock } from "../lib/format";
-import { cn } from "../lib/cn";
 import { useAppState } from "../state/AppState";
 import { PageIntro, TextInput } from "../components/ui";
 
@@ -21,7 +20,7 @@ export function LogPage(): JSX.Element {
   }, [app.log, query]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="page">
       <PageIntro
         kicker="Timeline"
         title="Session log"
@@ -33,36 +32,31 @@ export function LogPage(): JSX.Element {
       />
 
       {rows.length === 0 ? (
-        <p className="px-7 py-8 text-[13px] text-fp-mute">
-          No events yet. Start a session to record window, desk, and kill activity.
-        </p>
+        <p className="empty">No events yet. Start a session to record window, desk, and kill activity.</p>
       ) : (
-        <ol className="min-h-0 flex-1 overflow-auto">
-          {rows.map((event, index) => (
-            <li
-              key={`${event.ts}-${event.kind}-${index}`}
-              className={cn(
-                "grid grid-cols-[88px_92px_1fr] gap-3 px-7 py-2",
-                index % 2 === 1 && "bg-white/[0.015]",
-              )}
-            >
-              <time className="font-mono text-[11px] text-fp-faint tabular">
-                {formatClock(event.ts)}
-              </time>
-              <span
-                className={cn(
-                  "font-mono text-[11px] font-medium",
-                  event.kind.toLowerCase().includes("kill") ? "text-fp-kill" : "text-fp-mute",
-                )}
-              >
-                {event.kind}
-              </span>
-              <span className="truncate text-[13px] text-fp-ink" title={event.detail}>
-                {event.detail}
-              </span>
-            </li>
-          ))}
-        </ol>
+        <div className="plate plate-pad">
+          <table className="log-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Kind</th>
+                <th>Detail</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((event, index) => {
+                const kill = event.kind.toLowerCase().includes("kill");
+                return (
+                  <tr key={`${event.ts}-${event.kind}-${index}`}>
+                    <td className="tape-time">{formatClock(event.ts)}</td>
+                    <td className={kill ? "tone-kill" : undefined}>{event.kind}</td>
+                    <td title={event.detail}>{event.detail}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );
