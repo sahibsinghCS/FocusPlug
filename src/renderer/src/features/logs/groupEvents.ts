@@ -13,7 +13,7 @@ const STAGE_RANK: Record<LogEventView["stage"], number> = {
 
 function compareCausal(left: LogEventView, right: LogEventView): number {
   const delta = left.event.ts - right.event.ts;
-  if (Math.abs(delta) >= 500) {
+  if (Math.abs(delta) >= 50) {
     return delta;
   }
   const rank = STAGE_RANK[left.stage] - STAGE_RANK[right.stage];

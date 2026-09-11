@@ -17,7 +17,7 @@ export function goldenSessionEvents(now: number): SessionEvent[] {
       kind: "kill",
       detail: "blocked_focus · killed discord.exe (pid 44552)",
     },
-    { ts: now - 38_200, kind: "decision", detail: "DISTRACTED · Distracted: discord.exe" },
+    { ts: now - 38_400, kind: "decision", detail: "DISTRACTED · Distracted: discord.exe" },
     { ts: now - 38_400, kind: "countdown", detail: "start_countdown · blocked_focus · 10s" },
     { ts: now - 39_000, kind: "focus", detail: "Discord — #general" },
     { ts: now - 48_000, kind: "decision", detail: "ON_TASK · On task: chrome.exe" },
