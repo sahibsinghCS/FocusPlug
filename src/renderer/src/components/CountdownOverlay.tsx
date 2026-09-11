@@ -73,7 +73,7 @@ export function CountdownOverlay(props: CountdownOverlayProps): JSX.Element {
           Killing blocked apps in
         </p>
 
-        <div className="relative mt-1 flex h-[min(42vh,320px)] w-[min(42vh,320px)] items-center justify-center">
+        <div className="relative mt-1 flex h-[min(34vh,280px)] w-[min(34vh,280px)] items-center justify-center sm:h-[min(42vh,320px)] sm:w-[min(42vh,320px)]">
           <svg className="absolute inset-0 h-full w-full" viewBox="0 0 300 300" aria-hidden="true">
             <circle cx="150" cy="150" r={radius} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="10" />
             <circle
@@ -111,7 +111,7 @@ export function CountdownOverlay(props: CountdownOverlayProps): JSX.Element {
         </div>
       </div>
 
-      <div className="relative z-10 flex flex-col items-center gap-3 px-6 pb-7">
+      <div className="relative z-10 flex shrink-0 flex-col items-center gap-3 px-6 pb-7">
         <p className="font-mono text-[12px] uppercase tracking-[0.22em] text-zinc-400">
           Return to an allowlisted app + at desk to cancel · Esc does not dismiss
         </p>
