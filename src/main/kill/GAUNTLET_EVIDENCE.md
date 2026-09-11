@@ -19,3 +19,5 @@ Live OS:
 Safety (MemoryProcessHost): Discord killed; chrome/Code/firefox/msedge/WINWORD/Notion never killed; every `DEFAULT_STUDY_PROCESS_MATCHERS` token refuses; explorer/lsass refused; self pid refused; empty/no-match/access-denied errors.
 
 Windows path: `tasklist` CSV fixture + `taskkill /PID /F` argv asserted; PowerShell fallback asserted. This VM is not Windows, so `taskkill.exe` is not executed live.
+
+Independent critic (fresh read of `src/main/kill/**` + re-run of the probe command, no builder rationale): **WIN**.
