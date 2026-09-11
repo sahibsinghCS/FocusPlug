@@ -9,4 +9,4 @@
 - **ui-shell** merged to `main` (PR #3). Critic WIN.
 - **session-wiring** merged to `main` (PR #7). Critic WIN.
 - **polish-hyperbloom** merged to `main` (PR #9). Critic WIN.
-- **Phase 2 contracts frozen** (`cursor/contracts-hw-916c`): `DeskModel` factory seam, `PlugDevice` / `PlugSnapshot`, `PolicyEvent` `plug_off` / `plug_on`, Store settings `deskModelId` + `plugs`, IPC `plugs:list|add|remove|test` and `desk:getModelId|setModelId`. Types + docs + channel names only — no Kasa driver, plug UI, or extra ML. Never power off the study PC.
+- **Phase 2 contracts frozen** (`cursor/contracts-hw-916c`): `DeskModel` factory seam, `PlugDevice` / `PlugSnapshot`, `PolicyEvent` `plug_off` / `plug_on`, Store settings `deskModelId` + `plugs`, IPC `plugs:list|add|remove|test` and `desk:getModelId|setModelId`. Types + docs + channel names only — no Kasa driver, plug UI, or extra ML. Never power off the study PC. Independent contracts critic **WIN** (round 1). `npm run typecheck` + `npm test` (106) green.
