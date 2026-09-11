@@ -4,6 +4,28 @@
 
 > Not a tutor chatbot. Not a gentle reminder app. Never kills the study PC.
 
+## Run on Windows
+
+Prerequisites: [Node.js 22.12+](https://nodejs.org/) (includes npm).
+
+```powershell
+git clone https://github.com/sahibsinghCS/FocusPlug.git
+cd FocusPlug
+npm install
+npm run dev
+```
+
+That cold install + `npm run dev` starts Vite and opens an **Electron** window titled FocusPlug (placeholder chrome until the UI/session streams land).
+
+| Script | What it does |
+| --- | --- |
+| `npm run dev` | Electron + Vite HMR (daily development) |
+| `npm run build` | Typecheck + production compile into `out/` |
+| `npm start` | Launch the production build (`electron-vite preview`) |
+| `npm run typecheck` | Verify `src/shared/types.ts` matches `docs/CONTRACTS.md` and `tsc` passes |
+
+Windows-first: foreground window matching and process kill land in later workstreams. The Linux Chromium sandbox is disabled in the main process so the same `npm run dev` path can boot in VMs/containers.
+
 ## Golden path (90s demo)
 
 1. **Start session** with Google Docs / Chrome on the allowlist  
@@ -29,9 +51,9 @@
 - Smart-plug kill for *secondary* fun devices only (never the study PC)  
 - Mac parity  
 
-## Stack (planned)
+## Stack
 
-Windows-first desktop app (Electron or Tauri + TypeScript). Exact stack locked when build starts.
+Windows-first **Electron + Vite + React + Tailwind + TypeScript**. Shared types and IPC live in `src/shared/` (`docs/CONTRACTS.md`). Local JSON persistence in Electron `userData` (wired in later streams).
 
 ## AI tools disclosure
 
