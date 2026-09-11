@@ -12,6 +12,7 @@ import type {
   FocusPlugApi,
   FocusSnapshot,
   KillResult,
+  PLUG_DRIVER_NOT_IMPLEMENTED,
   PolicyEvent,
   SessionEvent,
   SessionState,
@@ -198,9 +199,16 @@ export function createMockApi(): FocusPlugApi {
       appendLog("lists", `Blocklist updated (${blocklist.length} apps)`);
       return lists();
     },
-    settingsGet: async () => ({ ...settings }),
+    settingsGet: async () => ({
+      ...settings,
+      plugs: settings.plugs.map((plug) => ({ ...plug })),
+    }),
     settingsSet: async (patch) => {
-      settings = { ...settings, ...patch };
+      settings = {
+        ...settings,
+        ...patch,
+        plugs: (patch.plugs ?? settings.plugs).map((plug) => ({ ...plug })),
+      };
       if (patch.webcamEnabled !== undefined && state.desk) {
         patchState({
           desk: { ...state.desk, webcamEnabled: patch.webcamEnabled, ts: now() },
@@ -219,6 +227,47 @@ export function createMockApi(): FocusPlugApi {
       }
       appendLog("desk", enabled ? "Webcam enabled" : "Webcam disabled");
       return settings.webcamEnabled;
+    },
+    deskGetModelId: async () => settings.deskModelId,
+    deskSetModelId: async (id) => {
+      settings = { ...settings, deskModelId: id };
+      appendLog("desk", `Desk model set to ${id}`);
+      return settings.deskModelId;
+    },
+    plugsList: async () => settings.plugs.map((plug) => ({ ...plug })),
+    plugsAdd: async (device) => {
+      if (device.isStudyPc !== false) {
+        throw new Error("Study PC plugs are forbidden");
+      }
+      if (settings.plugs.some((plug) => plug.id === device.id)) {
+        throw new Error("Plug already exists");
+      }
+      settings = { ...settings, plugs: [...settings.plugs, { ...device, isStudyPc: false }] };
+      appendLog("plugs", `Added ${device.name}`);
+      return settings.plugs.map((plug) => ({ ...plug }));
+    },
+    plugsRemove: async (deviceId) => {
+      if (!settings.plugs.some((plug) => plug.id === deviceId)) {
+        throw new Error("Plug not found");
+      }
+      settings = {
+        ...settings,
+        plugs: settings.plugs.filter((plug) => plug.id !== deviceId),
+      };
+      appendLog("plugs", `Removed ${deviceId}`);
+      return settings.plugs.map((plug) => ({ ...plug }));
+    },
+    plugsTest: async (deviceId) => {
+      if (!settings.plugs.some((plug) => plug.id === deviceId)) {
+        throw new Error("Plug not found");
+      }
+      return {
+        ts: now(),
+        deviceId,
+        online: false,
+        powerOn: null,
+        error: PLUG_DRIVER_NOT_IMPLEMENTED,
+      };
     },
     demoKill: async () => {
       stopCountdownTick();

@@ -108,6 +108,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   deskThreshold: 0.6,
   strictMode: true,
   webcamEnabled: true,
+  deskModelId: "blazeface",
+  plugs: [],
 };
 
 export const DEFAULT_SESSION_STATE: SessionState = {

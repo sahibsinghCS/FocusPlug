@@ -1,8 +1,12 @@
 import type {
   AppEntry,
   Decision,
+  DeskModel,
+  DeskModelId,
   DeskSnapshot,
   FocusSnapshot,
+  PlugDevice,
+  PlugSnapshot,
   PolicyEvent,
   PolicyInput,
   SessionEvent,
@@ -11,9 +15,16 @@ import type {
 export type {
   AppEntry,
   Decision,
+  DeskFrame,
   DeskLabel,
+  DeskModel,
+  DeskModelId,
+  DeskModelOutput,
   DeskSnapshot,
   FocusSnapshot,
+  PlugDevice,
+  PlugProtocol,
+  PlugSnapshot,
   PolicyEvent,
   PolicyInput,
   SessionEvent,
@@ -31,6 +42,12 @@ export const IPC_INVOKE = {
   SETTINGS_SET: "focusplug:settings:set",
   LOG_GET: "focusplug:log:get",
   DESK_SET_ENABLED: "focusplug:desk:setEnabled",
+  DESK_GET_MODEL_ID: "focusplug:desk:getModelId",
+  DESK_SET_MODEL_ID: "focusplug:desk:setModelId",
+  PLUGS_LIST: "focusplug:plugs:list",
+  PLUGS_ADD: "focusplug:plugs:add",
+  PLUGS_REMOVE: "focusplug:plugs:remove",
+  PLUGS_TEST: "focusplug:plugs:test",
   DEMO_KILL: "focusplug:demo:kill",
 } as const;
 
@@ -51,6 +68,8 @@ export interface AppSettings {
   deskThreshold: number;
   strictMode: boolean;
   webcamEnabled: boolean;
+  deskModelId: DeskModelId;
+  plugs: PlugDevice[];
 }
 
 export interface SessionState {
@@ -83,6 +102,12 @@ export interface IpcInvokeChannelMap {
   "focusplug:settings:set": { args: [patch: Partial<AppSettings>]; result: AppSettings };
   "focusplug:log:get": { args: []; result: SessionEvent[] };
   "focusplug:desk:setEnabled": { args: [enabled: boolean]; result: boolean };
+  "focusplug:desk:getModelId": { args: []; result: DeskModelId };
+  "focusplug:desk:setModelId": { args: [id: DeskModelId]; result: DeskModelId };
+  "focusplug:plugs:list": { args: []; result: PlugDevice[] };
+  "focusplug:plugs:add": { args: [device: PlugDevice]; result: PlugDevice[] };
+  "focusplug:plugs:remove": { args: [deviceId: string]; result: PlugDevice[] };
+  "focusplug:plugs:test": { args: [deviceId: string]; result: PlugSnapshot };
   "focusplug:demo:kill": { args: []; result: KillResult };
 }
 
@@ -106,6 +131,12 @@ export interface FocusPlugApi {
   settingsSet(patch: Partial<AppSettings>): Promise<AppSettings>;
   logGet(): Promise<SessionEvent[]>;
   deskSetEnabled(enabled: boolean): Promise<boolean>;
+  deskGetModelId(): Promise<DeskModelId>;
+  deskSetModelId(id: DeskModelId): Promise<DeskModelId>;
+  plugsList(): Promise<PlugDevice[]>;
+  plugsAdd(device: PlugDevice): Promise<PlugDevice[]>;
+  plugsRemove(deviceId: string): Promise<PlugDevice[]>;
+  plugsTest(deviceId: string): Promise<PlugSnapshot>;
   demoKill(): Promise<KillResult>;
   onSessionState(cb: (state: SessionState) => void): () => void;
   onPolicyEvent(cb: (event: PolicyEvent) => void): () => void;
@@ -125,12 +156,28 @@ export interface DeskMonitor {
   setEnabled(enabled: boolean): void;
 }
 
+/** Factory seam — pick a DeskModel by id. Do not hard-code BlazeFace. */
+export interface DeskModelFactory {
+  create(id: DeskModelId): DeskModel;
+}
+
 export interface PolicyEngine {
   step(input: PolicyInput): PolicyEvent[];
 }
 
 export interface ProcessKiller {
   kill(matchers: string[]): KillResult | Promise<KillResult>;
+}
+
+/**
+ * Smart-plug seam. Fun/secondary devices only.
+ * Never power off the study PC. No protocol driver in this freeze.
+ */
+export interface PlugController {
+  off(ids: string[]): Promise<PlugSnapshot[]>;
+  on(ids: string[]): Promise<PlugSnapshot[]>;
+  list(): Promise<PlugDevice[]>;
+  discover(): Promise<PlugDevice[]>;
 }
 
 export interface Store {
@@ -143,3 +190,6 @@ export interface Store {
   appendSessionLog(event: SessionEvent): void | Promise<void>;
   loadSessionLog(): SessionEvent[] | Promise<SessionEvent[]>;
 }
+
+/** Stub `plugs:test` / driver-not-wired snapshot error. */
+export const PLUG_DRIVER_NOT_IMPLEMENTED = "plug driver not implemented";

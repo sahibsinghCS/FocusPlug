@@ -4,9 +4,11 @@ import {
   IPC_PUSH,
   type AppEntry,
   type AppSettings,
+  type DeskModelId,
   type DeskSnapshot,
   type FocusPlugApi,
   type FocusSnapshot,
+  type PlugDevice,
   type PolicyEvent,
   type SessionEvent,
   type SessionState,
@@ -37,6 +39,14 @@ const api: FocusPlugApi = {
   logGet: () => ipcRenderer.invoke(IPC_INVOKE.LOG_GET),
   deskSetEnabled: (enabled: boolean) =>
     ipcRenderer.invoke(IPC_INVOKE.DESK_SET_ENABLED, enabled),
+  deskGetModelId: () => ipcRenderer.invoke(IPC_INVOKE.DESK_GET_MODEL_ID),
+  deskSetModelId: (id: DeskModelId) =>
+    ipcRenderer.invoke(IPC_INVOKE.DESK_SET_MODEL_ID, id),
+  plugsList: () => ipcRenderer.invoke(IPC_INVOKE.PLUGS_LIST),
+  plugsAdd: (device: PlugDevice) => ipcRenderer.invoke(IPC_INVOKE.PLUGS_ADD, device),
+  plugsRemove: (deviceId: string) =>
+    ipcRenderer.invoke(IPC_INVOKE.PLUGS_REMOVE, deviceId),
+  plugsTest: (deviceId: string) => ipcRenderer.invoke(IPC_INVOKE.PLUGS_TEST, deviceId),
   demoKill: () => ipcRenderer.invoke(IPC_INVOKE.DEMO_KILL),
   onSessionState: (cb: (state: SessionState) => void) =>
     subscribe(IPC_PUSH.SESSION_STATE, cb),
