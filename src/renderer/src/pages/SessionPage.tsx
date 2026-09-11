@@ -1,5 +1,6 @@
 import type { JSX } from "react";
 import { Chip } from "../components/ui";
+import { ArmedLists } from "../features/session/ArmedLists";
 import { DecisionHero } from "../features/session/DecisionHero";
 import { EventTimeline } from "../features/session/EventTimeline";
 import { SensorRail } from "../features/session/SensorRail";
@@ -91,6 +92,10 @@ export function SessionPage(): JSX.Element {
 
       <div className="mt-3 shrink-0">
         <SensorRail sensors={sensors} />
+      </div>
+
+      <div className="mt-3 shrink-0">
+        <ArmedLists allowlist={app.lists.allowlist} blocklist={app.lists.blocklist} />
       </div>
 
       <div className="mt-3 flex min-h-0 flex-1 flex-col">

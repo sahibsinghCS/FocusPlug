@@ -27,7 +27,7 @@ export function SessionActions(props: {
             type="button"
             onClick={props.onStart}
             disabled={props.busy}
-            className="inline-flex h-11 min-w-[148px] items-center justify-center rounded-md bg-fp-lime px-4 text-[14px] font-semibold text-fp-bg transition hover:bg-[#e2ff6a] disabled:cursor-not-allowed disabled:opacity-40"
+            className="inline-flex h-12 min-w-[168px] items-center justify-center rounded-md bg-fp-lime px-5 text-[15px] font-semibold text-fp-bg shadow-[0_0_24px_rgba(212,255,58,0.18)] transition hover:bg-[#e2ff6a] disabled:cursor-not-allowed disabled:opacity-40"
           >
             Start session
           </button>

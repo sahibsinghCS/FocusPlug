@@ -7,7 +7,7 @@ export function SessionClock(props: { clock: SessionClockView }): JSX.Element {
   const { clock } = props;
   return (
     <section
-      className="grid grid-cols-2 gap-3 rounded-xl border border-fp-line bg-fp-panel px-4 py-4"
+      className="grid grid-cols-2 gap-3 rounded-xl border border-fp-line bg-fp-panel px-4 py-3"
       aria-label="Session clocks"
     >
       <ClockCell

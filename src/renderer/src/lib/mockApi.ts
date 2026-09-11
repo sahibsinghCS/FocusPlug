@@ -181,15 +181,30 @@ function loadStoredPower(): Map<string, boolean> {
   return map;
 }
 
+const SCENE_LAMP: PlugDevice = {
+  id: "desk-lamp",
+  name: "Desk lamp",
+  protocol: "mock",
+  address: "mock://lamp",
+  enabled: true,
+  isStudyPc: false,
+};
+
 export function createMockApi(): FocusPlugApi {
   const scene = readUrlScene();
   let settings: AppSettings = loadStoredSettings();
   let allowlist = cloneEntries(DEFAULT_ALLOWLIST);
   let blocklist = cloneEntries(DEFAULT_BLOCKLIST);
+  if (scene.scene !== "default" && settings.plugs.length === 0) {
+    settings = { ...settings, plugs: [SCENE_LAMP] };
+  }
   let state: SessionState = buildInitialState(scene, settings);
   let log: SessionEvent[] = buildInitialLog(scene);
   let countdownTimer: ReturnType<typeof setInterval> | null = null;
   const lastPower = loadStoredPower();
+  if (settings.plugs.some((plug) => plug.id === SCENE_LAMP.id) && !lastPower.has(SCENE_LAMP.id)) {
+    lastPower.set(SCENE_LAMP.id, true);
+  }
 
   const sessionBus = createBus<SessionState>();
   const policyBus = createBus<PolicyEvent>();
@@ -292,6 +307,16 @@ export function createMockApi(): FocusPlugApi {
 
   if (scene.countdown !== null) {
     startCountdown("Distracted: Discord", scene.countdown);
+  }
+
+  if (scene.scene !== "default" && settings.plugs.length > 0) {
+    setTimeout(() => {
+      policyBus.emit({
+        type: "plug_on",
+        deviceIds: settings.plugs.filter((plug) => plug.enabled).map((plug) => plug.id),
+        reason: "scene inventory",
+      });
+    }, 20);
   }
 
   const api: FocusPlugApi = {

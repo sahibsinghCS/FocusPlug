@@ -68,12 +68,12 @@ export function CountdownOverlay(props: CountdownOverlayProps): JSX.Element {
       <div className="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-center px-6">
         <p
           id="fp-overlay-title"
-          className="text-[13px] font-semibold uppercase tracking-[0.46em] text-fp-red"
+          className="text-[14px] font-semibold uppercase tracking-[0.46em] text-fp-red"
         >
           Killing blocked apps in
         </p>
 
-        <div className="relative mt-2 flex h-[min(38vh,300px)] w-[min(38vh,300px)] items-center justify-center">
+        <div className="relative mt-1 flex h-[min(42vh,320px)] w-[min(42vh,320px)] items-center justify-center">
           <svg className="absolute inset-0 h-full w-full" viewBox="0 0 300 300" aria-hidden="true">
             <circle cx="150" cy="150" r={radius} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="10" />
             <circle
@@ -91,31 +91,23 @@ export function CountdownOverlay(props: CountdownOverlayProps): JSX.Element {
           </svg>
           <p
             key={props.seconds}
-            className="fp-session-fuse-num font-mono text-[min(26vw,188px)] font-bold leading-none tabular text-white drop-shadow-[0_0_48px_rgba(255,45,85,0.75)]"
+            className="fp-session-fuse-num font-mono text-[min(28vw,200px)] font-bold leading-none tabular text-white drop-shadow-[0_0_48px_rgba(255,45,85,0.75)]"
             aria-live="assertive"
           >
             {padCountdown(props.seconds)}
           </p>
         </div>
 
-        <p className="mt-1 max-w-xl text-center text-[18px] font-medium text-zinc-100">
+        <p className="mt-1 max-w-xl text-center text-[20px] font-medium text-zinc-100">
           {props.reason}
         </p>
 
         <div
           id="fp-overlay-consequence"
-          className="mt-4 grid w-full max-w-2xl gap-2 min-[720px]:grid-cols-2"
+          className="mt-4 grid w-full max-w-3xl gap-2 min-[720px]:grid-cols-2"
         >
-          <ConsequenceCard
-            kicker="App kill"
-            title={consequence.apps}
-            detail="Blocklist processes are force-quit. The study PC is never a target."
-          />
-          <ConsequenceCard
-            kicker="Plugs cut"
-            title={consequence.plugs}
-            detail="Enabled fun outlets lose power with the kill. Return to an allowlisted app at the desk to cancel."
-          />
+          <ConsequenceCard kicker="App kill" title={consequence.apps} />
+          <ConsequenceCard kicker="Plugs cut" title={consequence.plugs} />
         </div>
       </div>
 
@@ -149,12 +141,11 @@ function HudChip(props: { k: string; v: string; danger?: boolean }): JSX.Element
   );
 }
 
-function ConsequenceCard(props: { kicker: string; title: string; detail: string }): JSX.Element {
+function ConsequenceCard(props: { kicker: string; title: string }): JSX.Element {
   return (
-    <div className="rounded-lg border border-white/15 bg-black/45 px-4 py-3 text-left">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-fp-red">{props.kicker}</p>
-      <p className="mt-1 text-[15px] font-semibold leading-5 text-white">{props.title}</p>
-      <p className="mt-1 text-[12px] leading-4 text-zinc-300">{props.detail}</p>
+    <div className="rounded-lg border border-white/15 bg-black/50 px-4 py-3 text-left">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-fp-red">{props.kicker}</p>
+      <p className="mt-1 text-[17px] font-semibold leading-5 text-white">{props.title}</p>
     </div>
   );
 }

@@ -42,11 +42,14 @@ export function EventTimeline(props: { preview: TimelinePreview }): JSX.Element 
 
       <div className="mt-3 min-h-0 flex-1 overflow-auto rounded-xl border border-fp-line bg-fp-panel">
         {props.preview.empty ? (
-          <p className="px-4 py-5 text-[13px] leading-5 text-fp-mute">
-            No enforcement events yet. Start a session to record blocked focus or desk Away
-            (cause), the fuse (countdown), app kill + plug cut (consequence), and unlock
-            (recovery). List edits stay on the Log page.
-          </p>
+          <div className="flex h-full min-h-[9rem] flex-col justify-center px-5 py-5">
+            <p className="text-[14px] font-medium text-zinc-200">Waiting for a golden-path event</p>
+            <p className="mt-2 max-w-2xl text-[13px] leading-5 text-fp-mute">
+              Start a session to record the enforcement film: blocked focus or desk Away
+              (cause), the fuse (countdown), app kill + plug cut (consequence), then unlock
+              (recovery). List-editor noise stays on the Log page.
+            </p>
+          </div>
         ) : (
           <ol>
             {props.preview.events.map((event, index) => (

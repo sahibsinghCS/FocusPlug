@@ -31,7 +31,7 @@ export function DecisionHero(props: {
   return (
     <section
       className={cn(
-        "fp-session-hero relative min-w-0 overflow-hidden rounded-xl border border-fp-line bg-fp-panel px-6 py-5",
+        "fp-session-hero relative min-w-0 overflow-hidden rounded-xl border border-fp-line bg-fp-panel px-5 py-4",
         glow,
       )}
       aria-labelledby="fp-session-decision"
