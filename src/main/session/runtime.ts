@@ -1,6 +1,7 @@
 import { PolicyEngine } from "../../shared/policy/index.ts";
 import { createDeskMonitor } from "../desk/index.ts";
 import { createProcessKiller } from "../kill/index.ts";
+import { createPlugController, SettingsPlugStore, type PlugController } from "../plugs/index.ts";
 import { createAppStore } from "../store/appStore.ts";
 import { createPlatformForegroundReader, FocusWindowMonitor } from "../window/index.ts";
 import { SessionController, type SessionControllerOptions } from "./controller.ts";
@@ -9,6 +10,8 @@ import type { SessionPush } from "./push.ts";
 export interface SessionRuntimeOptions {
   userDataDir: string;
   push: SessionPush;
+  /** Shared JSON store. Pass the same instance used by PlugController. */
+  store?: SessionControllerOptions["store"];
   now?: () => number;
   tickIntervalMs?: number;
 }
@@ -18,7 +21,7 @@ export interface SessionRuntimeOptions {
  * blocklist killer. Tests should construct SessionController with mocks instead.
  */
 export function createSessionRuntime(options: SessionRuntimeOptions): SessionController {
-  const store = createAppStore(options.userDataDir);
+  const store = options.store ?? createAppStore(options.userDataDir);
   const settings = store.loadSettings();
   const windowMonitor = new FocusWindowMonitor({
     reader: createPlatformForegroundReader(),
@@ -41,4 +44,18 @@ export function createSessionRuntime(options: SessionRuntimeOptions): SessionCon
     tickIntervalMs: options.tickIntervalMs,
   };
   return new SessionController(controllerOptions);
+}
+
+export interface FocusPlugRuntime {
+  session: SessionController;
+  plugs: PlugController;
+}
+
+/** Production pair: session + real plug drivers on the same settings store. */
+export function createFocusPlugRuntime(options: SessionRuntimeOptions): FocusPlugRuntime {
+  const store = options.store ?? createAppStore(options.userDataDir);
+  return {
+    session: createSessionRuntime({ ...options, store }),
+    plugs: createPlugController({ store: new SettingsPlugStore(store) }),
+  };
 }

@@ -14,7 +14,7 @@ That presence signal is load-bearing, not a dashboard widget. Session off is obs
 
 The interface is an enforcement console, not a wellness tracker: live Decision (On task / Distracted / Away / Idle), window and Desk AI readouts, an opaque kill overlay, a session event log, and a **Demo Kill** control so a two-minute film can show the consequence without waiting on Discord. We never power off the study PC. We never tutor. The product is the kill — and the AI is what makes the kill honest when you walk away.
 
-**Phase 2 contracts are frozen** in [docs/CONTRACTS.md](docs/CONTRACTS.md) and `src/shared/{types,ipc}.ts`: `DeskModel` factory seam (`stub` | `blazeface` | `custom`) and smart-plug types/IPC (`list` / `add` / `remove` / `test`). No Kasa driver, plug UI, or extra ML in this freeze. Never power off the study PC.
+Optional LAN smart plugs (TP-Link Kasa local protocol, or generic HTTP POST on/off) can sit on **secondary fun devices only**. Add a Kasa by LAN IP; **Demo Kill will cut it**. The study PC is hard-denied (names like `study-pc`, localhost, empty address; `isStudyPc` is always `false`). Plugs are optional — the app boots with none. No cloud account. Setup and probe steps: [docs/SMART-PLUGS.md](docs/SMART-PLUGS.md).
 
 **Run (Windows, Node 22.12+):** `git clone https://github.com/sahibsinghCS/FocusPlug.git && cd FocusPlug && npm install && npm run dev`. Live window match and `taskkill` are Win32; Linux can boot the UI. Film the 2–3 min golden path in [docs/DEMO-SCRIPT.md](docs/DEMO-SCRIPT.md). Paste AI tools into Devpost from [docs/AI-DISCLOSURE.md](docs/AI-DISCLOSURE.md). Electron + React + Tailwind. MIT. Hyperbloom September (due 14 Sep 2026, 5:00pm EDT).
 
