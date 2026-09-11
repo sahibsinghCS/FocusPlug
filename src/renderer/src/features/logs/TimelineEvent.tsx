@@ -20,7 +20,7 @@ export function TimelineEvent(props: {
   const showDetail = view.detail.length > 0 && view.detail !== view.title;
 
   return (
-    <li className="grid grid-cols-[72px_16px_minmax(0,1fr)] gap-x-3 px-6 py-1.5">
+    <li className="grid grid-cols-[72px_16px_minmax(0,1fr)] gap-x-3 px-[var(--fp-page-x)] py-1.5">
       <div className="min-w-0 pt-0.5">
         <time
           dateTime={new Date(view.event.ts).toISOString()}
@@ -29,7 +29,7 @@ export function TimelineEvent(props: {
           {formatClock(view.event.ts)}
         </time>
         {delta ? (
-          <p className="font-mono text-[10px] tabular text-zinc-600">{delta}</p>
+          <p className="font-mono text-[10px] tabular text-fp-faint">{delta}</p>
         ) : null}
       </div>
 
@@ -61,7 +61,7 @@ export function TimelineEvent(props: {
           ) : null}
         </div>
         {showReason ? (
-          <p className="mt-0.5 text-[12px] text-zinc-300 break-words">{view.reason}</p>
+          <p className="mt-0.5 text-[12px] text-fp-ink break-words">{view.reason}</p>
         ) : null}
         {showDetail ? (
           <p className="mt-0.5 text-[12px] text-fp-mute break-words">{view.detail}</p>

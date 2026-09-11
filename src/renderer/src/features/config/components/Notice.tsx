@@ -24,7 +24,7 @@ export function Notice(props: {
           ? "text-fp-lime"
           : "text-fp-faint";
   return (
-    <aside className={cn("rounded-md border px-3 py-2.5", palette)} role={props.role ?? "note"}>
+    <aside className={cn("rounded-lg border px-3 py-2.5", palette)} role={props.role ?? "note"}>
       {props.title ? (
         <p className={cn("text-[10px] font-semibold uppercase tracking-[0.16em]", titleColor)}>
           {props.title}

@@ -1,12 +1,12 @@
 import type { JSX } from "react";
-import { Chip } from "../components/ui";
+import { ErrorBanner, PageFrame } from "../components/page";
 import { ArmedLists } from "../features/session/ArmedLists";
 import { DecisionHero } from "../features/session/DecisionHero";
 import { EventTimeline } from "../features/session/EventTimeline";
 import { SensorRail } from "../features/session/SensorRail";
 import { SessionActions } from "../features/session/SessionActions";
 import { SessionClock } from "../features/session/SessionClock";
-import { SessionErrorBanner, SessionLoading } from "../features/session/SessionStatus";
+import { SessionLoading } from "../features/session/SessionStatus";
 import {
   buildTimelinePreview,
   deskSensor,
@@ -42,35 +42,23 @@ export function SessionPage(): JSX.Element {
   const killNote = demoKillNote(app);
 
   return (
-    <div className="flex h-full min-h-0 flex-col px-5 py-3 min-[1100px]:px-6">
-      <header className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-fp-faint">
-            Command center
-          </p>
-          <p className="truncate text-[13px] text-fp-mute">
-            One decision. Live sensors. Kill is the consequence.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {app.usingMock ? <Chip tone="amber">Renderer mock</Chip> : <Chip tone="lime">Live IPC</Chip>}
-          <Chip tone={app.settings.strictMode ? "lime" : "mute"}>
-            {app.settings.strictMode ? "Strict" : "Loose"}
-          </Chip>
-        </div>
-      </header>
-
+    <PageFrame className="gap-3">
       {app.error ? (
-        <div className="mt-3">
-          <SessionErrorBanner message={app.error} onDismiss={app.clearError} />
-        </div>
+        <ErrorBanner
+          title="Session error"
+          message={app.error}
+          hint="Start / Stop / Demo Kill still call the same IPC. Fix the fault and retry."
+          onDismiss={app.clearError}
+        />
       ) : null}
 
-      <div className="mt-3 grid min-h-0 gap-3 min-[960px]:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.85fr)]">
+      <div className="grid min-h-0 gap-3 min-[960px]:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.85fr)]">
         <DecisionHero
           decision={app.state.decision}
           detail={app.state.detail}
           sessionActive={app.state.sessionActive}
+          strictMode={app.settings.strictMode}
+          usingMock={app.usingMock}
         />
         <div className="flex min-w-0 flex-col gap-3">
           <SessionClock clock={clock} />
@@ -90,18 +78,18 @@ export function SessionPage(): JSX.Element {
         </div>
       </div>
 
-      <div className="mt-3 shrink-0">
+      <div className="shrink-0">
         <SensorRail sensors={sensors} />
       </div>
 
-      <div className="mt-3 shrink-0">
+      <div className="shrink-0">
         <ArmedLists allowlist={app.lists.allowlist} blocklist={app.lists.blocklist} />
       </div>
 
-      <div className="mt-3 flex min-h-0 flex-1 flex-col">
+      <div className="flex min-h-0 flex-1 flex-col">
         <EventTimeline preview={preview} />
       </div>
-    </div>
+    </PageFrame>
   );
 }
 

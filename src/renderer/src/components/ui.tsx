@@ -1,21 +1,14 @@
 import type { JSX, ReactNode } from "react";
 import { cn } from "../lib/cn";
 import type { Tone } from "../lib/format";
+import { toneChip, toneDot, toneWash } from "../lib/tone";
 
 export function Led(props: { tone: Tone; live?: boolean; className?: string }): JSX.Element {
-  const color =
-    props.tone === "lime"
-      ? "bg-fp-lime shadow-[0_0_8px_rgba(212,255,58,0.85)]"
-      : props.tone === "red"
-        ? "bg-fp-red shadow-[0_0_8px_rgba(255,45,85,0.9)]"
-        : props.tone === "amber"
-          ? "bg-fp-amber shadow-[0_0_8px_rgba(255,176,32,0.85)]"
-          : "bg-[#4b5568]";
   return (
     <span
       className={cn(
         "inline-block h-1.5 w-1.5 shrink-0 rounded-full",
-        color,
+        toneDot(props.tone),
         props.live && "led-live",
         props.className,
       )}
@@ -80,12 +73,16 @@ export function GhostButton(props: {
   onClick: () => void;
   disabled?: boolean;
   className?: string;
+  expanded?: boolean;
+  controls?: string;
 }): JSX.Element {
   return (
     <button
       type="button"
       disabled={props.disabled}
       onClick={props.onClick}
+      aria-expanded={props.expanded}
+      aria-controls={props.controls}
       className={cn(
         "fp-btn inline-flex h-8 items-center justify-center rounded-md border border-fp-line-strong bg-transparent px-3 text-[13px] font-medium text-fp-ink hover:bg-fp-hover disabled:cursor-not-allowed disabled:opacity-40",
         props.className,
@@ -203,19 +200,11 @@ export function Select<T extends string>(props: {
 }
 
 export function Chip(props: { tone: Tone; children: ReactNode }): JSX.Element {
-  const palette =
-    props.tone === "lime"
-      ? "border-fp-lime/25 bg-fp-lime/10 text-fp-lime"
-      : props.tone === "red"
-        ? "border-fp-red/30 bg-fp-red/10 text-fp-red"
-        : props.tone === "amber"
-          ? "border-fp-amber/30 bg-fp-amber/10 text-fp-amber"
-          : "border-fp-line bg-white/5 text-fp-mute";
   return (
     <span
       className={cn(
         "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em]",
-        palette,
+        toneChip(props.tone),
       )}
     >
       {props.children}
@@ -241,14 +230,7 @@ export function StatusPill(props: {
       </span>
     </>
   );
-  const shell =
-    props.tone === "lime"
-      ? "border-fp-lime/30 bg-fp-lime/[0.08]"
-      : props.tone === "red"
-        ? "border-fp-red/30 bg-fp-red/[0.08]"
-        : props.tone === "amber"
-          ? "border-fp-amber/30 bg-fp-amber/[0.08]"
-          : "border-fp-line bg-fp-elev/80";
+  const shell = toneWash(props.tone);
   const classes = cn(
     "inline-flex h-7 max-w-full items-center gap-1.5 rounded-md border px-2",
     shell,

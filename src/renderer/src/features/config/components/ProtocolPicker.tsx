@@ -57,7 +57,7 @@ export function ProtocolPicker(props: {
               "rounded-md border px-3 py-2 text-left transition disabled:cursor-not-allowed disabled:opacity-40",
               selected
                 ? "border-fp-lime/50 bg-fp-lime/[0.07]"
-                : "border-fp-line bg-fp-panel hover:bg-fp-hover",
+                : "border-fp-line bg-fp-elev hover:bg-fp-hover",
             )}
           >
             <span className="flex items-center justify-between gap-2">

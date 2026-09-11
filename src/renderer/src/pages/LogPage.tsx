@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type JSX } from "react";
+import { GhostButton } from "../components/ui";
+import { ErrorBanner, PageHeader } from "../components/page";
 import { formatClock, formatRelative } from "../lib/format";
+import { pageCopy } from "../lib/routes";
 import { useAppState } from "../state/AppState";
 import { canCopyTimeline, copyTimeline } from "../features/logs/copyTimeline";
 import { presentLog } from "../features/logs/eventModel";
@@ -21,6 +24,7 @@ export function LogPage(): JSX.Element {
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
   const [now, setNow] = useState(() => Date.now());
   const copySupported = canCopyTimeline();
+  const copy = pageCopy("log");
 
   const views = useMemo(() => presentLog(app.log), [app.log]);
   const filtered = useMemo(
@@ -95,53 +99,44 @@ export function LogPage(): JSX.Element {
 
   return (
     <div className="flex h-full min-h-0 max-w-full flex-col overflow-x-hidden">
-      <header className="flex shrink-0 items-end justify-between gap-3 border-b border-fp-line px-6 py-3">
-        <div className="min-w-0">
-          <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-fp-faint">
-            Timeline
-          </p>
-          <h1 className="mt-0.5 text-[17px] font-semibold tracking-tight">Session log</h1>
-          <p className="mt-1 text-[12px] text-fp-mute">
-            Causal timeline of real session events · cause → countdown → consequence → recovery
-            {newest ? (
-              <span className="text-fp-faint">
-                {` · latest ${formatClock(newest.event.ts)} · ${formatRelative(newest.event.ts, now)}`}
-              </span>
-            ) : (
-              " · empty until Start session"
-            )}
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <p className="font-mono text-[11px] tabular text-fp-faint" aria-live="polite">
-            {filtered.length === views.length
+      <header className="fp-page-x shrink-0 border-b border-fp-line py-3">
+        <PageHeader
+          kicker={copy.kicker}
+          title={copy.title}
+          description={
+            newest
+              ? `Causal timeline of real session events · cause → countdown → consequence → recovery · latest ${formatClock(newest.event.ts)} · ${formatRelative(newest.event.ts, now)}`
+              : "Causal timeline of real session events · cause → countdown → consequence → recovery · empty until Start session"
+          }
+          meta={
+            filtered.length === views.length
               ? `${views.length}`
-              : `${filtered.length}/${views.length}`}
-          </p>
-          {copySupported ? (
-            <button
-              type="button"
-              onClick={() => {
-                void onCopy();
-              }}
-              className="inline-flex h-8 items-center rounded-md border border-fp-line px-2.5 text-[12px] text-fp-ink hover:bg-fp-hover"
-            >
-              {copyState === "copied" ? "Copied" : copyState === "failed" ? "Copy failed" : "Copy"}
-            </button>
-          ) : null}
-          <button
-            type="button"
-            aria-expanded={helpOpen}
-            aria-controls="golden-path-panel"
-            onClick={() => setHelpOpen((open) => !open)}
-            className="inline-flex h-8 items-center rounded-md border border-fp-line px-2.5 text-[12px] text-fp-ink hover:bg-fp-hover"
-          >
-            {helpOpen ? "Hide path" : "90s path"}
-          </button>
-        </div>
+              : `${filtered.length}/${views.length}`
+          }
+          actions={
+            <>
+              {copySupported ? (
+                <GhostButton
+                  onClick={() => {
+                    void onCopy();
+                  }}
+                >
+                  {copyState === "copied" ? "Copied" : copyState === "failed" ? "Copy failed" : "Copy"}
+                </GhostButton>
+              ) : null}
+              <GhostButton
+                expanded={helpOpen}
+                controls="golden-path-panel"
+                onClick={() => setHelpOpen((open) => !open)}
+              >
+                {helpOpen ? "Hide path" : "90s path"}
+              </GhostButton>
+            </>
+          }
+        />
       </header>
 
-      <div className="shrink-0 border-b border-fp-line px-6 py-2.5">
+      <div className="fp-page-x shrink-0 border-b border-fp-line py-2.5">
         <LogFilters
           views={views}
           kind={kind}
@@ -153,6 +148,12 @@ export function LogPage(): JSX.Element {
           searchRef={searchRef}
         />
       </div>
+
+      {app.error && emptyMode !== "error" ? (
+        <div className="fp-page-x pt-3">
+          <ErrorBanner message={app.error} onDismiss={app.clearError} />
+        </div>
+      ) : null}
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col lg:flex-row">
         <div className="min-h-0 min-w-0 flex-1 overflow-auto overflow-x-hidden">
@@ -168,7 +169,7 @@ export function LogPage(): JSX.Element {
         </div>
         {helpOpen ? (
           <div id="golden-path-panel" className="min-h-0 shrink-0 lg:h-full">
-            <DemoHelpPanel events={app.log} onClose={() => setHelpOpen(false)} />
+            <DemoHelpPanel events={app.log} />
           </div>
         ) : null}
       </div>

@@ -9,6 +9,8 @@ export function DecisionHero(props: {
   decision: Decision;
   detail: string;
   sessionActive: boolean;
+  strictMode?: boolean;
+  usingMock?: boolean;
 }): JSX.Element {
   const copy = decisionHeroCopy(props.decision, props.detail);
   const toneClass =
@@ -18,7 +20,7 @@ export function DecisionHero(props: {
         ? "text-fp-red"
         : copy.tone === "amber"
           ? "text-fp-amber"
-          : "text-zinc-200";
+          : "text-fp-ink";
   const glow =
     copy.tone === "lime"
       ? "shadow-[inset_0_0_80px_rgba(212,255,58,0.08)]"
@@ -31,7 +33,7 @@ export function DecisionHero(props: {
   return (
     <section
       className={cn(
-        "fp-session-hero relative min-w-0 overflow-hidden rounded-xl border border-fp-line bg-fp-panel px-5 py-4",
+        "fp-session-hero relative min-w-0 overflow-hidden rounded-lg border border-fp-line bg-fp-panel px-5 py-4",
         glow,
       )}
       aria-labelledby="fp-session-decision"
@@ -44,6 +46,12 @@ export function DecisionHero(props: {
         <Chip tone={props.sessionActive ? "lime" : "mute"}>
           {props.sessionActive ? "Live" : "Standby"}
         </Chip>
+        {props.strictMode !== undefined ? (
+          <Chip tone={props.strictMode ? "lime" : "mute"}>
+            {props.strictMode ? "Strict" : "Loose"}
+          </Chip>
+        ) : null}
+        {props.usingMock ? <Chip tone="amber">Mock IPC</Chip> : null}
       </div>
 
       <div className="mt-3 flex items-center gap-4">
@@ -62,7 +70,7 @@ export function DecisionHero(props: {
           >
             {copy.headline}
           </h1>
-          <p className="mt-2 max-w-2xl truncate text-[15px] text-zinc-200" title={copy.explanation}>
+          <p className="mt-2 max-w-2xl truncate text-[15px] text-fp-ink" title={copy.explanation}>
             {copy.explanation}
           </p>
         </div>

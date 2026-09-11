@@ -1,5 +1,6 @@
 import { useMemo, useState, type FormEvent, type JSX } from "react";
 import type { AppEntry } from "@shared/types";
+import { EmptyState } from "../components/page";
 import { PrimaryButton } from "../components/ui";
 import {
   ConfigHeader,
@@ -91,7 +92,7 @@ export function ListPage(props: ListPageProps): JSX.Element {
         onSubmit={(event) => {
           void onAdd(event);
         }}
-        className="rounded-md border border-fp-line bg-fp-panel p-3"
+        className="fp-card p-3"
         aria-busy={save.saving}
       >
         <div className="grid gap-2 md:grid-cols-[minmax(0,11rem)_1fr_auto] md:items-end">
@@ -144,10 +145,13 @@ export function ListPage(props: ListPageProps): JSX.Element {
         )}
       </form>
 
-      <ul className="divide-y divide-fp-line overflow-hidden rounded-md border border-fp-line bg-fp-panel">
+      <ul className="fp-card divide-y divide-fp-line overflow-hidden">
         {entries.length === 0 ? (
-          <li className="px-4 py-8 text-center text-[13px] text-fp-mute">
-            No apps yet. Add a name and at least one match token.
+          <li className="px-4">
+            <EmptyState kicker="Empty" title="No apps yet">
+              Add a name and at least one match token. Disable a default to ignore it without
+              deleting.
+            </EmptyState>
           </li>
         ) : (
           entries.map((entry) => (

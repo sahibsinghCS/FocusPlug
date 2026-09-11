@@ -30,9 +30,9 @@ export function LabeledInput(props: {
         onChange={(event) => props.onChange(event.target.value)}
         onKeyDown={props.onKeyDown}
         className={cn(
-          "mt-1 h-8 w-full rounded-md border bg-fp-elev px-2.5 text-[13px] text-fp-ink placeholder:text-fp-faint disabled:opacity-40",
+          "fp-control mt-1 h-8 w-full px-2.5 text-[13px] placeholder:text-fp-faint disabled:opacity-40",
           props.mono && "font-mono text-[12px]",
-          props.invalid ? "border-fp-red/60" : "border-fp-line",
+          props.invalid && "border-fp-red/60",
         )}
       />
     </label>

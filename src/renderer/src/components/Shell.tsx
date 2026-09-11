@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type JSX } from "react";
 import { parseRoute, type RouteId, ROUTES, navigate } from "../lib/routes";
 import { loadCollapsedPref, persistCollapsedPref, resolveSidebarCollapsed } from "../lib/shellPref";
 import { useAppState } from "../state/AppState";
+import { ErrorBanner } from "./page";
 import { CountdownOverlay } from "./CountdownOverlay";
 import { Titlebar } from "./Titlebar";
 import { Sidebar } from "./Sidebar";
@@ -85,24 +86,10 @@ export function Shell(): JSX.Element {
       <a href="#fp-main" className="fp-skip">
         Skip to main
       </a>
-      <Titlebar
-        route={route}
-        collapsed={sidebar.collapsed}
-        onToggleSidebar={sidebar.toggle}
-      />
-      {app.error && route !== "session" ? (
-        <div
-          className="flex items-center justify-between gap-3 border-b border-fp-red/30 bg-fp-red/10 px-4 py-1.5 text-[12px] text-fp-red"
-          role="alert"
-        >
-          <p className="min-w-0 truncate">{app.error}</p>
-          <button
-            type="button"
-            className="fp-btn shrink-0 rounded px-2 py-0.5 text-[11px] uppercase tracking-[0.12em] hover:bg-fp-red/15"
-            onClick={() => app.clearError()}
-          >
-            Dismiss
-          </button>
+      <Titlebar route={route} />
+      {app.error && route !== "session" && route !== "log" ? (
+        <div className="border-b border-fp-red/30 px-4 py-2">
+          <ErrorBanner message={app.error} onDismiss={app.clearError} />
         </div>
       ) : null}
       <div className="flex min-h-0 min-w-0 flex-1">

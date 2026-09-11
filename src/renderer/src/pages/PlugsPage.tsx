@@ -1,5 +1,6 @@
 import { useMemo, useState, type FormEvent, type JSX } from "react";
 import type { PlugProtocol } from "@shared/ipc";
+import { EmptyState } from "../components/page";
 import { PrimaryButton } from "../components/ui";
 import {
   ConfigHeader,
@@ -16,6 +17,7 @@ import {
   useSaveState,
   validatePlugDraft,
 } from "../features/config";
+import { pageCopy } from "../lib/routes";
 import { STUDY_PC_WARNING } from "../lib/plugsUi";
 import { useAppState } from "../state/AppState";
 
@@ -65,8 +67,8 @@ export function PlugsPage(): JSX.Element {
   return (
     <ConfigPage>
       <ConfigHeader
-        kicker="Outlets"
-        title="Smart plugs"
+        kicker={pageCopy("plugs").kicker}
+        title={pageCopy("plugs").title}
         description="Optional kill targets for lamps and other fun devices. Demo Kill and the countdown overlay cut every armed plug."
         meta={meta}
       />
@@ -83,7 +85,7 @@ export function PlugsPage(): JSX.Element {
         onSubmit={(event) => {
           void onAdd(event);
         }}
-        className="space-y-3 rounded-md border border-fp-line bg-fp-panel p-3"
+        className="fp-card space-y-3 p-3"
         aria-busy={save.saving}
       >
         <ProtocolPicker value={protocol} onChange={setProtocol} disabled={save.saving} />
@@ -133,10 +135,12 @@ export function PlugsPage(): JSX.Element {
         ) : null}
       </form>
 
-      <ul className="divide-y divide-fp-line overflow-hidden rounded-md border border-fp-line bg-fp-panel">
+      <ul className="fp-card divide-y divide-fp-line overflow-hidden">
         {firstRun ? (
-          <li className="px-4 py-8 text-center text-[13px] text-fp-mute">
-            No plugs yet. Pick Kasa, HTTP, or Mock, then add a fun device — never the study PC.
+          <li className="px-4">
+            <EmptyState kicker="Empty" title="No plugs yet">
+              Pick Kasa, HTTP, or Mock, then add a fun device — never the study PC.
+            </EmptyState>
           </li>
         ) : (
           app.plugs.map((plug) => (

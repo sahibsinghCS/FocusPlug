@@ -36,3 +36,11 @@ export function routeHash(id: RouteId): string {
 export function navigate(id: RouteId): void {
   window.location.hash = routeHash(id);
 }
+
+export function pageCopy(id: RouteId): { title: string; kicker: string } {
+  const found = ROUTES.find((route) => route.id === id);
+  if (!found) {
+    throw new Error(`Unknown route: ${id}`);
+  }
+  return { title: found.label, kicker: found.hint };
+}
