@@ -9,7 +9,6 @@ import {
 
 export function DemoHelpPanel(props: {
   events: readonly SessionEvent[];
-  onClose: () => void;
 }): JSX.Element {
   const progress = goldenPathProgress(props.events);
 
@@ -18,20 +17,11 @@ export function DemoHelpPanel(props: {
       className="flex h-full min-h-0 w-full min-w-0 shrink-0 flex-col overflow-auto overflow-x-hidden border-fp-line bg-fp-panel lg:w-[296px] lg:border-l"
       aria-label="90-second golden path"
     >
-      <div className="flex items-start justify-between gap-2 border-b border-fp-line px-4 py-3">
-        <div className="min-w-0">
-          <p className="fp-section-label">Demo path</p>
-          <h2 className="mt-0.5 text-[13px] font-semibold tracking-tight">
-            {GOLDEN_PATH_DURATION} golden path
-          </h2>
-        </div>
-        <button
-          type="button"
-          onClick={props.onClose}
-          className="fp-btn inline-flex h-7 shrink-0 items-center rounded-md border border-fp-line px-2 text-[11px] text-fp-mute hover:bg-fp-hover hover:text-fp-ink"
-        >
-          Hide
-        </button>
+      <div className="border-b border-fp-line px-4 py-3">
+        <p className="fp-section-label">Demo path</p>
+        <h2 className="mt-0.5 text-[13px] font-semibold tracking-tight">
+          {GOLDEN_PATH_DURATION} golden path
+        </h2>
       </div>
 
       <p className="border-b border-fp-line px-4 py-3 text-[12px] leading-relaxed text-fp-mute">

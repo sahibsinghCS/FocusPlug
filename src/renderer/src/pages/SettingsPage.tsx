@@ -48,7 +48,7 @@ export function SettingsPage(): JSX.Element {
       <ConfigHeader
         kicker={pageCopy("settings").kicker}
         title={pageCopy("settings").title}
-        description="Countdown fuse, desk-presence threshold, Desk AI model seam, and strict on-task rules. Preview overlay films the fuse without Discord."
+        description="Countdown fuse, desk-presence threshold, Desk AI model seam, and strict on-task rules."
         actions={
           <GhostButton
             onClick={() => app.previewCountdown(settings.countdownSec, "Distracted: Discord")}

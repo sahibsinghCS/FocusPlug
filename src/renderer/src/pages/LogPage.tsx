@@ -169,7 +169,7 @@ export function LogPage(): JSX.Element {
         </div>
         {helpOpen ? (
           <div id="golden-path-panel" className="min-h-0 shrink-0 lg:h-full">
-            <DemoHelpPanel events={app.log} onClose={() => setHelpOpen(false)} />
+            <DemoHelpPanel events={app.log} />
           </div>
         ) : null}
       </div>

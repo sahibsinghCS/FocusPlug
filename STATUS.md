@@ -1,6 +1,6 @@
 # FocusPlug MVP
 
-## Status (2026-09-11T12:52Z)
+## Status (2026-09-11T17:32Z)
 - **Foundation** merged to `main` (PR #1).
 - **window-monitor** merged to `main` (PR #4). Critic WIN.
 - **process-kill** merged to `main` (PR #2). Critic WIN (25/25).
@@ -14,4 +14,4 @@
 - **smart-plug-core** merged to `main` (PR #15). Critic WIN. Kasa/HTTP/mock `PlugController`, hard protect, settings `plugs` default `[]`.
 - **model-seam** merged to `main` (PR #13). Critic WIN. `DeskModel.infer(frame)` factory (stub / blazeface / custom).
 - **session-plugs** merged to `main` (PR #11). Critic WIN. Consumes frozen `deviceIds` / `PlugSnapshot[]` from policy; Demo Kill cuts enabled plugs; study-PC never commanded.
-- **ui-plugs** in progress: renderer Plugs panel + Settings `deskModelId` selector on frozen IPC (`plugs:*`, `desk:*ModelId`). No parallel channels.
+- **Phase 3 frontend complete.** Session command center (#18), config UX (#19), logs timeline (#20), and denser shell (#21) are unified into one enforcement console: shared page chrome, status tokens, matching nav titles, and the same empty/error language. Kill overlay + Demo Kill + plug consequence stay intact. No new product features.
