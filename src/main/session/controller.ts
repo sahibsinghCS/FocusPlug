@@ -517,6 +517,9 @@ export class SessionController {
       case "unlock":
         this.appendLog("unlock", "Unlocked — back on task");
         return;
+      case "plug_off":
+      case "plug_on":
+        return;
       case "status":
         this.state = {
           ...this.state,
@@ -568,6 +571,8 @@ export class SessionController {
       countdownSec: resolved.countdownSec,
       deskThreshold: resolved.deskThreshold,
       strictMode: resolved.strictMode,
+      enabledPlugIds: [],
+      plugsArmed: true,
     };
   }
 

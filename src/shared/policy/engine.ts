@@ -1,5 +1,5 @@
 import { REASONS, SESSION_OFF_DETAIL, type PolicyReason } from "./constants";
-import { classify, killTargetsFor } from "./evaluate";
+import { classify, killTargetsFor, plugEventFor } from "./evaluate";
 import type { PolicyEvent, PolicyInput } from "../types";
 
 export interface PolicyState {
@@ -69,6 +69,7 @@ export function stepPolicy(
     }
     if (recovering) {
       events.push({ type: "unlock" });
+      pushPlug(events, input, "plug_on", REASONS.unlock);
     }
     events.push({
       type: "status",
@@ -129,11 +130,13 @@ export function stepPolicy(
   if (next.countdownStartedAt !== null) {
     const duration = durationMs(input.countdownSec);
     if (duration !== null && now - next.countdownStartedAt >= duration) {
+      const killReason = next.countdownReason ?? REASONS.blockedFocus;
       events.push({
         type: "kill",
         targets: [...next.countdownTargets],
-        reason: next.countdownReason ?? REASONS.blockedFocus,
+        reason: killReason,
       });
+      pushPlug(events, input, "plug_off", killReason);
       next.locked = true;
       next.countdownStartedAt = null;
       next.countdownReason = null;
@@ -191,4 +194,16 @@ function durationMs(countdownSec: number): number | null {
 
 function unique(items: string[]): string[] {
   return [...new Set(items)];
+}
+
+function pushPlug(
+  events: PolicyEvent[],
+  input: PolicyInput,
+  type: "plug_off" | "plug_on",
+  reason: string,
+): void {
+  const event = plugEventFor(type, input, reason);
+  if (event !== null) {
+    events.push(event);
+  }
 }
