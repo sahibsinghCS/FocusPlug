@@ -276,6 +276,49 @@ describe("gauntlet: OFF no kill", () => {
       ],
     },
     {
+      name: "session OFF then ON after the original deadline starts a fresh countdown (no leftover kill)",
+      steps: [
+        {
+          ts: T0,
+          focus: discord(T0),
+          desk: present(T0),
+          expect: { decision: "DISTRACTED", includes: ["start_countdown"] },
+        },
+        {
+          sessionActive: false,
+          ts: T0 + 5 * SEC,
+          focus: discord(T0 + 5 * SEC),
+          desk: present(T0 + 5 * SEC),
+          expect: {
+            decision: "IDLE",
+            includes: ["cancel_countdown"],
+            excludes: ["kill"],
+          },
+        },
+        {
+          ts: T0 + 10 * SEC,
+          focus: discord(T0 + 10 * SEC),
+          desk: present(T0 + 10 * SEC),
+          expect: {
+            decision: "DISTRACTED",
+            includes: ["start_countdown"],
+            excludes: ["kill"],
+            startSeconds: 10,
+          },
+        },
+        {
+          ts: T0 + 20 * SEC,
+          focus: discord(T0 + 20 * SEC),
+          desk: present(T0 + 20 * SEC),
+          expect: {
+            decision: "DISTRACTED",
+            includes: ["kill"],
+            killTargets: ["discord.exe"],
+          },
+        },
+      ],
+    },
+    {
       name: "session OFF after lock does not emit kill or unlock",
       steps: [
         {
@@ -508,6 +551,27 @@ describe("gauntlet: return cancels", () => {
       ],
     },
     {
+      name: "return to Docs + desk at the exact kill instant cancels (on-task wins over elapsed)",
+      steps: [
+        {
+          ts: T0,
+          focus: discord(T0),
+          desk: present(T0),
+          expect: { decision: "DISTRACTED", includes: ["start_countdown"] },
+        },
+        {
+          ts: T0 + 10 * SEC,
+          focus: chrome(T0 + 10 * SEC),
+          desk: present(T0 + 10 * SEC),
+          expect: {
+            decision: "ON_TASK",
+            events: ["cancel_countdown", "unlock", "status"],
+            excludes: ["kill"],
+          },
+        },
+      ],
+    },
+    {
       name: "after kill, return to Docs + desk unlocks (no cancel — countdown already consumed)",
       steps: [
         {
@@ -722,6 +786,120 @@ describe("gauntlet: uncertain no desk-only kill", () => {
           focus: chrome(T0),
           desk: { ts: T0, label: "away", confidence: 0.99, webcamEnabled: false },
           expect: { decision: "IDLE", excludes: ["kill", "start_countdown"] },
+        },
+      ],
+    },
+    {
+      name: "allowlist + webcam disabled + at_desk high-conf: uncertain, not on-task, no kill",
+      steps: [
+        {
+          ts: T0,
+          focus: chrome(T0),
+          desk: { ts: T0, label: "at_desk", confidence: 0.99, webcamEnabled: false },
+          expect: { decision: "IDLE", excludes: ["kill", "start_countdown"] },
+        },
+      ],
+    },
+    {
+      name: "desk-away countdown then uncertain BEFORE fire: cancel, never desk-only kill",
+      steps: [
+        {
+          ts: T0,
+          focus: chrome(T0),
+          desk: away(T0),
+          expect: {
+            decision: "AWAY",
+            includes: ["start_countdown"],
+            startReason: REASONS.deskAway,
+          },
+        },
+        {
+          ts: T0 + 5 * SEC,
+          focus: chrome(T0 + 5 * SEC),
+          desk: uncertainDesk(T0 + 5 * SEC),
+          expect: {
+            decision: "IDLE",
+            events: ["cancel_countdown", "status"],
+            excludes: ["kill", "unlock"],
+          },
+        },
+        {
+          ts: T0 + 10 * SEC,
+          focus: chrome(T0 + 10 * SEC),
+          desk: uncertainDesk(T0 + 10 * SEC),
+          expect: {
+            decision: "IDLE",
+            excludes: ["kill", "start_countdown"],
+          },
+        },
+      ],
+    },
+    {
+      name: "desk-away countdown then uncertain at the exact kill instant: cancel, no kill",
+      steps: [
+        {
+          ts: T0,
+          focus: explorer(T0),
+          desk: away(T0),
+          expect: { decision: "AWAY", includes: ["start_countdown"] },
+        },
+        {
+          ts: T0 + 10 * SEC,
+          focus: explorer(T0 + 10 * SEC),
+          desk: uncertainDesk(T0 + 10 * SEC),
+          expect: {
+            decision: "IDLE",
+            events: ["cancel_countdown", "status"],
+            excludes: ["kill"],
+          },
+        },
+      ],
+    },
+    {
+      name: "desk-away then low-conf away (below threshold) at fire time: cancel, no kill",
+      deskThreshold: 0.6,
+      steps: [
+        {
+          ts: T0,
+          focus: explorer(T0),
+          desk: away(T0, 0.95),
+          expect: { decision: "AWAY", includes: ["start_countdown"] },
+        },
+        {
+          ts: T0 + 10 * SEC,
+          focus: explorer(T0 + 10 * SEC),
+          desk: away(T0 + 10 * SEC, 0.59),
+          expect: {
+            decision: "IDLE",
+            includes: ["cancel_countdown"],
+            excludes: ["kill"],
+          },
+        },
+      ],
+    },
+    {
+      name: "desk-away then webcam off at fire time: cancel, no desk-only kill",
+      steps: [
+        {
+          ts: T0,
+          focus: chrome(T0),
+          desk: away(T0),
+          expect: { decision: "AWAY", includes: ["start_countdown"] },
+        },
+        {
+          ts: T0 + 10 * SEC,
+          focus: chrome(T0 + 10 * SEC),
+          desk: {
+            ts: T0 + 10 * SEC,
+            label: "away",
+            confidence: 0.99,
+            webcamEnabled: false,
+          },
+          expect: {
+            decision: "IDLE",
+            includes: ["cancel_countdown"],
+            excludes: ["kill"],
+          },
         },
       ],
     },
@@ -992,6 +1170,89 @@ describe("desk-away countdown and kill safety", () => {
             decision: "AWAY",
             killTargets: [ALL_BLOCKLIST_TARGET],
             includes: ["kill"],
+          },
+        },
+      ],
+    },
+    {
+      name: "desk-away kill then Chrome + at_desk unlocks",
+      steps: [
+        {
+          ts: T0,
+          focus: explorer(T0),
+          desk: away(T0),
+          expect: { decision: "AWAY", includes: ["start_countdown"] },
+        },
+        {
+          ts: T0 + 10 * SEC,
+          focus: explorer(T0 + 10 * SEC),
+          desk: away(T0 + 10 * SEC),
+          expect: {
+            decision: "AWAY",
+            includes: ["kill"],
+            killTargets: [ALL_BLOCKLIST_TARGET],
+          },
+        },
+        {
+          ts: T0 + 12 * SEC,
+          focus: chrome(T0 + 12 * SEC),
+          desk: present(T0 + 12 * SEC),
+          expect: {
+            decision: "ON_TASK",
+            events: ["unlock", "status"],
+            excludes: ["kill", "cancel_countdown"],
+          },
+        },
+      ],
+    },
+    {
+      name: "desk-away then sit down on Explorer (at desk, not allowlist): cancel desk-only, no kill",
+      steps: [
+        {
+          ts: T0,
+          focus: explorer(T0),
+          desk: away(T0),
+          expect: { decision: "AWAY", includes: ["start_countdown"] },
+        },
+        {
+          ts: T0 + 10 * SEC,
+          focus: explorer(T0 + 10 * SEC),
+          desk: present(T0 + 10 * SEC),
+          expect: {
+            decision: "IDLE",
+            events: ["cancel_countdown", "status"],
+            excludes: ["kill"],
+          },
+        },
+      ],
+    },
+    {
+      name: "desk-away then Discord escalates; Explorer after that still kills (blocked latch)",
+      steps: [
+        {
+          ts: T0,
+          focus: explorer(T0),
+          desk: away(T0),
+          expect: { decision: "AWAY", includes: ["start_countdown"] },
+        },
+        {
+          ts: T0 + 3 * SEC,
+          focus: discord(T0 + 3 * SEC),
+          desk: away(T0 + 3 * SEC),
+          expect: {
+            decision: "DISTRACTED",
+            events: ["status"],
+            excludes: ["start_countdown", "kill"],
+          },
+        },
+        {
+          ts: T0 + 10 * SEC,
+          focus: explorer(T0 + 10 * SEC),
+          desk: present(T0 + 10 * SEC),
+          expect: {
+            decision: "IDLE",
+            includes: ["kill"],
+            killTargets: [ALL_BLOCKLIST_TARGET, "discord.exe"],
           },
         },
       ],

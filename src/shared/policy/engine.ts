@@ -110,7 +110,20 @@ export function stepPolicy(
       });
     } else {
       next.countdownTargets = unique([...next.countdownTargets, ...targets]);
+      if (classified.violation === "blocked") {
+        next.countdownReason = REASONS.blockedFocus;
+      }
     }
+  } else if (
+    next.countdownStartedAt !== null &&
+    next.countdownReason === REASONS.deskAway
+  ) {
+    // High-conf away ended without a new violation (uncertain / cam-off /
+    // at-desk but not on-task). Uncertain must never produce a desk-only kill.
+    events.push({ type: "cancel_countdown" });
+    next.countdownStartedAt = null;
+    next.countdownReason = null;
+    next.countdownTargets = [];
   }
 
   if (next.countdownStartedAt !== null) {
