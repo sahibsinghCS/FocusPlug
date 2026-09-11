@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Env and secrets
+.env
+.env.*
+!.env.example
+*.pem
+credentials.json
+
+# Build
+dist/
+build/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Python
+__pycache__/
+.venv/
+venv/
+.pytest_cache/
+
+# Convex
+.convex/
+
+# Misc
+*.local
