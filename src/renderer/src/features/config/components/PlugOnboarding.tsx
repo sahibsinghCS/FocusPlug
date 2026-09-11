@@ -15,7 +15,7 @@ export function PlugOnboarding(): JSX.Element {
       </Notice>
       <ol className="grid gap-2 sm:grid-cols-4">
         {PLUG_ONBOARDING_STEPS.map((step, index) => (
-          <li key={step.title} className="rounded-md border border-fp-line bg-fp-panel px-3 py-2">
+          <li key={step.title} className="fp-card px-3 py-2">
             <p className="font-mono text-[10px] text-fp-faint">{index + 1}</p>
             <p className="mt-0.5 text-[12px] font-semibold">{step.title}</p>
             <p className="mt-0.5 text-[11px] leading-snug text-fp-mute">{step.detail}</p>

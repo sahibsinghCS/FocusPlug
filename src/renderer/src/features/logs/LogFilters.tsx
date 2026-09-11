@@ -92,7 +92,7 @@ export function LogFilters(props: {
             placeholder="Search kind or detail"
             aria-keyshortcuts="/"
             onChange={(event) => props.onQuery(event.target.value)}
-            className="h-8 w-full rounded-md border border-fp-line bg-fp-elev px-2.5 text-[12px] text-fp-ink placeholder:text-fp-faint"
+            className="fp-control h-8 w-full px-2.5 text-[12px] placeholder:text-fp-faint"
           />
         </label>
       </div>

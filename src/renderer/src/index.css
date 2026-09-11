@@ -67,6 +67,8 @@
   --fp-titlebar-h: 40px;
   --fp-rail-w: 52px;
   --fp-sidebar-w: 196px;
+  --fp-page-x: 24px;
+  --fp-page-y: 16px;
   --fp-ease: 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
@@ -195,6 +197,39 @@ button {
 .fp-titlebar a,
 .fp-titlebar input {
   -webkit-app-region: no-drag;
+}
+
+.fp-page {
+  padding: var(--fp-page-y) var(--fp-page-x) 20px;
+}
+
+.fp-page-narrow {
+  display: flex;
+  width: 100%;
+  max-width: 920px;
+  margin-inline: auto;
+  flex-direction: column;
+  gap: 16px;
+  padding: var(--fp-page-y) var(--fp-page-x) 24px;
+}
+
+.fp-page-x {
+  padding-left: var(--fp-page-x);
+  padding-right: var(--fp-page-x);
+}
+
+.fp-card {
+  border: 1px solid var(--color-fp-line);
+  background: var(--color-fp-panel);
+  border-radius: var(--radius-fp);
+}
+
+.fp-section-label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-fp-faint);
 }
 
 .fp-shell-nav {

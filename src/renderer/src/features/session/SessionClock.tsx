@@ -7,7 +7,7 @@ export function SessionClock(props: { clock: SessionClockView }): JSX.Element {
   const { clock } = props;
   return (
     <section
-      className="grid grid-cols-2 gap-3 rounded-xl border border-fp-line bg-fp-panel px-4 py-3"
+      className="fp-card grid grid-cols-2 gap-3 px-4 py-3"
       aria-label="Session clocks"
     >
       <ClockCell
@@ -38,7 +38,7 @@ function ClockCell(props: {
   monoPop?: boolean;
 }): JSX.Element {
   const color =
-    props.tone === "red" ? "text-fp-red" : props.tone === "mute" ? "text-zinc-400" : "text-fp-ink";
+    props.tone === "red" ? "text-fp-red" : props.tone === "mute" ? "text-fp-mute" : "text-fp-ink";
   return (
     <div className={cn("min-w-0", props.dominant ? "opacity-100" : "opacity-80")}>
       <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-fp-faint">

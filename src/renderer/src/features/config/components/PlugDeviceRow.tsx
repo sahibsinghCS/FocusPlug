@@ -40,14 +40,14 @@ export function PlugDeviceRow(props: {
           className={cn(
             "h-1.5 w-1.5 shrink-0 rounded-full",
             !plug.probed
-              ? "bg-zinc-600"
+              ? "bg-[#4b5568]"
               : plug.error
                 ? "bg-fp-red"
                 : plug.online && plug.powerOn
                   ? "bg-fp-lime"
                   : plug.online
                     ? "bg-fp-amber"
-                    : "bg-zinc-600",
+                    : "bg-[#4b5568]",
           )}
           aria-hidden="true"
         />

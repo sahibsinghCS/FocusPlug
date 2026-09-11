@@ -63,7 +63,7 @@ export function ListEntryRow(props: {
               ? props.accent === "lime"
                 ? "bg-fp-lime"
                 : "bg-fp-red"
-              : "bg-zinc-600",
+              : "bg-[#4b5568]",
           )}
           aria-hidden="true"
         />

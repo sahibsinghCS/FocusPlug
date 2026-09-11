@@ -41,8 +41,8 @@ function ListCard(props: {
     <a
       href={props.href}
       className={cn(
-        "min-w-0 rounded-xl border bg-fp-panel px-4 py-3 transition hover:bg-fp-hover",
-        props.tone === "lime" ? "border-fp-lime/20" : "border-fp-red/25",
+        "fp-card min-w-0 px-4 py-3 transition hover:bg-fp-hover",
+        props.tone === "lime" ? "border-fp-lime/25" : "border-fp-red/30",
       )}
     >
       <div className="flex items-baseline justify-between gap-2">
@@ -58,7 +58,7 @@ function ListCard(props: {
           {enabled.length} armed
         </p>
       </div>
-      <p className="mt-1.5 truncate text-[13px] text-zinc-300" title={names.join(", ")}>
+      <p className="mt-1.5 truncate text-[13px] text-fp-ink" title={names.join(", ")}>
         {names.length === 0 ? "None enabled" : `${preview}${extra}`}
       </p>
     </a>

@@ -118,7 +118,7 @@ export function CountdownOverlay(props: CountdownOverlayProps): JSX.Element {
         <button
           type="button"
           onClick={props.onDemoKill}
-          className="inline-flex h-11 min-w-[260px] items-center justify-center gap-2 rounded-md bg-fp-red px-5 text-[13px] font-semibold uppercase tracking-[0.14em] text-white shadow-[0_0_28px_rgba(255,45,85,0.35)] transition hover:bg-[#ff4d6d]"
+          className="fp-btn inline-flex h-11 min-w-[260px] items-center justify-center gap-2 rounded-md bg-fp-red px-5 text-[13px] font-semibold uppercase tracking-[0.14em] text-white shadow-[0_0_28px_rgba(255,45,85,0.35)] hover:bg-[#ff4d6d]"
         >
           <IconBolt className="h-4 w-4" />
           Demo Kill — skip wait

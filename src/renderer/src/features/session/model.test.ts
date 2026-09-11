@@ -103,6 +103,7 @@ describe("sensors", () => {
     const empty = windowSensor(null, lists);
     expect(empty.empty).toBe(true);
     expect(empty.title).toBe("Waiting");
+    expect(empty.href).toBe("#/allowlist");
     expect(resolveAppName("Discord", lists)).toBe("Discord");
     expect(resolveAppName("chrome", lists)).toBe("Google Chrome");
   });
@@ -111,6 +112,7 @@ describe("sensors", () => {
     const empty = deskSensor(null, "blazeface");
     expect(empty.empty).toBe(true);
     expect(empty.meta).toBe("BlazeFace");
+    expect(empty.href).toBe("#/settings");
 
     const live = deskSensor(
       { ts: 1, label: "at_desk", confidence: 0.94, webcamEnabled: true },
@@ -126,6 +128,7 @@ describe("sensors", () => {
     const none = plugsSensor([]);
     expect(none.empty).toBe(true);
     expect(none.title).toBe("None configured");
+    expect(none.href).toBe("#/plugs");
 
     const armed = plugsSensor([lamp]);
     expect(armed.empty).toBe(false);

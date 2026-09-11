@@ -36,6 +36,7 @@ export interface SensorCardView {
   tone: Tone;
   live: boolean;
   empty: boolean;
+  href?: string;
 }
 
 export interface TimelineEventView {
@@ -201,6 +202,7 @@ export function windowSensor(
       tone: "mute",
       live: false,
       empty: true,
+      href: "#/allowlist",
     };
   }
   const title = resolveAppName(focus.processName, lists);
@@ -215,6 +217,7 @@ export function windowSensor(
       tone: "red",
       live: true,
       empty: false,
+      href: "#/blocklist",
     };
   }
   if (focus.matchedAllow) {
@@ -227,6 +230,7 @@ export function windowSensor(
       tone: "lime",
       live: true,
       empty: false,
+      href: "#/allowlist",
     };
   }
   return {
@@ -238,6 +242,7 @@ export function windowSensor(
     tone: "amber",
     live: true,
     empty: false,
+    href: "#/allowlist",
   };
 }
 
@@ -253,6 +258,7 @@ export function deskSensor(desk: DeskSnapshot | null, modelId: DeskModelId): Sen
       tone: "mute",
       live: false,
       empty: true,
+      href: "#/settings",
     };
   }
   const title = deskLabel(desk.label);
@@ -268,6 +274,7 @@ export function deskSensor(desk: DeskSnapshot | null, modelId: DeskModelId): Sen
     tone,
     live: desk.webcamEnabled,
     empty: false,
+    href: "#/settings",
   };
 }
 
@@ -282,6 +289,7 @@ export function plugsSensor(plugs: readonly PlugView[]): SensorCardView {
       tone: "mute",
       live: false,
       empty: true,
+      href: "#/plugs",
     };
   }
   const armed = enabledPlugViews(plugs);
@@ -295,6 +303,7 @@ export function plugsSensor(plugs: readonly PlugView[]): SensorCardView {
       tone: "amber",
       live: false,
       empty: false,
+      href: "#/plugs",
     };
   }
   const names = armed.map((plug) => plug.name).join(", ");
@@ -309,6 +318,7 @@ export function plugsSensor(plugs: readonly PlugView[]): SensorCardView {
     tone: cut ? "red" : on ? "lime" : "amber",
     live: on,
     empty: false,
+    href: "#/plugs",
   };
 }
 

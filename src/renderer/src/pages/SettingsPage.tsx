@@ -1,6 +1,7 @@
 import { useState, type JSX } from "react";
 import type { DeskModelId } from "@shared/ipc";
 import { Field, GhostButton, Toggle } from "../components/ui";
+import { pageCopy } from "../lib/routes";
 import {
   ConfigHeader,
   ConfigPage,
@@ -45,12 +46,19 @@ export function SettingsPage(): JSX.Element {
   return (
     <ConfigPage>
       <ConfigHeader
-        kicker="Policy"
-        title="Settings"
-        description="Countdown fuse, desk-presence threshold, Desk AI model seam, and strict on-task rules."
+        kicker={pageCopy("settings").kicker}
+        title={pageCopy("settings").title}
+        description="Countdown fuse, desk-presence threshold, Desk AI model seam, and strict on-task rules. Preview overlay films the fuse without Discord."
+        actions={
+          <GhostButton
+            onClick={() => app.previewCountdown(settings.countdownSec, "Distracted: Discord")}
+          >
+            Preview overlay
+          </GhostButton>
+        }
       />
 
-      <section className="space-y-5 rounded-md border border-fp-line bg-fp-panel p-4">
+      <section className="fp-card space-y-4 p-4">
         <Field
           label="Countdown"
           hint="Seconds between distracted/away and force-quit. Cancels if you return to an allowlisted app."
@@ -129,12 +137,10 @@ export function SettingsPage(): JSX.Element {
         </div>
       </section>
 
-      <section className="space-y-3 rounded-md border border-fp-line bg-fp-panel p-4" aria-busy={modelSave.saving}>
+      <section className="fp-card space-y-3 p-4" aria-busy={modelSave.saving}>
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-fp-faint">
-              Desk model
-            </p>
+            <p className="fp-section-label">Desk model</p>
             <p className="mt-1 text-[12px] text-fp-mute">
               Frozen <span className="font-mono text-fp-ink">deskModelId</span> seam. BlazeFace is
               the default. Custom is Timmy's drop-in. Stub is a safe soak.
@@ -182,19 +188,6 @@ export function SettingsPage(): JSX.Element {
         ) : null}
       </section>
 
-      <section className="rounded-md border border-fp-line bg-fp-panel p-4">
-        <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-fp-faint">Filming</p>
-        <p className="mt-2 text-[13px] text-fp-mute">
-          Preview the kill overlay without waiting for Discord. Uses the current countdown length.
-        </p>
-        <div className="mt-3">
-          <GhostButton
-            onClick={() => app.previewCountdown(settings.countdownSec, "Distracted: Discord")}
-          >
-            Preview kill overlay
-          </GhostButton>
-        </div>
-      </section>
     </ConfigPage>
   );
 }
