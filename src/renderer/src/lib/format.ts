@@ -113,6 +113,7 @@ export function deskModelLabel(model: DeskModelId): string {
 }
 
 export function plugPowerLabel(plug: PlugView): string {
+  if (!plug.probed) return "Not tested";
   if (plug.error) return "Error";
   if (!plug.online) return "Offline";
   if (plug.powerOn === null) return "Unknown";

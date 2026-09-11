@@ -18,6 +18,8 @@ export interface PlugView {
   online: boolean;
   powerOn: boolean | null;
   error?: string;
+  /** True only when a PlugSnapshot was merged — never invent a probe. */
+  probed: boolean;
 }
 
 export function isDeskModelId(value: unknown): value is DeskModelId {
@@ -51,6 +53,7 @@ export function toPlugView(device: PlugDevice, snap?: PlugSnapshot): PlugView {
     online: snap?.online ?? false,
     powerOn: snap === undefined ? null : snap.powerOn,
     error: snap?.error,
+    probed: snap !== undefined,
   };
 }
 

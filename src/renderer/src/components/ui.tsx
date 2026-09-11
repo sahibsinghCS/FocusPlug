@@ -28,6 +28,7 @@ export function Toggle(props: {
   checked: boolean;
   onChange: (next: boolean) => void;
   label: string;
+  disabled?: boolean;
 }): JSX.Element {
   return (
     <button
@@ -35,9 +36,10 @@ export function Toggle(props: {
       role="switch"
       aria-checked={props.checked}
       aria-label={props.label}
+      disabled={props.disabled}
       onClick={() => props.onChange(!props.checked)}
       className={cn(
-        "fp-btn relative h-5 w-9 rounded-full",
+        "fp-btn relative h-5 w-9 shrink-0 rounded-full disabled:cursor-not-allowed disabled:opacity-40",
         props.checked ? "bg-fp-lime" : "bg-[#3f4654]",
       )}
     >

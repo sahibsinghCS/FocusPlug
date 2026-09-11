@@ -1,9 +1,23 @@
 import { useMemo, useState, type FormEvent, type JSX } from "react";
 import type { AppEntry } from "@shared/types";
+import { PrimaryButton } from "../components/ui";
+import {
+  ConfigHeader,
+  ConfigPage,
+  entryReturned,
+  errorMessage,
+  FieldMessage,
+  LabeledInput,
+  listCopy,
+  ListEntryRow,
+  listMeta,
+  Notice,
+  TokenField,
+  useSaveState,
+  validateListDraft,
+} from "../features/config";
 import { newEntryId } from "../lib/ids";
-import { cn } from "../lib/cn";
 import { useAppState } from "../state/AppState";
-import { PrimaryButton, TextInput, Toggle } from "../components/ui";
 
 interface ListPageProps {
   kind: "allow" | "block";
@@ -12,210 +26,177 @@ interface ListPageProps {
 export function ListPage(props: ListPageProps): JSX.Element {
   const app = useAppState();
   const isAllow = props.kind === "allow";
+  const copy = listCopy(props.kind);
   const entries = isAllow ? app.lists.allowlist : app.lists.blocklist;
-  const save = isAllow ? app.setAllowlist : app.setBlocklist;
+  const saveList = isAllow ? app.setAllowlist : app.setBlocklist;
   const [name, setName] = useState("");
-  const [match, setMatch] = useState("");
-  const [formError, setFormError] = useState<string | null>(null);
+  const [tokens, setTokens] = useState<string[]>([]);
+  const [field, setField] = useState<"name" | "match" | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const save = useSaveState();
+  const [rowBusy, setRowBusy] = useState<string | null>(null);
 
-  const enabledCount = useMemo(
-    () => entries.filter((entry) => entry.enabled).length,
-    [entries],
-  );
+  const meta = useMemo(() => listMeta(entries), [entries]);
 
-  async function persist(next: AppEntry[]): Promise<void> {
-    await save(next);
+  async function persist(next: AppEntry[]): Promise<AppEntry[]> {
+    const lists = await saveList(next);
+    return isAllow ? lists.allowlist : lists.blocklist;
   }
 
   async function onAdd(event: FormEvent): Promise<void> {
     event.preventDefault();
-    const trimmedName = name.trim();
-    const tokens = match
-      .split(",")
-      .map((token) => token.trim())
-      .filter((token) => token.length > 0);
-    if (trimmedName.length === 0) {
-      setFormError("Name is required");
+    const error = validateListDraft({ name, match: tokens });
+    if (error) {
+      setField(error.field);
+      setMessage(error.message);
       return;
     }
-    if (tokens.length === 0) {
-      setFormError("Add at least one match token (process or title)");
-      return;
+    const entry: AppEntry = {
+      id: newEntryId(props.kind),
+      name: name.trim(),
+      match: tokens,
+      enabled: true,
+    };
+    setField(null);
+    setMessage(null);
+    save.begin();
+    try {
+      const returned = await persist([...entries, entry]);
+      if (!entryReturned(returned, entry.id)) {
+        save.fail("Save returned without the new row");
+        return;
+      }
+      setName("");
+      setTokens([]);
+      save.succeed();
+    } catch (caught) {
+      save.fail(errorMessage(caught, "Could not add app"));
     }
-    setFormError(null);
-    await persist([
-      ...entries,
-      {
-        id: newEntryId(props.kind),
-        name: trimmedName,
-        match: tokens,
-        enabled: true,
-      },
-    ]);
-    setName("");
-    setMatch("");
   }
 
   return (
-    <div className="mx-auto flex max-w-[860px] flex-col gap-4 px-7 py-5">
-      <header>
-        <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-fp-faint">
-          {isAllow ? "Study apps" : "Kill targets"}
-        </p>
-        <h1 className="mt-1 text-[18px] font-semibold tracking-tight">
-          {isAllow ? "Allowlist" : "Blocklist"}
-        </h1>
-        <p className="mt-1 text-[13px] text-fp-mute">
-          {isAllow
-            ? "Foreground apps that count as on-task. Chrome, Docs, Word, VS Code."
-            : "Processes FocusPlug force-quits after the countdown. Discord, Steam, games."}
-        </p>
-        <p className="mt-2 font-mono text-[12px] text-fp-faint">
-          {enabledCount} enabled · {entries.length} total
-        </p>
-      </header>
+    <ConfigPage>
+      <ConfigHeader
+        kicker={copy.kicker}
+        title={copy.title}
+        description={copy.summary}
+        meta={meta}
+      />
+
+      <Notice tone="mute" title="Defaults">
+        {copy.defaults} {copy.matchHelp}
+      </Notice>
 
       <form
         onSubmit={(event) => {
           void onAdd(event);
         }}
-        className="rounded-lg border border-fp-line bg-fp-panel p-4"
+        className="rounded-md border border-fp-line bg-fp-panel p-3"
+        aria-busy={save.saving}
       >
-        <div className="grid gap-3 md:grid-cols-[1fr_1.4fr_auto] md:items-end">
-          <label>
-            <span className="text-[11px] uppercase tracking-[0.16em] text-fp-faint">Name</span>
-            <div className="mt-1.5">
-              <TextInput value={name} onChange={setName} placeholder={isAllow ? "Obsidian" : "Spotify"} />
-            </div>
-          </label>
-          <label>
-            <span className="text-[11px] uppercase tracking-[0.16em] text-fp-faint">
+        <div className="grid gap-2 md:grid-cols-[minmax(0,11rem)_1fr_auto] md:items-end">
+          <LabeledInput
+            id={`${props.kind}-name`}
+            label="Name"
+            value={name}
+            onChange={setName}
+            placeholder={copy.namePlaceholder}
+            disabled={save.saving}
+            invalid={field === "name"}
+            describedBy="list-add-msg"
+          />
+          <div>
+            <span className="text-[10px] font-medium uppercase tracking-[0.16em] text-fp-faint">
               Match tokens
             </span>
-            <div className="mt-1.5">
-              <TextInput
-                value={match}
-                onChange={setMatch}
-                placeholder="process.exe, title substring"
-                mono
+            <div className="mt-1">
+              <TokenField
+                id={`${props.kind}-match`}
+                tokens={tokens}
+                onChange={setTokens}
+                placeholder={copy.tokenPlaceholder}
+                disabled={save.saving}
+                invalid={field === "match"}
+                describedBy="list-add-msg"
               />
             </div>
-          </label>
-          <PrimaryButton submit>Add</PrimaryButton>
+          </div>
+          <PrimaryButton submit disabled={save.saving}>
+            {save.saving ? "Adding…" : "Add"}
+          </PrimaryButton>
         </div>
-        {formError ? <p className="mt-2 text-[12px] text-fp-red">{formError}</p> : null}
+        {message ? (
+          <FieldMessage id="list-add-msg" tone="red">
+            {message}
+          </FieldMessage>
+        ) : save.state.status === "saved" ? (
+          <p className="mt-1 text-[11px] text-fp-lime" aria-live="polite">
+            Added
+          </p>
+        ) : save.state.status === "error" ? (
+          <FieldMessage id="list-add-msg" tone="red">
+            {save.state.message}
+          </FieldMessage>
+        ) : (
+          <FieldMessage id="list-add-msg" tone="mute">
+            Enter or comma adds a token. Process basename or title substring.
+          </FieldMessage>
+        )}
       </form>
 
-      <ul className="divide-y divide-fp-line overflow-hidden rounded-lg border border-fp-line bg-fp-panel">
+      <ul className="divide-y divide-fp-line overflow-hidden rounded-md border border-fp-line bg-fp-panel">
         {entries.length === 0 ? (
-          <li className="px-4 py-10 text-center text-[13px] text-fp-mute">No apps yet.</li>
+          <li className="px-4 py-8 text-center text-[13px] text-fp-mute">
+            No apps yet. Add a name and at least one match token.
+          </li>
         ) : (
           entries.map((entry) => (
-            <EntryRow
+            <ListEntryRow
               key={entry.id}
               entry={entry}
+              kind={props.kind}
               accent={isAllow ? "lime" : "red"}
+              busy={rowBusy === entry.id}
               onToggle={async (enabled) => {
-                await persist(
-                  entries.map((item) => (item.id === entry.id ? { ...item, enabled } : item)),
-                );
+                setRowBusy(entry.id);
+                try {
+                  await persist(
+                    entries.map((item) => (item.id === entry.id ? { ...item, enabled } : item)),
+                  );
+                } finally {
+                  setRowBusy(null);
+                }
               }}
-              onMatch={async (nextMatch) => {
-                await persist(
-                  entries.map((item) =>
-                    item.id === entry.id ? { ...item, match: nextMatch } : item,
-                  ),
-                );
-              }}
-              onName={async (nextName) => {
-                await persist(
-                  entries.map((item) =>
-                    item.id === entry.id ? { ...item, name: nextName } : item,
-                  ),
-                );
+              onSave={async (next) => {
+                setRowBusy(entry.id);
+                try {
+                  const returned = await persist(
+                    entries.map((item) =>
+                      item.id === entry.id ? { ...item, name: next.name, match: next.match } : item,
+                    ),
+                  );
+                  if (!entryReturned(returned, entry.id)) {
+                    throw new Error("Save returned without this row");
+                  }
+                } finally {
+                  setRowBusy(null);
+                }
               }}
               onDelete={async () => {
-                await persist(entries.filter((item) => item.id !== entry.id));
+                setRowBusy(entry.id);
+                try {
+                  const returned = await persist(entries.filter((item) => item.id !== entry.id));
+                  if (entryReturned(returned, entry.id)) {
+                    throw new Error("Remove returned the deleted row");
+                  }
+                } finally {
+                  setRowBusy(null);
+                }
               }}
             />
           ))
         )}
       </ul>
-    </div>
-  );
-}
-
-function EntryRow(props: {
-  entry: AppEntry;
-  accent: "lime" | "red";
-  onToggle: (enabled: boolean) => Promise<void>;
-  onMatch: (match: string[]) => Promise<void>;
-  onName: (name: string) => Promise<void>;
-  onDelete: () => Promise<void>;
-}): JSX.Element {
-  const [name, setName] = useState(props.entry.name);
-  const [matchText, setMatchText] = useState(props.entry.match.join(", "));
-
-  return (
-    <li className="flex flex-col gap-3 px-4 py-3 md:flex-row md:items-center">
-      <div className="flex min-w-0 flex-1 items-center gap-3">
-        <span
-          className={cn(
-            "h-1.5 w-1.5 shrink-0 rounded-full",
-            props.entry.enabled
-              ? props.accent === "lime"
-                ? "bg-fp-lime"
-                : "bg-fp-red"
-              : "bg-zinc-600",
-          )}
-        />
-        <input
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          onBlur={() => {
-            const next = name.trim();
-            if (next.length > 0 && next !== props.entry.name) {
-              void props.onName(next);
-            } else {
-              setName(props.entry.name);
-            }
-          }}
-          className="min-w-0 flex-1 bg-transparent text-[13px] font-medium text-fp-ink outline-none"
-        />
-      </div>
-      <input
-        value={matchText}
-        onChange={(event) => setMatchText(event.target.value)}
-        onBlur={() => {
-          const tokens = matchText
-            .split(",")
-            .map((token) => token.trim())
-            .filter((token) => token.length > 0);
-          if (tokens.length > 0) {
-            void props.onMatch(tokens);
-          } else {
-            setMatchText(props.entry.match.join(", "));
-          }
-        }}
-        className="min-w-0 flex-[1.3] bg-transparent font-mono text-[11px] text-fp-mute outline-none"
-      />
-      <div className="flex items-center gap-2">
-        <Toggle
-          checked={props.entry.enabled}
-          onChange={(next) => {
-            void props.onToggle(next);
-          }}
-          label={`Enable ${props.entry.name}`}
-        />
-        <button
-          type="button"
-          onClick={() => void props.onDelete()}
-          className="rounded-md px-2 py-1 text-[11px] font-medium text-fp-faint transition hover:bg-white/5 hover:text-fp-red"
-          aria-label={`Remove ${props.entry.name}`}
-        >
-          Remove
-        </button>
-      </div>
-    </li>
+    </ConfigPage>
   );
 }

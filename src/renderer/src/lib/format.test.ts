@@ -32,6 +32,7 @@ const lamp: PlugView = {
   isStudyPc: false,
   online: true,
   powerOn: true,
+  probed: true,
 };
 
 describe("chrome status labels", () => {
