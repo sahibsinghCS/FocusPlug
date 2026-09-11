@@ -28,6 +28,19 @@ describe("parseUrlScene", () => {
     });
   });
 
+  it("reads the log golden-path scene from search or hash", () => {
+    expect(parseUrlScene("?scene=golden", "")).toEqual({
+      countdown: null,
+      scene: "golden",
+      freeze: false,
+    });
+    expect(parseUrlScene("", "#/log?scene=golden")).toEqual({
+      countdown: null,
+      scene: "golden",
+      freeze: false,
+    });
+  });
+
   it("treats a countdown without scene as distracted", () => {
     expect(parseUrlScene("?countdown=10", "").scene).toBe("distracted");
   });

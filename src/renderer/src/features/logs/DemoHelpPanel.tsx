@@ -88,7 +88,8 @@ export function DemoHelpPanel(props: {
           ))}
         </ul>
         <p className="mt-2 text-[11px] text-zinc-600">
-          Same words as Session, overlay, and Demo Kill. No fake runtime metrics.
+          Same words as Session, overlay, and Demo Kill. Cause → countdown → consequence →
+          recovery. No fake runtime metrics.
         </p>
       </div>
     </aside>

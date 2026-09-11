@@ -102,7 +102,7 @@ export function LogPage(): JSX.Element {
           </p>
           <h1 className="mt-0.5 text-[17px] font-semibold tracking-tight">Session log</h1>
           <p className="mt-1 text-[12px] text-fp-mute">
-            Causal timeline of real session events
+            Causal timeline of real session events · cause → countdown → consequence → recovery
             {newest ? (
               <span className="text-fp-faint">
                 {` · latest ${formatClock(newest.event.ts)} · ${formatRelative(newest.event.ts, now)}`}
