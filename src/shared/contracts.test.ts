@@ -1,0 +1,113 @@
+import { describe, expect, it } from "vitest";
+import { DEFAULT_SETTINGS } from "./defaults";
+import {
+  IPC_INVOKE,
+  PLUG_DRIVER_NOT_IMPLEMENTED,
+  type DeskModelFactory,
+  type PlugController,
+} from "./ipc";
+import type { DeskFrame, DeskModel, PolicyEvent } from "./types";
+
+function assertNever(value: never): never {
+  throw new Error(`unhandled PolicyEvent: ${JSON.stringify(value)}`);
+}
+
+/** Compile-time + runtime proof that PolicyEvent stays exhaustively matchable. */
+function describePolicyEvent(event: PolicyEvent): string {
+  switch (event.type) {
+    case "start_countdown":
+      return `start_countdown:${event.reason}:${event.seconds}`;
+    case "cancel_countdown":
+      return "cancel_countdown";
+    case "kill":
+      return `kill:${event.targets.join(",")}:${event.reason}`;
+    case "unlock":
+      return "unlock";
+    case "status":
+      return `status:${event.decision}:${event.detail}`;
+    case "plug_off":
+      return `plug_off:${event.deviceIds.join(",")}:${event.reason}`;
+    case "plug_on":
+      return `plug_on:${event.deviceIds.join(",")}:${event.reason}`;
+    default:
+      return assertNever(event);
+  }
+}
+
+describe("Phase 2 contracts", () => {
+  it("keeps PolicyEvent exhaustively matchable including plug_off/plug_on", () => {
+    const events: PolicyEvent[] = [
+      { type: "start_countdown", reason: "blocked", seconds: 10 },
+      { type: "cancel_countdown" },
+      { type: "kill", targets: ["discord.exe"], reason: "blocked" },
+      { type: "unlock" },
+      { type: "status", decision: "ON_TASK", detail: "ok" },
+      { type: "plug_off", deviceIds: ["lamp"], reason: "away" },
+      { type: "plug_on", deviceIds: ["lamp"], reason: "unlock" },
+    ];
+    expect(events.map(describePolicyEvent)).toEqual([
+      "start_countdown:blocked:10",
+      "cancel_countdown",
+      "kill:discord.exe:blocked",
+      "unlock",
+      "status:ON_TASK:ok",
+      "plug_off:lamp:away",
+      "plug_on:lamp:unlock",
+    ]);
+  });
+
+  it("freezes plug and desk-model IPC channel names", () => {
+    expect(IPC_INVOKE.PLUGS_LIST).toBe("focusplug:plugs:list");
+    expect(IPC_INVOKE.PLUGS_ADD).toBe("focusplug:plugs:add");
+    expect(IPC_INVOKE.PLUGS_REMOVE).toBe("focusplug:plugs:remove");
+    expect(IPC_INVOKE.PLUGS_TEST).toBe("focusplug:plugs:test");
+    expect(IPC_INVOKE.DESK_GET_MODEL_ID).toBe("focusplug:desk:getModelId");
+    expect(IPC_INVOKE.DESK_SET_MODEL_ID).toBe("focusplug:desk:setModelId");
+    expect(PLUG_DRIVER_NOT_IMPLEMENTED).toBe("plug driver not implemented");
+  });
+
+  it("defaults deskModelId to blazeface and plugs to empty", () => {
+    expect(DEFAULT_SETTINGS.deskModelId).toBe("blazeface");
+    expect(DEFAULT_SETTINGS.plugs).toEqual([]);
+  });
+
+  it("accepts existing RGB desk frames on DeskModel.infer", async () => {
+    const frame: DeskFrame = { width: 1, height: 1, data: new Uint8Array([1, 2, 3]) };
+    const model: DeskModel = {
+      id: "stub",
+      init: async () => undefined,
+      infer: async (input) => {
+        expect(input.width).toBe(1);
+        expect(input.data.length).toBe(3);
+        return { label: "uncertain", confidence: 0 };
+      },
+    };
+    const factory: DeskModelFactory = { create: () => model };
+    await factory.create("stub").infer(frame);
+  });
+
+  it("types PlugController.off/on/list/discover without a driver", async () => {
+    const controller: PlugController = {
+      off: async (ids) =>
+        ids.map((deviceId) => ({
+          ts: 0,
+          deviceId,
+          online: false,
+          powerOn: null,
+          error: PLUG_DRIVER_NOT_IMPLEMENTED,
+        })),
+      on: async (ids) =>
+        ids.map((deviceId) => ({
+          ts: 0,
+          deviceId,
+          online: false,
+          powerOn: null,
+          error: PLUG_DRIVER_NOT_IMPLEMENTED,
+        })),
+      list: async () => [],
+      discover: async () => [],
+    };
+    expect(await controller.list()).toEqual([]);
+    expect((await controller.off(["lamp"]))[0]?.error).toBe(PLUG_DRIVER_NOT_IMPLEMENTED);
+  });
+});

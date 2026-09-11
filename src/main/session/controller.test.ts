@@ -383,6 +383,7 @@ describe("FocusPlugStore persistence", () => {
     const dir = mkdtempSync(join(tmpdir(), "focusplug-session-store-"));
     const store = new FocusPlugStore(dir);
     store.saveSettings({
+      ...DEFAULT_SETTINGS,
       countdownSec: 7,
       deskThreshold: 0.7,
       strictMode: true,
@@ -394,9 +395,93 @@ describe("FocusPlugStore persistence", () => {
     const reloaded = new FocusPlugStore(dir);
     expect(reloaded.loadSettings().countdownSec).toBe(7);
     expect(reloaded.loadSettings().webcamEnabled).toBe(false);
+    expect(reloaded.loadSettings().deskModelId).toBe("blazeface");
+    expect(reloaded.loadSettings().plugs).toEqual([]);
     const log = reloaded.loadSessionLog();
     expect(log[0]?.kind).toBe("kill");
     expect(log[1]?.kind).toBe("session");
     expect(JSON.parse(readFileSync(join(dir, "settings.json"), "utf8")).countdownSec).toBe(7);
+  });
+
+  it("drops study-PC plugs and unknown desk models when loading settings", async () => {
+    const { FocusPlugStore } = await import("../store/appStore.ts");
+    const dir = mkdtempSync(join(tmpdir(), "focusplug-settings-guard-"));
+    writeFileSync(
+      join(dir, "settings.json"),
+      JSON.stringify({
+        countdownSec: 10,
+        deskThreshold: 0.6,
+        strictMode: true,
+        webcamEnabled: true,
+        deskModelId: "blazeface-v2",
+        plugs: [
+          {
+            id: "lamp",
+            name: "Lamp",
+            protocol: "mock",
+            address: "127.0.0.1",
+            enabled: true,
+            isStudyPc: false,
+          },
+          {
+            id: "study-pc",
+            name: "Study PC",
+            protocol: "kasa",
+            address: "10.0.0.2",
+            enabled: true,
+            isStudyPc: true,
+          },
+        ],
+      }),
+      "utf8",
+    );
+    const store = new FocusPlugStore(dir);
+    const settings = store.loadSettings();
+    expect(settings.deskModelId).toBe("blazeface");
+    expect(settings.plugs).toEqual([
+      {
+        id: "lamp",
+        name: "Lamp",
+        protocol: "mock",
+        address: "127.0.0.1",
+        enabled: true,
+        isStudyPc: false,
+      },
+    ]);
+  });
+});
+
+describe("Phase 2 desk model and plug settings", () => {
+  it("gets/sets deskModelId on the same settings blob", () => {
+    const h = makeHarness();
+    expect(h.controller.getDeskModelId()).toBe("blazeface");
+    expect(h.controller.setDeskModelId("stub")).toBe("stub");
+    expect(h.store.loadSettings().deskModelId).toBe("stub");
+    expect(() => h.controller.setDeskModelId("blazeface-v2")).toThrow(/deskModelId/);
+  });
+
+  it("lists, adds, tests, and removes plugs without a driver", () => {
+    const h = makeHarness();
+    expect(h.controller.listPlugs()).toEqual([]);
+    const lamp = {
+      id: "lamp",
+      name: "Desk lamp",
+      protocol: "mock" as const,
+      address: "127.0.0.1",
+      enabled: true,
+      isStudyPc: false as const,
+    };
+    expect(h.controller.addPlug(lamp)).toEqual([lamp]);
+    expect(h.controller.testPlug("lamp")).toMatchObject({
+      deviceId: "lamp",
+      online: false,
+      powerOn: null,
+      error: "plug driver not implemented",
+    });
+    expect(() =>
+      h.controller.addPlug({ ...lamp, id: "pc", name: "Study PC", isStudyPc: true } as unknown),
+    ).toThrow(/isStudyPc/);
+    expect(h.controller.removePlug("lamp")).toEqual([]);
+    expect(() => h.controller.testPlug("lamp")).toThrow(/not found/);
   });
 });
