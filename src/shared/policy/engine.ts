@@ -1,6 +1,6 @@
 import { REASONS, SESSION_OFF_DETAIL, type PolicyReason } from "./constants";
-import { classify, killTargetsFor, plugEventFor } from "./evaluate";
-import type { PolicyEvent, PolicyInput } from "../types";
+import { classify, killTargetsFor, plugEventFor, type PolicyEngineInput } from "./evaluate";
+import type { PolicyEvent } from "../types";
 
 export interface PolicyState {
   /** Monotonic clock derived from snapshot `ts` values (epoch ms). */
@@ -27,7 +27,7 @@ export const INITIAL_POLICY_STATE: PolicyState = {
  */
 export function stepPolicy(
   state: PolicyState,
-  input: PolicyInput,
+  input: PolicyEngineInput,
 ): { state: PolicyState; events: PolicyEvent[] } {
   const next: PolicyState = {
     lastTs: currentTs(state.lastTs, input),
@@ -156,14 +156,14 @@ export function stepPolicy(
 export class PolicyEngine {
   private state: PolicyState = { ...INITIAL_POLICY_STATE, countdownTargets: [] };
 
-  step(input: PolicyInput): PolicyEvent[] {
+  step(input: PolicyEngineInput): PolicyEvent[] {
     const result = stepPolicy(this.state, input);
     this.state = result.state;
     return result.events;
   }
 }
 
-function currentTs(lastTs: number, input: PolicyInput): number {
+function currentTs(lastTs: number, input: PolicyEngineInput): number {
   let now = lastTs;
   if (input.focus !== null && Number.isFinite(input.focus.ts)) {
     now = Math.max(now, input.focus.ts);
@@ -198,7 +198,7 @@ function unique(items: string[]): string[] {
 
 function pushPlug(
   events: PolicyEvent[],
-  input: PolicyInput,
+  input: PolicyEngineInput,
   type: "plug_off" | "plug_on",
   reason: string,
 ): void {
