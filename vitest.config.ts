@@ -12,7 +12,11 @@ export default defineConfig({
     include: [
       "src/shared/**/*.test.ts",
       "src/main/session/**/*.test.ts",
+<<<<<<< HEAD
       "src/main/plugs/**/*.test.ts",
+=======
+      "src/main/desk/**/*.test.ts",
+>>>>>>> f418d14 (model-seam: add DeskModel drop-in for Timmy)
     ],
   },
 });

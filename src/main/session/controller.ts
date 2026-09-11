@@ -322,6 +322,7 @@ export class SessionController {
     const next = normalizeSettings({ ...this.loadSettings(), ...requirePatch(patch) });
     this.store.saveSettings(next);
     this.syncDeskEnabled(next.webcamEnabled);
+    this.syncDeskModel(next.deskModelId);
     this.appendLog(
       "settings",
       `countdown=${next.countdownSec}s · strict=${next.strictMode} · deskThreshold=${next.deskThreshold} · webcam=${next.webcamEnabled} · deskModel=${next.deskModelId} · plugs=${next.plugs.length}`,
@@ -362,6 +363,7 @@ export class SessionController {
     }
     const next = normalizeSettings({ ...this.loadSettings(), deskModelId: id });
     this.store.saveSettings(next);
+    this.syncDeskModel(next.deskModelId);
     this.appendLog("desk", `Desk model set to ${next.deskModelId}`);
     return next.deskModelId;
   }
@@ -613,6 +615,13 @@ export class SessionController {
 
   private loadSettings(): AppSettings {
     return cloneSettings(normalizeSettings(this.store.loadSettings()));
+  }
+
+  private syncDeskModel(id: DeskModelId): void {
+    const monitor = this.deskMonitor as DeskMonitor & {
+      setModelId?: (next: DeskModelId) => void;
+    };
+    monitor.setModelId?.(id);
   }
 
   private syncDeskEnabled(enabled: boolean): void {

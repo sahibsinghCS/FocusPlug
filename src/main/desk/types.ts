@@ -1,6 +1,6 @@
 import type { DeskSnapshot } from "@shared/types";
 
-/** RGB, 3 bytes per pixel, row-major. */
+/** RGB, 3 bytes per pixel, row-major. Compatible with shared `DeskFrame`. */
 export interface RgbFrame {
   width: number;
   height: number;

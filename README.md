@@ -18,6 +18,8 @@ Optional LAN smart plugs (TP-Link Kasa local protocol, or generic HTTP POST on/o
 
 **Run (Windows, Node 22.12+):** `git clone https://github.com/sahibsinghCS/FocusPlug.git && cd FocusPlug && npm install && npm run dev`. Live window match and `taskkill` are Win32; Linux can boot the UI. Film the 2–3 min golden path in [docs/DEMO-SCRIPT.md](docs/DEMO-SCRIPT.md). Paste AI tools into Devpost from [docs/AI-DISCLOSURE.md](docs/AI-DISCLOSURE.md). Electron + React + Tailwind. MIT. Hyperbloom September (due 14 Sep 2026, 5:00pm EDT).
 
+**Swap the desk model:** default is on-device BlazeFace (`deskModelId: "blazeface"`). To drop in your own, edit only `src/main/desk/model/your-model.ts` (`infer()`), then set `deskModelId` to `"custom"`. Guide: [docs/MODEL-SEAM.md](docs/MODEL-SEAM.md).
+
 ![On task — Desk AI at desk](docs/screenshots/01-on-task.png)
 
 ![Kill overlay — Discord fuse](docs/screenshots/02-kill-overlay.png)
