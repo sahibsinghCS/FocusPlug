@@ -39,3 +39,7 @@ const { killed, errors } = await killer.kill(["discord", "discord.exe"]);
 - this process / parent pid
 
 Windows production host: `tasklist /FO CSV` then `taskkill /PID <pid> /F`, PowerShell `Get-Process` fallback. POSIX host exists so this probe can run in Linux CI/VMs.
+
+## Last recorded result
+
+See [GAUNTLET_EVIDENCE.md](./GAUNTLET_EVIDENCE.md): **25/25 pass** on this branch (live stand-in kill + chrome allowlist refuse + Discord-named stand-in kill).

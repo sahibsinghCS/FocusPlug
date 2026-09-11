@@ -175,4 +175,38 @@ describe("live OS probe (harmless stand-in)", () => {
     );
     assert.equal(isAlive(pid), true, "chrome stand-in must still be running");
   });
+
+  it("kills a Discord-named stand-in the same way blocklist matchers will", async (t) => {
+    const bin = sleeper();
+    if (!bin) {
+      t.skip("no sleeper binary available for stand-in");
+      return;
+    }
+    const dir = mkdtempSync(join(tmpdir(), "focusplug-kill-discord-"));
+    const standin = join(dir, process.platform === "win32" ? "Discord.exe" : "Discord");
+    copyFileSync(bin.source, standin);
+    chmodSync(standin, 0o755);
+    let child: ChildProcess | undefined;
+    t.after(() => {
+      stopChild(child);
+      rmSync(dir, { recursive: true, force: true });
+    });
+
+    child = spawnStandin(standin, bin.args);
+    const pid = child.pid;
+    if (pid === undefined) {
+      throw new Error("Discord stand-in pid missing");
+    }
+    await waitUntil(() => isAlive(pid), 3000, "Discord stand-in start");
+
+    const killer = new BlocklistTerminator({ host: createPlatformHost() });
+    const result = await killer.kill(["discord", "discord.exe"]);
+    assert.equal(
+      result.killed.some((row) => row.includes(String(pid))),
+      true,
+      `expected Discord stand-in kill, got ${JSON.stringify(result)}`,
+    );
+    await waitUntil(() => !isAlive(pid), 3000, "Discord stand-in exit");
+    assert.equal(isAlive(pid), false);
+  });
 });

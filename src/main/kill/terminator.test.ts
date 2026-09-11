@@ -174,14 +174,14 @@ describe("BlocklistTerminator safety invariant", () => {
   });
 
   it("unions live allowlist matchers so a custom study app cannot be killed", async () => {
-    const host = new MemoryProcessHost(procs([3, "obsidian.exe"], [4, "Discord.exe"]));
+    const host = new MemoryProcessHost(procs([33, "obsidian.exe"], [44, "Discord.exe"]));
     const killer = new BlocklistTerminator({
       host,
       getAllowlistMatchers: () => ["obsidian", "obsidian.exe"],
     });
     const result = await killer.kill(["obsidian", "discord"]);
-    assert.deepEqual(result.killed, [formatProc({ pid: 4, name: "Discord.exe" })]);
-    assert.equal(host.killed.has(3), false);
+    assert.deepEqual(result.killed, [formatProc({ pid: 44, name: "Discord.exe" })]);
+    assert.equal(host.killed.has(33), false);
     assert.equal(result.errors.some((e) => /obsidian/i.test(e) && /Refused/i.test(e)), true);
   });
 });

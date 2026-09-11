@@ -23,8 +23,9 @@ describe("matchesForKill", () => {
     assert.equal(matchesForKill("Discord.exe", "discord.exe"), true);
   });
 
-  it("matches separator prefixes only (discord-canary), not steamwebhelper via steam", () => {
+  it("matches separator prefixes and discordcanary, not steamwebhelper via steam", () => {
     assert.equal(matchesForKill("discord-canary.exe", "discord"), true);
+    assert.equal(matchesForKill("DiscordCanary.exe", "discord"), true);
     assert.equal(matchesForKill("steamwebhelper.exe", "steam"), false);
     assert.equal(matchesForKill("steamwebhelper.exe", "steamwebhelper"), true);
   });

@@ -38,7 +38,15 @@ export function matchesForKill(processName: string, matcher: string): boolean {
   }
   if (process.startsWith(match) && process.length > match.length) {
     const next = process.charAt(match.length);
-    return next.length > 0 && /[^a-z0-9]/.test(next);
+    if (next.length > 0 && /[^a-z0-9]/.test(next)) {
+      return true;
+    }
+  }
+  const processCompact = compactToken(processName);
+  const matchCompact = compactToken(matcher);
+  // discordcanary / discordptb via matcher "discord" (min 6 to avoid "steam" eating steamwebhelper)
+  if (matchCompact.length >= 6 && processCompact.startsWith(matchCompact)) {
+    return true;
   }
   return false;
 }
