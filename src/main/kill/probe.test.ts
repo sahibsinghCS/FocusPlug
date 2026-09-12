@@ -20,13 +20,21 @@ interface Sleeper {
 
 function sleeper(): Sleeper | undefined {
   if (process.platform === "win32") {
-    const timeout = join(
+    const system32 = join(
       process.env["SystemRoot"] ?? "C:\\Windows",
       "System32",
-      "timeout.exe",
     );
-    if (existsSync(timeout)) {
-      return { source: timeout, args: ["/T", "45", "/NOBREAK"] };
+    // Not timeout.exe: it exits with "Input redirection is not supported" under
+    // stdio "ignore", so the stand-in was gone before the probe could list it
+    // and these three tests failed on Windows while passing in Linux CI.
+    for (const candidate of [
+      { file: "ping.exe", args: ["-n", "45", "127.0.0.1"] },
+      { file: "waitfor.exe", args: ["/T", "45", "fpStandinSignal"] },
+    ]) {
+      const source = join(system32, candidate.file);
+      if (existsSync(source)) {
+        return { source, args: candidate.args };
+      }
     }
     return undefined;
   }
@@ -74,6 +82,31 @@ function spawnStandin(binary: string, args: string[]): ChildProcess {
   return child;
 }
 
+/**
+ * A stand-in that exits on its own is a broken probe, not a kill result — say
+ * so before the terminator assertions turn it into a misleading failure.
+ */
+async function waitForStandin(
+  child: ChildProcess,
+  pid: number,
+  label: string,
+): Promise<void> {
+  await waitUntil(() => isAlive(pid), 3000, `${label} start`);
+  assert.equal(
+    child.exitCode,
+    null,
+    `${label} exited immediately (code ${child.exitCode}); pick a sleeper that tolerates stdio "ignore"`,
+  );
+}
+
+/**
+ * Windows refuses to unlink a running image, and the allowlist probe ends with
+ * its stand-in deliberately still alive, so retry while the kill lands.
+ */
+function removeStandinDir(dir: string): void {
+  rmSync(dir, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
+}
+
 function stopChild(child: ChildProcess | undefined): void {
   if (!child?.pid) {
     return;
@@ -102,7 +135,7 @@ describe("live OS probe (harmless stand-in)", () => {
     let child: ChildProcess | undefined;
     t.after(() => {
       stopChild(child);
-      rmSync(dir, { recursive: true, force: true });
+      removeStandinDir(dir);
     });
 
     child = spawnStandin(standin, bin.args);
@@ -110,7 +143,7 @@ describe("live OS probe (harmless stand-in)", () => {
     if (pid === undefined) {
       throw new Error("stand-in pid missing");
     }
-    await waitUntil(() => isAlive(pid), 3000, "stand-in start");
+    await waitForStandin(child, pid, "stand-in");
 
     const host = createPlatformHost();
     const listed = await host.list();
@@ -149,7 +182,7 @@ describe("live OS probe (harmless stand-in)", () => {
     let child: ChildProcess | undefined;
     t.after(() => {
       stopChild(child);
-      rmSync(dir, { recursive: true, force: true });
+      removeStandinDir(dir);
     });
 
     child = spawnStandin(standin, bin.args);
@@ -157,7 +190,7 @@ describe("live OS probe (harmless stand-in)", () => {
     if (pid === undefined) {
       throw new Error("chrome stand-in pid missing");
     }
-    await waitUntil(() => isAlive(pid), 3000, "chrome stand-in start");
+    await waitForStandin(child, pid, "chrome stand-in");
 
     const killer = new BlocklistTerminator({ host: createPlatformHost() });
     const result = await killer.kill(["chrome", "chrome.exe"]);
@@ -189,7 +222,7 @@ describe("live OS probe (harmless stand-in)", () => {
     let child: ChildProcess | undefined;
     t.after(() => {
       stopChild(child);
-      rmSync(dir, { recursive: true, force: true });
+      removeStandinDir(dir);
     });
 
     child = spawnStandin(standin, bin.args);
@@ -197,7 +230,7 @@ describe("live OS probe (harmless stand-in)", () => {
     if (pid === undefined) {
       throw new Error("Discord stand-in pid missing");
     }
-    await waitUntil(() => isAlive(pid), 3000, "Discord stand-in start");
+    await waitForStandin(child, pid, "Discord stand-in");
 
     const killer = new BlocklistTerminator({ host: createPlatformHost() });
     const result = await killer.kill(["discord", "discord.exe"]);

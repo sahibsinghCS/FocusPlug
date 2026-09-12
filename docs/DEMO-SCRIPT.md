@@ -9,11 +9,12 @@ Do **not** say: Pomodoro, focus timer, streak, gentle reminder, productivity coa
 ## Pre-flight (not on camera)
 
 1. Discord installed and signed in. Google Docs open in Chrome (`docs.google.com` in the title).
-2. `npm run dev` (or packaged build). Confirm the UI is live IPC, not a stuck mock.
-3. **Settings:** Countdown **10s**, Strict mode **on**, Desk AI webcam **on**, desk threshold default (~60%).
-4. **Allowlist** includes Chrome / Google Docs. **Blocklist** includes Discord.
-5. Sit in frame until session home shows Desk AI **At desk** with a real confidence (not 0%).
-6. Close extra windows. Hide this script. Have a second take ready with **Demo Kill**.
+2. `npm run probe:golden` — 10 seconds, no GUI, kills nothing. It must print **GOLDEN PATH PROBE: PASS**; if the window sensor is dead on this machine, everything below is unfilmable.
+3. `npm run dev` (or packaged build). Confirm the UI is live IPC, not a stuck mock — the **Foreground app** card must name your real window once the session starts.
+4. **Settings:** Countdown **10s**, Strict mode **on**, Desk AI webcam **on**, desk threshold default (~60%).
+5. **Allowlist** includes Chrome / Google Docs. **Blocklist** includes Discord.
+6. Start the session, then sit in frame until session home shows Desk AI **At desk** with a real confidence (not 0%). The sensors read **Standby** until a session is running.
+7. Close extra windows. Hide this script. Have a second take ready with **Demo Kill**.
 
 If Discord cannot launch, skip to the Demo Kill beat after the overlay preview (`Settings` → **Preview kill overlay**) and say you are showing the fuse + instant kill path. Still open **Log** for two seconds so the timeline is on film.
 
@@ -35,9 +36,16 @@ The Log page **90s path** panel is a cheat sheet of this script (same product la
 
 If the desk-away beat is messy, cut it to 10 seconds (cover lens → **Away** label) and spend the time on Demo Kill. **Do not** skip Desk AI entirely — Hyperbloom scores AI/ML as central, not decorative.
 
-## Still captures (placeholders)
+## Still captures
 
-Save PNGs at the paths below (create `docs/screenshots/` when filming). Freeze the overlay with `#/?scene=distracted&countdown=8&freeze=1` only for stills, not the live take. For the log still, `#/log?scene=golden` seeds a full causal chain on mock IPC; the live take should use the real log after Discord dies. Broken images here are slots, not missing product.
+`docs/screenshots/` is committed and regenerates from the seeded scenes:
+
+```bash
+npm run preview:renderer   # terminal 1
+npm run stills:readme      # terminal 2
+```
+
+Those are mock-IPC renders of the real console — good enough for the README, but **overwrite them with live captures from the take** if the run goes well. Freeze the overlay with `#/?scene=distracted&countdown=8&freeze=1` only for stills, not the live take. For the log still, `#/log?scene=golden` seeds a full causal chain on mock IPC; the live take should use the real log after Discord dies.
 
 | File | When to grab | Judge should read |
 | --- | --- | --- |
@@ -45,7 +53,7 @@ Save PNGs at the paths below (create `docs/screenshots/` when filming). Freeze t
 | `02-kill-overlay.png` | Overlay at ~8s, Discord focused | Consequence is unmistakable |
 | `03-desk-away.png` | Covered lens / left frame | Presence is a kill input |
 | `04-session-log.png` | After kill + unlock | Causal timeline: `countdown` → `kill` → `unlock` (and `plug_off` / `plug_on` if armed). Kind/status filters. 90s path panel uses **Start session / On task / Distracted / Kill / Unlock / Demo Kill** |
-| `05-demo-kill.png` | Footer **Demo Kill** in frame | Reliable demo path |
+| `05-demo-kill.png` | **Demo Kill** in frame (session action card, or the overlay's **Demo Kill — skip wait**) | Reliable demo path |
 
 ![On task — Desk AI at desk](screenshots/01-on-task.png)
 
@@ -55,7 +63,7 @@ Save PNGs at the paths below (create `docs/screenshots/` when filming). Freeze t
 
 ![Session log — countdown, kill, unlock](screenshots/04-session-log.png)
 
-![Demo Kill footer](screenshots/05-demo-kill.png)
+![Demo Kill — skip the fuse, never the study PC](screenshots/05-demo-kill.png)
 
 ## Hard fails (reshoot)
 

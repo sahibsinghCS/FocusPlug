@@ -1,7 +1,7 @@
 {
   "name": "golden-path",
   "bar": "Docs→Discord→countdown→kill+plug_off→unlock+plug_on plus Demo Kill cuts plugs",
-  "platform": "linux",
+  "platform": "win32",
   "passed": true,
   "settings": {
     "countdownSec": 10,

@@ -2,9 +2,15 @@
  * Gauntlet probe (no Electron required).
  *
  *   node --experimental-strip-types src/main/window/probe.ts
+ *   node --experimental-strip-types src/main/window/probe.ts --live
  *
  * Bar: Discord-like title/process → matchedBlock within 1s;
  *      Chrome/Docs → matchedAllow within 1s; lists persist via store seam.
+ *
+ * The default run drives a SimulatedForegroundReader, so it passes on any OS
+ * and proves nothing about this machine. `--live` drives the real platform
+ * reader against whatever window you focus — run it on the demo box before
+ * filming.
  */
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -16,6 +22,7 @@ import { createWindowMonitor } from "./index.ts";
 import type { FocusSnapshot } from "../../shared/types.ts";
 
 const BAR_MS = 1000;
+const LIVE_MS = Number(process.env.LIVE_PROBE_MS ?? 8000);
 
 async function waitFor(
   predicate: () => boolean,
@@ -36,7 +43,75 @@ function line(message: string): void {
   process.stdout.write(`${message}\n`);
 }
 
+function clock(ts: number): string {
+  return new Date(ts).toISOString().slice(11, 19);
+}
+
+/**
+ * Real foreground reader, real lists, no simulation: the check the simulated
+ * gauntlet cannot make. Fails if the reader never resolves a process name.
+ */
+async function live(): Promise<void> {
+  line("=== FocusPlug window-monitor LIVE probe (real foreground reader) ===");
+  if (process.platform !== "win32") {
+    line(`    platform=${process.platform} — EmptyForegroundReader reports nothing here`);
+  }
+
+  const userDataDir = mkdtempSync(join(tmpdir(), "focusplug-live-"));
+  const store = createListsStore(userDataDir);
+  store.saveAllowlist(DEFAULT_ALLOWLIST);
+  store.saveBlocklist(DEFAULT_BLOCKLIST);
+  const { monitor } = createWindowMonitor({ userDataDir });
+
+  const seen: FocusSnapshot[] = [];
+  let lastKey = "";
+  monitor.start((snap) => {
+    seen.push(snap);
+    const key = `${snap.processName}|${snap.windowTitle}`;
+    if (key === lastKey) {
+      return;
+    }
+    lastKey = key;
+    const verdict = snap.matchedBlock
+      ? "BLOCK"
+      : snap.matchedAllow
+        ? "allow"
+        : "-";
+    line(
+      `    ${clock(snap.ts)} ${verdict.padEnd(5)} process=${snap.processName || "(none)"} title=${snap.windowTitle || "(none)"}`,
+    );
+  });
+
+  line("");
+  line(`Watching the focused window for ${Math.round(LIVE_MS / 1000)}s.`);
+  line("Alt-tab between an allowlisted app (Chrome/Docs) and a blocked one (Discord).");
+  line("");
+  await new Promise((resolve) => setTimeout(resolve, LIVE_MS));
+  monitor.stop();
+
+  const named = seen.filter((snap) => snap.processName.trim().length > 0);
+  line("");
+  line(`    snapshots=${seen.length} withProcessName=${named.length}`);
+  if (named.length === 0) {
+    throw new Error(
+      "foreground reader never resolved a process name — the window sensor is dead on this machine",
+    );
+  }
+  const allow = seen.filter((snap) => snap.matchedAllow).length;
+  const block = seen.filter((snap) => snap.matchedBlock).length;
+  line(`    matchedAllow=${allow} matchedBlock=${block}`);
+  if (allow === 0 && block === 0) {
+    line("    NOTE: nothing you focused was on either list (sensor works, lists did not match)");
+  }
+  line("");
+  line("=== LIVE PROBE RESULT: PASS ===");
+}
+
 async function main(): Promise<void> {
+  if (process.argv.includes("--live")) {
+    await live();
+    return;
+  }
   line("=== FocusPlug window-monitor gauntlet probe ===");
   const userDataDir = mkdtempSync(join(tmpdir(), "focusplug-probe-"));
   const reader = new SimulatedForegroundReader({

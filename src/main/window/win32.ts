@@ -4,12 +4,19 @@ import type { ForegroundReader, ForegroundWindow } from "./foreground.ts";
 
 const POLL_MS = 200;
 const RESTART_BACKOFF_MS = [500, 1000, 2000, 5000] as const;
+/** Marks our own stderr diagnostics apart from PowerShell CLIXML noise. */
+const FAULT_PREFIX = "foreground reader: ";
 
 /**
  * Persistent hidden PowerShell process calling GetForegroundWindow / GetWindowText /
  * GetWindowThreadProcessId. Avoids per-tick spawn cost so the monitor can meet a 1s SLA.
+ *
+ * Locals must not collide with a PowerShell automatic variable (names are
+ * case-insensitive). `$pid` is `$PID` — Constant + AllScope — so `[ref]$pid`
+ * threw "Cannot overwrite variable PID", the catch swallowed it, and every
+ * snapshot came back empty. See `RESERVED_PS_VARIABLES` in win32.test.ts.
  */
-const FOREGROUND_SCRIPT = `
+export const FOREGROUND_SCRIPT = `
 $ErrorActionPreference = 'SilentlyContinue'
 [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false
 $OutputEncoding = [Console]::OutputEncoding
@@ -29,29 +36,37 @@ public static class FocusPlugFg {
 while ($true) {
   try {
     $hwnd = [FocusPlugFg]::GetForegroundWindow()
-    [uint32]$pid = 0
-    [void][FocusPlugFg]::GetWindowThreadProcessId($hwnd, [ref]$pid)
+    [uint32]$fgPid = 0
+    [void][FocusPlugFg]::GetWindowThreadProcessId($hwnd, [ref]$fgPid)
     $sb = New-Object System.Text.StringBuilder 2048
     [void][FocusPlugFg]::GetWindowText($hwnd, $sb, $sb.Capacity)
     $name = ""
-    if ($pid -ne 0) {
-      $proc = Get-Process -Id $pid -ErrorAction SilentlyContinue
+    if ($fgPid -ne 0) {
+      $proc = Get-Process -Id $fgPid -ErrorAction SilentlyContinue
       if ($proc) { $name = [string]$proc.ProcessName }
     }
     $payload = [ordered]@{
       processName = $name
       windowTitle = $sb.ToString()
-      pid = [int64]$pid
+      pid = [int64]$fgPid
     }
     Write-Output ($payload | ConvertTo-Json -Compress)
   } catch {
+    # Surface the fault once per distinct message: a silent catch here reads as
+    # "no window focused" and hides a broken reader. Console::Error ignores
+    # $ErrorActionPreference.
+    $faultMessage = $_.Exception.Message
+    if ($faultMessage -ne $lastFault) {
+      $lastFault = $faultMessage
+      [Console]::Error.WriteLine("${FAULT_PREFIX}" + $faultMessage)
+    }
     Write-Output '{"processName":"","windowTitle":"","pid":0}'
   }
   Start-Sleep -Milliseconds ${POLL_MS}
 }
 `;
 
-function encodePowerShellCommand(script: string): string {
+export function encodePowerShellCommand(script: string): string {
   return Buffer.from(script, "utf16le").toString("base64");
 }
 
@@ -99,6 +114,7 @@ export class Win32ForegroundReader implements ForegroundReader {
   private child: ChildProcess | null = null;
   private rl: ReadlineInterface | null = null;
   private latest: ForegroundWindow | null = null;
+  private lastFault: string | null = null;
   private wanted = false;
   private restartAttempts = 0;
   private restartTimer: ReturnType<typeof setTimeout> | null = null;
@@ -159,6 +175,19 @@ export class Win32ForegroundReader implements ForegroundReader {
       }
     });
 
+    // stderr must be drained or a full pipe stalls the child. PowerShell also
+    // writes CLIXML progress records here, so only our own line is reported.
+    child.stderr?.on("data", (chunk: Buffer) => {
+      for (const raw of String(chunk).split(/\r?\n/u)) {
+        const text = raw.trim();
+        if (!text.startsWith(FAULT_PREFIX) || text === this.lastFault) {
+          continue;
+        }
+        this.lastFault = text;
+        console.error(text);
+      }
+    });
+
     const onExit = (): void => {
       this.teardownChild();
       this.scheduleRestart();
@@ -174,6 +203,7 @@ export class Win32ForegroundReader implements ForegroundReader {
       this.rl = null;
     }
     if (this.child !== null) {
+      this.child.stderr?.removeAllListeners();
       this.child.removeAllListeners();
       if (!this.child.killed) {
         this.child.kill();
