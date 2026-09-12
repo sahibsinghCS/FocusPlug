@@ -12,6 +12,7 @@ export {
   kasaEncodeUdp,
   kasaDecodeUdp,
   parseKasaSysinfo,
+  assertSetRelayAck,
   KASA_PORT,
 } from "./kasa.ts";
 export type { KasaTransport, KasaSysinfo } from "./kasa.ts";

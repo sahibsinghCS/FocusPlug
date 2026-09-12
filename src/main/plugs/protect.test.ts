@@ -65,7 +65,28 @@ describe("plug protect", () => {
     }
   });
 
+  it("refuses loopback disguised behind ports, brackets, dots, or octal", () => {
+    expect(hostnameFromAddress("localhost:8080")).toBe("localhost");
+    expect(hostnameFromAddress("127.0.0.1:8080/off")).toBe("127.0.0.1");
+    expect(hostnameFromAddress("[::ffff:127.0.0.1]")).toBe("::ffff:7f00:1");
+    expect(hostnameFromAddress("0177.0.0.1")).toBe("127.0.0.1");
+    expect(isLoopbackHost("::ffff:127.0.0.1")).toBe(true);
+    expect(isLoopbackHost("::ffff:7f00:1")).toBe(true);
+    expect(isLoopbackHost("localhost.")).toBe(true);
+    const disguised = ["localhost:8080", "[::ffff:127.0.0.1]", "localhost.", "0177.0.0.1", "127.1"];
+    for (const address of disguised) {
+      const verdict = inspectControllable(device({ id: "x", name: "Local", address }));
+      expect(verdict.ok).toBe(false);
+      if (!verdict.ok) {
+        expect(verdict.reason).toMatch(/localhost as study machine/i);
+      }
+    }
+  });
+
   it("allows a LAN fun device", () => {
     expect(inspectControllable(device({ id: "lamp", name: "RGB lamp" })).ok).toBe(true);
+    expect(
+      inspectControllable(device({ id: "lamp", name: "RGB lamp", address: "192.168.1.50:8080" })).ok,
+    ).toBe(true);
   });
 });

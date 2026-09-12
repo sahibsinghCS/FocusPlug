@@ -8,8 +8,10 @@ const RESTART_BACKOFF_MS = [500, 1000, 2000, 5000] as const;
 /**
  * Persistent hidden PowerShell process calling GetForegroundWindow / GetWindowText /
  * GetWindowThreadProcessId. Avoids per-tick spawn cost so the monitor can meet a 1s SLA.
+ * Note: \`$pid\` is a read-only PowerShell automatic variable (the shell's own process id),
+ * so the foreground window's pid lives in \`$procId\` — assigning \`$pid\` throws every tick.
  */
-const FOREGROUND_SCRIPT = `
+export const FOREGROUND_SCRIPT = `
 $ErrorActionPreference = 'SilentlyContinue'
 [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false
 $OutputEncoding = [Console]::OutputEncoding
@@ -29,19 +31,19 @@ public static class FocusPlugFg {
 while ($true) {
   try {
     $hwnd = [FocusPlugFg]::GetForegroundWindow()
-    [uint32]$pid = 0
-    [void][FocusPlugFg]::GetWindowThreadProcessId($hwnd, [ref]$pid)
+    [uint32]$procId = 0
+    [void][FocusPlugFg]::GetWindowThreadProcessId($hwnd, [ref]$procId)
     $sb = New-Object System.Text.StringBuilder 2048
     [void][FocusPlugFg]::GetWindowText($hwnd, $sb, $sb.Capacity)
     $name = ""
-    if ($pid -ne 0) {
-      $proc = Get-Process -Id $pid -ErrorAction SilentlyContinue
+    if ($procId -ne 0) {
+      $proc = Get-Process -Id $procId -ErrorAction SilentlyContinue
       if ($proc) { $name = [string]$proc.ProcessName }
     }
     $payload = [ordered]@{
       processName = $name
       windowTitle = $sb.ToString()
-      pid = [int64]$pid
+      pid = [int64]$procId
     }
     Write-Output ($payload | ConvertTo-Json -Compress)
   } catch {

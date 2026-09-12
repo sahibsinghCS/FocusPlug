@@ -11,6 +11,15 @@ import type { FrameSource } from "./types";
 
 export const DEFAULT_DESK_INTERVAL_MS = 250;
 
+/** Multiplier on `intervalMs` for retry backoff after model/camera failures. */
+const ERROR_BACKOFF_MULTIPLIER = 8;
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error && error.message.trim().length > 0
+    ? error.message
+    : String(error);
+}
+
 export interface DeskMonitorOptions {
   enabled?: boolean;
   intervalMs?: number;
@@ -33,6 +42,7 @@ export class DeskMonitor implements DeskMonitorContract {
   private running = false;
   private loopGen = 0;
   private sourceStarted = false;
+  private sourceRetryAt = 0;
 
   constructor(options: DeskMonitorOptions = {}) {
     this.enabled = options.enabled ?? true;
@@ -74,9 +84,22 @@ export class DeskMonitor implements DeskMonitorContract {
       return;
     }
     if (enabled && this.running && !this.sourceStarted) {
-      void this.source.start().then(() => {
-        this.sourceStarted = true;
-      });
+      const source = this.source;
+      const gen = this.loopGen;
+      void source
+        .start()
+        .then(() => {
+          // Disabled or stopped during camera warm-up: shut the camera back
+          // down instead of leaving it captured with nothing to stop it.
+          if (this.loopGen !== gen || !this.enabled) {
+            void source.stop();
+            return;
+          }
+          this.sourceStarted = true;
+        })
+        .catch((error: unknown) => {
+          console.error("Desk camera start failed:", errorMessage(error));
+        });
     }
     if (!enabled && this.sourceStarted) {
       this.sourceStarted = false;
@@ -122,9 +145,22 @@ export class DeskMonitor implements DeskMonitorContract {
   }
 
   private async runLoop(gen: number): Promise<void> {
-    await this.ensureReady();
     while (this.running && this.loopGen === gen) {
-      await this.step();
+      try {
+        await this.step();
+      } catch (error) {
+        // Model/source init failed: emit a safe uncertain snapshot and retry
+        // with backoff instead of letting the loop die on the rejection.
+        console.error("Desk monitor step failed:", errorMessage(error));
+        this.callback?.({
+          ts: this.now(),
+          label: "uncertain",
+          confidence: 0,
+          webcamEnabled: this.enabled,
+        });
+        await delay(this.intervalMs * ERROR_BACKOFF_MULTIPLIER);
+        continue;
+      }
       await delay(this.intervalMs);
     }
   }
@@ -136,13 +172,22 @@ export class DeskMonitor implements DeskMonitorContract {
     if (!this.source) {
       this.source = this.injectedSource ?? (await createDefaultFrameSource());
     }
-    if (this.enabled && !this.sourceStarted) {
+    if (this.enabled && !this.sourceStarted && this.now() >= this.sourceRetryAt) {
+      const gen = this.loopGen;
       try {
         await this.source.start();
-        this.sourceStarted = true;
-      } catch {
-        this.sourceStarted = false;
+      } catch (error) {
+        console.error("Desk camera start failed:", errorMessage(error));
+        this.sourceRetryAt = this.now() + this.intervalMs * ERROR_BACKOFF_MULTIPLIER;
+        return;
       }
+      // Stopped or disabled during camera warm-up: shut the camera back down
+      // instead of leaving the webcam captured with no loop to stop it.
+      if (this.loopGen !== gen || !this.enabled) {
+        void this.source.stop();
+        return;
+      }
+      this.sourceStarted = true;
     }
   }
 }

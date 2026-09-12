@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  assertSetRelayAck,
   kasaDecodeTcp,
   kasaDecrypt,
   kasaEncodeTcp,
@@ -76,6 +77,57 @@ describe("Kasa local LAN protocol", () => {
     expect(found[0]?.address).toBe("192.168.1.40");
     expect(found[0]?.protocol).toBe("kasa");
     expect(found[0]?.name).toBe("Lava lamp");
+  });
+
+  it("setPower surfaces a set_relay_state failure instead of fabricating success", async () => {
+    const transport: KasaTransport = {
+      async send(_host: string, payload: string): Promise<string> {
+        if (payload.includes("set_relay_state")) {
+          return JSON.stringify({ system: { set_relay_state: { err_code: -3 } } });
+        }
+        throw new Error("Kasa TCP timeout after 3000ms");
+      },
+      async discover(): Promise<Array<{ host: string; body: string }>> {
+        return [];
+      },
+    };
+    const host = new KasaPlugHost(transport);
+    const device = {
+      id: "k1",
+      name: "Lava lamp",
+      protocol: "kasa" as const,
+      address: "192.168.1.40",
+      isStudyPc: false as const,
+      enabled: true,
+    };
+    await expect(host.setPower(device, false)).rejects.toThrow(/err_code -3/);
+    expect(() => assertSetRelayAck("{}")).toThrow(/err_code missing/);
+    expect(() => assertSetRelayAck("garbage")).toThrow(/not JSON/);
+    expect(() => assertSetRelayAck('{"system":{"set_relay_state":{"err_code":0}}}')).not.toThrow();
+  });
+
+  it("setPower trusts an err_code 0 ack when verification is unavailable", async () => {
+    const transport: KasaTransport = {
+      async send(_host: string, payload: string): Promise<string> {
+        if (payload.includes("set_relay_state")) {
+          return JSON.stringify({ system: { set_relay_state: { err_code: 0 } } });
+        }
+        throw new Error("Kasa TCP timeout after 3000ms");
+      },
+      async discover(): Promise<Array<{ host: string; body: string }>> {
+        return [];
+      },
+    };
+    const host = new KasaPlugHost(transport);
+    const device = {
+      id: "k1",
+      name: "Lava lamp",
+      protocol: "kasa" as const,
+      address: "192.168.1.40",
+      isStudyPc: false as const,
+      enabled: true,
+    };
+    expect(await host.setPower(device, false)).toBe(false);
   });
 
   it("parses sysinfo relay_state", () => {

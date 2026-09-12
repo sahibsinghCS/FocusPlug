@@ -4,7 +4,7 @@ import { DEFAULT_ALLOWLIST, DEFAULT_BLOCKLIST } from "../../shared/defaults.ts";
 import type { AppEntry } from "../../shared/types.ts";
 import { entryMatches, findMatchingEntry, processBasename } from "./match.ts";
 import { buildFocusSnapshot } from "./snapshot.ts";
-import { parseForegroundPayload } from "./win32.ts";
+import { FOREGROUND_SCRIPT, parseForegroundPayload } from "./win32.ts";
 
 const discordLike = {
   processName: "Discord",
@@ -123,5 +123,14 @@ describe("parseForegroundPayload", () => {
   test("returns null on garbage", () => {
     assert.equal(parseForegroundPayload(""), null);
     assert.equal(parseForegroundPayload("not-json"), null);
+  });
+});
+
+describe("FOREGROUND_SCRIPT", () => {
+  test("never uses the read-only $pid automatic variable", () => {
+    // $pid/$PID is a PowerShell automatic variable (ReadOnly, AllScope, case-insensitive);
+    // assigning it throws every tick, degrading the sensor to the empty fallback payload.
+    assert.doesNotMatch(FOREGROUND_SCRIPT, /\$pid\b/i);
+    assert.match(FOREGROUND_SCRIPT, /\[ref\]\$procId/);
   });
 });

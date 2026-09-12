@@ -158,6 +158,24 @@ export function findSessionStartedAt(
   return latest;
 }
 
+/**
+ * Session start anchored outside the capped log. The log keeps only the
+ * newest 400 events, so "Session started" eventually trims out mid-session;
+ * once latched, the start survives that trim (and page remounts) until the
+ * session ends.
+ */
+export function latchSessionStartedAt(
+  current: number | null,
+  log: readonly SessionEvent[],
+  sessionActive: boolean,
+  now: number,
+): number | null {
+  if (!sessionActive) {
+    return null;
+  }
+  return findSessionStartedAt(log, true) ?? current ?? now;
+}
+
 export function elapsedSeconds(startedAt: number | null, now: number): number | null {
   if (startedAt === null) {
     return null;

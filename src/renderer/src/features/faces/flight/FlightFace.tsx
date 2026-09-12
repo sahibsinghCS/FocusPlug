@@ -2,6 +2,7 @@ import { useEffect, useRef, type JSX } from "react";
 import type { FlightClock } from "./clock";
 import { drawFlightFace, type FaceVariant } from "./draw";
 import "./flight.css";
+import { createFlightLoop, type FlightLoop } from "./loop";
 import {
   formatBank,
   formatClockHm,
@@ -30,6 +31,7 @@ function readSize(el: HTMLCanvasElement): { width: number; height: number } {
 export function FlightFace(props: FlightFaceViewProps): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const propsRef = useRef(props);
+  const loopRef = useRef<FlightLoop | null>(null);
   propsRef.current = props;
 
   useEffect(() => {
@@ -41,9 +43,6 @@ export function FlightFace(props: FlightFaceViewProps): JSX.Element {
     if (!ctx) {
       throw new Error("FlightFace could not create a 2D context");
     }
-
-    let frame = 0;
-    let running = true;
 
     const paint = (): void => {
       const current = propsRef.current;
@@ -66,22 +65,23 @@ export function FlightFace(props: FlightFaceViewProps): JSX.Element {
       canvas.dataset.complete = model.complete ? "1" : "0";
     };
 
-    const loop = (): void => {
-      if (!running) return;
-      paint();
-      const current = propsRef.current;
-      if (current.clock.paused || current.clock.reducedMotion) {
-        return;
-      }
-      frame = window.requestAnimationFrame(loop);
-    };
+    const loop = createFlightLoop({
+      paint,
+      isStatic: () => {
+        const current = propsRef.current;
+        return current.clock.paused || current.clock.reducedMotion;
+      },
+      request: (callback) => window.requestAnimationFrame(callback),
+      cancel: (handle) => window.cancelAnimationFrame(handle),
+    });
+    loopRef.current = loop;
 
     const onVis = (): void => {
       if (document.hidden) {
-        window.cancelAnimationFrame(frame);
+        loop.suspend();
         return;
       }
-      loop();
+      loop.kick();
     };
 
     const ro = new ResizeObserver(() => {
@@ -90,17 +90,26 @@ export function FlightFace(props: FlightFaceViewProps): JSX.Element {
     ro.observe(canvas);
     document.addEventListener("visibilitychange", onVis);
     void document.fonts.ready.then(() => {
-      if (running) loop();
+      loop.kick();
     });
-    loop();
+    loop.kick();
 
     return () => {
-      running = false;
-      window.cancelAnimationFrame(frame);
+      loopRef.current = null;
+      loop.stop();
       document.removeEventListener("visibilitychange", onVis);
       ro.disconnect();
     };
   }, []);
+
+  // The loop parks itself while the clock is paused (idle / countdown) or
+  // reduced motion holds; kick it again whenever that hold clears.
+  const animating = !props.clock.paused && !props.clock.reducedMotion;
+  useEffect(() => {
+    if (animating) {
+      loopRef.current?.kick();
+    }
+  }, [animating]);
 
   const model = buildFlightModel(props.clock, props.idleOverride);
   const variant = props.variant ?? "instrument";

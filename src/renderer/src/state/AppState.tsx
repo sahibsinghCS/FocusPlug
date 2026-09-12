@@ -23,6 +23,7 @@ import type {
 } from "@shared/ipc";
 import type { AppEntry } from "@shared/types";
 import { DEFAULT_SESSION_STATE, DEFAULT_SETTINGS } from "@shared/defaults";
+import { latchSessionStartedAt } from "../features/session/model";
 import { getApi } from "../lib/api";
 import { newEntryId } from "../lib/ids";
 import {
@@ -53,6 +54,8 @@ interface AppStateValue {
   settings: AppSettings;
   plugs: PlugView[];
   log: SessionEvent[];
+  /** Session start latched outside the capped log (null when no session runs). */
+  sessionStartedAt: number | null;
   error: string | null;
   killResult: KillResult | null;
   countdown: LocalCountdown | null;
@@ -104,6 +107,7 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [plugSnapshots, setPlugSnapshots] = useState<Record<string, PlugSnapshot>>({});
   const [log, setLog] = useState<SessionEvent[]>([]);
+  const [sessionStartedAt, setSessionStartedAt] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [killResult, setKillResult] = useState<KillResult | null>(null);
   const [localCountdown, setLocalCountdown] = useState<LocalCountdown | null>(null);
@@ -220,6 +224,14 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
       clearLocalTimer();
     };
   }, [api, clearLocalTimer, previewCountdown, usingMock]);
+
+  // Latch the session start at provider scope: the capped log eventually
+  // trims "Session started", and page-scoped fallbacks reset on remount.
+  useEffect(() => {
+    setSessionStartedAt((current) =>
+      latchSessionStartedAt(current, log, state.sessionActive, Date.now()),
+    );
+  }, [log, state.sessionActive]);
 
   const run = useCallback(async (task: () => Promise<void>, fallback: string): Promise<void> => {
     setError(null);
@@ -417,6 +429,7 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
       settings,
       plugs,
       log,
+      sessionStartedAt,
       error,
       killResult,
       countdown,
@@ -448,6 +461,7 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
       previewCountdown,
       ready,
       removePlug,
+      sessionStartedAt,
       setAllowlist,
       setBlocklist,
       setDeskEnabled,

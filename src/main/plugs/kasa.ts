@@ -92,6 +92,23 @@ function setRelayPayload(on: boolean): string {
   return JSON.stringify({ system: { set_relay_state: { state: on ? 1 : 0 } } });
 }
 
+/** Throw unless a set_relay_state reply acknowledges the switch with err_code 0. */
+export function assertSetRelayAck(body: string): void {
+  let errCode: unknown;
+  try {
+    const parsed: unknown = JSON.parse(body);
+    errCode = (parsed as { system?: { set_relay_state?: { err_code?: unknown } } }).system
+      ?.set_relay_state?.err_code;
+  } catch {
+    throw new Error("Kasa set_relay_state reply was not JSON");
+  }
+  if (errCode !== 0) {
+    throw new Error(
+      `Kasa set_relay_state failed (err_code ${typeof errCode === "number" ? errCode : "missing"})`,
+    );
+  }
+}
+
 export class TcpKasaTransport implements KasaTransport {
   async send(host: string, payload: string, timeoutMs = 3000): Promise<string> {
     const packet = kasaEncodeTcp(payload);
@@ -208,11 +225,12 @@ export class KasaPlugHost implements PlugHost {
   constructor(private readonly transport: KasaTransport = new TcpKasaTransport()) {}
 
   async setPower(device: PlugDevice, on: boolean): Promise<boolean> {
-    await this.transport.send(device.address.trim(), setRelayPayload(on));
+    assertSetRelayAck(await this.transport.send(device.address.trim(), setRelayPayload(on)));
     try {
       const info = parseKasaSysinfo(await this.transport.send(device.address.trim(), GET_SYSINFO));
       return relayStateOn(info);
     } catch {
+      // Device ACKed the relay change (err_code 0); verification is best-effort.
       return on;
     }
   }

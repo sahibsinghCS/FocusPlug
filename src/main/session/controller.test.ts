@@ -4,6 +4,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 import { DEFAULT_BLOCKLIST, DEFAULT_SETTINGS } from "../../shared/defaults.ts";
+import type { KillResult, ProcessKiller } from "../../shared/ipc.ts";
 import { ALL_BLOCKLIST_TARGET } from "../../shared/policy/index.ts";
 import type { AppEntry, PlugDevice, PolicyEvent } from "../../shared/types.ts";
 import { SAMPLE_PLUGS } from "./fixtures.ts";
@@ -474,6 +475,194 @@ describe("SessionController", () => {
     await h.controller.tick();
     expect(h.killer.calls.length).toBe(1);
     expect(h.plugs.offCalls.length).toBe(1);
+  });
+
+  it("start() ignores stale snapshots from a previous session", async () => {
+    const h = makeHarness({ plugs: SAMPLE_PLUGS });
+    await h.controller.start();
+    h.window.emit(discordFocus(h.clock.ms));
+    h.desk.emit(presentDesk(h.clock.ms));
+    await h.controller.flush();
+    expect(h.controller.getState().countdownSec).toBe(10);
+    await h.controller.stop();
+
+    // Hours later, restart with a 0s fuse — the stale Discord snapshot must
+    // not drive an instant kill before either monitor emits.
+    h.clock.advance(3 * 60 * 60 * 1000);
+    h.controller.setSettings({ countdownSec: 0 });
+    const restarted = await h.controller.start();
+    expect(restarted.focus).toBe(null);
+    expect(restarted.desk).toBe(null);
+    expect(restarted.decision).toBe("IDLE");
+    expect(restarted.countdownSec).toBe(0);
+    expect(h.killer.calls.length).toBe(0);
+    expect(h.plugs.offCalls.length).toBe(0);
+
+    h.clock.advance(10_000);
+    await h.controller.tick();
+    expect(h.killer.calls.length).toBe(0);
+    expect(policyTypes(h.trace).filter((type) => type === "start_countdown").length).toBe(1);
+  });
+
+  it("Demo Kill mid-countdown resets the policy fuse — no invisible second kill", async () => {
+    const h = makeHarness({ plugs: SAMPLE_PLUGS });
+    await h.controller.start();
+    h.window.emit(discordFocus(h.clock.ms));
+    h.desk.emit(presentDesk(h.clock.ms));
+    await h.controller.flush();
+    expect(h.controller.getState().countdownSec).toBe(10);
+
+    h.clock.advance(3000);
+    await h.controller.tick();
+    expect(h.controller.getState().countdownSec).toBe(7);
+
+    await h.controller.demoKill();
+    expect(h.killer.calls.length).toBe(1);
+    expect(h.plugs.offCalls.length).toBe(1);
+    expect(h.controller.getState().countdownSec).toBe(0);
+
+    // The original 10s fuse would have expired here — nothing may fire
+    // without a fresh, visible countdown.
+    h.clock.advance(7000);
+    await h.controller.tick();
+    expect(h.killer.calls.length).toBe(1);
+    expect(h.plugs.offCalls.length).toBe(1);
+    expect(h.controller.getState().countdownSec).toBe(10);
+  });
+
+  it("lengthening countdownSec mid-fuse retimes the display to the engine kill time", async () => {
+    const h = makeHarness({ plugs: SAMPLE_PLUGS });
+    await h.controller.start();
+    h.window.emit(discordFocus(h.clock.ms));
+    h.desk.emit(presentDesk(h.clock.ms));
+    await h.controller.flush();
+    h.clock.advance(5000);
+    await h.controller.tick();
+    expect(h.controller.getState().countdownSec).toBe(5);
+
+    h.controller.setSettings({ countdownSec: 600 });
+    await h.controller.flush();
+    expect(h.controller.getState().countdownSec).toBe(595);
+    expect(h.killer.calls.length).toBe(0);
+
+    h.clock.advance(594_000);
+    await h.controller.tick();
+    expect(h.controller.getState().countdownSec).toBe(1);
+    expect(h.killer.calls.length).toBe(0);
+
+    h.clock.advance(1000);
+    await h.controller.tick();
+    expect(h.killer.calls.length).toBe(1);
+    expect(h.controller.getState().countdownSec).toBe(0);
+  });
+
+  it("shortening countdownSec mid-fuse kills in sync with a zeroed display", async () => {
+    const h = makeHarness({ plugs: SAMPLE_PLUGS });
+    await h.controller.start();
+    h.window.emit(discordFocus(h.clock.ms));
+    h.desk.emit(presentDesk(h.clock.ms));
+    await h.controller.flush();
+    h.clock.advance(5000);
+    await h.controller.tick();
+    expect(h.controller.getState().countdownSec).toBe(5);
+
+    // 5s already elapsed >= the new 3s fuse: the engine kills on the settings
+    // evaluation and the display agrees at 0.
+    h.controller.setSettings({ countdownSec: 3 });
+    await h.controller.flush();
+    expect(h.killer.calls.length).toBe(1);
+    expect(h.plugs.offCalls.length).toBe(1);
+    expect(h.controller.getState().countdownSec).toBe(0);
+  });
+
+  it("stop() during an in-flight fuse kill finishes kill + plug_off before logging stop", async () => {
+    const clock = new MutableClock();
+    const window = new ScriptedWindowMonitor();
+    const desk = new ScriptedDeskMonitor();
+    const plugs = new RecordingPlugController(SAMPLE_PLUGS);
+    const store = createMemoryStore({
+      plugs: SAMPLE_PLUGS,
+      settings: { ...DEFAULT_SETTINGS, plugs: SAMPLE_PLUGS },
+    });
+    const { push } = createRecordingPush();
+    let releaseKill: (result: KillResult) => void = () => undefined;
+    let markStarted: () => void = () => undefined;
+    const killStarted = new Promise<void>((resolve) => {
+      markStarted = resolve;
+    });
+    const gate = new Promise<KillResult>((resolve) => {
+      releaseKill = resolve;
+    });
+    const calls: string[][] = [];
+    const killer: ProcessKiller = {
+      kill: (matchers) => {
+        calls.push([...matchers]);
+        markStarted();
+        return gate;
+      },
+    };
+    const controller = new SessionController({
+      windowMonitor: window,
+      deskMonitor: desk,
+      killer,
+      plugs,
+      store,
+      push,
+      now: clock.now,
+      tickIntervalMs: 0,
+    });
+
+    await controller.start();
+    window.emit(discordFocus(clock.ms));
+    desk.emit(presentDesk(clock.ms));
+    await controller.flush();
+    clock.advance(10_000);
+    const tickDone = controller.tick();
+    await killStarted;
+
+    const stopDone = controller.stop();
+    releaseKill({ killed: ["discord.exe (pid 7)"], errors: [] });
+    await stopDone;
+    await tickDone;
+
+    // The paired plug_off applied, and the kill logged before "Session stopped".
+    expect(calls.length).toBe(1);
+    expect(plugs.offCalls.length).toBe(1);
+    const log = controller.getLog();
+    const stopIndex = log.findIndex((event) => event.detail.includes("Session stopped"));
+    const killIndex = log.findIndex((event) => event.kind === "kill");
+    expect(killIndex).toBeGreaterThanOrEqual(0);
+    expect(stopIndex).toBeGreaterThanOrEqual(0);
+    // Log is newest-first: the stop entry must be newer than the kill entry.
+    expect(stopIndex).toBeLessThan(killIndex);
+  });
+
+  it("SETTINGS_SET plugs route enforces the PLUGS_ADD hard-deny", () => {
+    const h = makeHarness();
+    const denied = {
+      id: "x",
+      name: "Study PC lamp",
+      protocol: "http" as const,
+      address: "192.168.1.20",
+      enabled: true,
+      isStudyPc: false as const,
+    };
+    expect(() => h.controller.setSettings({ plugs: [denied] })).toThrow(/study/i);
+    expect(() =>
+      h.controller.setSettings({ plugs: [{ ...denied, name: "Lamp", address: "127.0.0.1" }] }),
+    ).toThrow(/localhost/i);
+    expect(h.store.loadSettings().plugs).toEqual([]);
+
+    const lamp = {
+      id: "lamp",
+      name: "Desk lamp",
+      protocol: "mock" as const,
+      address: "127.0.0.1",
+      enabled: true,
+      isStudyPc: false as const,
+    };
+    expect(h.controller.setSettings({ plugs: [lamp] }).plugs).toEqual([lamp]);
+    expect(h.store.loadSettings().plugs).toEqual([lamp]);
   });
 
   it("250ms ticker publishes live remaining countdown without new snapshots", async () => {

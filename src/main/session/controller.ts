@@ -23,7 +23,7 @@ import type {
   PolicyEvent,
   SessionEvent,
 } from "../../shared/types.ts";
-import { createPlugController, SettingsPlugStore } from "../plugs/index.ts";
+import { assertControllable, createPlugController, SettingsPlugStore } from "../plugs/index.ts";
 import {
   cloneSettings,
   isDeskModelId,
@@ -164,6 +164,9 @@ function requirePlugDevice(value: unknown, label = "plug"): PlugDevice {
       `${label} must be a PlugDevice with isStudyPc=false (study PC plugs are forbidden)`,
     );
   }
+  // Same hard-deny as PLUGS_ADD — the SETTINGS_SET route must never persist
+  // a device the protect layer would refuse to command.
+  assertControllable(plug);
   return plug;
 }
 
@@ -238,6 +241,11 @@ export class SessionController {
     this.policy = this.policyFactory();
     this.clearFuse();
     this.lastLoggedDecision = null;
+    // Drop the previous session's snapshots — buildPolicyInput re-stamps ts,
+    // so stale focus/desk data would look current and could arm (or with a
+    // 0s fuse, fire) enforcement before either monitor emits.
+    this.focus = null;
+    this.desk = null;
     this.state = {
       ...cloneState(DEFAULT_SESSION_STATE),
       sessionActive: true,
@@ -273,11 +281,14 @@ export class SessionController {
   }
 
   async stop(): Promise<SessionState> {
-    this.generation += 1;
-    this.sessionActive = false;
     this.stopTicker();
     this.windowMonitor.stop();
     this.deskMonitor.stop();
+    // Drain in-flight evaluation before flipping inactive so a mid-flight
+    // kill finishes with its paired plug_off and logs before "Session stopped".
+    await this.flush();
+    this.generation += 1;
+    this.sessionActive = false;
     this.clearFuse();
 
     const idleInput = this.buildPolicyInput(false);
@@ -449,6 +460,10 @@ export class SessionController {
 
   async demoKill(): Promise<KillResult> {
     this.clearFuse();
+    // clearFuse only resets the displayed countdown — replace the engine too,
+    // or a policy fuse armed before Demo Kill keeps burning invisibly and
+    // fires a second kill + plug_off with no countdown on screen.
+    this.policy = this.policyFactory();
     const matchers = demoKillMatchers(this.store.loadBlocklist(), this.focus);
     const event: PolicyEvent = {
       type: "kill",
@@ -500,6 +515,11 @@ export class SessionController {
     }
     const gen = this.generation;
     const settings = this.loadSettings();
+    // The engine checks fuse expiry against the live countdownSec, so a
+    // mid-fuse settings change must retime the displayed countdown to match.
+    if (this.countdownStartedAt !== null) {
+      this.countdownDurationSec = settings.countdownSec;
+    }
     const input = this.buildPolicyInput(true, settings);
     const events = this.policy.step(input);
     if (this.generation !== gen || !this.sessionActive) {

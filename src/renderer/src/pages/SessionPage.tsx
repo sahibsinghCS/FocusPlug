@@ -29,7 +29,11 @@ import { useAppState } from "../state/AppState";
 
 export function SessionPage(): JSX.Element {
   const app = useAppState();
-  const { elapsedSec, startedAt, now } = useSessionElapsed(app.state.sessionActive, app.log);
+  const { elapsedSec, startedAt, now } = useSessionElapsed(
+    app.state.sessionActive,
+    app.log,
+    app.sessionStartedAt,
+  );
   const [previewFace, setPreviewFace] = useState<FaceId | null>(() => readFaceOverride());
 
   useEffect(() => {

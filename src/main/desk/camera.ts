@@ -85,7 +85,7 @@ export class ScriptedFrameSource implements FrameSource {
   }
 }
 
-class ElectronCameraSource implements FrameSource {
+export class ElectronCameraSource implements FrameSource {
   private window: Electron.BrowserWindow | null = null;
   private started = false;
 
@@ -116,8 +116,18 @@ class ElectronCameraSource implements FrameSource {
     });
     win.webContents.setBackgroundThrottling(false);
     this.window = win;
-    await win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(CAMERA_HTML)}`);
-    await win.webContents.executeJavaScript("window.focusplugStartCam()");
+    try {
+      await win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(CAMERA_HTML)}`);
+      await win.webContents.executeJavaScript("window.focusplugStartCam()");
+    } catch (error) {
+      // Camera acquisition failed (no webcam, device busy, OS privacy deny):
+      // destroy the hidden window so retries do not leak a renderer per attempt.
+      this.window = null;
+      if (!win.isDestroyed()) {
+        win.destroy();
+      }
+      throw error;
+    }
     this.started = true;
     const deadline = Date.now() + 8000;
     while (Date.now() < deadline) {
@@ -185,11 +195,81 @@ function runFfmpeg(args: string[], timeoutMs: number): Promise<Buffer> {
   });
 }
 
+/** Run ffmpeg for its stderr text (device listings); exit code is irrelevant. */
+function runFfmpegStderr(args: string[], timeoutMs: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const child = spawn("ffmpeg", args, { stdio: ["ignore", "ignore", "pipe"] });
+    const chunks: Buffer[] = [];
+    const timer = setTimeout(() => {
+      child.kill("SIGKILL");
+      reject(new Error("ffmpeg timeout"));
+    }, timeoutMs);
+    child.stderr.on("data", (chunk: Buffer) => {
+      chunks.push(chunk);
+    });
+    child.on("error", (error) => {
+      clearTimeout(timer);
+      reject(error);
+    });
+    child.on("close", () => {
+      clearTimeout(timer);
+      resolve(Buffer.concat(chunks).toString("utf8"));
+    });
+  });
+}
+
+/**
+ * Parse `ffmpeg -list_devices true -f dshow` stderr into video device names.
+ * Handles both the sectioned layout ("DirectShow video devices" header) and
+ * the newer per-line "(video)" / "(audio)" tags. Exported for tests.
+ */
+export function parseDshowVideoDevices(output: string): string[] {
+  const devices: string[] = [];
+  let inVideoSection = false;
+  for (const line of output.split(/\r?\n/)) {
+    if (/DirectShow video devices/i.test(line)) {
+      inVideoSection = true;
+      continue;
+    }
+    if (/DirectShow audio devices/i.test(line)) {
+      inVideoSection = false;
+      continue;
+    }
+    if (/Alternative name/i.test(line)) {
+      continue;
+    }
+    const name = line.match(/"([^"]+)"/)?.[1];
+    if (!name) {
+      continue;
+    }
+    const tag = line.match(/\(([^)]*)\)\s*$/)?.[1];
+    if (tag !== undefined ? /video/i.test(tag) : inVideoSection) {
+      devices.push(name);
+    }
+  }
+  return devices;
+}
+
+async function resolveDshowVideoDevice(): Promise<string | null> {
+  try {
+    const listing = await runFfmpegStderr(
+      ["-hide_banner", "-list_devices", "true", "-f", "dshow", "-i", "dummy"],
+      4000,
+    );
+    return parseDshowVideoDevices(listing)[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+
 class FfmpegCameraSource implements FrameSource {
   private args: string[] | null = null;
 
   async start(): Promise<void> {
     this.args = await resolveFfmpegInput();
+    if (!this.args) {
+      throw new Error("No ffmpeg camera device available");
+    }
   }
 
   async stop(): Promise<void> {
@@ -223,7 +303,10 @@ async function resolveFfmpegInput(): Promise<string[] | null> {
     return ["-f", "avfoundation", "-framerate", "30", "-i", "0"];
   }
   if (process.platform === "win32") {
-    return ["-f", "dshow", "-i", "video=Integrated Camera"];
+    // dshow needs the exact device friendly name — enumerate instead of
+    // guessing, so external/USB webcams work too.
+    const device = await resolveDshowVideoDevice();
+    return device ? ["-f", "dshow", "-i", `video=${device}`] : null;
   }
   return null;
 }

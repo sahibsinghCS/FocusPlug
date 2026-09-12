@@ -10,6 +10,7 @@ import {
   elapsedSeconds,
   findSessionStartedAt,
   formatElapsed,
+  latchSessionStartedAt,
   overlayConsequenceLines,
   plugsSensor,
   resolveAppName,
@@ -95,6 +96,25 @@ describe("elapsed + fuse hierarchy", () => {
     expect(findSessionStartedAt(log, false)).toBeNull();
     expect(elapsedSeconds(4000, 9000)).toBe(5);
     expect(elapsedSeconds(null, 9000)).toBeNull();
+  });
+
+  it("keeps the latched start after the 400-event cap trims 'Session started'", () => {
+    const startEvent: SessionEvent = { ts: 4000, kind: "session", detail: "Session started" };
+    const noise: SessionEvent = { ts: 9000, kind: "decision", detail: "ON_TASK · at desk" };
+
+    // Start observed via the log, latched at provider scope.
+    const latched = latchSessionStartedAt(null, [noise, startEvent], true, 10_000);
+    expect(latched).toBe(4000);
+
+    // Cap trims the start event mid-session: the latch, not now, anchors Elapsed.
+    expect(latchSessionStartedAt(latched, [noise], true, 99_000)).toBe(4000);
+
+    // No log event yet (e.g. state arrived first): latch the observation time once.
+    expect(latchSessionStartedAt(null, [noise], true, 12_000)).toBe(12_000);
+    expect(latchSessionStartedAt(12_000, [noise], true, 50_000)).toBe(12_000);
+
+    // Session over: clear so the next session re-latches.
+    expect(latchSessionStartedAt(latched, [noise, startEvent], false, 99_000)).toBeNull();
   });
 });
 

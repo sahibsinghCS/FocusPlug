@@ -101,7 +101,11 @@ class BlazeFaceDetector {
       return;
     }
     if (!this.initPromise) {
-      this.initPromise = this.loadModel();
+      this.initPromise = this.loadModel().catch((error: unknown) => {
+        // Don't cache a rejected load — let the next init() attempt retry.
+        this.initPromise = null;
+        throw error;
+      });
     }
     await this.initPromise;
   }
@@ -170,8 +174,9 @@ let sharedDetector: BlazeFaceDetector | null = null;
 async function getSharedDetector(): Promise<BlazeFaceDetector> {
   if (!sharedDetector) {
     sharedDetector = new BlazeFaceDetector();
-    await sharedDetector.init();
   }
+  // Always await init so a detector whose first load failed retries here.
+  await sharedDetector.init();
   return sharedDetector;
 }
 
