@@ -45,7 +45,7 @@ export function FacesPreview(): JSX.Element {
   const title = query.kind === "bar" ? "Plain bar" : FACE_CATALOG[query.kind].title;
 
   const soloSize = useMemo(() => ({ width: 1120, height: 680 }), []);
-  const splitSize = useMemo(() => ({ width: 560, height: 640 }), []);
+  const splitSize = useMemo(() => ({ width: 720, height: 640 }), []);
 
   return (
     <div className="fp-faces-stage" data-preview-kind={query.kind} data-preview-vs={query.vs ? "1" : "0"}>
@@ -60,7 +60,7 @@ export function FacesPreview(): JSX.Element {
           <PlainBar progress={query.progress} width={1120} height={680} />
         ) : query.vs ? (
           <div className="fp-faces-split">
-            <PlainBar progress={query.progress} width={560} height={640} />
+            <PlainBar progress={query.progress} width={400} height={640} />
             <FaceById id={query.kind} face={faceProps(query, splitSize)} />
           </div>
         ) : (

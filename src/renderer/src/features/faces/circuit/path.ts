@@ -17,7 +17,7 @@ export const CIRCUIT_POINTS: readonly CircuitPoint[] = [
   { x: 880, y: 160 },
 ];
 
-export const CIRCUIT_VIEW = { width: 960, height: 540 } as const;
+export const CIRCUIT_VIEW = { width: 960, height: 640 } as const;
 
 export function polylineLength(points: readonly CircuitPoint[]): number {
   if (points.length < 2) {

@@ -67,21 +67,22 @@ export function CircuitFace(props: FaceProps): JSX.Element {
 
         <rect width={CIRCUIT_VIEW.width} height={CIRCUIT_VIEW.height} fill="url(#fp-circuit-wash)" />
         <rect width={CIRCUIT_VIEW.width} height={CIRCUIT_VIEW.height} fill="url(#fp-circuit-grid)" />
+        <rect x="0" y="0" width={CIRCUIT_VIEW.width} height="8" fill="#d4ff3a" opacity="0.85" />
         <rect
           x="14"
-          y="12"
+          y="18"
           width={CIRCUIT_VIEW.width - 28}
-          height={CIRCUIT_VIEW.height - 24}
+          height={CIRCUIT_VIEW.height - 32}
           rx="8"
-          fill="none"
-          stroke="rgba(90, 160, 110, 0.28)"
-          strokeWidth="1.4"
+          fill="rgba(16,19,26,0.35)"
+          stroke="rgba(170, 190, 220, 0.12)"
+          strokeWidth="1.2"
         />
 
-        <text x={36} y={48} className="fp-circuit-word" fill="#eef2f8">
+        <text x={36} y={56} className="fp-circuit-word" fill="#eef2f8">
           FocusPlug
         </text>
-        <text x={36} y={72} className="fp-circuit-silk" fill="rgba(155,166,184,0.72)">
+        <text x={36} y={80} className="fp-circuit-silk" fill="#d4ff3a">
           SESSION FUSE
         </text>
         <text
@@ -129,12 +130,15 @@ export function CircuitFace(props: FaceProps): JSX.Element {
           {complete ? "ON" : "ARM"}
         </text>
 
-        <text x={36} y={514} className="fp-circuit-silk" fill="rgba(155,166,184,0.5)">
+        <text x={36} y={560} className="fp-circuit-silk" fill="rgba(238,242,248,0.55)">
+          Force-quit blocked apps · cut armed plugs
+        </text>
+        <text x={36} y={600} className="fp-circuit-silk" fill="rgba(155,166,184,0.5)">
           NEVER POWER OFF THE STUDY PC
         </text>
         <text
           x={CIRCUIT_VIEW.width - 36}
-          y={514}
+          y={600}
           textAnchor="end"
           className="fp-circuit-silk"
           fill="rgba(155,166,184,0.5)"
