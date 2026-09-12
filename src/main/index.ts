@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import { join } from "node:path";
 import { electronApp, is, optimizer } from "@electron-toolkit/utils";
 import {
@@ -13,6 +13,11 @@ import { assertControllable, type PlugController } from "./plugs";
 import { createFocusPlugRuntime, type SessionController, type SessionPush } from "./session";
 
 let session: SessionController | null = null;
+let mainWindow: BrowserWindow | null = null;
+let quitting = false;
+
+/** Bound so a hung plug/kill drain cannot hold the quit forever. */
+const STOP_ON_QUIT_TIMEOUT_MS = 5000;
 
 function broadcast(channel: string, payload: unknown): void {
   for (const win of BrowserWindow.getAllWindows()) {
@@ -76,7 +81,7 @@ function registerIpc(controller: SessionController, plugs: PlugController): void
 }
 
 function createWindow(): void {
-  const mainWindow = new BrowserWindow({
+  const win = new BrowserWindow({
     width: 1280,
     height: 800,
     minWidth: 900,
@@ -93,19 +98,34 @@ function createWindow(): void {
     },
   });
 
-  mainWindow.on("ready-to-show", () => {
-    mainWindow.show();
+  mainWindow = win;
+
+  win.on("ready-to-show", () => {
+    win.show();
   });
 
-  mainWindow.webContents.setWindowOpenHandler((details) => {
+  win.on("closed", () => {
+    if (mainWindow === win) {
+      mainWindow = null;
+    }
+    // The hidden desk-camera window counts as an open BrowserWindow, so
+    // "window-all-closed" never fires while a webcam session runs — quitting
+    // must key off the user-facing window or closing it leaves a headless
+    // enforcer with the camera on.
+    if (process.platform !== "darwin") {
+      app.quit();
+    }
+  });
+
+  win.webContents.setWindowOpenHandler((details) => {
     void shell.openExternal(details.url);
     return { action: "deny" };
   });
 
   if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
-    void mainWindow.loadURL(process.env["ELECTRON_RENDERER_URL"]);
+    void win.loadURL(process.env["ELECTRON_RENDERER_URL"]);
   } else {
-    void mainWindow.loadFile(join(__dirname, "../renderer/index.html"));
+    void win.loadFile(join(__dirname, "../renderer/index.html"));
   }
 }
 
@@ -113,32 +133,71 @@ if (process.platform === "linux") {
   app.commandLine.appendSwitch("no-sandbox");
 }
 
-app.whenReady().then(() => {
-  electronApp.setAppUserModelId("com.focusplug.app");
-  const runtime = createFocusPlugRuntime({
-    userDataDir: app.getPath("userData"),
-    push: createElectronPush(),
-  });
-  session = runtime.session;
-  registerIpc(runtime.session, runtime.plugs);
-
-  app.on("browser-window-created", (_event, window) => {
-    optimizer.watchWindowShortcuts(window);
-  });
-
-  createWindow();
-
-  app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
+// A second FocusPlug instance would enforce concurrently over the same
+// settings/log files and the same physical plugs — one instance only.
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+} else {
+  app.on("second-instance", () => {
+    if (mainWindow !== null && !mainWindow.isDestroyed()) {
+      if (mainWindow.isMinimized()) {
+        mainWindow.restore();
+      }
+      mainWindow.focus();
     }
   });
-});
 
-app.on("before-quit", () => {
-  if (session !== null) {
-    void session.stop();
+  app
+    .whenReady()
+    .then(() => {
+      electronApp.setAppUserModelId("com.focusplug.app");
+      const runtime = createFocusPlugRuntime({
+        userDataDir: app.getPath("userData"),
+        push: createElectronPush(),
+      });
+      session = runtime.session;
+      registerIpc(runtime.session, runtime.plugs);
+
+      app.on("browser-window-created", (_event, window) => {
+        optimizer.watchWindowShortcuts(window);
+      });
+
+      createWindow();
+
+      app.on("activate", () => {
+        if (BrowserWindow.getAllWindows().length === 0) {
+          createWindow();
+        }
+      });
+    })
+    .catch((error: unknown) => {
+      // A failed startup (e.g. unwritable userData) must not leave a
+      // headless, windowless process behind — say why and exit.
+      const message = error instanceof Error ? error.message : String(error);
+      dialog.showErrorBox("FocusPlug failed to start", message);
+      app.quit();
+    });
+}
+
+app.on("before-quit", (event) => {
+  if (quitting || session === null) {
+    return;
   }
+  // Hold the quit until the session drains: an in-flight fuse kill and its
+  // paired plug_off (Kasa TCP can take seconds), plus the kill/stop log
+  // entries, must land before the process exits.
+  event.preventDefault();
+  quitting = true;
+  const stopped = session.stop().then(
+    () => undefined,
+    () => undefined,
+  );
+  const deadline = new Promise<void>((resolve) => {
+    setTimeout(resolve, STOP_ON_QUIT_TIMEOUT_MS);
+  });
+  void Promise.race([stopped, deadline]).then(() => {
+    app.quit();
+  });
 });
 
 app.on("window-all-closed", () => {

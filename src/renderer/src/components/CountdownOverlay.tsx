@@ -1,4 +1,4 @@
-import { useRef, type JSX } from "react";
+import { useEffect, useRef, type JSX } from "react";
 import type { SessionState } from "@shared/ipc";
 import { IconBolt } from "../lib/icons";
 import {
@@ -9,7 +9,7 @@ import {
   windowPrimary,
 } from "../lib/format";
 import { enabledPlugViews, type PlugView } from "../lib/plugsUi";
-import { overlayConsequenceLines } from "../features/session/model";
+import { overlayAction, overlayConsequenceLines } from "../features/session/model";
 import { useOverlayFocus } from "../features/session/useOverlayFocus";
 import "../features/session/session.css";
 
@@ -19,12 +19,31 @@ interface CountdownOverlayProps {
   reason: string;
   state: SessionState;
   plugs?: readonly PlugView[];
+  /** Local preview (no live fuse in main): the only action is a benign close. */
+  preview: boolean;
   onDemoKill: () => void;
+  onDismiss: () => void;
 }
 
 export function CountdownOverlay(props: CountdownOverlayProps): JSX.Element {
   const rootRef = useRef<HTMLDivElement>(null);
   useOverlayFocus(rootRef, true);
+
+  // A real fuse deliberately ignores Esc; a preview must let it close.
+  const { preview, onDismiss } = props;
+  useEffect(() => {
+    if (!preview) {
+      return;
+    }
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onDismiss();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [preview, onDismiss]);
 
   const total = Math.max(props.total, props.seconds, 1);
   const progress = props.seconds / total;
@@ -38,6 +57,7 @@ export function CountdownOverlay(props: CountdownOverlayProps): JSX.Element {
   const plugs = props.plugs ?? [];
   const armed = enabledPlugViews(plugs);
   const consequence = overlayConsequenceLines(plugs);
+  const action = overlayAction(props.preview);
 
   return (
     <div
@@ -113,16 +133,26 @@ export function CountdownOverlay(props: CountdownOverlayProps): JSX.Element {
 
       <div className="relative z-10 flex shrink-0 flex-col items-center gap-3 px-6 pb-7">
         <p className="font-mono text-[12px] uppercase tracking-[0.22em] text-zinc-400">
-          Return to an allowlisted app + at desk to cancel · Esc does not dismiss
+          {action.hint}
         </p>
-        <button
-          type="button"
-          onClick={props.onDemoKill}
-          className="fp-btn inline-flex h-11 min-w-[260px] items-center justify-center gap-2 rounded-md bg-fp-red px-5 text-[13px] font-semibold uppercase tracking-[0.14em] text-white shadow-[0_0_28px_rgba(255,45,85,0.35)] hover:bg-[#ff4d6d]"
-        >
-          <IconBolt className="h-4 w-4" />
-          Demo Kill — skip wait
-        </button>
+        {props.preview ? (
+          <button
+            type="button"
+            onClick={props.onDismiss}
+            className="fp-btn inline-flex h-11 min-w-[260px] items-center justify-center gap-2 rounded-md border border-white/25 bg-black/45 px-5 text-[13px] font-semibold uppercase tracking-[0.14em] text-white hover:bg-white/10"
+          >
+            {action.label}
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={props.onDemoKill}
+            className="fp-btn inline-flex h-11 min-w-[260px] items-center justify-center gap-2 rounded-md bg-fp-red px-5 text-[13px] font-semibold uppercase tracking-[0.14em] text-white shadow-[0_0_28px_rgba(255,45,85,0.35)] hover:bg-[#ff4d6d]"
+          >
+            <IconBolt className="h-4 w-4" />
+            {action.label}
+          </button>
+        )}
       </div>
     </div>
   );

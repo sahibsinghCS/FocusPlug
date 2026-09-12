@@ -2,13 +2,25 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ElectronCameraSource, parseDshowVideoDevices } from "./camera";
 
 const fake = vi.hoisted(() => {
+  // 1x1 PNG so the post-start grab probe succeeds immediately.
+  const PNG_1X1_DATA_URL =
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
+  const state = { startCamError: null as string | null };
   class FakeWebContents {
     setBackgroundThrottling(_throttle: boolean): void {
       return;
     }
     async executeJavaScript(code: string): Promise<unknown> {
       if (code.includes("focusplugStartCam")) {
-        throw new Error("NotFoundError: Requested device not found");
+        // Simulate a slow getUserMedia so concurrent starts overlap.
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        if (state.startCamError) {
+          throw new Error(state.startCamError);
+        }
+        return true;
+      }
+      if (code.includes("focusplugGrabFrame")) {
+        return PNG_1X1_DATA_URL;
       }
       return null;
     }
@@ -30,7 +42,7 @@ const fake = vi.hoisted(() => {
       this.destroyed = true;
     }
   }
-  return { FakeBrowserWindow };
+  return { FakeBrowserWindow, state };
 });
 
 vi.mock("electron", () => ({
@@ -48,14 +60,26 @@ vi.mock("electron", () => ({
 describe("ElectronCameraSource", () => {
   beforeEach(() => {
     fake.FakeBrowserWindow.created.length = 0;
+    fake.state.startCamError = null;
   });
 
   it("destroys the hidden window when camera acquisition fails, so retries do not leak", async () => {
+    fake.state.startCamError = "NotFoundError: Requested device not found";
     const source = new ElectronCameraSource();
     await expect(source.start()).rejects.toThrow("NotFoundError");
     // DeskMonitor retries start() on the next tick — must not orphan windows.
     await expect(source.start()).rejects.toThrow("NotFoundError");
     expect(fake.FakeBrowserWindow.created).toHaveLength(2);
+    expect(fake.FakeBrowserWindow.created.every((win) => win.destroyed)).toBe(true);
+  });
+
+  it("concurrent start() calls share one warm-up instead of leaking a second camera window", async () => {
+    const source = new ElectronCameraSource();
+    // Both callers race in while getUserMedia is still pending — only one
+    // hidden window may exist, or the untracked one holds the webcam forever.
+    await Promise.all([source.start(), source.start()]);
+    expect(fake.FakeBrowserWindow.created).toHaveLength(1);
+    await source.stop();
     expect(fake.FakeBrowserWindow.created.every((win) => win.destroyed)).toBe(true);
   });
 });

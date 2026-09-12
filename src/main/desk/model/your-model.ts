@@ -405,7 +405,11 @@ async function getEmbedModel(): Promise<GraphModel> {
       const dir = join(deskRoot(), "models", "blazeface");
       embedModel = await loadGraphModel(filesystemGraphModelHandler(dir));
       return embedModel;
-    })();
+    })().catch((error: unknown) => {
+      // Don't cache a rejected load — let the next attempt retry.
+      embedModelPromise = null;
+      throw error;
+    });
   }
   return embedModelPromise;
 }
@@ -424,7 +428,11 @@ async function getSceneModel(): Promise<GraphModel> {
       const dir = join(deskRoot(), MOBILENET_DIR);
       sceneModel = await loadGraphModel(filesystemGraphModelHandler(dir));
       return sceneModel;
-    })();
+    })().catch((error: unknown) => {
+      // Don't cache a rejected load — let the next attempt retry.
+      sceneModelPromise = null;
+      throw error;
+    });
   }
   return sceneModelPromise;
 }
@@ -513,6 +521,10 @@ function isLayer(value: unknown): value is DeskHeadLayer {
   );
 }
 
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
 export function parseDeskHeadWeights(jsonText: string): DeskHeadWeights | null {
   let parsed: unknown;
   try {
@@ -537,8 +549,53 @@ export function parseDeskHeadWeights(jsonText: string): DeskHeadWeights | null {
   }
   // Content checks: a corrupt-but-parseable file must degrade to the safe
   // uncertain fallback, never to a fabricated label.
+  if (weights.version !== DESK_FEATURE_VERSION) {
+    // A head trained against an older/different feature layout would map the
+    // wrong inputs to confident logits — reject it rather than fabricate.
+    return null;
+  }
   if (weights.mean.length !== weights.featureDim || weights.std.length !== weights.featureDim) {
     return null;
+  }
+  if (!weights.mean.every(isFiniteNumber) || !weights.std.every(isFiniteNumber)) {
+    return null;
+  }
+  if (weights.inputSlices !== undefined) {
+    if (!Array.isArray(weights.inputSlices)) {
+      return null;
+    }
+    for (const slice of weights.inputSlices) {
+      if (!Array.isArray(slice) || slice.length !== 2) {
+        return null;
+      }
+      const [start, end] = slice;
+      if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end <= start) {
+        return null;
+      }
+    }
+  }
+  // The head's first layer consumes the standardized features plus, when a
+  // codebook is present, its retrieval features (min-dist + softmin per class).
+  let inputDim = weights.featureDim;
+  if (weights.codebook !== undefined) {
+    if (!Array.isArray(weights.codebook) || weights.codebook.length === 0) {
+      return null;
+    }
+    for (const centroids of weights.codebook) {
+      if (!Array.isArray(centroids) || centroids.length === 0) {
+        return null;
+      }
+      for (const centroid of centroids) {
+        if (
+          !Array.isArray(centroid) ||
+          centroid.length !== weights.featureDim ||
+          !centroid.every(isFiniteNumber)
+        ) {
+          return null;
+        }
+      }
+    }
+    inputDim += 2 * weights.codebook.length;
   }
   const lastLayer = weights.layers[weights.layers.length - 1];
   if (!lastLayer || lastLayer.b.length !== DESK_HEAD_LABELS.length) {
@@ -548,6 +605,18 @@ export function parseDeskHeadWeights(jsonText: string): DeskHeadWeights | null {
     if (layer.w.length !== layer.b.length || layer.b.length === 0) {
       return null;
     }
+    if (!layer.b.every(isFiniteNumber)) {
+      return null;
+    }
+    // Row widths must chain: layer input = previous layer's output. A short
+    // row would otherwise be zero-padded by deskHeadPredict into well-formed
+    // but meaningless logits.
+    for (const row of layer.w) {
+      if (!Array.isArray(row) || row.length !== inputDim || !row.every(isFiniteNumber)) {
+        return null;
+      }
+    }
+    inputDim = layer.b.length;
   }
   return weights;
 }
@@ -629,7 +698,6 @@ export function deskHeadPredict(weights: DeskHeadWeights, vector: number[]): Des
 export class YourModel implements DeskModel {
   readonly id = "custom";
   private weights: DeskHeadWeights | null = null;
-  private weightsLoaded = false;
   private readonly weightsFile: string | undefined;
 
   /** `weightsFile` is a test seam — production loads the committed default. */
@@ -638,11 +706,13 @@ export class YourModel implements DeskModel {
   }
 
   async init(): Promise<void> {
-    if (!this.weightsLoaded) {
+    if (!this.weights) {
+      // A null load may be a transient read failure (e.g. antivirus briefly
+      // locking the file) — retry on the next init() instead of latching the
+      // no-weights fallback for the process lifetime.
       this.weights = this.weightsFile
         ? loadDeskHeadWeights(this.weightsFile)
         : loadDeskHeadWeights();
-      this.weightsLoaded = true;
     }
     if (this.weights) {
       // Warm the shared detector so the first real frame is fast.

@@ -12,7 +12,13 @@ import {
   type SessionState,
   type WindowMonitor,
 } from "../../shared/ipc.ts";
-import { enabledFunPlugIds, PolicyEngine, type PolicyEngineInput } from "../../shared/policy/index.ts";
+import {
+  enabledFunPlugIds,
+  plugEventFor,
+  PolicyEngine,
+  REASONS,
+  type PolicyEngineInput,
+} from "../../shared/policy/index.ts";
 import type {
   AppEntry,
   DeskModelId,
@@ -207,6 +213,8 @@ export class SessionController {
   private countdownStartedAt: number | null = null;
   private countdownDurationSec = 0;
   private lastLoggedDecision: SessionState["decision"] | null = null;
+  /** Demo Kill cut plugs / dropped the engine lock — restore on next on-task. */
+  private demoPlugsCut = false;
   private timer: ReturnType<typeof setInterval> | null = null;
   private queue: Promise<void> = Promise.resolve();
 
@@ -241,6 +249,7 @@ export class SessionController {
     this.policy = this.policyFactory();
     this.clearFuse();
     this.lastLoggedDecision = null;
+    this.demoPlugsCut = false;
     // Drop the previous session's snapshots — buildPolicyInput re-stamps ts,
     // so stale focus/desk data would look current and could arm (or with a
     // 0s fuse, fire) enforcement before either monitor emits.
@@ -303,6 +312,7 @@ export class SessionController {
       }
     }
     this.policy = this.policyFactory();
+    this.demoPlugsCut = false;
     this.state = {
       ...cloneState(DEFAULT_SESSION_STATE),
       focus: this.focus,
@@ -464,6 +474,10 @@ export class SessionController {
     // or a policy fuse armed before Demo Kill keeps burning invisibly and
     // fires a second kill + plug_off with no countdown on screen.
     this.policy = this.policyFactory();
+    // The replaced engine may have been `locked`, and the demo cut below is a
+    // session-owned path the fresh engine knows nothing about — remember to
+    // restore on the next on-task return or the plugs stay stranded OFF.
+    this.demoPlugsCut = this.sessionActive;
     const matchers = demoKillMatchers(this.store.loadBlocklist(), this.focus);
     const event: PolicyEvent = {
       type: "kill",
@@ -521,7 +535,7 @@ export class SessionController {
       this.countdownDurationSec = settings.countdownSec;
     }
     const input = this.buildPolicyInput(true, settings);
-    const events = this.policy.step(input);
+    const events = this.withDemoRecovery(this.policy.step(input), input);
     if (this.generation !== gen || !this.sessionActive) {
       return;
     }
@@ -541,6 +555,37 @@ export class SessionController {
       detail: this.state.detail,
     };
     this.publishState();
+  }
+
+  /**
+   * Demo Kill cuts plugs on a session-owned path and replaces the policy
+   * engine, discarding any `locked` state — the fresh engine sees an on-task
+   * return with nothing to recover, so it would never emit the unlock +
+   * plug_on pair and the plugs would stay stranded OFF. Until the engine owns
+   * recovery again (its own kill re-locks it, or it emits unlock), inject the
+   * standard pair ahead of the ON_TASK status.
+   */
+  private withDemoRecovery(
+    events: PolicyEvent[],
+    input: PolicyEngineInput,
+  ): PolicyEvent[] {
+    if (!this.demoPlugsCut) {
+      return events;
+    }
+    if (events.some((event) => event.type === "unlock" || event.type === "kill")) {
+      this.demoPlugsCut = false;
+      return events;
+    }
+    if (!events.some((event) => event.type === "status" && event.decision === "ON_TASK")) {
+      return events;
+    }
+    this.demoPlugsCut = false;
+    const injected: PolicyEvent[] = [{ type: "unlock" }];
+    const plugOn = plugEventFor("plug_on", input, REASONS.unlock);
+    if (plugOn !== null) {
+      injected.push(plugOn);
+    }
+    return [...injected, ...events];
   }
 
   private async applyPolicyEvent(event: PolicyEvent): Promise<void> {

@@ -13,17 +13,17 @@ export function useSessionElapsed(
 } {
   const [now, setNow] = useState(() => Date.now());
 
+  // Tick even with no session running: faces render wall-clock instruments
+  // from `now` (Flight's Zulu header and terminator), which must not freeze
+  // at whatever time the page mounted.
   useEffect(() => {
-    if (!sessionActive) {
-      return;
-    }
     const id = window.setInterval(() => {
       setNow(Date.now());
     }, 1000);
     return () => {
       window.clearInterval(id);
     };
-  }, [sessionActive]);
+  }, []);
 
   // Prefer the log's "Session started" event; once the capped log trims it,
   // the provider-latched start (survives page remounts) takes over.

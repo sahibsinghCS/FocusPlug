@@ -26,6 +26,7 @@ import { DEFAULT_SESSION_STATE, DEFAULT_SETTINGS } from "@shared/defaults";
 import { latchSessionStartedAt } from "../features/session/model";
 import { getApi } from "../lib/api";
 import { newEntryId } from "../lib/ids";
+import { createWriteQueue } from "../lib/writeQueue";
 import {
   looksLikeStudyPc,
   mergePlugViews,
@@ -72,6 +73,8 @@ interface AppStateValue {
   setPlugEnabled: (deviceId: string, enabled: boolean) => Promise<PlugDevice[]>;
   testPlug: (deviceId: string, powerOn: boolean) => Promise<PlugSnapshot>;
   previewCountdown: (seconds: number, reason: string) => void;
+  /** Close a local countdown preview — never touches a real fuse in main. */
+  dismissPreview: () => void;
   clearError: () => void;
 }
 
@@ -142,6 +145,11 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
     },
     [clearLocalTimer],
   );
+
+  const dismissPreview = useCallback((): void => {
+    clearLocalTimer();
+    setLocalCountdown(null);
+  }, [clearLocalTimer]);
 
   useEffect(() => {
     let cancelled = false;
@@ -376,18 +384,30 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
     [api, runWithResult],
   );
 
-  const setPlugEnabled = useCallback(
-    async (deviceId: string, enabled: boolean): Promise<PlugDevice[]> => {
-      return await runWithResult(async () => {
-        const plugs = settings.plugs.map((plug) =>
-          plug.id === deviceId ? { ...plug, enabled, isStudyPc: false as const } : plug,
-        );
+  // Plug toggles persist the whole array (last-write-wins settings:set). The
+  // queue computes each payload from the previous write's result so a second
+  // toggle clicked mid-flight cannot silently disarm the first.
+  const persistPlugs = useMemo(
+    () =>
+      createWriteQueue<PlugDevice>(async (plugs) => {
         const next = await api.settingsSet({ plugs });
         setSettings(next);
         return next.plugs;
+      }),
+    [api],
+  );
+
+  const setPlugEnabled = useCallback(
+    async (deviceId: string, enabled: boolean): Promise<PlugDevice[]> => {
+      return await runWithResult(async () => {
+        return await persistPlugs(settings.plugs, (plugs) =>
+          plugs.map((plug) =>
+            plug.id === deviceId ? { ...plug, enabled, isStudyPc: false as const } : plug,
+          ),
+        );
       }, "Failed to update plug");
     },
-    [api, runWithResult, settings.plugs],
+    [persistPlugs, runWithResult, settings.plugs],
   );
 
   const testPlug = useCallback(
@@ -446,12 +466,14 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
       setPlugEnabled,
       testPlug,
       previewCountdown,
+      dismissPreview,
       clearError: () => setError(null),
     }),
     [
       addPlug,
       countdown,
       demoKill,
+      dismissPreview,
       error,
       killResult,
       lists,

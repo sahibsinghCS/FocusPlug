@@ -1,3 +1,4 @@
+import { isIP } from "node:net";
 import type { PlugProtectVerdict } from "./types.ts";
 
 /** Runtime plug record. Persisted devices are always `isStudyPc: false`. */
@@ -35,12 +36,31 @@ export function isLoopbackHost(host: string): boolean {
   if (LOOPBACK_HOST.test(trimmed)) {
     return true;
   }
-  // IPv4-mapped IPv6 loopback: ::ffff:127.0.0.1 or its hex form ::ffff:7f00:1.
-  const mapped = trimmed.match(/^::ffff:([0-9a-f:.]+)$/);
+  // IPv4-mapped IPv6 loopback (::ffff:127.0.0.1 / ::ffff:7f00:1) and the
+  // IPv4-translated SIIT form (::ffff:0:127.0.0.1 / ::ffff:0:7f00:1).
+  const mapped = trimmed.match(/^::ffff:(?:0:)?([0-9a-f:.]+)$/);
   if (mapped?.[1]) {
     return mapped[1].startsWith("127.") || /^7f[0-9a-f]{2}:[0-9a-f]{1,4}$/.test(mapped[1]);
   }
   return trimmed.startsWith("127.");
+}
+
+/**
+ * Canonicalize a bare IPv6 literal by round-tripping through WHATWG URL so
+ * non-canonical loopback spellings ("0:0:0:0:0:0:0:1", "0::1", "::0:0:0:1")
+ * come back as "::1" and cannot slip past isLoopbackHost(). Anything that is
+ * not a valid IPv6 literal passes through unchanged.
+ */
+function canonicalizeIpv6Literal(candidate: string): string {
+  const bare = candidate.replace(/^\[|\]$/g, "");
+  if (isIP(bare) !== 6) {
+    return candidate;
+  }
+  try {
+    return new URL(`http://[${bare}]`).hostname.replace(/^\[|\]$/g, "");
+  } catch {
+    return bare;
+  }
 }
 
 export function hostnameFromAddress(address: string): string {
@@ -65,10 +85,10 @@ export function hostnameFromAddress(address: string): string {
   const withoutZone = trimmed.split("%")[0]?.trim() ?? "";
   const bracketed = withoutZone.match(/^\[([^\]]+)\]/);
   if (bracketed?.[1]) {
-    return bracketed[1];
+    return canonicalizeIpv6Literal(bracketed[1]);
   }
   if (withoutZone.split(":").length > 2) {
-    return withoutZone;
+    return canonicalizeIpv6Literal(withoutZone);
   }
   return withoutZone.split(":")[0]?.split("/")[0]?.trim() ?? "";
 }

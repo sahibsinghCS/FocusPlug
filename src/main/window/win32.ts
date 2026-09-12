@@ -170,6 +170,10 @@ export class Win32ForegroundReader implements ForegroundReader {
   }
 
   private teardownChild(): void {
+    // Drop the cached window: with no live child, read() must report "no data"
+    // (monitor treats null as empty focus) instead of replaying the previous
+    // session's foreground window until the fresh child's first real payload.
+    this.latest = null;
     if (this.rl !== null) {
       this.rl.removeAllListeners();
       this.rl.close();

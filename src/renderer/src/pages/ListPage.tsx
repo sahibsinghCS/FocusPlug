@@ -18,6 +18,7 @@ import {
   validateListDraft,
 } from "../features/config";
 import { newEntryId } from "../lib/ids";
+import { createWriteQueue } from "../lib/writeQueue";
 import { useAppState } from "../state/AppState";
 
 interface ListPageProps {
@@ -39,10 +40,17 @@ export function ListPage(props: ListPageProps): JSX.Element {
 
   const meta = useMemo(() => listMeta(entries), [entries]);
 
-  async function persist(next: AppEntry[]): Promise<AppEntry[]> {
-    const lists = await saveList(next);
-    return isAllow ? lists.allowlist : lists.blocklist;
-  }
+  // Every edit persists the whole array (last-write-wins). The queue computes
+  // each payload from the previous write's result so a second row edit
+  // clicked mid-flight cannot silently revert the first.
+  const persist = useMemo(
+    () =>
+      createWriteQueue<AppEntry>(async (next) => {
+        const lists = await saveList(next);
+        return isAllow ? lists.allowlist : lists.blocklist;
+      }),
+    [isAllow, saveList],
+  );
 
   async function onAdd(event: FormEvent): Promise<void> {
     event.preventDefault();
@@ -62,7 +70,7 @@ export function ListPage(props: ListPageProps): JSX.Element {
     setMessage(null);
     save.begin();
     try {
-      const returned = await persist([...entries, entry]);
+      const returned = await persist(entries, (current) => [...current, entry]);
       if (!entryReturned(returned, entry.id)) {
         save.fail("Save returned without the new row");
         return;
@@ -164,8 +172,8 @@ export function ListPage(props: ListPageProps): JSX.Element {
               onToggle={async (enabled) => {
                 setRowBusy(entry.id);
                 try {
-                  await persist(
-                    entries.map((item) => (item.id === entry.id ? { ...item, enabled } : item)),
+                  await persist(entries, (current) =>
+                    current.map((item) => (item.id === entry.id ? { ...item, enabled } : item)),
                   );
                 } finally {
                   setRowBusy(null);
@@ -174,8 +182,8 @@ export function ListPage(props: ListPageProps): JSX.Element {
               onSave={async (next) => {
                 setRowBusy(entry.id);
                 try {
-                  const returned = await persist(
-                    entries.map((item) =>
+                  const returned = await persist(entries, (current) =>
+                    current.map((item) =>
                       item.id === entry.id ? { ...item, name: next.name, match: next.match } : item,
                     ),
                   );
@@ -189,7 +197,9 @@ export function ListPage(props: ListPageProps): JSX.Element {
               onDelete={async () => {
                 setRowBusy(entry.id);
                 try {
-                  const returned = await persist(entries.filter((item) => item.id !== entry.id));
+                  const returned = await persist(entries, (current) =>
+                    current.filter((item) => item.id !== entry.id),
+                  );
                   if (entryReturned(returned, entry.id)) {
                     throw new Error("Remove returned the deleted row");
                   }

@@ -88,11 +88,24 @@ export class ScriptedFrameSource implements FrameSource {
 export class ElectronCameraSource implements FrameSource {
   private window: Electron.BrowserWindow | null = null;
   private started = false;
+  private startPromise: Promise<void> | null = null;
 
   async start(): Promise<void> {
     if (this.started) {
       return;
     }
+    // Concurrent callers must join the in-flight warm-up: a second hidden
+    // window would acquire the webcam too, and only the last `this.window`
+    // assignment is tracked — the other window leaks with the camera held.
+    if (!this.startPromise) {
+      this.startPromise = this.openCamera().finally(() => {
+        this.startPromise = null;
+      });
+    }
+    return this.startPromise;
+  }
+
+  private async openCamera(): Promise<void> {
     const electron = await import("electron");
     const { BrowserWindow, app, session } = electron;
     if (!app.isReady()) {

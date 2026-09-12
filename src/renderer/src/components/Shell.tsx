@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type JSX } from "react";
 import { parseRoute, type RouteId, ROUTES, navigate } from "../lib/routes";
 import { loadCollapsedPref, persistCollapsedPref, resolveSidebarCollapsed } from "../lib/shellPref";
+import { countdownIsPreview } from "../features/session/model";
 import { useAppState } from "../state/AppState";
 import { ErrorBanner } from "./page";
 import { CountdownOverlay } from "./CountdownOverlay";
@@ -119,9 +120,11 @@ export function Shell(): JSX.Element {
           reason={app.countdown.reason}
           state={app.state}
           plugs={app.plugs}
+          preview={countdownIsPreview(app.state.countdownSec)}
           onDemoKill={() => {
             void app.demoKill();
           }}
+          onDismiss={app.dismissPreview}
         />
       ) : null}
     </div>

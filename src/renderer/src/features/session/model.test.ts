@@ -4,6 +4,7 @@ import type { PlugView } from "../../lib/plugsUi";
 import {
   buildTimelinePreview,
   classifySessionEvent,
+  countdownIsPreview,
   decisionConsequence,
   decisionHeroCopy,
   deskSensor,
@@ -11,6 +12,7 @@ import {
   findSessionStartedAt,
   formatElapsed,
   latchSessionStartedAt,
+  overlayAction,
   overlayConsequenceLines,
   plugsSensor,
   resolveAppName,
@@ -226,5 +228,23 @@ describe("overlay consequence", () => {
     const none = overlayConsequenceLines([]);
     expect(none.plugs).toMatch(/No plugs armed/);
     expect(none.plugs).toMatch(/study PC is never cut/);
+  });
+});
+
+describe("overlay preview action", () => {
+  it("treats the overlay as a local preview only when main reports no live fuse", () => {
+    expect(countdownIsPreview(0)).toBe(true);
+    expect(countdownIsPreview(10)).toBe(false);
+  });
+
+  it("offers a benign close for a preview — never Demo Kill", () => {
+    const preview = overlayAction(true);
+    expect(preview.label).toBe("Close preview");
+    expect(preview.label).not.toMatch(/kill/i);
+    expect(preview.hint).toMatch(/Esc closes/);
+
+    const fuse = overlayAction(false);
+    expect(fuse.label).toMatch(/Demo Kill/);
+    expect(fuse.hint).toMatch(/Esc does not dismiss/);
   });
 });

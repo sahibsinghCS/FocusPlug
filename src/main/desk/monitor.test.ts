@@ -155,4 +155,60 @@ describe("DeskMonitor robustness", () => {
     expect(source.running).toBe(false);
     monitor.stop();
   });
+
+  it("setEnabled(true) mid-session leaves camera start to the loop — no second concurrent start", async () => {
+    const source = new WarmUpSource();
+    const monitor = new DeskMonitor({
+      source,
+      model: new StubDeskModel(),
+      intervalMs: 5,
+      enabled: false,
+    });
+    monitor.start(() => {
+      return;
+    });
+    await delay(15);
+    monitor.setEnabled(true);
+    await waitFor(() => source.starts >= 1);
+    // Give the loop several intervals: ensureReady() is the single owner of
+    // source.start(), so the pending warm-up must stay the only start.
+    await delay(30);
+    expect(source.starts).toBe(1);
+    source.releaseStart();
+    await waitFor(() => source.running);
+    monitor.stop();
+    await waitFor(() => source.stops >= 1);
+    expect(source.running).toBe(false);
+  });
+
+  it("stale warm-up from a stopped session does not kill the restarted session's camera", async () => {
+    const source = new WarmUpSource();
+    const monitor = new DeskMonitor({
+      source,
+      model: new StubDeskModel(),
+      intervalMs: 5,
+    });
+    monitor.start(() => {
+      return;
+    });
+    await waitFor(() => source.starts >= 1);
+    // Restart while warm-up A is still in flight: the new loop's own start
+    // (B) claims the shared source.
+    monitor.stop();
+    monitor.start(() => {
+      return;
+    });
+    await waitFor(() => source.starts >= 2);
+    // A resolves late — it must not stop the source the new session now owns.
+    source.releaseStart();
+    source.releaseStart();
+    await waitFor(() => source.running);
+    await delay(30);
+    expect(source.stops).toBe(0);
+    expect(source.running).toBe(true);
+    // The new loop still owns the camera: a normal stop shuts it down.
+    monitor.stop();
+    await waitFor(() => source.stops >= 1);
+    expect(source.running).toBe(false);
+  });
 });

@@ -130,6 +130,23 @@ describe("Kasa local LAN protocol", () => {
     expect(await host.setPower(device, false)).toBe(false);
   });
 
+  it("dials the same parsed hostname the protect layer inspects", async () => {
+    const transport = new MemoryKasaTransport();
+    const host = new KasaPlugHost(transport);
+    const device = {
+      id: "k1",
+      name: "Lava lamp",
+      protocol: "kasa" as const,
+      address: " 192.168.1.40:9999 ",
+      isStudyPc: false as const,
+      enabled: true,
+    };
+    await host.setPower(device, true);
+    expect(transport.lastHost).toBe("192.168.1.40");
+    await host.query({ ...device, address: "0:0:0:0:0:0:0:1" });
+    expect(transport.lastHost).toBe("::1");
+  });
+
   it("parses sysinfo relay_state", () => {
     const info = parseKasaSysinfo(
       JSON.stringify({ system: { get_sysinfo: { relay_state: 0, alias: "x" } } }),

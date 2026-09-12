@@ -1,6 +1,7 @@
 import { createConnection } from "node:net";
 import { createSocket, type RemoteInfo, type Socket as UdpSocket } from "node:dgram";
 import type { PlugDevice } from "../../shared/types.ts";
+import { hostnameFromAddress } from "./protect.ts";
 import type { PlugHost } from "./types.ts";
 
 /** TP-Link Smart Home LAN port. Local XOR protocol — no cloud account. */
@@ -225,9 +226,12 @@ export class KasaPlugHost implements PlugHost {
   constructor(private readonly transport: KasaTransport = new TcpKasaTransport()) {}
 
   async setPower(device: PlugDevice, on: boolean): Promise<boolean> {
-    assertSetRelayAck(await this.transport.send(device.address.trim(), setRelayPayload(on)));
+    // Same parse as the protect layer, so the host we dial can never diverge
+    // from the host the loopback hard-deny inspected.
+    const host = hostnameFromAddress(device.address);
+    assertSetRelayAck(await this.transport.send(host, setRelayPayload(on)));
     try {
-      const info = parseKasaSysinfo(await this.transport.send(device.address.trim(), GET_SYSINFO));
+      const info = parseKasaSysinfo(await this.transport.send(host, GET_SYSINFO));
       return relayStateOn(info);
     } catch {
       // Device ACKed the relay change (err_code 0); verification is best-effort.
@@ -236,7 +240,9 @@ export class KasaPlugHost implements PlugHost {
   }
 
   async query(device: PlugDevice): Promise<boolean | null> {
-    const info = parseKasaSysinfo(await this.transport.send(device.address.trim(), GET_SYSINFO));
+    const info = parseKasaSysinfo(
+      await this.transport.send(hostnameFromAddress(device.address), GET_SYSINFO),
+    );
     if (typeof info.relay_state !== "number") {
       return null;
     }

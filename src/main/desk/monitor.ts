@@ -43,6 +43,7 @@ export class DeskMonitor implements DeskMonitorContract {
   private loopGen = 0;
   private sourceStarted = false;
   private sourceRetryAt = 0;
+  private sourceStartEpoch = 0;
 
   constructor(options: DeskMonitorOptions = {}) {
     this.enabled = options.enabled ?? true;
@@ -83,24 +84,9 @@ export class DeskMonitor implements DeskMonitorContract {
     if (!this.source) {
       return;
     }
-    if (enabled && this.running && !this.sourceStarted) {
-      const source = this.source;
-      const gen = this.loopGen;
-      void source
-        .start()
-        .then(() => {
-          // Disabled or stopped during camera warm-up: shut the camera back
-          // down instead of leaving it captured with nothing to stop it.
-          if (this.loopGen !== gen || !this.enabled) {
-            void source.stop();
-            return;
-          }
-          this.sourceStarted = true;
-        })
-        .catch((error: unknown) => {
-          console.error("Desk camera start failed:", errorMessage(error));
-        });
-    }
+    // Enabling never starts the camera here: ensureReady() is the single
+    // owner of source.start(), so the loop's next tick (≤ intervalMs away)
+    // picks it up instead of racing a second start against the loop's own.
     if (!enabled && this.sourceStarted) {
       this.sourceStarted = false;
       void this.source.stop();
@@ -174,11 +160,19 @@ export class DeskMonitor implements DeskMonitorContract {
     }
     if (this.enabled && !this.sourceStarted && this.now() >= this.sourceRetryAt) {
       const gen = this.loopGen;
+      const epoch = ++this.sourceStartEpoch;
       try {
         await this.source.start();
       } catch (error) {
         console.error("Desk camera start failed:", errorMessage(error));
         this.sourceRetryAt = this.now() + this.intervalMs * ERROR_BACKOFF_MULTIPLIER;
+        return;
+      }
+      // A newer start claimed the shared source while this warm-up was in
+      // flight (stop + restart mid-warm-up): its continuation owns the
+      // stop/started decision — a stale stop here would kill the new
+      // session's camera while sourceStarted stays true, blinding desk AI.
+      if (this.sourceStartEpoch !== epoch) {
         return;
       }
       // Stopped or disabled during camera warm-up: shut the camera back down

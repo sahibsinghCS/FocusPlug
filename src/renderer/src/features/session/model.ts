@@ -473,4 +473,26 @@ export function overlayConsequenceLines(plugs: readonly PlugView[]): {
   };
 }
 
+/**
+ * The overlay is a local preview (Settings "Preview overlay" or the
+ * ?countdown URL scene) whenever main reports no live fuse. A preview has
+ * no real fuse to skip, so it must offer a benign close — never Demo Kill.
+ */
+export function countdownIsPreview(realCountdownSec: number): boolean {
+  return realCountdownSec <= 0;
+}
+
+export function overlayAction(preview: boolean): { hint: string; label: string } {
+  if (preview) {
+    return {
+      hint: "Preview only — nothing is killed · Esc closes",
+      label: "Close preview",
+    };
+  }
+  return {
+    hint: "Return to an allowlisted app + at desk to cancel · Esc does not dismiss",
+    label: "Demo Kill — skip wait",
+  };
+}
+
 export { STAGE_ORDER };

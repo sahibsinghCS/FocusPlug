@@ -4,7 +4,8 @@ import { DEFAULT_ALLOWLIST, DEFAULT_BLOCKLIST } from "../../shared/defaults.ts";
 import type { AppEntry } from "../../shared/types.ts";
 import { entryMatches, findMatchingEntry, processBasename } from "./match.ts";
 import { buildFocusSnapshot } from "./snapshot.ts";
-import { FOREGROUND_SCRIPT, parseForegroundPayload } from "./win32.ts";
+import type { ForegroundWindow } from "./foreground.ts";
+import { FOREGROUND_SCRIPT, parseForegroundPayload, Win32ForegroundReader } from "./win32.ts";
 
 const discordLike = {
   processName: "Discord",
@@ -123,6 +124,22 @@ describe("parseForegroundPayload", () => {
   test("returns null on garbage", () => {
     assert.equal(parseForegroundPayload(""), null);
     assert.equal(parseForegroundPayload("not-json"), null);
+  });
+});
+
+describe("Win32ForegroundReader", () => {
+  test("stop() invalidates the cached window so a new session cannot replay stale focus", () => {
+    const reader = new Win32ForegroundReader();
+    assert.equal(reader.read(), null);
+
+    // Simulate the last payload seen before the previous session ended; the
+    // PowerShell child needs 1-3s after spawn before its first real line, so a
+    // surviving cache would drive policy with hours-old focus at session start.
+    (reader as unknown as { latest: ForegroundWindow | null }).latest = { ...discordLike };
+    assert.deepEqual(reader.read(), discordLike);
+
+    reader.stop();
+    assert.equal(reader.read(), null);
   });
 });
 

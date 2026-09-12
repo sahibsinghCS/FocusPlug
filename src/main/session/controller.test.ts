@@ -530,6 +530,57 @@ describe("SessionController", () => {
     expect(h.controller.getState().countdownSec).toBe(10);
   });
 
+  it("Demo Kill after a fuse kill does not strand plugs — on-task return still unlocks + plug_on", async () => {
+    const h = makeHarness({ plugs: SAMPLE_PLUGS });
+    await h.controller.start();
+    h.window.emit(discordFocus(h.clock.ms));
+    h.desk.emit(presentDesk(h.clock.ms));
+    await h.controller.flush();
+    h.clock.advance(10_000);
+    await h.controller.tick();
+    // Fuse kill: plugs cut, engine locked.
+    expect(h.killer.calls.length).toBe(1);
+    expect(h.plugs.offCalls.length).toBe(1);
+
+    // Demo Kill replaces the engine (dropping `locked`) and cuts plugs again.
+    await h.controller.demoKill();
+    expect(h.plugs.offCalls.length).toBe(2);
+
+    h.clock.advance(250);
+    h.window.emit(docsFocus(h.clock.ms));
+    h.desk.emit(presentDesk(h.clock.ms));
+    await h.controller.flush();
+    expect(h.controller.getState().decision).toBe("ON_TASK");
+    expect(policyTypes(h.trace)).toContain("unlock");
+    expect(logKinds(h.controller)).toContain("unlock");
+    expect(logKinds(h.controller)).toContain("plug_on");
+    expect(h.plugs.onCalls.length).toBe(1);
+    expect(h.plugs.onCalls[0]).toEqual(enabledPlugIds(SAMPLE_PLUGS));
+    expectNoStudyPc(h.plugs.onCalls[0]);
+  });
+
+  it("plugs cut by Demo Kill while on task are restored on the next evaluation, once", async () => {
+    const h = makeHarness({ plugs: SAMPLE_PLUGS });
+    await h.controller.start();
+    h.window.emit(docsFocus(h.clock.ms));
+    h.desk.emit(presentDesk(h.clock.ms));
+    await h.controller.flush();
+
+    await h.controller.demoKill();
+    expect(h.plugs.offCalls.length).toBe(1);
+
+    h.clock.advance(250);
+    await h.controller.tick();
+    expect(policyTypes(h.trace)).toContain("unlock");
+    expect(h.plugs.onCalls.length).toBe(1);
+    expect(h.plugs.onCalls[0]).toEqual(enabledPlugIds(SAMPLE_PLUGS));
+
+    // The restore is one-shot — staying on task must not re-send plug_on.
+    h.clock.advance(250);
+    await h.controller.tick();
+    expect(h.plugs.onCalls.length).toBe(1);
+  });
+
   it("lengthening countdownSec mid-fuse retimes the display to the engine kill time", async () => {
     const h = makeHarness({ plugs: SAMPLE_PLUGS });
     await h.controller.start();
