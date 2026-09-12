@@ -162,7 +162,7 @@ export function SettingsPage(): JSX.Element {
           <div>
             <p className="fp-section-label">Session face</p>
             <p className="mt-1 text-[12px] text-fp-mute">
-              Immersive timer instrument. Default is readout until Flight lands. Pending slots stay
+              Immersive timer instrument. Default is Flight. Pending slots stay
               selectable so parallel streams can replace a file without fighting this picker.
             </p>
           </div>

@@ -9,11 +9,11 @@ describe("face registry", () => {
     expect(faceComponent("hourglass").name).toBe("HourglassFace");
     expect(faceComponent("readout").name).toBe("ReadoutFace");
     expect(faceComponent("flight").name).toBe("FlightFace");
-    expect(faceComponent("column").name).toBe("ReadoutFace");
+    expect(faceComponent("column").name).toBe("FlightFace");
     expect(faceComponent("growth").name).toBe("GrowthFace");
     expect(faceIsReady("hourglass")).toBe(true);
     expect(faceIsReady("growth")).toBe(true);
-    expect(faceIsReady("flight")).toBe(false);
+    expect(faceIsReady("flight")).toBe(true);
     expect(faceIsReady("descent")).toBe(true);
     expect(faceIsReady("orbit")).toBe(true);
     expect(faceIsReady("circuit")).toBe(true);

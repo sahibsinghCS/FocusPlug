@@ -37,6 +37,10 @@ const SCENES = [
     name: "complete-16z",
     path: `/face.html?remaining=0&estimateMinutes=${HOURS}&now=${DAY}&complete=1&freeze=1&idle=0`,
   },
+  {
+    name: "host-cruise-16z",
+    path: `/#/?scene=live&face=flight&progress=0.46&estimateMinutes=${HOURS}&now=${DAY}&freeze=1`,
+  },
 ];
 
 await mkdir(OUT, { recursive: true });

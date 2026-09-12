@@ -72,12 +72,12 @@ describe("Phase 2 contracts", () => {
     expect(DEFAULT_SETTINGS.plugs).toEqual([]);
   });
 
-  it("defaults faceId to readout until Flight is ready", () => {
+  it("defaults faceId to flight once the instrument is ready", () => {
     expect(DEFAULT_SETTINGS.faceId).toBe(DEFAULT_FACE_ID);
-    expect(DEFAULT_FACE_ID).toBe("readout");
+    expect(DEFAULT_FACE_ID).toBe("flight");
     expect(isFaceId("hourglass")).toBe(true);
     expect(isFaceId("column")).toBe(false);
-    expect(normalizeFaceId("eclipse")).toBe("readout");
+    expect(normalizeFaceId("eclipse")).toBe("flight");
     expect(FACE_IDS).toHaveLength(10);
   });
 

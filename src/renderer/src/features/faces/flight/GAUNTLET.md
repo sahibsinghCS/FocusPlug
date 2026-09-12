@@ -4,13 +4,12 @@ Bar: at **1280×800**, a fresh harsh critic does a blind before/after of the Fli
 
 ## Owns
 
-- `src/renderer/src/features/faces/types.ts`
-- `src/renderer/src/features/faces/register.ts`
+- `src/renderer/src/features/faces/FlightFace.tsx` (FaceHost registry slot)
 - `src/renderer/src/features/faces/flight/**`
-- `src/renderer/face.html`
-- `src/renderer/src/face-main.tsx`
+- `FACE_READY.flight` in `src/shared/faces.ts`
+- `src/renderer/face.html` / `src/renderer/src/face-main.tsx` (stills harness that mounts the registry `FlightFace`)
 
-Does **not** own Session / FaceHost. Foundation imports `FlightFace` / `registerFlightFace`.
+Does **not** fork FaceHost or FacePicker. Session already maps `faceId: "flight"` through `FACE_COMPONENTS`.
 
 ## Must read without zoom
 
@@ -42,4 +41,4 @@ node scripts/flight-stills.mjs
 - Terminator ignores UTC or is a hard cartoon split
 - Strip numbers are decorative (fake 850 km/h, fake ETA)
 - Plane is a sticker on a zoomed disc
-- Foundation cannot import `FlightFace`
+- `faceComponent("flight")` is still the pending stub

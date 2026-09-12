@@ -4,7 +4,7 @@ Immersive timer **faces** replace a blank session hero. They are atmosphere / pr
 
 Selected face persists as `AppSettings.faceId` on the existing settings blob (`Store.loadSettings` / `saveSettings`). No second store.
 
-Default: **`readout`** until Flight lands, then **`flight`**. Flip `FACE_READY.flight` in `src/shared/faces.ts` when `FlightFace.tsx` is a real instrument.
+Default: **`flight`**. `FACE_READY.flight` is true — `FlightFace.tsx` is the UTC terminator instrument.
 
 ## Contract
 
@@ -38,7 +38,7 @@ Replace the listed file. Do not fork `FaceHost` or invent a second picker.
 
 | Face | Stream | File | This foundation |
 | --- | --- | --- | --- |
-| `flight` | `agent/faces-flight` | `src/renderer/src/features/faces/FlightFace.tsx` | stub (stream not merged) |
+| `flight` | `agent/faces-flight` | `src/renderer/src/features/faces/FlightFace.tsx` | ready — terminator / ETA instrument |
 | `hourglass` | `agent/faces-foundation` | `src/renderer/src/features/faces/HourglassFace.tsx` | ready — flipped sand |
 | `readout` | `agent/faces-foundation` | `src/renderer/src/features/faces/ReadoutFace.tsx` | ready — honest digits |
 | `descent` | `agent/faces-descent` | `src/renderer/src/features/faces/DescentFace.tsx` | ready — deep-sea zones |

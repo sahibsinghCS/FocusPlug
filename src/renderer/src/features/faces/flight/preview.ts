@@ -1,10 +1,16 @@
-import type { FaceProps, FaceSettings } from "../types";
+import type { FacePhase } from "@shared/faces";
+import type { FaceProps } from "../types";
+import type { FaceSettings } from "./airports";
 import type { FaceVariant } from "./draw";
 
 export interface FlightPreviewQuery {
-  props: FaceProps;
+  face: FaceProps;
   variant: FaceVariant;
   idleOverride?: number;
+  reducedMotion: boolean;
+  settings: FaceSettings;
+  freeze: boolean;
+  estimateMinutes?: number;
 }
 
 function readNumber(raw: string | null): number | undefined {
@@ -23,15 +29,32 @@ function readTime(raw: string | null): number | undefined {
   return Number.isNaN(ms) ? undefined : ms;
 }
 
-export function parseFlightPreview(search: string): FlightPreviewQuery {
+function mergeParams(search: string, hash: string): URLSearchParams {
   const q = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);
+  if (hash.includes("?")) {
+    const hashParams = new URLSearchParams(hash.slice(hash.indexOf("?") + 1));
+    hashParams.forEach((value, key) => {
+      if (!q.has(key)) q.set(key, value);
+    });
+  }
+  return q;
+}
+
+export function parseFlightPreview(search: string, hash = ""): FlightPreviewQuery {
+  const q = mergeParams(search, hash);
   const estimateMinutes = readNumber(q.get("estimateMinutes")) ?? 90;
   const progress = readNumber(q.get("progress"));
   const remainingFromProgress =
     progress === undefined ? undefined : Math.max(0, estimateMinutes * 60 * (1 - progress));
-  const remaining = readNumber(q.get("remaining")) ?? remainingFromProgress ?? 45 * 60;
-  const now = readTime(q.get("now") ?? q.get("utc"));
-  const complete = q.get("complete") === "1" || remaining <= 0;
+  const remainingSec = readNumber(q.get("remaining")) ?? remainingFromProgress ?? 45 * 60;
+  const nowMs = readTime(q.get("now") ?? q.get("utc"));
+  const complete = q.get("complete") === "1" || remainingSec <= 0;
+  const phaseRaw = q.get("phase");
+  const phase: FacePhase =
+    phaseRaw === "idle" || phaseRaw === "break" || phaseRaw === "focus" ? phaseRaw : "focus";
+  const elapsedMs = complete
+    ? estimateMinutes * 60_000
+    : Math.max(0, estimateMinutes * 60_000 - remainingSec * 1000);
   const settings: FaceSettings = {
     dep: q.get("dep") ?? "JFK",
     arr: q.get("arr") ?? "LHR",
@@ -43,17 +66,26 @@ export function parseFlightPreview(search: string): FlightPreviewQuery {
     arrLon: readNumber(q.get("arrLon")),
   };
   const variant: FaceVariant = q.get("variant") === "sticker" ? "sticker" : "instrument";
+  const freeze = q.get("freeze") !== null || q.get("paused") === "1";
   return {
     variant,
     idleOverride: readNumber(q.get("idle")),
-    props: {
-      remaining: complete ? 0 : remaining,
+    reducedMotion: q.get("reducedMotion") === "1",
+    settings,
+    freeze,
+    estimateMinutes: q.get("estimateMinutes") ? estimateMinutes : undefined,
+    face: {
+      progress: complete ? 1 : Math.min(1, Math.max(0, elapsedMs / (estimateMinutes * 60_000))),
+      phase: complete ? "focus" : phase,
+      elapsedMs,
+      remainingMs: complete ? 0 : remainingSec * 1000,
       estimateMinutes,
-      now,
-      paused: q.get("freeze") !== null || q.get("paused") === "1",
-      complete,
-      reducedMotion: q.get("reducedMotion") === "1",
-      settings,
+      sessionId: "flight-stills",
+      events: [],
+      killCount: 0,
+      now: new Date(nowMs ?? Date.parse("2026-09-12T16:00:00.000Z")),
+      width: readNumber(q.get("width")) ?? 1280,
+      height: readNumber(q.get("height")) ?? 800,
     },
   };
 }

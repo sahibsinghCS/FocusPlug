@@ -1,5 +1,5 @@
 import { useEffect, useRef, type JSX } from "react";
-import type { FaceProps } from "../types";
+import type { FlightClock } from "./clock";
 import { drawFlightFace, type FaceVariant } from "./draw";
 import "./flight.css";
 import {
@@ -11,10 +11,13 @@ import {
 } from "./math";
 import { buildFlightModel } from "./model";
 
-export interface FlightFaceViewProps extends FaceProps {
+export interface FlightFaceViewProps {
+  clock: FlightClock;
   variant?: FaceVariant;
   /** Extra camera wander (radians). Stills use this instead of clock-derived idle. */
   idleOverride?: number;
+  className?: string;
+  compact?: boolean;
 }
 
 function readSize(el: HTMLCanvasElement): { width: number; height: number } {
@@ -49,7 +52,7 @@ export function FlightFace(props: FlightFaceViewProps): JSX.Element {
         canvas.width = width;
         canvas.height = height;
       }
-      const model = buildFlightModel(current, current.idleOverride);
+      const model = buildFlightModel(current.clock, current.idleOverride);
       drawFlightFace({
         ctx,
         width,
@@ -67,7 +70,7 @@ export function FlightFace(props: FlightFaceViewProps): JSX.Element {
       if (!running) return;
       paint();
       const current = propsRef.current;
-      if (current.paused || current.reducedMotion || current.now !== undefined) {
+      if (current.clock.paused || current.clock.reducedMotion) {
         return;
       }
       frame = window.requestAnimationFrame(loop);
@@ -99,7 +102,7 @@ export function FlightFace(props: FlightFaceViewProps): JSX.Element {
     };
   }, []);
 
-  const model = buildFlightModel(props, props.idleOverride);
+  const model = buildFlightModel(props.clock, props.idleOverride);
   const variant = props.variant ?? "instrument";
   const remain = model.complete ? "0" : formatGrouped(model.remainKm);
   const eta = model.complete ? "ARR" : formatClockHm(model.eta);
@@ -110,10 +113,13 @@ export function FlightFace(props: FlightFaceViewProps): JSX.Element {
 
   return (
     <div
-      className={["fp-flight", props.className].filter(Boolean).join(" ")}
+      className={["fp-flight", props.compact ? "is-compact" : "", props.className]
+        .filter(Boolean)
+        .join(" ")}
       data-face="flight"
       data-variant={variant}
       data-phase={model.phase}
+      data-layout={props.compact ? "host" : "stage"}
     >
       {variant === "instrument" ? (
         <div className="fp-flight-head">

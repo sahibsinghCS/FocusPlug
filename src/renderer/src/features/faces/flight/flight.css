@@ -1,3 +1,7 @@
+.fp-flight-slot {
+  height: 100%;
+}
+
 .fp-flight {
   position: relative;
   width: 100%;
@@ -6,6 +10,24 @@
   color: #eef2f8;
   font-family: "IBM Plex Mono", ui-monospace, monospace;
   overflow: hidden;
+}
+
+.fp-flight.is-compact .fp-flight-head {
+  padding-top: 42px;
+  font-size: 11px;
+}
+
+.fp-flight.is-compact .fp-flight-strip {
+  padding: 8px 6px 10px;
+}
+
+.fp-flight.is-compact .fp-flight-strip b {
+  margin-top: 4px;
+  font-size: 18px;
+}
+
+.fp-flight.is-compact .fp-flight-plate b {
+  font-size: 22px;
 }
 
 .fp-flight canvas {

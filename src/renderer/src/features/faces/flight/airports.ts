@@ -1,4 +1,18 @@
-import type { FaceSettings, GeoPoint } from "../types";
+export interface GeoPoint {
+  lat: number;
+  lon: number;
+}
+
+export interface FaceSettings {
+  dep?: string;
+  arr?: string;
+  depName?: string;
+  arrName?: string;
+  depLat?: number;
+  depLon?: number;
+  arrLat?: number;
+  arrLon?: number;
+}
 
 export interface Airport {
   code: string;

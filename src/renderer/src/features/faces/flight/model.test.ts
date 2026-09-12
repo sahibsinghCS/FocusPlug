@@ -25,7 +25,14 @@ describe("flight model", () => {
 
   it("keeps the camera pointed near the aircraft, not a 6x zoom patch", () => {
     const model = buildFlightModel(
-      { remaining: 45 * 60, estimateMinutes: 90, now: NOW },
+      {
+        remaining: 45 * 60,
+        estimateMinutes: 90,
+        now: NOW,
+        paused: false,
+        complete: false,
+        reducedMotion: false,
+      },
       0.3,
     );
     expect(model.phase).toBe("cruise");
@@ -44,7 +51,9 @@ describe("flight model", () => {
       remaining: 0,
       estimateMinutes: 90,
       now: NOW,
+      paused: true,
       complete: true,
+      reducedMotion: false,
     });
     expect(model.phase).toBe("complete");
     expect(model.arr.name).toBe("London");

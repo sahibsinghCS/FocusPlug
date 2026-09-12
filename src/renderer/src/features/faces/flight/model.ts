@@ -1,5 +1,5 @@
-import type { FaceProps } from "../types";
 import { resolveRoute, type Airport } from "./airports";
+import type { FlightClock } from "./clock";
 import {
   bankDeg,
   CONTRAIL_WINDOW_SEC,
@@ -57,27 +57,27 @@ export interface FlightModel {
   cameraUp: Vec3;
 }
 
-export function resolveNow(props: FaceProps): number {
-  if (typeof props.now === "number" && Number.isFinite(props.now)) {
-    return props.now;
+export function resolveNow(clock: FlightClock): number {
+  if (!Number.isFinite(clock.now)) {
+    throw new Error("FlightClock.now must be a finite timestamp");
   }
-  return Date.now();
+  return clock.now;
 }
 
-export function buildFlightModel(props: FaceProps, idleOverride?: number): FlightModel {
-  if (!Number.isFinite(props.remaining)) {
-    throw new Error("FaceProps.remaining must be a finite number of seconds");
+export function buildFlightModel(clock: FlightClock, idleOverride?: number): FlightModel {
+  if (!Number.isFinite(clock.remaining)) {
+    throw new Error("FlightClock.remaining must be a finite number of seconds");
   }
-  if (!Number.isFinite(props.estimateMinutes)) {
-    throw new Error("FaceProps.estimateMinutes must be a finite number");
+  if (!Number.isFinite(clock.estimateMinutes)) {
+    throw new Error("FlightClock.estimateMinutes must be a finite number");
   }
 
-  const now = resolveNow(props);
-  const remaining = Math.max(0, props.remaining);
-  const estimateMinutes = Math.max(0, props.estimateMinutes);
+  const now = resolveNow(clock);
+  const remaining = Math.max(0, clock.remaining);
+  const estimateMinutes = Math.max(0, clock.estimateMinutes);
   const progress = flightProgress(remaining, estimateMinutes);
-  const complete = Boolean(props.complete) || remaining <= 0 || progress >= 1;
-  const { dep, arr } = resolveRoute(props.settings);
+  const complete = Boolean(clock.complete) || remaining <= 0 || progress >= 1;
+  const { dep, arr } = resolveRoute(clock.settings);
   const plane = greatCirclePoint(dep.lat, dep.lon, arr.lat, arr.lon, progress);
   const ahead = greatCirclePoint(
     dep.lat,
@@ -98,7 +98,7 @@ export function buildFlightModel(props: FaceProps, idleOverride?: number): Fligh
   const basis = orthonormalBasis(lookRoot);
   const idle =
     idleOverride ??
-    (props.reducedMotion || props.paused || complete ? 0 : (now / 1000) * 0.0036);
+    (clock.reducedMotion || clock.paused || complete ? 0 : (now / 1000) * 0.0036);
   const wander = rotateAround(basis.right, lookRoot, idle);
   const lift = complete ? 0.04 : 0.08;
   const nightBias = scale(sunVec, complete ? -0.08 : -0.32);
@@ -116,8 +116,8 @@ export function buildFlightModel(props: FaceProps, idleOverride?: number): Fligh
     estimateMinutes,
     progress,
     complete,
-    paused: Boolean(props.paused),
-    reducedMotion: Boolean(props.reducedMotion),
+    paused: Boolean(clock.paused),
+    reducedMotion: Boolean(clock.reducedMotion),
     phase: flightPhase(progress, complete),
     dep,
     arr,
