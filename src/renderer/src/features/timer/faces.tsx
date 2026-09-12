@@ -72,15 +72,19 @@ function Flight(props: FaceProps): JSX.Element {
 
       <div className="flex shrink-0 items-center gap-4">
         <Endpoint iata={route.from.iata} city={route.from.city} />
-        <div className="flex flex-col items-center gap-1">
-          <div className="relative h-px w-28 bg-white/20">
+        <div className="flex flex-col items-center gap-1.5">
+          <div className="relative h-px w-32 bg-white/20">
             <span
               className="absolute inset-y-0 left-0 bg-[#8fe0ff]"
               style={{ width: `${p * 100}%` }}
             />
+            <span
+              className="absolute top-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-[0_0_6px_rgba(143,224,255,0.9)]"
+              style={{ left: `${p * 100}%` }}
+            />
           </div>
           <span className="font-mono text-[10px] tracking-wider text-[#8fe0ff]/80 tabular">
-            {formatKm(route.km)}
+            {formatKm(route.km * p)} of {formatKm(route.km)}
           </span>
         </div>
         <Endpoint iata={route.to.iata} city={route.to.city} align="right" />
