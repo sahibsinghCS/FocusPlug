@@ -31,7 +31,8 @@
     "test:flight": "vitest run src/renderer/src/features/faces/flight",
     "gauntlet:flight": "node scripts/flight-stills.mjs",
     "test:flask": "vitest run src/renderer/src/features/faces/flask src/shared/faces.test.ts src/renderer/src/features/faces/registry.test.ts",
-    "gauntlet:flask": "node src/renderer/src/features/faces/flask/stills.mjs"
+    "gauntlet:flask": "node src/renderer/src/features/faces/flask/stills.mjs",
+    "gauntlet:garden": "node src/renderer/src/features/faces/garden/stills.mjs"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",

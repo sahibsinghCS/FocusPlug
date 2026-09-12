@@ -20,6 +20,9 @@ const SCENES = [
   { name: "lock-orbit", path: "/#/?scene=live&face=orbit&progress=1" },
   { name: "lock-circuit", path: "/#/?scene=live&face=circuit&progress=1" },
   { name: "live-flask", path: "/#/?scene=live&face=flask&progress=0.62&freeze=1" },
+  { name: "garden-night", path: "/#/?scene=live&face=garden&progress=0&session=gauntlet-garden-01&freeze=1" },
+  { name: "garden-dawn", path: "/#/?scene=live&face=garden&progress=0.48&session=gauntlet-garden-01&freeze=1" },
+  { name: "garden-day", path: "/#/?scene=live&face=garden&progress=1&session=gauntlet-garden-01&freeze=1" },
 ];
 
 await mkdir(OUT, { recursive: true });

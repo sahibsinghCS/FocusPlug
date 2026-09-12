@@ -49,6 +49,7 @@ Replace the listed file. Do not fork `FaceHost` or invent a second picker.
 | `orbit` | `agent/faces-orbit` | `src/renderer/src/features/faces/OrbitFace.tsx` | ready — alignment lock |
 | `growth` | `agent/faces-growth` | `src/renderer/src/features/faces/GrowthFace.tsx` | ready — bonsai + wilt stakes |
 | `flask` | `agent/faces-flask` | `src/renderer/src/features/faces/FlaskFace.tsx` | ready — glass vessel + visible leak |
+| `garden` | `agent/faces-garden` | `src/renderer/src/features/faces/GardenFace.tsx` | ready — sunrise garden (replaces retired Eclipse) |
 
 Shared (foundation only, unless a merge needs a one-line registry hook):
 
@@ -63,7 +64,7 @@ Registry already maps every `FaceId`. A landing stream swaps the component body 
 
 ## Retired — do not build
 
-**Column / Grid / Eclipse / Field** are retired. They are not `FaceId`s. Persistence maps those strings back to the default face. Do not add them to the catalog, picker, or stubs.
+**Column / Grid / Eclipse / Field** are retired. They are not `FaceId`s. Persistence maps those strings back to the default face. Do not add them to the catalog, picker, or stubs. Garden (`garden`) is the colorful sunrise face — do not revive `eclipse`.
 
 ## Preview stills
 
@@ -81,4 +82,7 @@ npx vite --config scripts/renderer-preview.vite.ts
 # #/?scene=live&face=growth&progress=0.74&session=gauntlet-growth-01
 # #/?scene=live&face=growth&progress=0.74&session=gauntlet-growth-01&kills=3
 # #/?scene=live&face=flask&progress=0.62
+# #/?scene=live&face=garden&progress=0&session=gauntlet-garden-01&freeze=1
+# #/?scene=live&face=garden&progress=0.48&session=gauntlet-garden-01&freeze=1
+# #/?scene=live&face=garden&progress=1&session=gauntlet-garden-01&freeze=1
 ```
