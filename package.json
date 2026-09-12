@@ -25,7 +25,9 @@
     "check:contracts": "node scripts/check-contracts.mjs",
     "test:window": "node --experimental-strip-types --test src/main/window/match.test.ts src/main/window/monitor.test.ts src/main/store/lists.test.ts",
     "probe:window": "node --experimental-strip-types src/main/window/probe.ts",
-    "test:desk": "tsx --tsconfig tsconfig.node.json src/main/desk/gauntlet.ts"
+    "test:desk": "tsx --tsconfig tsconfig.node.json src/main/desk/gauntlet.ts",
+    "faces:preview": "vite --config scripts/faces-preview.vite.ts",
+    "faces:stills": "node scripts/faces-stills.mjs"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",

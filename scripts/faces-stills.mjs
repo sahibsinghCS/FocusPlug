@@ -14,6 +14,11 @@ const SCENES = [
   { name: "idle-hourglass", path: "/#/?face=hourglass" },
   { name: "live-flight", path: "/#/?scene=live&face=flight" },
   { name: "settings", path: "/#/settings" },
+  { name: "live-descent", path: "/#/?scene=live&face=descent&progress=0.62" },
+  { name: "live-orbit", path: "/#/?scene=live&face=orbit&progress=0.62" },
+  { name: "live-circuit", path: "/#/?scene=live&face=circuit&progress=0.62" },
+  { name: "lock-orbit", path: "/#/?scene=live&face=orbit&progress=1" },
+  { name: "lock-circuit", path: "/#/?scene=live&face=circuit&progress=1" },
 ];
 
 await mkdir(OUT, { recursive: true });

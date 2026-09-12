@@ -1,0 +1,32 @@
+.fp-orbit {
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #05060a;
+  box-shadow: inset 0 0 0 1px rgba(170, 190, 220, 0.08);
+}
+
+.fp-orbit-svg {
+  display: block;
+}
+
+.fp-orbit-kicker {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+}
+
+.fp-orbit-title {
+  font-family: var(--font-sans);
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+}
+
+.fp-orbit-readout {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
