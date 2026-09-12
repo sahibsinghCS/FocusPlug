@@ -1,4 +1,4 @@
-import type { FaceEvent, FaceEventKind, FaceEventSeverity } from "../types";
+import type { FaceEvent, FaceEventKind, FaceEventSeverity } from "../instrument";
 import { hashString, lerp, mulberry32 } from "../canvas";
 import { isBurstKind, severityWeight } from "../events";
 

@@ -1,4 +1,4 @@
-import type { FaceProps, FaceRound } from "../types";
+import type { FaceProps, FaceRound } from "../instrument";
 import { clamp, lerp } from "../canvas";
 
 export interface PolyPoint {

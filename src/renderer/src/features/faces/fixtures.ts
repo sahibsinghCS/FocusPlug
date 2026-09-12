@@ -1,7 +1,7 @@
 import type { SessionEvent } from "@shared/ipc";
 import { goldenSessionEvents } from "../logs/fixtures";
 import { deriveFaceProps } from "./derive";
-import type { FaceId, FaceProps, FaceRound } from "./types";
+import type { FaceId, FaceProps, FaceRound } from "./instrument";
 
 export type FaceSceneId =
   | "live"

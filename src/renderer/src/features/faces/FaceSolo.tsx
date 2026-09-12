@@ -4,7 +4,7 @@ import { LineFace } from "./line";
 import { MovementFace } from "./movement";
 import { ProgressBarFace } from "./ProgressBarFace";
 import { RecordFace } from "./record";
-import type { FaceId, FaceProps } from "./types";
+import type { FaceId, FaceProps } from "./instrument";
 import { readFaceUrl, type SoloFaceId } from "./urlFace";
 
 export function FaceSolo(): JSX.Element {

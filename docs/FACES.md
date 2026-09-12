@@ -42,10 +42,10 @@ Replace the listed file. Do not fork `FaceHost` or invent a second picker.
 | `hourglass` | `agent/faces-foundation` | `src/renderer/src/features/faces/HourglassFace.tsx` | ready — flipped sand |
 | `readout` | `agent/faces-foundation` | `src/renderer/src/features/faces/ReadoutFace.tsx` | ready — honest digits |
 | `descent` | `agent/faces-descent` | `src/renderer/src/features/faces/DescentFace.tsx` | ready — deep-sea zones |
-| `movement` | `agent/faces-movement` | `src/renderer/src/features/faces/MovementFace.tsx` | stub |
-| `record` | `agent/faces-record` | `src/renderer/src/features/faces/RecordFace.tsx` | stub |
+| `movement` | `agent/faces-mid` | `src/renderer/src/features/faces/MovementFace.tsx` | ready — exposed calibre |
+| `record` | `agent/faces-mid` | `src/renderer/src/features/faces/RecordFace.tsx` | ready — paper-drum seismograph |
 | `circuit` | `agent/faces-circuit` | `src/renderer/src/features/faces/CircuitFace.tsx` | ready — session fuse plate |
-| `line` | `agent/faces-line` | `src/renderer/src/features/faces/LineFace.tsx` | stub |
+| `line` | `agent/faces-mid` | `src/renderer/src/features/faces/LineFace.tsx` | ready — transit map |
 | `orbit` | `agent/faces-orbit` | `src/renderer/src/features/faces/OrbitFace.tsx` | ready — alignment lock |
 | `growth` | `agent/faces-growth` | `src/renderer/src/features/faces/GrowthFace.tsx` | ready — bonsai + wilt stakes |
 

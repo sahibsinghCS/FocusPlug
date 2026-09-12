@@ -1,5 +1,5 @@
 import type { SessionEvent } from "@shared/ipc";
-import type { FaceEvent, FaceEventKind, FaceEventSeverity } from "./types";
+import type { FaceEvent, FaceEventKind, FaceEventSeverity } from "./instrument";
 
 export function clamp01(value: number, allowOver = false): number {
   if (!Number.isFinite(value)) {

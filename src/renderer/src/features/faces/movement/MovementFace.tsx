@@ -1,5 +1,5 @@
 import { useMemo, useRef, type JSX } from "react";
-import type { FaceProps } from "../types";
+import type { FaceProps } from "../instrument";
 import { useFaceCanvas } from "../useFaceCanvas";
 import { formatRemain } from "../derive";
 import { gearAngles } from "./math";

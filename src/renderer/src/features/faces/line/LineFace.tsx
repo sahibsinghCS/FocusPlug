@@ -1,5 +1,5 @@
 import { useMemo, type JSX } from "react";
-import type { FaceProps } from "../types";
+import type { FaceProps } from "../instrument";
 import { formatRemain } from "../derive";
 import {
   nextStation,

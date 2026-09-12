@@ -1,8 +1,9 @@
 import { isFaceId, type FaceId } from "@shared/faces";
 import { clamp01 } from "./clock";
 import type { FaceSceneId } from "./fixtures";
+import type { MidFaceId } from "./instrument";
 
-export type SoloFaceId = FaceId | "bar";
+export type SoloFaceId = MidFaceId | "bar";
 
 export interface FaceUrl {
   face: SoloFaceId | null;
@@ -98,7 +99,7 @@ export function parseSoloFaceId(raw: string | null): SoloFaceId | null {
   if (raw === "bar") {
     return "bar";
   }
-  if (raw && isFaceId(raw)) {
+  if (raw === "movement" || raw === "line" || raw === "record") {
     return raw;
   }
   return null;

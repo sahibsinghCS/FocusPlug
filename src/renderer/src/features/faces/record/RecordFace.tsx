@@ -1,5 +1,5 @@
 import { useRef, type JSX } from "react";
-import type { FaceProps } from "../types";
+import type { FaceProps } from "../instrument";
 import { formatRemain } from "../derive";
 import { useFaceCanvas } from "../useFaceCanvas";
 import { isBurstKind } from "../events";

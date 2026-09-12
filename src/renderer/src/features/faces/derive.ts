@@ -1,5 +1,5 @@
-import type { FacePhase, FaceProps, FaceRound, FaceSource } from "./types";
-import { DEFAULT_FACE_DURATION_MS } from "./types";
+import type { FacePhase, FaceProps, FaceRound, FaceSource } from "./instrument";
+import { DEFAULT_FACE_DURATION_MS } from "./instrument";
 import { clamp01, faceEventsFromLog } from "./events";
 import { findSessionStartedAt } from "../session/model";
 
