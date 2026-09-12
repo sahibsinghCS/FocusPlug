@@ -3,8 +3,8 @@ export const MAX_BANK_DEG = 25;
 export const CLIMB_END = 0.08;
 export const DESCENT_START = 0.88;
 export const CONTRAIL_WINDOW_SEC = 90;
-export const TWILIGHT_LO = -0.08;
-export const TWILIGHT_HI = 0.12;
+export const TWILIGHT_LO = -0.045;
+export const TWILIGHT_HI = 0.07;
 
 export type Vec3 = readonly [number, number, number];
 
@@ -222,7 +222,7 @@ export function bankDeg(
   const b0 = initialBearingDeg(p0.lat, p0.lon, p1.lat, p1.lon);
   const b1 = initialBearingDeg(p1.lat, p1.lon, p2.lat, p2.lon);
   const rate = unwrapDeg(b0, b1) / Math.max(1e-4, t1 - t0 + dt);
-  return clamp(rate * 0.22, -MAX_BANK_DEG, MAX_BANK_DEG);
+  return clamp(rate * 0.5, -MAX_BANK_DEG, MAX_BANK_DEG);
 }
 
 export type FlightPhase = "climb" | "cruise" | "descent" | "complete";
@@ -247,9 +247,9 @@ export function flightPhase(progress: number, complete: boolean): FlightPhase {
 }
 
 export function phaseScale(phase: FlightPhase): number {
-  if (phase === "climb") return 1.07;
-  if (phase === "descent") return 0.94;
-  if (phase === "complete") return 0.78;
+  if (phase === "climb") return 1.08;
+  if (phase === "descent") return 0.93;
+  if (phase === "complete") return 0.66;
   return 1;
 }
 

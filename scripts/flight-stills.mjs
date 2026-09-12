@@ -58,7 +58,8 @@ try {
     await page.waitForSelector("canvas[data-phase], [data-face='flight'] canvas", {
       timeout: 20_000,
     });
-    await new Promise((resolveWait) => setTimeout(resolveWait, 500));
+    await page.evaluate(() => document.fonts.ready);
+    await new Promise((resolveWait) => setTimeout(resolveWait, 800));
     const tag = scene.prefix ?? PREFIX;
     const file = resolve(OUT, `${tag}-${scene.name}-1280x800.png`);
     await page.screenshot({ path: file, type: "png" });

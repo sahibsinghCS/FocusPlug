@@ -263,19 +263,22 @@ function buildMask(): Uint8Array {
 
 const MASK = buildMask();
 
+function sampleMask(x: number, y: number): number {
+  const xi = Math.min(COLS - 1, Math.max(0, x));
+  const yi = Math.min(ROWS - 1, Math.max(0, y));
+  return MASK[yi * COLS + xi] ?? 0;
+}
+
 export function landCoverage(lat: number, lon: number): number {
-  const x = Math.min(COLS - 1, Math.max(0, Math.floor((lon + 180) / CELL)));
-  const y = Math.min(ROWS - 1, Math.max(0, Math.floor((90 - lat) / CELL)));
-  const here = MASK[y * COLS + x] ?? 0;
-  const xm = Math.max(0, x - 1);
-  const xp = Math.min(COLS - 1, x + 1);
-  const ym = Math.max(0, y - 1);
-  const yp = Math.min(ROWS - 1, y + 1);
-  const sum =
-    here +
-    (MASK[y * COLS + xm] ?? 0) +
-    (MASK[y * COLS + xp] ?? 0) +
-    (MASK[ym * COLS + x] ?? 0) +
-    (MASK[yp * COLS + x] ?? 0);
-  return sum / 5;
+  const fx = (lon + 180) / CELL - 0.5;
+  const fy = (90 - lat) / CELL - 0.5;
+  const x0 = Math.floor(fx);
+  const y0 = Math.floor(fy);
+  const tx = fx - x0;
+  const ty = fy - y0;
+  const v00 = sampleMask(x0, y0);
+  const v10 = sampleMask(x0 + 1, y0);
+  const v01 = sampleMask(x0, y0 + 1);
+  const v11 = sampleMask(x0 + 1, y0 + 1);
+  return v00 * (1 - tx) * (1 - ty) + v10 * tx * (1 - ty) + v01 * (1 - tx) * ty + v11 * tx * ty;
 }

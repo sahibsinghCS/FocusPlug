@@ -52,6 +52,7 @@
     "@vitejs/plugin-react": "^5.1.1",
     "electron": "^39.2.6",
     "electron-vite": "^5.0.0",
+    "puppeteer-core": "^25.10.0",
     "tailwindcss": "^4.1.13",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",

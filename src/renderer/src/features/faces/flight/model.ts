@@ -91,6 +91,7 @@ export function buildFlightModel(props: FaceProps, idleOverride?: number): Fligh
   const totalKm = haversineKm(dep.lat, dep.lon, arr.lat, arr.lon);
   const remainKm = remainingKm(totalKm, progress);
   const sun = subsolar(now);
+  const sunVec = sunDir(now);
   const planeUnit = latLonToUnit(plane.lat, plane.lon);
   const destUnit = latLonToUnit(arr.lat, arr.lon);
   const lookRoot = complete ? destUnit : planeUnit;
@@ -99,9 +100,13 @@ export function buildFlightModel(props: FaceProps, idleOverride?: number): Fligh
     idleOverride ??
     (props.reducedMotion || props.paused || complete ? 0 : (now / 1000) * 0.0036);
   const wander = rotateAround(basis.right, lookRoot, idle);
-  const lift = complete ? 0.02 : 0.1;
+  const lift = complete ? 0.04 : 0.08;
+  const nightBias = scale(sunVec, complete ? -0.08 : -0.32);
   const cameraForward = normalize(
-    add(lookRoot, add(scale(wander, complete ? 0.06 : 0.18), scale(basis.up, lift))),
+    add(
+      lookRoot,
+      add(add(scale(wander, complete ? 0.05 : 0.14), scale(basis.up, lift)), nightBias),
+    ),
   );
   const cam = orthonormalBasis(cameraForward);
 
@@ -126,7 +131,7 @@ export function buildFlightModel(props: FaceProps, idleOverride?: number): Fligh
     eta: etaMs(now, remaining),
     sunLat: sun.lat,
     sunLon: sun.lon,
-    sun: sunDir(now),
+    sun: sunVec,
     contrail: seedContrail(dep, arr, progress, remaining, estimateMinutes),
     cameraForward: cam.forward,
     cameraRight: cam.right,

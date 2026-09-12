@@ -14,12 +14,11 @@ export interface FlightFaceViewProps extends FaceProps {
   idleOverride?: number;
 }
 
-function readSize(el: HTMLCanvasElement): { width: number; height: number; dpr: number } {
+function readSize(el: HTMLCanvasElement): { width: number; height: number } {
   const rect = el.getBoundingClientRect();
-  const dpr = Math.min(2, window.devicePixelRatio || 1);
-  const width = Math.max(8, Math.round(rect.width * dpr));
-  const height = Math.max(8, Math.round(rect.height * dpr));
-  return { width, height, dpr };
+  const width = Math.max(8, Math.round(rect.width));
+  const height = Math.max(8, Math.round(rect.height));
+  return { width, height };
 }
 
 export function FlightFace(props: FlightFaceViewProps): JSX.Element {
@@ -83,6 +82,9 @@ export function FlightFace(props: FlightFaceViewProps): JSX.Element {
     });
     ro.observe(canvas);
     document.addEventListener("visibilitychange", onVis);
+    void document.fonts.ready.then(() => {
+      if (running) loop();
+    });
     loop();
 
     return () => {

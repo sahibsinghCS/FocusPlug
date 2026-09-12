@@ -81,38 +81,39 @@ function drawBezel(
   radius: number,
 ): void {
   ctx.save();
-  const outer = radius + 28;
+  const outer = radius + 38;
   const ring = ctx.createLinearGradient(cx - outer, cy - outer, cx + outer, cy + outer);
-  ring.addColorStop(0, "#3a4254");
-  ring.addColorStop(0.35, "#1b202c");
-  ring.addColorStop(0.7, "#2a3140");
-  ring.addColorStop(1, "#12151c");
+  ring.addColorStop(0, "#4a5368");
+  ring.addColorStop(0.28, "#1c2230");
+  ring.addColorStop(0.62, "#2c3446");
+  ring.addColorStop(1, "#0d1016");
   ctx.beginPath();
   ctx.arc(cx, cy, outer, 0, Math.PI * 2);
-  ctx.arc(cx, cy, radius + 4, 0, Math.PI * 2, true);
+  ctx.arc(cx, cy, radius + 6, 0, Math.PI * 2, true);
   ctx.fillStyle = ring;
   ctx.fill();
 
-  ctx.strokeStyle = "rgba(212,255,58,0.16)";
-  ctx.lineWidth = 1.25;
   ctx.beginPath();
-  ctx.arc(cx, cy, outer - 2, 0, Math.PI * 2);
+  ctx.arc(cx, cy, radius + 6, 0, Math.PI * 2);
+  ctx.strokeStyle = "rgba(0,0,0,0.55)";
+  ctx.lineWidth = 5;
   ctx.stroke();
 
-  ctx.strokeStyle = "rgba(170,190,220,0.14)";
+  ctx.strokeStyle = "rgba(212,255,58,0.22)";
+  ctx.lineWidth = 1.4;
   ctx.beginPath();
-  ctx.arc(cx, cy, radius + 5, 0, Math.PI * 2);
+  ctx.arc(cx, cy, outer - 3, 0, Math.PI * 2);
   ctx.stroke();
 
   for (let i = 0; i < 72; i += 1) {
     const a = (i / 72) * Math.PI * 2;
     const major = i % 6 === 0;
-    const r0 = outer - (major ? 11 : 7);
-    ctx.strokeStyle = major ? "rgba(238,242,248,0.38)" : "rgba(170,190,220,0.16)";
-    ctx.lineWidth = major ? 1.4 : 1;
+    const r0 = outer - (major ? 14 : 8);
+    ctx.strokeStyle = major ? "rgba(238,242,248,0.55)" : "rgba(170,190,220,0.22)";
+    ctx.lineWidth = major ? 2 : 1;
     ctx.beginPath();
     ctx.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0);
-    ctx.lineTo(cx + Math.cos(a) * (outer - 3), cy + Math.sin(a) * (outer - 3));
+    ctx.lineTo(cx + Math.cos(a) * (outer - 4), cy + Math.sin(a) * (outer - 4));
     ctx.stroke();
   }
   ctx.restore();
@@ -191,13 +192,19 @@ function drawCityLights(ctx: CanvasRenderingContext2D, model: FlightModel, cx: n
   for (const city of CITY_LIGHTS) {
     const world = latLonToUnit(city.lat, city.lon);
     const pr = projectWorld(world, model, cx, cy, radius);
-    if (!pr.visible || pr.z < 0.08) continue;
+    if (!pr.visible || pr.z < 0.06) continue;
     const intensity = world[0] * model.sun[0] + world[1] * model.sun[1] + world[2] * model.sun[2];
     const night = 1 - dayAmount(intensity);
-    if (night < 0.22) continue;
-    const alpha = night * city.weight * Math.min(1, pr.z * 1.35);
-    ctx.fillStyle = `rgba(255, 196, 120, ${alpha.toFixed(3)})`;
-    ctx.fillRect(Math.round(pr.x), Math.round(pr.y), 1, 1);
+    if (night < 0.18) continue;
+    const alpha = night * city.weight * Math.min(1, pr.z * 1.4);
+    const x = Math.round(pr.x);
+    const y = Math.round(pr.y);
+    ctx.fillStyle = `rgba(255, 168, 72, ${(alpha * 0.45).toFixed(3)})`;
+    ctx.beginPath();
+    ctx.arc(x + 0.5, y + 0.5, 2.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = `rgba(255, 220, 160, ${Math.min(1, alpha * 1.15).toFixed(3)})`;
+    ctx.fillRect(x, y, 1, 1);
   }
   ctx.restore();
 }
@@ -217,8 +224,14 @@ function drawContrail(ctx: CanvasRenderingContext2D, model: FlightModel, cx: num
     if (!pa.visible || !pb.visible) continue;
     const life = 1 - b.ageSec / 90;
     if (life <= 0) continue;
-    ctx.strokeStyle = `rgba(220, 236, 255, ${(0.08 + life * 0.42).toFixed(3)})`;
-    ctx.lineWidth = (0.4 + life * 2.6) * widthScale;
+    ctx.strokeStyle = `rgba(210, 232, 255, ${(0.1 + life * 0.22).toFixed(3)})`;
+    ctx.lineWidth = (3.2 + life * 7.5) * widthScale;
+    ctx.beginPath();
+    ctx.moveTo(pa.x, pa.y);
+    ctx.lineTo(pb.x, pb.y);
+    ctx.stroke();
+    ctx.strokeStyle = `rgba(236, 246, 255, ${(0.22 + life * 0.62).toFixed(3)})`;
+    ctx.lineWidth = (1.2 + life * 3.4) * widthScale;
     ctx.beginPath();
     ctx.moveTo(pa.x, pa.y);
     ctx.lineTo(pb.x, pb.y);
@@ -256,65 +269,65 @@ function drawAircraft(
   if (!here.visible) return;
   const heading = screenHeading(model, cx, cy, radius);
   const bank = degToRad(model.bank);
-  const s = model.phase === "climb" ? 1.12 : model.phase === "descent" ? 0.92 : 1;
+  const s = (model.phase === "climb" ? 1.22 : model.phase === "descent" ? 0.9 : 1) * 1.85;
 
   ctx.save();
-  ctx.translate(here.x + 6, here.y + 7);
+  ctx.translate(here.x + 10, here.y + 11);
   ctx.rotate(heading);
-  ctx.scale(s, s * Math.max(0.74, Math.cos(bank)));
-  ctx.fillStyle = "rgba(0,0,0,0.35)";
+  ctx.scale(s, s * Math.max(0.7, Math.cos(bank)));
+  ctx.fillStyle = "rgba(0,0,0,0.4)";
   ctx.beginPath();
-  ctx.ellipse(0, 0, 13, 4.5, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, 0, 16, 5.5, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 
   ctx.save();
   ctx.translate(here.x, here.y);
-  ctx.rotate(heading);
-  ctx.transform(1, 0, Math.sin(bank) * 0.42, Math.max(0.7, Math.cos(bank)), 0, 0);
+  ctx.rotate(heading + bank * 0.18);
+  ctx.transform(1, 0, Math.sin(bank) * 0.55, Math.max(0.62, Math.cos(bank)), 0, 0);
   ctx.scale(s, s);
 
-  ctx.fillStyle = "#e8edf6";
+  ctx.fillStyle = "#f4f7fc";
   ctx.beginPath();
-  ctx.moveTo(0, -16);
-  ctx.bezierCurveTo(2.2, -12, 2.4, 8, 1.6, 13);
-  ctx.lineTo(-1.6, 13);
-  ctx.bezierCurveTo(-2.4, 8, -2.2, -12, 0, -16);
+  ctx.moveTo(0, -19);
+  ctx.bezierCurveTo(2.6, -13, 2.8, 9, 1.8, 15);
+  ctx.lineTo(-1.8, 15);
+  ctx.bezierCurveTo(-2.8, 9, -2.6, -13, 0, -19);
   ctx.fill();
 
   ctx.beginPath();
-  ctx.moveTo(-15, 1);
-  ctx.lineTo(-2, -1.2);
-  ctx.lineTo(-1.4, 3.2);
-  ctx.lineTo(-13.5, 4.6);
+  ctx.moveTo(-19, 0.2);
+  ctx.lineTo(-2.2, -2.4);
+  ctx.lineTo(-1.6, 3.8);
+  ctx.lineTo(-17, 5.4);
   ctx.closePath();
-  ctx.moveTo(15, 1);
-  ctx.lineTo(2, -1.2);
-  ctx.lineTo(1.4, 3.2);
-  ctx.lineTo(13.5, 4.6);
+  ctx.moveTo(19, 0.2);
+  ctx.lineTo(2.2, -2.4);
+  ctx.lineTo(1.6, 3.8);
+  ctx.lineTo(17, 5.4);
   ctx.closePath();
   ctx.fill();
 
   ctx.beginPath();
-  ctx.moveTo(-5.2, 11);
-  ctx.lineTo(-1.2, 9.4);
-  ctx.lineTo(-1.1, 12.6);
-  ctx.lineTo(-4.6, 13.4);
+  ctx.moveTo(-6.4, 12.2);
+  ctx.lineTo(-1.4, 10.4);
+  ctx.lineTo(-1.2, 14.4);
+  ctx.lineTo(-5.6, 15.2);
   ctx.closePath();
-  ctx.moveTo(5.2, 11);
-  ctx.lineTo(1.2, 9.4);
-  ctx.lineTo(1.1, 12.6);
-  ctx.lineTo(4.6, 13.4);
+  ctx.moveTo(6.4, 12.2);
+  ctx.lineTo(1.4, 10.4);
+  ctx.lineTo(1.2, 14.4);
+  ctx.lineTo(5.6, 15.2);
   ctx.closePath();
   ctx.fill();
 
   ctx.fillStyle = "#d4ff3a";
-  ctx.fillRect(-14.6, 1.4, 1.6, 1.6);
+  ctx.fillRect(-18.4, 1.6, 2.2, 2.2);
   ctx.fillStyle = "#ff2d55";
-  ctx.fillRect(13, 1.4, 1.6, 1.6);
+  ctx.fillRect(16.2, 1.6, 2.2, 2.2);
 
-  ctx.fillStyle = "rgba(122,162,255,0.55)";
-  ctx.fillRect(-0.7, -8, 1.4, 6);
+  ctx.fillStyle = "rgba(122,162,255,0.6)";
+  ctx.fillRect(-0.8, -10, 1.6, 7);
   ctx.restore();
 }
 
@@ -343,11 +356,12 @@ function drawStrip(
   w: number,
   h: number,
 ): void {
-  const y = h - 54;
-  ctx.fillStyle = "rgba(7,8,12,0.82)";
-  ctx.fillRect(0, y - 8, w, 62);
-  ctx.fillStyle = "rgba(212,255,58,0.14)";
-  ctx.fillRect(0, y - 8, w, 1);
+  const barH = 92;
+  const y = h - barH;
+  ctx.fillStyle = "rgba(7,8,12,0.92)";
+  ctx.fillRect(0, y, w, barH);
+  ctx.fillStyle = "rgba(212,255,58,0.2)";
+  ctx.fillRect(0, y, w, 1);
 
   const route = `${model.dep.code}  →  ${model.arr.code}`;
   const remain = model.complete ? "0 km" : formatKm(model.remainKm);
@@ -360,46 +374,59 @@ function drawStrip(
     ["GS", gs],
   ];
 
-  ctx.font = "500 10px 'IBM Plex Mono', ui-monospace, monospace";
   const cellW = w / cells.length;
+  ctx.textBaseline = "alphabetic";
   cells.forEach((cell, i) => {
     const label = cell[0] ?? "";
     const value = cell[1] ?? "";
-    const x = 28 + i * cellW;
-    ctx.fillStyle = "#6b768a";
-    ctx.fillText(label, x, y + 10);
+    const x = 36 + i * cellW;
+    if (i > 0) {
+      ctx.fillStyle = "rgba(170,190,220,0.1)";
+      ctx.fillRect(i * cellW, y + 16, 1, barH - 28);
+    }
+    ctx.font = "12px 'IBM Plex Mono', ui-monospace, monospace";
+    ctx.fillStyle = "#8b97a8";
+    ctx.fillText(label, x, y + 28);
+    ctx.font = "28px 'IBM Plex Mono', ui-monospace, monospace";
     ctx.fillStyle = "#eef2f8";
-    ctx.font = "500 18px 'IBM Plex Mono', ui-monospace, monospace";
-    ctx.fillText(value, x, y + 34);
-    ctx.font = "500 10px 'IBM Plex Mono', ui-monospace, monospace";
+    ctx.fillText(value, x, y + 64);
   });
 }
 
 function drawHeader(ctx: CanvasRenderingContext2D, model: FlightModel, w: number): void {
   ctx.save();
-  ctx.font = "500 11px 'IBM Plex Mono', ui-monospace, monospace";
-  ctx.fillStyle = "#6b768a";
+  ctx.font = "13px 'IBM Plex Mono', ui-monospace, monospace";
+  ctx.fillStyle = "#8b97a8";
   ctx.textAlign = "left";
-  ctx.fillText("FACE  FLIGHT", 28, 28);
+  ctx.fillText("FLIGHT", 32, 34);
+  ctx.fillStyle = "#eef2f8";
+  ctx.fillText(`${model.dep.code}–${model.arr.code}`, 96, 34);
   ctx.textAlign = "right";
-  ctx.fillStyle = "#9aa6b8";
-  ctx.fillText(formatZulu(model.now), w - 28, 28);
-  ctx.fillText(model.phase.toUpperCase(), w - 28, 46);
+  ctx.fillStyle = "#8b97a8";
+  ctx.fillText(formatZulu(model.now), w - 32, 34);
+  ctx.fillStyle = "#d4ff3a";
+  ctx.fillText(model.phase.toUpperCase(), w - 32, 56);
   ctx.restore();
 }
 
-function drawCompletePlate(ctx: CanvasRenderingContext2D, model: FlightModel, w: number, h: number): void {
+function drawCompletePlate(ctx: CanvasRenderingContext2D, model: FlightModel, w: number): void {
   if (!model.complete) return;
   ctx.save();
   ctx.textAlign = "center";
-  ctx.fillStyle = "rgba(7,8,12,0.42)";
-  ctx.fillRect(w * 0.5 - 180, h * 0.18, 360, 86);
-  ctx.fillStyle = "#6b768a";
-  ctx.font = "500 11px 'IBM Plex Mono', ui-monospace, monospace";
-  ctx.fillText("DESTINATION SETS", w * 0.5, h * 0.18 + 22);
+  const plateW = 420;
+  const plateH = 78;
+  const px = w * 0.5 - plateW / 2;
+  const py = 72;
+  ctx.fillStyle = "rgba(7,8,12,0.72)";
+  ctx.fillRect(px, py, plateW, plateH);
+  ctx.strokeStyle = "rgba(212,255,58,0.28)";
+  ctx.strokeRect(px + 0.5, py + 0.5, plateW - 1, plateH - 1);
+  ctx.fillStyle = "#8b97a8";
+  ctx.font = "12px 'IBM Plex Mono', ui-monospace, monospace";
+  ctx.fillText("DESTINATION SETS", w * 0.5, py + 26);
   ctx.fillStyle = "#eef2f8";
-  ctx.font = "600 36px Geist, ui-sans-serif, sans-serif";
-  ctx.fillText(model.arr.name.toUpperCase(), w * 0.5, h * 0.18 + 62);
+  ctx.font = "34px 'IBM Plex Mono', ui-monospace, monospace";
+  ctx.fillText(model.arr.name.toUpperCase(), w * 0.5, py + 60);
   ctx.restore();
 }
 
@@ -453,9 +480,9 @@ export function drawFlightFace(input: DrawFlightInput): void {
   fillPanel(ctx, width, height);
   drawScrews(ctx, width, height);
 
-  const radius = Math.min(width, height) * 0.34 * phaseScale(model.phase);
+  const radius = Math.min(width, height) * 0.36 * phaseScale(model.phase);
   const cx = width * 0.5;
-  const cy = height * 0.46;
+  const cy = height * 0.455;
 
   if (variant === "sticker") {
     ctx.beginPath();
@@ -467,13 +494,15 @@ export function drawFlightFace(input: DrawFlightInput): void {
   }
 
   drawBezel(ctx, cx, cy, radius);
-  const rasterSize = Math.max(192, Math.min(384, Math.round(radius * 1.15)));
+  const rasterSize = Math.max(288, Math.min(512, Math.round(radius * 1.7)));
   const globe = globeLayer(model, rasterSize, "instrument");
 
   ctx.save();
   ctx.beginPath();
   ctx.arc(cx, cy, radius, 0, Math.PI * 2);
   ctx.clip();
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
   ctx.drawImage(globe, cx - radius, cy - radius, radius * 2, radius * 2);
   drawCityLights(ctx, model, cx, cy, radius);
   drawRoute(ctx, model, cx, cy, radius);
@@ -482,6 +511,19 @@ export function drawFlightFace(input: DrawFlightInput): void {
   ctx.restore();
   drawGlass(ctx, cx, cy, radius);
   drawHeader(ctx, model, width);
-  drawCompletePlate(ctx, model, width, height);
+  drawCompletePlate(ctx, model, width);
   drawStrip(ctx, model, width, height);
+  drawGrain(ctx, width, height);
+}
+
+function drawGrain(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+  ctx.save();
+  ctx.globalAlpha = 0.035;
+  for (let i = 0; i < 220; i += 1) {
+    const x = ((i * 127 + 19) * 131) % w;
+    const y = ((i * 89 + 41) * 97) % h;
+    ctx.fillStyle = i % 2 === 0 ? "#ffffff" : "#000000";
+    ctx.fillRect(x, y, 1, 1);
+  }
+  ctx.restore();
 }

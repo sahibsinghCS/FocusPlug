@@ -46,16 +46,17 @@ function shadePixel(
   const day = dayAmount(intensity);
   const twilight = twilightBand(intensity);
 
-  const oceanDay = [214, 188, 128] as const;
-  const landDay = [164, 142, 86] as const;
-  const oceanNight = [7, 10, 26] as const;
-  const landNight = [4, 6, 16] as const;
-  const twilightCyan = [86, 214, 230] as const;
-  const atm = [118, 186, 214] as const;
+  const oceanDay = [236, 214, 158] as const;
+  const landDay = [86, 72, 42] as const;
+  const oceanNight = [5, 8, 20] as const;
+  const landNight = [16, 22, 44] as const;
+  const twilightCyan = [92, 226, 236] as const;
+  const atm = [110, 196, 220] as const;
 
-  const dayR = mix(oceanDay[0], landDay[0], land);
-  const dayG = mix(oceanDay[1], landDay[1], land);
-  const dayB = mix(oceanDay[2], landDay[2], land);
+  const coast = land > 0.12 && land < 0.88 ? 1 : 0;
+  const dayR = mix(oceanDay[0], landDay[0], land) - coast * 18;
+  const dayG = mix(oceanDay[1], landDay[1], land) - coast * 10;
+  const dayB = mix(oceanDay[2], landDay[2], land) - coast * 6;
   const nightR = mix(oceanNight[0], landNight[0], land);
   const nightG = mix(oceanNight[1], landNight[1], land);
   const nightB = mix(oceanNight[2], landNight[2], land);
@@ -64,33 +65,33 @@ function shadePixel(
   let g = mix(nightG, dayG, day);
   let b = mix(nightB, dayB, day);
 
-  const tw = twilight * 0.62;
+  const tw = twilight * 0.52;
   r = mix(r, twilightCyan[0], tw);
   g = mix(g, twilightCyan[1], tw);
   b = mix(b, twilightCyan[2], tw);
 
-  const warm = Math.max(0, intensity) * (1 - land) * 0.16;
-  r += 38 * warm;
-  g += 22 * warm;
-  b += 4 * warm;
+  const warm = Math.max(0, intensity) * (1 - land * 0.85) * 0.2;
+  r += 42 * warm;
+  g += 20 * warm;
+  b += 2 * warm;
 
   const halfX = sun[0] + world[0];
   const halfY = sun[1] + world[1];
   const halfZ = sun[2] + world[2];
   const halfLen = Math.hypot(halfX, halfY, halfZ) || 1;
   const spec = Math.max(0, (world[0] * halfX + world[1] * halfY + world[2] * halfZ) / halfLen);
-  const glint = (1 - land) * day * spec ** 42 * 210;
+  const glint = (1 - land) * day * spec ** 64 * 90;
   r += glint;
-  g += glint * 0.92;
-  b += glint * 0.72;
+  g += glint * 0.9;
+  b += glint * 0.65;
 
-  const limb = (1 - viewZ) ** 2.35;
-  const haze = limb * (0.22 + 0.78 * day) * 0.7;
+  const limb = (1 - viewZ) ** 2.8;
+  const haze = limb * (0.18 + 0.82 * Math.max(day, twilight)) * 0.58;
   r = mix(r, atm[0], haze);
   g = mix(g, atm[1], haze);
   b = mix(b, atm[2], haze);
 
-  const darken = 0.7 + 0.3 * viewZ;
+  const darken = 0.62 + 0.38 * viewZ;
   r *= darken;
   g *= darken;
   b *= darken;
