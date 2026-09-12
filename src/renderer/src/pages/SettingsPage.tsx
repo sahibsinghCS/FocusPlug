@@ -1,5 +1,4 @@
 import { useState, type JSX } from "react";
-import { FACE_CATALOG, type FaceId } from "@shared/faces";
 import type { DeskModelId } from "@shared/ipc";
 import { Field, GhostButton, Toggle } from "../components/ui";
 import { pageCopy } from "../lib/routes";
@@ -15,33 +14,14 @@ import {
   Notice,
   useSaveState,
 } from "../features/config";
-import { FacePicker } from "../features/faces";
 import { useAppState } from "../state/AppState";
 
 export function SettingsPage(): JSX.Element {
   const app = useAppState();
   const { settings } = app;
   const modelSave = useSaveState();
-  const faceSave = useSaveState();
   const [modelError, setModelError] = useState<string | null>(null);
-  const [faceError, setFaceError] = useState<string | null>(null);
   const readiness = customReadiness();
-
-  async function onFace(id: FaceId): Promise<void> {
-    if (id === settings.faceId || faceSave.saving) {
-      return;
-    }
-    setFaceError(null);
-    faceSave.begin();
-    try {
-      await app.patchSettings({ faceId: id });
-      faceSave.succeed();
-    } catch (caught) {
-      const message = errorMessage(caught, "Could not save session face");
-      setFaceError(message);
-      faceSave.fail(message);
-    }
-  }
 
   async function onModel(id: DeskModelId): Promise<void> {
     if (id === settings.deskModelId || modelSave.saving) {
@@ -155,39 +135,6 @@ export function SettingsPage(): JSX.Element {
             label="Desk AI webcam"
           />
         </div>
-      </section>
-
-      <section className="fp-card space-y-3 p-4" aria-busy={faceSave.saving}>
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="fp-section-label">Session face</p>
-            <p className="mt-1 text-[12px] text-fp-mute">
-              Immersive timer instrument. Default is readout until Flight lands. Pending slots stay
-              selectable so parallel streams can replace a file without fighting this picker.
-            </p>
-          </div>
-          <p className="shrink-0 font-mono text-[11px] text-fp-faint">
-            {faceSave.saving ? "Saving…" : `active ${settings.faceId}`}
-          </p>
-        </div>
-        <FacePicker
-          value={settings.faceId}
-          disabled={faceSave.saving}
-          layout="grid"
-          faces={FACE_CATALOG}
-          onChange={(id) => {
-            void onFace(id);
-          }}
-        />
-        {faceError ? (
-          <p className="text-[12px] text-fp-red" role="alert">
-            {faceError}
-          </p>
-        ) : faceSave.state.status === "saved" ? (
-          <p className="text-[12px] text-fp-lime" aria-live="polite">
-            Face set to {settings.faceId}
-          </p>
-        ) : null}
       </section>
 
       <section className="fp-card space-y-3 p-4" aria-busy={modelSave.saving}>
