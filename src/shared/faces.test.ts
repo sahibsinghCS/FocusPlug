@@ -47,6 +47,12 @@ describe("faces catalog", () => {
     expect(faceMeta("hourglass").stream).toBe("agent/faces-foundation");
     expect(faceMeta("readout").file).toContain("ReadoutFace.tsx");
     expect(faceMeta("flight").readiness).toBe("pending");
+    expect(faceMeta("descent").readiness).toBe("ready");
+    expect(faceMeta("orbit").readiness).toBe("ready");
+    expect(faceMeta("circuit").readiness).toBe("ready");
+    expect(FACE_READY.descent).toBe(true);
+    expect(FACE_READY.orbit).toBe(true);
+    expect(FACE_READY.circuit).toBe(true);
     expect(normalizeFaceId("not-a-face")).toBe("readout");
     expect(normalizeFaceId("orbit")).toBe("orbit");
   });

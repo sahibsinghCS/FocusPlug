@@ -41,12 +41,12 @@ Replace the listed file. Do not fork `FaceHost` or invent a second picker.
 | `flight` | `agent/faces-flight` | `src/renderer/src/features/faces/FlightFace.tsx` | stub (stream not merged) |
 | `hourglass` | `agent/faces-foundation` | `src/renderer/src/features/faces/HourglassFace.tsx` | ready — flipped sand |
 | `readout` | `agent/faces-foundation` | `src/renderer/src/features/faces/ReadoutFace.tsx` | ready — honest digits |
-| `descent` | `agent/faces-descent` | `src/renderer/src/features/faces/DescentFace.tsx` | stub |
+| `descent` | `agent/faces-descent` | `src/renderer/src/features/faces/DescentFace.tsx` | ready — deep-sea zones |
 | `movement` | `agent/faces-movement` | `src/renderer/src/features/faces/MovementFace.tsx` | stub |
 | `record` | `agent/faces-record` | `src/renderer/src/features/faces/RecordFace.tsx` | stub |
-| `circuit` | `agent/faces-circuit` | `src/renderer/src/features/faces/CircuitFace.tsx` | stub |
+| `circuit` | `agent/faces-circuit` | `src/renderer/src/features/faces/CircuitFace.tsx` | ready — session fuse plate |
 | `line` | `agent/faces-line` | `src/renderer/src/features/faces/LineFace.tsx` | stub |
-| `orbit` | `agent/faces-orbit` | `src/renderer/src/features/faces/OrbitFace.tsx` | stub |
+| `orbit` | `agent/faces-orbit` | `src/renderer/src/features/faces/OrbitFace.tsx` | ready — alignment lock |
 | `growth` | `agent/faces-growth` | `src/renderer/src/features/faces/GrowthFace.tsx` | stub |
 
 Shared (foundation only, unless a merge needs a one-line registry hook):
@@ -73,4 +73,7 @@ npx vite --config scripts/renderer-preview.vite.ts
 # #/?scene=live&face=readout
 # #/?scene=distracted&countdown=8&freeze=1&face=hourglass
 # #/?scene=live&face=flight
+# #/?scene=live&face=descent&progress=0.62
+# #/?scene=live&face=orbit&progress=0.62
+# #/?scene=live&face=circuit&progress=0.62
 ```

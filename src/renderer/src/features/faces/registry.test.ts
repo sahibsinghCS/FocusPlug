@@ -12,6 +12,12 @@ describe("face registry", () => {
     expect(faceComponent("column").name).toBe("ReadoutFace");
     expect(faceIsReady("hourglass")).toBe(true);
     expect(faceIsReady("flight")).toBe(false);
+    expect(faceIsReady("descent")).toBe(true);
+    expect(faceIsReady("orbit")).toBe(true);
+    expect(faceIsReady("circuit")).toBe(true);
+    expect(faceComponent("descent").name).toBe("DescentFace");
+    expect(faceComponent("orbit").name).toBe("OrbitFace");
+    expect(faceComponent("circuit").name).toBe("CircuitFace");
   });
 
   it("reads a stills override from search or hash without inventing ids", () => {
