@@ -53,7 +53,7 @@ export function LineFace(props: FaceProps): JSX.Element {
           fontWeight="650"
           letterSpacing="-0.04em"
         >
-          FOCUS LINE
+          FOCUS  LINE
         </text>
         <text
           x="72"

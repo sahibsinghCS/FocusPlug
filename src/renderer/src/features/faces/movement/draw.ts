@@ -8,10 +8,12 @@ export interface GearSpec {
   spokes: number;
   brass: boolean;
   club?: boolean;
+  /** Punch a hole so a mainspring (or jewel) stays visible. */
+  open?: number;
 }
 
 export const GEARS: readonly GearSpec[] = [
-  { id: "barrel", teeth: TRAIN.barrelTeeth, r: 146, spokes: 0, brass: true },
+  { id: "barrel", teeth: TRAIN.barrelTeeth, r: 146, spokes: 0, brass: true, open: 0.8 },
   { id: "center", teeth: TRAIN.centerTeeth, r: 90, spokes: 5, brass: true },
   { id: "third", teeth: TRAIN.thirdTeeth, r: 70, spokes: 4, brass: true },
   { id: "fourth", teeth: TRAIN.fourthTeeth, r: 56, spokes: 4, brass: true },
@@ -107,6 +109,14 @@ function drawGearBody(ctx: CanvasRenderingContext2D, spec: GearSpec): void {
       );
       ctx.fill();
     }
+    ctx.restore();
+  }
+  if (spec.open && spec.open > 0) {
+    ctx.save();
+    ctx.globalCompositeOperation = "destination-out";
+    ctx.beginPath();
+    ctx.arc(0, 0, spec.r * spec.open, 0, Math.PI * 2);
+    ctx.fill();
     ctx.restore();
   }
 
@@ -223,8 +233,8 @@ export function drawPerlage(ctx: CanvasRenderingContext2D, r: number): void {
   ctx.beginPath();
   ctx.arc(0, 0, r, 0, Math.PI * 2);
   ctx.clip();
-  ctx.strokeStyle = "rgba(255,255,255,0.075)";
-  ctx.lineWidth = 0.7;
+  ctx.strokeStyle = "rgba(255,255,255,0.16)";
+  ctx.lineWidth = 0.85;
   for (let y = -r; y < r; y += step * 0.74) {
     const odd = Math.abs(Math.round(y / step)) % 2;
     for (let x = -r; x < r; x += step) {

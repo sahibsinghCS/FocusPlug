@@ -131,27 +131,28 @@ function uniqueMarks(values: number[]): number[] {
 export function stationsFromRounds(rounds: readonly FaceRound[]): Station[] {
   const marks = uniqueMarks(rounds.flatMap((round) => [round.start, round.end]));
   return marks.map((at, index) => {
-    const next = rounds.find((round) => Math.abs(round.start - at) < 1e-4);
-    const ending = rounds.find((round) => Math.abs(round.end - at) < 1e-4);
-    let kind: Station["kind"] = "terminus";
-    let label = index === 0 ? "Start" : index === marks.length - 1 ? "End" : `S${index}`;
     if (index === 0) {
-      kind = "terminus";
-      label = "Start";
-    } else if (index === marks.length - 1) {
-      kind = "terminus";
-      label = "End";
-    } else if (next?.kind === "break" || ending?.kind === "break") {
-      kind = "break";
-      label = next?.kind === "break" ? next.label : (ending?.label ?? "Break");
-    } else if (next) {
-      kind = "focus";
-      label = next.label;
-    } else if (ending) {
-      kind = "focus";
-      label = ending.label;
+      return { id: `st-${index}`, label: "Start", at, kind: "terminus" };
     }
-    return { id: `st-${index}`, label, at, kind };
+    if (index === marks.length - 1) {
+      return { id: `st-${index}`, label: "End", at, kind: "terminus" };
+    }
+    const starting = rounds.find((round) => Math.abs(round.start - at) < 1e-4);
+    if (starting) {
+      return {
+        id: `st-${index}`,
+        label: starting.kind === "break" ? "Break" : starting.label,
+        at,
+        kind: starting.kind,
+      };
+    }
+    const ending = rounds.find((round) => Math.abs(round.end - at) < 1e-4);
+    return {
+      id: `st-${index}`,
+      label: ending?.kind === "break" ? "Break" : (ending?.label ?? `S${index}`),
+      at,
+      kind: ending?.kind === "break" ? "break" : "focus",
+    };
   });
 }
 
@@ -192,14 +193,11 @@ export function segmentKindAt(
   at: number,
   phase: FaceProps["phase"],
 ): "focus" | "break" {
-  if (phase === "break") {
-    return "break";
+  if (rounds && rounds.length > 0) {
+    const hit = rounds.find((round) => at >= round.start && at < round.end);
+    return hit?.kind === "break" ? "break" : "focus";
   }
-  if (!rounds || rounds.length === 0) {
-    return "focus";
-  }
-  const hit = rounds.find((round) => at >= round.start && at < round.end);
-  return hit?.kind === "break" ? "break" : "focus";
+  return phase === "break" ? "break" : "focus";
 }
 
 export function nextStation(stations: readonly Station[], progress: number): Station | null {

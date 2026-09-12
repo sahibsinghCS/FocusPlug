@@ -20,6 +20,9 @@ export function useFaceCanvas(
       const parent = canvas.parentElement;
       const w = parent?.clientWidth ?? canvas.clientWidth;
       const h = parent?.clientHeight ?? canvas.clientHeight;
+      if (w < 8 || h < 8) {
+        return;
+      }
       const { ctx } = fitCanvas(canvas, w, h);
       draw(ctx, w, h, clockMs);
     };
@@ -30,6 +33,11 @@ export function useFaceCanvas(
     if (canvas.parentElement) {
       ro.observe(canvas.parentElement);
     }
+    void document.fonts.ready.then(() => {
+      if (running) {
+        paint(0);
+      }
+    });
     paint(0);
 
     if (!freeze) {

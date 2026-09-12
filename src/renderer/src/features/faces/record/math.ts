@@ -34,27 +34,27 @@ export function baselineNoise(theta: number, harmonics: readonly Harmonic[]): nu
   for (const harm of harmonics) {
     sum += harm.amp * Math.sin(harm.freq * theta + harm.phase);
   }
-  return sum * 0.012;
+  return sum * 0.028;
 }
 
 function burstFreq(kind: FaceEventKind): number {
   if (kind === "kill") {
-    return 26;
+    return 48;
   }
   if (kind === "countdown") {
-    return 17;
+    return 32;
   }
-  return 12;
+  return 20;
 }
 
 function burstWidth(kind: FaceEventKind): number {
   if (kind === "kill") {
-    return 0.16;
+    return 0.2;
   }
   if (kind === "countdown") {
-    return 0.22;
+    return 0.28;
   }
-  return 0.28;
+  return 0.34;
 }
 
 export function dampedBurst(
@@ -63,9 +63,9 @@ export function dampedBurst(
   severity: FaceEventSeverity,
 ): number {
   const width = burstWidth(kind);
-  const envelope = Math.exp(-((delta / width) ** 2));
+  const envelope = Math.exp(-Math.abs(delta) / (width * 0.42));
   const sine = Math.sin(burstFreq(kind) * delta);
-  return severityWeight(severity) * 0.09 * envelope * sine;
+  return severityWeight(severity) * 0.11 * envelope * sine;
 }
 
 export function eventDisplacement(theta: number, events: readonly FaceEvent[], revs: number): number {
@@ -124,7 +124,7 @@ export function sampleTrace(input: {
   revs: number;
   step?: number;
 }): TraceSample[] {
-  const step = input.step ?? 0.012;
+  const step = input.step ?? 0.008;
   const samples: TraceSample[] = [];
   if (input.toTheta <= input.fromTheta) {
     return samples;

@@ -29,7 +29,8 @@ describe("line transit math", () => {
   it("uses plan round boundaries, thirds, or a two-stop line", () => {
     const rounds = resolveStations(faceFixture("line", "rounds"));
     expect(rounds.length).toBeGreaterThan(3);
-    expect(rounds.some((station) => station.kind === "break")).toBe(true);
+    expect(rounds.filter((station) => station.label === "Break")).toHaveLength(2);
+    expect(rounds.some((station) => station.label === "Round 2")).toBe(true);
     expect(rounds[0]?.label).toBe("Start");
     expect(rounds[rounds.length - 1]?.label).toBe("End");
 

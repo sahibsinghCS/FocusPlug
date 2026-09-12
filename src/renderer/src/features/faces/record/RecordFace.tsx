@@ -66,22 +66,17 @@ function paintRecord(
   ctx.clearRect(0, 0, w, h);
   const cx = w * 0.5;
   const cy = h * 0.5 - 8;
-  const drumR = Math.min(w, h) * 0.36;
-  const r0 = drumR * 0.22;
+  const drumR = Math.min(w, h) * 0.38;
+  const r0 = drumR * 0.42;
   const r1 = drumR * 0.9;
   const revs = revolutionCount(Math.max(props.progress, 0.001));
   const theta = progressTheta(props.progress);
   const harmonics = sessionHarmonics(props.sessionId);
 
-  const housing = ctx.createLinearGradient(0, 0, 0, h);
-  housing.addColorStop(0, "#2a1c16");
-  housing.addColorStop(0.45, "#1a120e");
-  housing.addColorStop(1, "#0d0907");
-  ctx.fillStyle = housing;
-  ctx.fillRect(0, 0, w, h);
+  drawCase(ctx, w, h);
 
-  ctx.fillStyle = "#3a2a20";
-  roundRectFill(ctx, w * 0.08, h * 0.07, w * 0.84, h * 0.86, 18);
+  ctx.fillStyle = "#3d2a1d";
+  roundRectFill(ctx, w * 0.07, h * 0.06, w * 0.86, h * 0.88, 16);
   const well = ctx.createRadialGradient(cx, cy, drumR * 0.2, cx, cy, drumR * 1.35);
   well.addColorStop(0, "#4a3428");
   well.addColorStop(1, "#1a110c");
@@ -111,7 +106,9 @@ function paintRecord(
   ctx.rotate(paperAngle);
   ctx.translate(-cx, -cy);
   drawPaper(ctx, cx, cy, drumR, r0);
+  drawGuideSpiral(ctx, cx, cy, r0, r1, revs);
   drawInk(ctx, cacheRef.current?.points ?? []);
+  drawEventMarks(ctx, cx, cy, r1, props, revs);
   ctx.restore();
 
   drawBezel(ctx, cx, cy, drumR);
@@ -122,19 +119,27 @@ function paintRecord(
     ended ? theta : stylusAngle,
   );
   drawStylus(ctx, cx, cy, drumR, tip.x, tip.y, ended);
+  drawPlaque(ctx, w, h, props, ended);
+}
 
-  ctx.fillStyle = "#efe4c8";
-  ctx.font = `600 ${Math.max(13, Math.round(w * 0.016))}px Geist, sans-serif`;
-  ctx.textAlign = "center";
-  ctx.fillText("THE RECORD", cx, h * 0.075);
-  ctx.font = `500 ${Math.max(11, Math.round(w * 0.012))}px "IBM Plex Mono", monospace`;
-  ctx.fillStyle = "rgba(239,228,200,0.62)";
-  const caption = ended
-    ? `${props.sessionId}  ·  artifact of attention`
-    : `${props.sessionId}  ·  ${formatRemain(props.remainingMs)} remain`;
-  ctx.fillText(caption, cx, h * 0.945);
-
-  drawEventKey(ctx, w, h, props);
+function drawCase(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+  const wood = ctx.createLinearGradient(0, 0, w, h);
+  wood.addColorStop(0, "#2c1c14");
+  wood.addColorStop(0.4, "#1a100c");
+  wood.addColorStop(1, "#0c0806");
+  ctx.fillStyle = wood;
+  ctx.fillRect(0, 0, w, h);
+  ctx.save();
+  ctx.globalAlpha = 0.08;
+  ctx.strokeStyle = "#c4a070";
+  ctx.lineWidth = 1;
+  for (let y = 0; y < h; y += 7) {
+    ctx.beginPath();
+    ctx.moveTo(0, y + Math.sin(y * 0.2) * 1.4);
+    ctx.lineTo(w, y + Math.sin(y * 0.13) * 1.4);
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 function extendCache(
@@ -251,6 +256,17 @@ function drawPaper(
   }
   ctx.restore();
 
+  ctx.save();
+  ctx.fillStyle = "rgba(90, 60, 30, 0.05)";
+  for (let i = 0; i < 180; i += 1) {
+    const a = (i * 12.989) % (Math.PI * 2);
+    const r = r0 + ((i * 37) % (drumR - r0));
+    ctx.beginPath();
+    ctx.arc(cx + Math.sin(a) * r, cy - Math.cos(a) * r, i % 5 === 0 ? 1.1 : 0.6, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+
   ctx.beginPath();
   ctx.arc(cx, cy, r0 * 0.72, 0, Math.PI * 2);
   const hub = ctx.createRadialGradient(cx - 4, cy - 5, 2, cx, cy, r0 * 0.72);
@@ -258,6 +274,33 @@ function drawPaper(
   hub.addColorStop(1, "#8a5a18");
   ctx.fillStyle = hub;
   ctx.fill();
+}
+
+function drawGuideSpiral(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  r0: number,
+  r1: number,
+  revs: number,
+): void {
+  ctx.beginPath();
+  const turns = Math.max(1, revs);
+  for (let i = 0; i <= 360 * turns; i += 1) {
+    const t = i / (360 * turns);
+    const theta = t * Math.PI * 2 * turns;
+    const r = r0 + (r1 - r0) * t;
+    const x = cx + r * Math.sin(theta);
+    const y = cy - r * Math.cos(theta);
+    if (i === 0) {
+      ctx.moveTo(x, y);
+    } else {
+      ctx.lineTo(x, y);
+    }
+  }
+  ctx.strokeStyle = "rgba(110, 80, 50, 0.16)";
+  ctx.lineWidth = 1;
+  ctx.stroke();
 }
 
 function drawInk(ctx: CanvasRenderingContext2D, points: readonly TraceSample[]): void {
@@ -272,14 +315,38 @@ function drawInk(ctx: CanvasRenderingContext2D, points: readonly TraceSample[]):
       ctx.lineTo(p.x, p.y);
     }
   }
-  ctx.strokeStyle = "rgba(60, 12, 18, 0.22)";
-  ctx.lineWidth = 3.1;
+  ctx.strokeStyle = "rgba(70, 16, 22, 0.28)";
+  ctx.lineWidth = 4.2;
   ctx.lineJoin = "round";
   ctx.lineCap = "round";
   ctx.stroke();
   ctx.strokeStyle = INK;
-  ctx.lineWidth = 1.45;
+  ctx.lineWidth = 2.05;
   ctx.stroke();
+}
+
+function drawEventMarks(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  r1: number,
+  props: FaceProps,
+  revs: number,
+): void {
+  for (const event of props.events) {
+    if (!isBurstKind(event.kind)) {
+      continue;
+    }
+    const angle = event.at * Math.PI * 2 * revs;
+    const inner = polarPoint(cx, cy, r1 + 2, angle);
+    const outer = polarPoint(cx, cy, r1 + 11, angle);
+    ctx.beginPath();
+    ctx.moveTo(inner.x, inner.y);
+    ctx.lineTo(outer.x, outer.y);
+    ctx.strokeStyle = event.kind === "kill" ? "#6b1a22" : event.kind === "countdown" ? "#8a3a16" : "#5a4a32";
+    ctx.lineWidth = event.severity === "high" ? 2.4 : 1.4;
+    ctx.stroke();
+  }
 }
 
 function drawBezel(ctx: CanvasRenderingContext2D, cx: number, cy: number, drumR: number): void {
@@ -336,22 +403,31 @@ function drawStylus(
   ctx.fill();
 }
 
-function drawEventKey(
+function drawPlaque(
   ctx: CanvasRenderingContext2D,
   w: number,
   h: number,
   props: FaceProps,
+  ended: boolean,
 ): void {
   const bursts = props.events.filter((event) => isBurstKind(event.kind));
-  ctx.font = `500 ${Math.max(10, Math.round(w * 0.011))}px "IBM Plex Mono", monospace`;
-  ctx.textAlign = "left";
-  ctx.fillStyle = "rgba(239,228,200,0.5)";
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#f3e6c8";
+  ctx.font = `650 ${Math.max(18, Math.round(w * 0.022))}px Geist, sans-serif`;
+  ctx.fillText("THE  RECORD", w * 0.5, h * 0.072);
+  ctx.font = `500 ${Math.max(12, Math.round(w * 0.013))}px "IBM Plex Mono", monospace`;
+  ctx.fillStyle = "rgba(243,230,200,0.7)";
+  ctx.fillText(
+    ended ? `${props.sessionId}   artifact of attention` : `${props.sessionId}   ${formatRemain(props.remainingMs)} remain`,
+    w * 0.5,
+    h * 0.938,
+  );
   ctx.fillText(
     bursts.length > 0
-      ? `${bursts.length} bursts  ·  countdown / kill / drift`
+      ? `${bursts.length} bursts    countdown / kill / drift`
       : "quiet baseline",
-    w * 0.1,
-    h * 0.945,
+    w * 0.5,
+    h * 0.968,
   );
 }
 

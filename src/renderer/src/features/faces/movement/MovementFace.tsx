@@ -79,9 +79,9 @@ function paintMovement(
   ctx.beginPath();
   ctx.arc(0, 0, 436, 0, Math.PI * 2);
   const plate = ctx.createRadialGradient(-120, -140, 40, 0, 0, 436);
-  plate.addColorStop(0, "#8b929c");
-  plate.addColorStop(0.5, "#6a717a");
-  plate.addColorStop(1, "#3c424a");
+  plate.addColorStop(0, "#5c636c");
+  plate.addColorStop(0.5, "#3d434b");
+  plate.addColorStop(1, "#22262c");
   ctx.fillStyle = plate;
   ctx.fill();
   drawPerlage(ctx, 430);
@@ -102,14 +102,17 @@ function paintMovement(
     well.addColorStop(1, "#0b0d11");
     ctx.fillStyle = well;
     ctx.fill();
-    ctx.rotate(angles.barrel);
-    drawMainspring(ctx, props.progress, 18, 118);
     ctx.restore();
     blit(ctx, sprites.get("barrel"), barrel.x, barrel.y, barrel.spec, angles.barrel);
     ctx.save();
     ctx.translate(barrel.x, barrel.y);
-    drawPinion(ctx, 16, 12);
-    drawJewel(ctx, 7.5);
+    ctx.rotate(angles.barrel);
+    drawMainspring(ctx, props.progress, 20, 108);
+    ctx.restore();
+    ctx.save();
+    ctx.translate(barrel.x, barrel.y);
+    drawPinion(ctx, 18, 12);
+    drawJewel(ctx, 9.5);
     ctx.restore();
   }
 
@@ -138,7 +141,7 @@ function paintMovement(
   for (const [x, y, rot] of screws) {
     ctx.save();
     ctx.translate(x, y);
-    drawBluedScrew(ctx, 6.4, rot);
+    drawBluedScrew(ctx, 8.6, rot);
     ctx.restore();
   }
 
@@ -169,7 +172,7 @@ function blitGear(
   ctx.save();
   ctx.translate(laid.x, laid.y);
   drawPinion(ctx, Math.max(9, laid.spec.r * 0.16), 8);
-  drawJewel(ctx, Math.max(4.6, laid.spec.r * 0.075));
+  drawJewel(ctx, Math.max(6.2, laid.spec.r * 0.1));
   ctx.restore();
 }
 
@@ -207,9 +210,9 @@ function drawBridge(
   ctx.beginPath();
   roundRect(ctx, 0, 0, w, h, 28);
   const steel = ctx.createLinearGradient(0, 0, w, 0);
-  steel.addColorStop(0, "#9aa3ae");
-  steel.addColorStop(0.5, "#d5dbe4");
-  steel.addColorStop(1, "#6c7380");
+  steel.addColorStop(0, "#6a717c");
+  steel.addColorStop(0.5, "#b4bcc8");
+  steel.addColorStop(1, "#3e444c");
   ctx.fillStyle = steel;
   ctx.fill();
   ctx.save();
