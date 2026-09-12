@@ -33,7 +33,7 @@ export function PageHeader(props: {
       <div className="min-w-0">
         <p className="fp-section-label">{props.kicker}</p>
         {props.title ? (
-          <h1 className="mt-0.5 text-[18px] font-semibold tracking-tight">{props.title}</h1>
+          <h1 className="fp-display mt-1 text-[22px] font-semibold">{props.title}</h1>
         ) : null}
         {props.description ? (
           <p className="mt-1 text-[13px] text-fp-mute">{props.description}</p>
@@ -75,7 +75,7 @@ export function EmptyState(props: {
       <p className={cn("fp-section-label", props.tone ? toneText(props.tone) : null)}>
         {props.kicker}
       </p>
-      <h2 className="mt-2 text-[16px] font-semibold tracking-tight text-fp-ink">{props.title}</h2>
+      <h2 className="fp-display mt-2 text-[17px] font-semibold text-fp-ink">{props.title}</h2>
       {props.children ? (
         <div className="mt-2 max-w-xl text-[13px] leading-5 text-fp-mute">{props.children}</div>
       ) : null}

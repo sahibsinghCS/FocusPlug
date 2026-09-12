@@ -33,7 +33,7 @@ export function Toggle(props: {
       onClick={() => props.onChange(!props.checked)}
       className={cn(
         "fp-btn relative h-5 w-9 shrink-0 rounded-full disabled:cursor-not-allowed disabled:opacity-40",
-        props.checked ? "bg-fp-lime" : "bg-[#3f4654]",
+        props.checked ? "bg-fp-focus" : "bg-[#3f4654]",
       )}
     >
       <span
@@ -59,7 +59,7 @@ export function PrimaryButton(props: {
       disabled={props.disabled}
       onClick={props.onClick}
       className={cn(
-        "fp-btn inline-flex h-8 items-center justify-center rounded-md bg-fp-lime px-3 text-[13px] font-semibold text-fp-mark-ink shadow-fp-lime hover:bg-[#e2ff6a] disabled:cursor-not-allowed disabled:opacity-40",
+        "fp-btn inline-flex h-8 items-center justify-center rounded-md bg-fp-focus px-3 text-[13px] font-semibold text-fp-mark-ink shadow-fp-focus hover:bg-[#e2ff6a] disabled:cursor-not-allowed disabled:opacity-40",
         props.className,
       )}
     >

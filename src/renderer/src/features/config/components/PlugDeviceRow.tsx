@@ -44,9 +44,9 @@ export function PlugDeviceRow(props: {
               : plug.error
                 ? "bg-fp-red"
                 : plug.online && plug.powerOn
-                  ? "bg-fp-lime"
+                  ? "bg-fp-focus"
                   : plug.online
-                    ? "bg-fp-amber"
+                    ? "bg-fp-warn"
                     : "bg-[#4b5568]",
           )}
           aria-hidden="true"
@@ -103,7 +103,7 @@ export function PlugDeviceRow(props: {
             {intent &&
             probe.powerOn !== null &&
             (intent === "on") !== probe.powerOn ? (
-              <p className="text-[11px] text-fp-amber">
+              <p className="text-[11px] text-fp-warn">
                 Driver reported {probe.powerOn ? "on" : "off"}. Test probes status;
                 kill / Demo Kill send off.
               </p>

@@ -74,7 +74,7 @@ export function SettingsPage(): JSX.Element {
               onChange={(event) => {
                 void app.patchSettings({ countdownSec: Number(event.target.value) });
               }}
-              className="h-1 flex-1 accent-fp-lime"
+              className="h-1 flex-1 accent-fp-focus"
             />
             <span className="w-12 font-mono text-[13px] tabular">{settings.countdownSec}s</span>
           </div>
@@ -95,7 +95,7 @@ export function SettingsPage(): JSX.Element {
               onChange={(event) => {
                 void app.patchSettings({ deskThreshold: Number(event.target.value) });
               }}
-              className="h-1 flex-1 accent-fp-lime"
+              className="h-1 flex-1 accent-fp-focus"
             />
             <span className="w-12 font-mono text-[13px] tabular">
               {Math.round(settings.deskThreshold * 100)}%
@@ -160,7 +160,7 @@ export function SettingsPage(): JSX.Element {
         />
 
         {settings.deskModelId === "custom" ? (
-          <Notice tone="amber" title="Custom readiness" role="status">
+          <Notice tone="warn" title="Custom readiness" role="status">
             <p>{readiness.label}</p>
             <p className="mt-1 text-fp-mute">{readiness.detail}</p>
             <p className="mt-1 font-mono text-[11px] text-fp-ink">
@@ -172,7 +172,7 @@ export function SettingsPage(): JSX.Element {
             Always uncertain. Desk-away will not start a kill on presence alone.
           </Notice>
         ) : (
-          <Notice tone="lime" title="BlazeFace" role="status">
+          <Notice tone="focus" title="BlazeFace" role="status">
             Shipped graph is active. Uncertain still never desk-only-kills.
           </Notice>
         )}
@@ -182,7 +182,7 @@ export function SettingsPage(): JSX.Element {
             {modelError}
           </p>
         ) : modelSave.state.status === "saved" ? (
-          <p className="text-[12px] text-fp-lime" aria-live="polite">
+          <p className="text-[12px] text-fp-focus" aria-live="polite">
             Model set to {settings.deskModelId}
           </p>
         ) : null}

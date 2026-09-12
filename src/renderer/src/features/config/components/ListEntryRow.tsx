@@ -11,7 +11,7 @@ import { TokenField } from "./TokenField";
 export function ListEntryRow(props: {
   entry: AppEntry;
   kind: ListKind;
-  accent: "lime" | "red";
+  accent: "focus" | "red";
   busy: boolean;
   onToggle: (enabled: boolean) => Promise<unknown>;
   onSave: (next: { name: string; match: string[] }) => Promise<unknown>;
@@ -60,8 +60,8 @@ export function ListEntryRow(props: {
           className={cn(
             "h-1.5 w-1.5 shrink-0 rounded-full",
             entry.enabled
-              ? props.accent === "lime"
-                ? "bg-fp-lime"
+              ? props.accent === "focus"
+                ? "bg-fp-focus"
                 : "bg-fp-red"
               : "bg-[#4b5568]",
           )}
@@ -112,7 +112,7 @@ export function ListEntryRow(props: {
                 type="button"
                 disabled={save.saving}
                 onClick={() => void persistEdit()}
-                className="rounded-md px-2 py-1 text-[11px] font-semibold text-fp-lime hover:bg-fp-lime/10"
+                className="rounded-md px-2 py-1 text-[11px] font-semibold text-fp-focus hover:bg-fp-focus/10"
               >
                 Save
               </button>

@@ -26,7 +26,7 @@ export function LogEmptyState(props: {
               ? props.error
               : "The session log could not load."
           }
-          hint="Start session still works from Session home when live IPC is up. This page only reads existing log events — it does not change enforcement."
+          hint="Locking a session still works from the Session panel when live IPC is up. This page only reads existing log events — it does not change enforcement."
         />
       </div>
     );
@@ -52,10 +52,10 @@ export function LogEmptyState(props: {
 
   return (
     <div className="fp-page-x">
-      <EmptyState kicker="No events yet" title="Start session to record the enforcement chain">
+      <EmptyState kicker="No events yet" title="Lock a session to record the enforcement chain">
         <p>
           Session off is observe only. A live session writes Window, Desk AI, Decision, Countdown,
-          Kill, Plug off, Unlock, and Plug on — the same labels as Session home.
+          Kill, Plug off, Unlock, and Plug on — the same labels as lock mode.
         </p>
         <ol className="mt-4 space-y-2">
           {CAUSAL_CHAIN_LEGEND.map((step, index) => (

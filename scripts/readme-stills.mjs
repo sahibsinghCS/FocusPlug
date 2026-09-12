@@ -5,8 +5,9 @@
  *   npm run stills:readme         # terminal 2
  *
  * Scenes are the seeded mock-IPC states from src/renderer/src/lib/urlScene.ts,
- * so this renders the real console chrome without a live session. Replace these
- * with live captures from the take when you film (docs/DEMO-SCRIPT.md).
+ * so this renders the real UI without a live session. The lock-mode shots throw
+ * the hold switch the same way a pointer does. Replace these with live captures
+ * from the take when you film (docs/DEMO-SCRIPT.md).
  */
 import { mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
@@ -28,13 +29,13 @@ const CHROME_CANDIDATES = [
   "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
 ].filter(Boolean);
 
-/** `clipTo` takes the region around the first element whose text matches. */
+/** `lock` throws the hold switch; `skip` then advances into the break. */
 const SHOTS = [
-  { file: "01-on-task.png", path: "/#/?scene=live" },
-  { file: "02-kill-overlay.png", path: "/#/?scene=distracted&countdown=8&freeze=1" },
-  { file: "03-desk-away.png", path: "/#/?scene=away" },
-  { file: "04-session-log.png", path: "/#/log?scene=golden" },
-  { file: "05-demo-kill.png", path: "/#/?scene=live", clipTo: "Demo Kill" },
+  { file: "01-session-plan.png", path: "/#/?scene=live" },
+  { file: "02-lock-focus.png", path: "/#/?scene=live", lock: true },
+  { file: "03-kill-overlay.png", path: "/#/?scene=distracted&countdown=8&freeze=1" },
+  { file: "04-break-released.png", path: "/#/?scene=live", lock: true, skip: 1 },
+  { file: "05-session-log.png", path: "/#/log?scene=golden" },
 ];
 
 function findChrome() {
@@ -47,30 +48,38 @@ function findChrome() {
   return found;
 }
 
-/** Padded box around the control, clamped to the viewport. */
-async function clipFor(page, text) {
-  const handle = await page.$(`::-p-text(${text})`);
-  if (!handle) {
-    console.warn(`  ! no element matching "${text}" — capturing the full page`);
-    return undefined;
+const wait = (ms) => new Promise((done) => setTimeout(done, ms));
+
+/** Hold-to-lock is a gesture, not a click — press and keep holding past 620ms. */
+async function throwSwitch(page) {
+  const found = await page.evaluate(() => {
+    const button = [...document.querySelectorAll("button")].find((node) =>
+      (node.textContent ?? "").includes("Hold to lock"),
+    );
+    if (!button) {
+      return false;
+    }
+    button.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    return true;
+  });
+  if (!found) {
+    throw new Error("Hold to lock switch not found on the session plan");
   }
-  const box = await handle.boundingBox();
-  await handle.dispose();
-  if (!box) {
-    return undefined;
+  await wait(900);
+}
+
+async function skipPhase(page) {
+  const found = await page.evaluate(() => {
+    const button = [...document.querySelectorAll("button")].find((node) =>
+      /^Skip /.test((node.textContent ?? "").trim()),
+    );
+    button?.click();
+    return Boolean(button);
+  });
+  if (!found) {
+    throw new Error("Skip control not found in lock mode");
   }
-  // Tuned so the crop lands on the action card (elapsed / fuse / Stop / Demo
-  // Kill and the line explaining what Demo Kill cuts), not its neighbour.
-  const padX = 170;
-  const padY = 150;
-  const x = Math.max(0, box.x - padX);
-  const y = Math.max(0, box.y - padY);
-  return {
-    x,
-    y,
-    width: Math.min(VIEWPORT.width - x, box.width + padX * 2),
-    height: Math.min(VIEWPORT.height - y, box.height + padY * 2),
-  };
+  await wait(500);
 }
 
 await mkdir(OUT, { recursive: true });
@@ -92,12 +101,18 @@ try {
     });
     await page.goto(`${BASE}${shot.path}`, { waitUntil: "networkidle0", timeout: 30_000 });
     await page.waitForSelector("#root", { timeout: 15_000 });
-    await new Promise((done) => setTimeout(done, 700));
+    await wait(700);
+
+    if (shot.lock) {
+      await throwSwitch(page);
+    }
+    for (let index = 0; index < (shot.skip ?? 0); index += 1) {
+      await skipPhase(page);
+    }
 
     const file = resolve(OUT, shot.file);
-    const clip = shot.clipTo ? await clipFor(page, shot.clipTo) : undefined;
-    await page.screenshot({ path: file, type: "png", ...(clip ? { clip } : {}) });
-    console.log(`${file}${clip ? " (clipped)" : ""}`);
+    await page.screenshot({ path: file, type: "png" });
+    console.log(file);
     await page.close();
   }
 } finally {

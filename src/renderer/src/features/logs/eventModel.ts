@@ -340,10 +340,10 @@ function toneFor(
     return "red";
   }
   if (kind === "unlock" || kind === "plug_on" || decision === "ON_TASK" || title === "At desk") {
-    return "lime";
+    return "focus";
   }
   if (kind === "countdown" || kind === "policy" || decision === "AWAY" || title === "Away") {
-    return "amber";
+    return "warn";
   }
   return "mute";
 }

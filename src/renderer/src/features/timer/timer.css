@@ -1,0 +1,118 @@
+/* Panel hardware: fader caps, the readout, and lock mode's one ambient move. */
+
+.fp-fader {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 22px;
+  background: transparent;
+  cursor: grab;
+}
+
+.fp-fader:active {
+  cursor: grabbing;
+}
+
+.fp-fader::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 99px;
+  background: linear-gradient(
+    to right,
+    var(--phase) 0%,
+    var(--phase) var(--fill, 50%),
+    rgba(255, 230, 205, 0.12) var(--fill, 50%),
+    rgba(255, 230, 205, 0.12) 100%
+  );
+}
+
+/* A fader cap, not a dot: the dials should read as something you grab. */
+.fp-fader::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 11px;
+  height: 22px;
+  margin-top: -9px;
+  border-radius: 3px;
+  background: linear-gradient(to bottom, #efe6dc, #b7ada6);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.6),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.25);
+  border: none;
+  transition: box-shadow var(--fp-ease);
+}
+
+.fp-fader:hover::-webkit-slider-thumb,
+.fp-fader:focus-visible::-webkit-slider-thumb {
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--phase) 22%, transparent),
+    0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+.fp-fader:focus-visible {
+  outline: none;
+}
+
+/*
+ * The panel owns its own spacing rather than Tailwind gap utilities, so the
+ * short-window rules below have nothing to fight with. At the app's minimum
+ * height (650px) everything still has to fit above the fold — a lock switch
+ * you have to scroll to find is a lock switch you do not throw.
+ */
+.fp-plan {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+  max-width: 1100px;
+  margin-inline: auto;
+  padding: 22px var(--fp-page-x) 28px;
+}
+
+.fp-plan-hero {
+  font-size: clamp(32px, 4.4vw, 52px);
+}
+
+.fp-plan-ribbon {
+  height: 52px;
+}
+
+@media (max-height: 780px) {
+  .fp-plan {
+    gap: 12px;
+    padding-top: 14px;
+    padding-bottom: 10px;
+  }
+
+  .fp-plan-hero {
+    font-size: clamp(26px, 3.6vw, 38px);
+  }
+
+  .fp-plan-ribbon {
+    height: 42px;
+  }
+
+  .fp-hold-hint {
+    margin-top: 6px;
+    font-size: 11.5px;
+  }
+}
+
+/*
+ * The readout: one number, sized to the room it is in and lit by the phase, so
+ * a glance from across the desk says focus or break before you read the digits.
+ */
+.fp-lock-readout {
+  /* Height matters as much as width: a short window must not clip the number. */
+  font-size: clamp(64px, min(17vw, 26vh), 232px);
+  color: color-mix(in srgb, var(--phase) 70%, #fff6ea);
+  text-shadow: 0 0 90px color-mix(in srgb, var(--phase) 42%, transparent);
+}
+
+.fp-lock-glow {
+  background: radial-gradient(circle at center, var(--phase-glow), transparent 62%);
+  animation: fp-breathe 7s ease-in-out infinite;
+}
+
+.fp-lock-in {
+  animation: fp-rise 420ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
