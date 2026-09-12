@@ -598,8 +598,11 @@ describe("session face settings", () => {
     expect(h.store.loadSettings().faceId).toBe("hourglass");
     expect(h.controller.setSettings({ faceId: "flask" }).faceId).toBe("flask");
     expect(h.store.loadSettings().faceId).toBe("flask");
+    expect(h.controller.setSettings({ faceId: "candle" }).faceId).toBe("candle");
+    expect(h.store.loadSettings().faceId).toBe("candle");
     expect(() => h.controller.setSettings({ faceId: "eclipse" })).toThrow(/faceId/);
     expect(() => h.controller.setSettings({ faceId: "column" })).toThrow(/faceId/);
+    expect(() => h.controller.setSettings({ faceId: "field" })).toThrow(/faceId/);
   });
 });
 

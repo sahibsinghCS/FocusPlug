@@ -8,6 +8,7 @@ export { OrbitFace } from "./OrbitFace";
 export { CircuitFace } from "./CircuitFace";
 export { FlaskFace } from "./FlaskFace";
 export { GardenFace } from "./GardenFace";
+export { CandleFace } from "./CandleFace";
 export { buildFaceProps, selectedFaceId } from "./props";
 export { faceComponent } from "./registry";
 export {
