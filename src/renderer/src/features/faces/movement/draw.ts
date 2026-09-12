@@ -12,12 +12,14 @@ export interface GearSpec {
   open?: number;
 }
 
+export const PITCH_FACTOR = 0.905;
+
 export const GEARS: readonly GearSpec[] = [
-  { id: "barrel", teeth: TRAIN.barrelTeeth, r: 146, spokes: 0, brass: true, open: 0.8 },
-  { id: "center", teeth: TRAIN.centerTeeth, r: 90, spokes: 5, brass: true },
-  { id: "third", teeth: TRAIN.thirdTeeth, r: 70, spokes: 4, brass: true },
-  { id: "fourth", teeth: TRAIN.fourthTeeth, r: 56, spokes: 4, brass: true },
-  { id: "escape", teeth: TRAIN.escapeTeeth, r: 44, spokes: 3, brass: true, club: true },
+  { id: "barrel", teeth: TRAIN.barrelTeeth, r: 142, spokes: 0, brass: true, open: 0.74 },
+  { id: "center", teeth: TRAIN.centerTeeth, r: 80, spokes: 5, brass: true },
+  { id: "third", teeth: TRAIN.thirdTeeth, r: 62, spokes: 4, brass: true },
+  { id: "fourth", teeth: TRAIN.fourthTeeth, r: 48, spokes: 4, brass: true },
+  { id: "escape", teeth: TRAIN.escapeTeeth, r: 38, spokes: 3, brass: false, club: true },
 ];
 
 export interface LaidGear {
@@ -26,13 +28,17 @@ export interface LaidGear {
   y: number;
 }
 
-/** Pitch-aware layout so the train actually meshes. */
+export function meshDistance(a: GearSpec, b: GearSpec): number {
+  return (a.r + b.r) * PITCH_FACTOR;
+}
+
+/** Pitch-aware layout so neighbouring wheels actually mesh. */
 export function layoutGears(): Record<string, LaidGear> {
-  const barrel = { spec: GEARS[0]!, x: 352, y: 528 };
-  const center = place(barrel, 206, 0.22, GEARS[1]!);
-  const third = place(center, 138, -0.95, GEARS[2]!);
-  const fourth = place(third, 108, 0.72, GEARS[3]!);
-  const escape = place(fourth, 84, -0.82, GEARS[4]!);
+  const barrel = { spec: GEARS[0]!, x: 352, y: 572 };
+  const center = place(barrel, GEARS[1]!, -0.18);
+  const third = place(center, GEARS[2]!, -1.46);
+  const fourth = place(third, GEARS[3]!, 0.7);
+  const escape = place(fourth, GEARS[4]!, -1.5);
   return {
     barrel,
     center,
@@ -42,7 +48,8 @@ export function layoutGears(): Record<string, LaidGear> {
   };
 }
 
-function place(from: LaidGear, dist: number, angle: number, spec: GearSpec): LaidGear {
+function place(from: LaidGear, spec: GearSpec, angle: number): LaidGear {
+  const dist = meshDistance(from.spec, spec);
   return {
     spec,
     x: from.x + Math.cos(angle) * dist,
@@ -66,50 +73,53 @@ export function makeGearSprite(spec: GearSpec, dpr = 2): HTMLCanvasElement {
   return canvas;
 }
 
+function metalFill(ctx: CanvasRenderingContext2D, r: number, brass: boolean): CanvasGradient {
+  const g = ctx.createRadialGradient(-r * 0.32, -r * 0.36, r * 0.08, 0, 0, r);
+  if (brass) {
+    g.addColorStop(0, "#f3d68a");
+    g.addColorStop(0.38, "#c89632");
+    g.addColorStop(0.78, "#8a5e16");
+    g.addColorStop(1, "#4a320c");
+  } else {
+    g.addColorStop(0, "#e8edf4");
+    g.addColorStop(0.42, "#9aa3ae");
+    g.addColorStop(1, "#3a4048");
+  }
+  return g;
+}
+
 function drawGearBody(ctx: CanvasRenderingContext2D, spec: GearSpec): void {
   const rOuter = spec.r;
   const rRoot = spec.club ? rOuter * 0.72 : rOuter * 0.84;
-  const rRim = spec.club ? rOuter * 0.62 : rOuter * 0.7;
-  const rHub = Math.max(10, rOuter * 0.18);
+  const rRim = spec.club ? rOuter * 0.6 : rOuter * 0.68;
+  const rHub = Math.max(10, rOuter * 0.17);
 
   ctx.save();
   toothPath(ctx, spec.teeth, rOuter, rRoot, spec.club === true);
-  const brass = ctx.createRadialGradient(-rOuter * 0.3, -rOuter * 0.35, rOuter * 0.1, 0, 0, rOuter);
-  if (spec.brass) {
-    brass.addColorStop(0, "#f0d27a");
-    brass.addColorStop(0.45, "#c4922e");
-    brass.addColorStop(1, "#6a4a14");
-  } else {
-    brass.addColorStop(0, "#d5dae2");
-    brass.addColorStop(0.5, "#8b929c");
-    brass.addColorStop(1, "#3d424a");
-  }
-  ctx.fillStyle = brass;
+  ctx.fillStyle = metalFill(ctx, rOuter, spec.brass);
   ctx.fill();
-  ctx.strokeStyle = spec.brass ? "rgba(80,50,10,0.45)" : "rgba(20,24,30,0.5)";
-  ctx.lineWidth = 0.8;
+  ctx.strokeStyle = spec.brass ? "rgba(70,44,8,0.5)" : "rgba(16,20,26,0.55)";
+  ctx.lineWidth = 0.85;
   ctx.stroke();
 
   if (spec.spokes > 0) {
     ctx.save();
     ctx.globalCompositeOperation = "destination-out";
-    const cutR = (rRim + rHub) * 0.5;
-    const cutW = (rRim - rHub) * 0.36;
     for (let i = 0; i < spec.spokes; i += 1) {
-      const a = (i / spec.spokes) * Math.PI * 2 + 0.18;
+      const a0 = (i / spec.spokes) * Math.PI * 2 + 0.22;
+      const a1 = ((i + 1) / spec.spokes) * Math.PI * 2 - 0.22;
       ctx.beginPath();
-      ctx.ellipse(
-        Math.cos(a) * cutR,
-        Math.sin(a) * cutR,
-        cutW * 1.15,
-        cutW * 0.72,
-        a,
-        0,
-        Math.PI * 2,
-      );
+      ctx.arc(0, 0, rRim - 1.2, a0, a1);
+      ctx.arc(0, 0, rHub + 3.2, a1, a0, true);
+      ctx.closePath();
       ctx.fill();
     }
     ctx.restore();
+    ctx.beginPath();
+    ctx.arc(0, 0, rRim - 0.4, 0, Math.PI * 2);
+    ctx.strokeStyle = spec.brass ? "rgba(255,220,140,0.28)" : "rgba(230,236,244,0.22)";
+    ctx.lineWidth = 1.4;
+    ctx.stroke();
   }
   if (spec.open && spec.open > 0) {
     ctx.save();
@@ -118,21 +128,22 @@ function drawGearBody(ctx: CanvasRenderingContext2D, spec: GearSpec): void {
     ctx.arc(0, 0, spec.r * spec.open, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
+    ctx.beginPath();
+    ctx.arc(0, 0, spec.r * spec.open + 1.2, 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(255,220,140,0.3)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
   }
 
-  ctx.beginPath();
-  ctx.arc(0, 0, rRim, 0, Math.PI * 2);
-  ctx.strokeStyle = "rgba(255,230,160,0.18)";
-  ctx.lineWidth = 1.2;
-  ctx.stroke();
-
-  const hub = ctx.createRadialGradient(-3, -3, 1, 0, 0, rHub);
-  hub.addColorStop(0, "#cfd5de");
-  hub.addColorStop(1, "#5c636d");
-  ctx.fillStyle = hub;
-  ctx.beginPath();
-  ctx.arc(0, 0, rHub, 0, Math.PI * 2);
-  ctx.fill();
+  if (!spec.open) {
+    const hub = ctx.createRadialGradient(-3, -3, 1, 0, 0, rHub);
+    hub.addColorStop(0, "#dfe5ee");
+    hub.addColorStop(1, "#5a616c");
+    ctx.fillStyle = hub;
+    ctx.beginPath();
+    ctx.arc(0, 0, rHub, 0, Math.PI * 2);
+    ctx.fill();
+  }
 
   ctx.restore();
 }
@@ -286,13 +297,13 @@ export function drawMainspring(
       ctx.lineTo(x, y);
     }
   }
-  ctx.strokeStyle = "#9aa2ae";
-  ctx.lineWidth = 2.05;
+  ctx.strokeStyle = "#8d96a4";
+  ctx.lineWidth = 4.4;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   ctx.stroke();
-  ctx.strokeStyle = "rgba(220,228,240,0.28)";
-  ctx.lineWidth = 0.7;
+  ctx.strokeStyle = "rgba(230,236,244,0.35)";
+  ctx.lineWidth = 1.15;
   ctx.stroke();
 }
 
@@ -324,31 +335,31 @@ export function drawBalance(ctx: CanvasRenderingContext2D, angle: number): void 
   ctx.save();
   ctx.rotate(angle);
   ctx.beginPath();
-  ctx.arc(0, 0, 60, 0, Math.PI * 2);
-  ctx.arc(0, 0, 50, 0, Math.PI * 2, true);
-  const rim = ctx.createLinearGradient(-60, 0, 60, 0);
-  rim.addColorStop(0, "#9aa3ae");
-  rim.addColorStop(0.5, "#eceff4");
-  rim.addColorStop(1, "#5d646e");
+  ctx.arc(0, 0, 68, 0, Math.PI * 2);
+  ctx.arc(0, 0, 56, 0, Math.PI * 2, true);
+  const rim = ctx.createLinearGradient(-68, 0, 68, 0);
+  rim.addColorStop(0, "#8b949f");
+  rim.addColorStop(0.45, "#f2f5f8");
+  rim.addColorStop(1, "#4e555e");
   ctx.fillStyle = rim;
   ctx.fill();
   for (let i = 0; i < 3; i += 1) {
     const a = (i / 3) * Math.PI * 2;
     ctx.save();
     ctx.rotate(a);
-    ctx.fillStyle = "#c4cad3";
-    ctx.fillRect(-3.2, 8, 6.4, 44);
+    ctx.fillStyle = "#c5ccd5";
+    ctx.fillRect(-3.4, 10, 6.8, 48);
     ctx.restore();
   }
   for (let i = 0; i < 8; i += 1) {
-    const a = (i / 8) * Math.PI * 2;
+    const a = (i / 8) * Math.PI * 2 + 0.2;
     ctx.save();
     ctx.rotate(a);
-    ctx.translate(55, 0);
-    drawBluedScrew(ctx, 3.1, 0.4);
+    ctx.translate(62, 0);
+    drawBluedScrew(ctx, 3.3, 0.4);
     ctx.restore();
   }
-  drawJewel(ctx, 6.2);
+  drawJewel(ctx, 6.6);
   ctx.restore();
   drawHairspring(ctx, angle);
 }
@@ -357,27 +368,32 @@ export function drawPallet(ctx: CanvasRenderingContext2D, x: number, y: number, 
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(angle);
-  ctx.fillStyle = "#b8c0ca";
+  ctx.fillStyle = "#c5ccd4";
   ctx.beginPath();
-  ctx.moveTo(-28, -5);
-  ctx.lineTo(28, -5);
-  ctx.lineTo(32, 0);
-  ctx.lineTo(18, 10);
-  ctx.lineTo(-18, 10);
-  ctx.lineTo(-32, 0);
+  ctx.moveTo(-34, -4);
+  ctx.lineTo(-8, -8);
+  ctx.lineTo(8, -8);
+  ctx.lineTo(34, -4);
+  ctx.lineTo(30, 8);
+  ctx.lineTo(10, 6);
+  ctx.lineTo(-10, 6);
+  ctx.lineTo(-30, 8);
   ctx.closePath();
   ctx.fill();
+  ctx.strokeStyle = "rgba(20,24,30,0.25)";
+  ctx.lineWidth = 0.8;
+  ctx.stroke();
   ctx.save();
-  ctx.translate(-24, -2);
-  ctx.rotate(-0.5);
-  drawJewel(ctx, 4.2);
+  ctx.translate(-26, -3);
+  ctx.rotate(-0.55);
+  drawJewel(ctx, 4.4);
   ctx.restore();
   ctx.save();
-  ctx.translate(24, -2);
-  ctx.rotate(0.5);
-  drawJewel(ctx, 4.2);
+  ctx.translate(26, -3);
+  ctx.rotate(0.55);
+  drawJewel(ctx, 4.4);
   ctx.restore();
-  drawJewel(ctx, 5);
+  drawJewel(ctx, 5.2);
   ctx.restore();
 }
 

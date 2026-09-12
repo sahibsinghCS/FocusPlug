@@ -10,6 +10,8 @@ import {
   revolutionCount,
   sampleTrace,
   sessionHarmonics,
+  visualWraps,
+  WRAPS_PER_SESSION,
 } from "./math";
 
 describe("record seismograph", () => {
@@ -60,7 +62,10 @@ describe("record seismograph", () => {
     expect(r1).toBeGreaterThan(r0);
     expect(revolutionCount(1)).toBe(1);
     expect(revolutionCount(1.2)).toBe(2);
-    expect(progressTheta(0.5)).toBeCloseTo(Math.PI, 5);
+    expect(progressTheta(0.5)).toBeCloseTo(Math.PI * WRAPS_PER_SESSION, 5);
+    expect(progressTheta(1)).toBeCloseTo(Math.PI * 2 * WRAPS_PER_SESSION, 5);
+    expect(visualWraps(1)).toBe(WRAPS_PER_SESSION);
+    expect(visualWraps(1.2)).toBe(WRAPS_PER_SESSION * 2);
 
     const first = sampleTrace({
       fromTheta: 0,

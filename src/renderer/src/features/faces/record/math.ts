@@ -28,13 +28,16 @@ export function sessionHarmonics(sessionId: string): Harmonic[] {
   return harms;
 }
 
+/** Wraps of ink on the drum for one planned session. */
+export const WRAPS_PER_SESSION = 7;
+
 /** Low procedural baseline. Same sessionId → same waveform. */
 export function baselineNoise(theta: number, harmonics: readonly Harmonic[]): number {
   let sum = 0;
   for (const harm of harmonics) {
     sum += harm.amp * Math.sin(harm.freq * theta + harm.phase);
   }
-  return sum * 0.028;
+  return sum * 0.034;
 }
 
 function burstFreq(kind: FaceEventKind): number {
@@ -65,7 +68,7 @@ export function dampedBurst(
   const width = burstWidth(kind);
   const envelope = Math.exp(-Math.abs(delta) / (width * 0.42));
   const sine = Math.sin(burstFreq(kind) * delta);
-  return severityWeight(severity) * 0.11 * envelope * sine;
+  return severityWeight(severity) * 0.22 * envelope * sine;
 }
 
 export function eventDisplacement(theta: number, events: readonly FaceEvent[], revs: number): number {
@@ -124,7 +127,7 @@ export function sampleTrace(input: {
   revs: number;
   step?: number;
 }): TraceSample[] {
-  const step = input.step ?? 0.008;
+  const step = input.step ?? 0.01;
   const samples: TraceSample[] = [];
   if (input.toTheta <= input.fromTheta) {
     return samples;
@@ -151,8 +154,13 @@ export function revolutionCount(progress: number): number {
   return Math.max(1, Math.ceil(Math.max(progress, 0.0001)));
 }
 
+/** Planned ink wraps, including extra revolutions when a session runs long. */
+export function visualWraps(progress: number): number {
+  return WRAPS_PER_SESSION * revolutionCount(progress);
+}
+
 export function progressTheta(progress: number): number {
-  return Math.max(0, progress) * Math.PI * 2;
+  return Math.max(0, progress) * Math.PI * 2 * WRAPS_PER_SESSION;
 }
 
 export function lerpRadius(a: number, b: number, t: number): number {

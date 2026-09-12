@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { GEARS, layoutGears, meshDistance, PITCH_FACTOR } from "./draw";
 import { BEAT_HZ, TRAIN, gearAngles, overshootSettle, springTurns } from "./math";
 
 describe("movement train", () => {
@@ -26,5 +27,28 @@ describe("movement train", () => {
   it("relaxes mainspring coil density as progress elapses", () => {
     expect(springTurns(0)).toBeGreaterThan(springTurns(0.5));
     expect(springTurns(0.5)).toBeGreaterThan(springTurns(1));
+  });
+
+  it("places neighbouring wheels on pitch so teeth mesh", () => {
+    const laid = layoutGears();
+    const pairs: Array<[string, string]> = [
+      ["barrel", "center"],
+      ["center", "third"],
+      ["third", "fourth"],
+      ["fourth", "escape"],
+    ];
+    for (const [aId, bId] of pairs) {
+      const a = laid[aId];
+      const b = laid[bId];
+      expect(a).toBeDefined();
+      expect(b).toBeDefined();
+      if (!a || !b) {
+        continue;
+      }
+      const dist = Math.hypot(a.x - b.x, a.y - b.y);
+      expect(dist).toBeCloseTo(meshDistance(a.spec, b.spec), 5);
+      expect(PITCH_FACTOR).toBeGreaterThan(0.85);
+    }
+    expect(GEARS.find((gear) => gear.id === "escape")?.brass).toBe(false);
   });
 });
