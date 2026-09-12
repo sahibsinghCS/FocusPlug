@@ -4,23 +4,23 @@ import { clamp01 } from "../clock";
 
 /** Absolute |y| from the neck → inner glass radius. Bulbous, not triangular. */
 const RADIUS_KEYS: readonly { readonly y: number; readonly r: number }[] = [
-  { y: 0, r: 0.042 },
-  { y: 0.04, r: 0.05 },
-  { y: 0.08, r: 0.068 },
-  { y: 0.12, r: 0.096 },
-  { y: 0.18, r: 0.148 },
-  { y: 0.26, r: 0.228 },
-  { y: 0.36, r: 0.318 },
-  { y: 0.48, r: 0.392 },
-  { y: 0.6, r: 0.418 },
-  { y: 0.72, r: 0.406 },
-  { y: 0.86, r: 0.372 },
-  { y: 1, r: 0.348 },
+  { y: 0, r: 0.038 },
+  { y: 0.045, r: 0.05 },
+  { y: 0.09, r: 0.078 },
+  { y: 0.15, r: 0.132 },
+  { y: 0.23, r: 0.22 },
+  { y: 0.33, r: 0.33 },
+  { y: 0.44, r: 0.425 },
+  { y: 0.56, r: 0.458 },
+  { y: 0.68, r: 0.43 },
+  { y: 0.8, r: 0.355 },
+  { y: 0.9, r: 0.29 },
+  { y: 1, r: 0.248 },
 ];
 
 export const GLASS_CAP = 1;
 export const NECK_HALF = 0.018;
-const REPOSE = 0.66;
+const REPOSE = 0.84;
 const VOLUME_SAMPLES = 96;
 
 export interface HourglassLayout {
@@ -173,7 +173,8 @@ export function bottomSandForVolume(want: number): BottomSand {
   for (let i = 0; i < 26; i += 1) {
     const shoulder = (lo + hi) / 2;
     const r = innerRadius(shoulder);
-    const capH = Math.min(r * REPOSE, Math.max(0.012, shoulder - yNeck - 0.01));
+    const room = Math.max(0.01, shoulder - yNeck - 0.008);
+    const capH = Math.min(r * REPOSE, Math.max(0.05, room * 0.55), room);
     const wallVol = integrateVolume(shoulder, yFloor);
     const capVol = (Math.PI * r * r * capH) / 3;
     peakY = shoulder - capH;
@@ -208,7 +209,7 @@ export function transferFromProgress(progress: number, phase: FacePhase): Hourgl
     topSurfaceY: topSurfaceForVolume(topVol),
     funnel,
     bottom: bottomSandForVolume(bottomFill * bottomChamberVolume()),
-    streamHalfWidth: flowing ? lerp(0.012, 0.02, 4 * p * (1 - p)) : 0,
+    streamHalfWidth: flowing ? lerp(0.026, 0.04, 4 * p * (1 - p)) : 0,
   };
 }
 
@@ -216,7 +217,7 @@ export function layoutHourglass(width: number, height: number): HourglassLayout 
   const padY = Math.max(14, height * 0.07);
   const padX = Math.max(18, width * 0.06);
   const unitH = 2.42;
-  const unitW = 1.22;
+  const unitW = 1.36;
   const scale = Math.min((width - padX * 2) / unitW, (height - padY * 2) / unitH);
   return {
     cx: width * 0.5,

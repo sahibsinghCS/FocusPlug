@@ -23,7 +23,7 @@ const BRASS_HI = "#f0dca0";
 const BRASS_MID = "#c49648";
 const BRASS_LO = "#5a3a16";
 
-const WALL_STEPS = 96;
+const WALL_STEPS = 180;
 
 export function paintHourglass(
   ctx: CanvasRenderingContext2D,
@@ -155,19 +155,21 @@ function buildWallPath(
 function paintGlassVoid(ctx: CanvasRenderingContext2D, layout: HourglassLayout): void {
   const inner = buildWallPath(layout, innerRadius, -GLASS_CAP, GLASS_CAP);
   ctx.save();
-  ctx.fillStyle = "rgba(10,8,6,0.92)";
+  ctx.fillStyle = "#14110d";
   ctx.fill(inner);
   const shade = ctx.createLinearGradient(
-    layout.cx - layout.scale * 0.4,
+    layout.cx - layout.scale * 0.45,
     layout.cy - layout.scale,
-    layout.cx + layout.scale * 0.45,
+    layout.cx + layout.scale * 0.4,
     layout.cy + layout.scale,
   );
-  shade.addColorStop(0, "rgba(255,244,220,0.06)");
-  shade.addColorStop(0.45, "rgba(20,16,12,0.0)");
-  shade.addColorStop(1, "rgba(0,0,0,0.28)");
+  shade.addColorStop(0, "rgba(255,236,200,0.14)");
+  shade.addColorStop(0.4, "rgba(40,30,18,0.08)");
+  shade.addColorStop(1, "rgba(0,0,0,0.35)");
   ctx.fillStyle = shade;
   ctx.fill(inner);
+  paintSpecular(ctx, layout, -0.55, 0.22, 0.18);
+  paintSpecular(ctx, layout, 0.55, 0.2, 0.16);
   ctx.restore();
 }
 
@@ -279,6 +281,7 @@ function paintSand(
     ctx.fillStyle = light;
     ctx.fill(top);
     paintGrain(ctx, layout, top, seed ^ 0x9e3779b9, 90, transfer.topSurfaceY, -NECK_HALF);
+    paintSandSurface(ctx, layout, transfer, "top");
   }
 
   if (transfer.bottom.kind !== "empty" && transfer.bottomFill > 0.008) {
@@ -306,8 +309,54 @@ function paintSand(
     ctx.fillStyle = cone;
     ctx.fill(bot);
     paintGrain(ctx, layout, bot, seed ^ 0x85ebca77, 110, transfer.bottom.peakY, GLASS_CAP);
+    paintSandSurface(ctx, layout, transfer, "bottom");
   }
 
+  ctx.restore();
+}
+
+function paintSandSurface(
+  ctx: CanvasRenderingContext2D,
+  layout: HourglassLayout,
+  transfer: HourglassTransfer,
+  which: "top" | "bottom",
+): void {
+  ctx.save();
+  ctx.strokeStyle = "rgba(255,236,190,0.55)";
+  ctx.lineWidth = Math.max(1.1, layout.scale * 0.012);
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  if (which === "top") {
+    const ySurf = Math.min(-NECK_HALF - 0.01, transfer.topSurfaceY);
+    const rSurf = innerRadius(ySurf);
+    const steps = 28;
+    for (let i = 0; i <= steps; i += 1) {
+      const t = i / steps;
+      const x = lerp(-rSurf, rSurf, t);
+      const dip = transfer.funnel * (1 - (x / Math.max(rSurf, 1e-4)) ** 2);
+      const p = toPixel(layout, x, ySurf + dip);
+      if (i === 0) {
+        ctx.moveTo(p.x, p.y);
+      } else {
+        ctx.lineTo(p.x, p.y);
+      }
+    }
+  } else if (transfer.bottom.kind === "cone") {
+    const left = toPixel(layout, -transfer.bottom.baseR, transfer.bottom.shoulderY);
+    const peak = toPixel(layout, 0, transfer.bottom.peakY);
+    const right = toPixel(layout, transfer.bottom.baseR, transfer.bottom.shoulderY);
+    ctx.moveTo(left.x, left.y);
+    ctx.lineTo(peak.x, peak.y);
+    ctx.lineTo(right.x, right.y);
+  } else if (transfer.bottom.kind === "bowl") {
+    const left = toPixel(layout, -transfer.bottom.baseR, transfer.bottom.shoulderY);
+    const peak = toPixel(layout, 0, transfer.bottom.peakY);
+    const right = toPixel(layout, transfer.bottom.baseR, transfer.bottom.shoulderY);
+    ctx.moveTo(left.x, left.y);
+    ctx.quadraticCurveTo(peak.x - layout.scale * 0.12, peak.y + 2, peak.x, peak.y);
+    ctx.quadraticCurveTo(peak.x + layout.scale * 0.12, peak.y + 2, right.x, right.y);
+  }
+  ctx.stroke();
   ctx.restore();
 }
 
@@ -363,7 +412,7 @@ function paintStream(
   bloom.addColorStop(0.7, "rgba(232,176,80,0.28)");
   bloom.addColorStop(1, "rgba(210,150,50,0.0)");
   ctx.strokeStyle = bloom;
-  ctx.lineWidth = widthPx * 2.4;
+  ctx.lineWidth = widthPx * 3.6;
   ctx.lineCap = "round";
   ctx.beginPath();
   ctx.moveTo(top.x, top.y);
@@ -372,12 +421,12 @@ function paintStream(
 
   const ribbon = ctx.createLinearGradient(top.x - widthPx, top.y, top.x + widthPx, top.y);
   ribbon.addColorStop(0, "rgba(180,120,40,0.0)");
-  ribbon.addColorStop(0.3, SAND_MID);
+  ribbon.addColorStop(0.22, SAND_MID);
   ribbon.addColorStop(0.5, "#ffe7a8");
-  ribbon.addColorStop(0.7, SAND_MID);
+  ribbon.addColorStop(0.78, SAND_MID);
   ribbon.addColorStop(1, "rgba(180,120,40,0.0)");
   ctx.strokeStyle = ribbon;
-  ctx.lineWidth = widthPx;
+  ctx.lineWidth = widthPx * 1.15;
   ctx.beginPath();
   ctx.moveTo(top.x, top.y - 2);
   ctx.lineTo(bot.x, bot.y);
@@ -385,16 +434,16 @@ function paintStream(
   ctx.restore();
 
   const rng = mulberry32(seed ^ 0x2c1b3c6d);
-  const grains = 22;
+  const grains = 28;
   const span = Math.max(8, bot.y - top.y);
   for (let i = 0; i < grains; i += 1) {
     const base = (i + 0.5) / grains;
     const drift = (clockMs * (0.00042 + rng() * 0.00008) + rng()) % 1;
     const t = (base + drift) % 1;
-    const xJit = (rng() - 0.5) * widthPx * 0.7;
+    const xJit = (rng() - 0.5) * widthPx * 0.85;
     const y = top.y + t * span;
-    const r = 0.7 + rng() * 1.35;
-    const a = 0.28 + rng() * 0.5;
+    const r = 1.05 + rng() * 1.8;
+    const a = 0.32 + rng() * 0.5;
     ctx.fillStyle = rng() > 0.35 ? `rgba(255,232,170,${a})` : `rgba(212,160,70,${a})`;
     ctx.beginPath();
     ctx.arc(top.x + xJit, y, r, 0, Math.PI * 2);
@@ -408,15 +457,15 @@ function paintNeckGlow(
   transfer: HourglassTransfer,
   clockMs: number,
 ): void {
-  const pulse = transfer.flowing ? 0.72 + 0.28 * Math.sin(clockMs / 420) : 0.4;
+  const pulse = transfer.flowing ? 0.82 + 0.18 * Math.sin(clockMs / 420) : 0.5;
   const p = toPixel(layout, 0, 0);
-  const g = ctx.createRadialGradient(p.x, p.y, 1, p.x, p.y, layout.scale * 0.22);
-  g.addColorStop(0, `rgba(255,214,120,${0.42 * pulse})`);
-  g.addColorStop(0.4, `rgba(210,150,60,${0.16 * pulse})`);
+  const g = ctx.createRadialGradient(p.x, p.y, 1, p.x, p.y, layout.scale * 0.28);
+  g.addColorStop(0, `rgba(255,214,120,${0.55 * pulse})`);
+  g.addColorStop(0.35, `rgba(210,150,60,${0.22 * pulse})`);
   g.addColorStop(1, "rgba(0,0,0,0)");
   ctx.fillStyle = g;
   ctx.beginPath();
-  ctx.arc(p.x, p.y, layout.scale * 0.22, 0, Math.PI * 2);
+  ctx.arc(p.x, p.y, layout.scale * 0.28, 0, Math.PI * 2);
   ctx.fill();
 }
 
@@ -446,11 +495,14 @@ function paintGlassShell(ctx: CanvasRenderingContext2D, layout: HourglassLayout)
   ctx.fill(ring, "evenodd");
 
   ctx.save();
-  ctx.strokeStyle = "rgba(246,236,210,0.42)";
-  ctx.lineWidth = Math.max(1.1, layout.scale * 0.012);
+  ctx.strokeStyle = "rgba(210,180,120,0.2)";
+  ctx.lineWidth = Math.max(3.4, layout.scale * 0.032);
   ctx.stroke(outer);
-  ctx.strokeStyle = "rgba(255,244,220,0.16)";
-  ctx.lineWidth = Math.max(0.7, layout.scale * 0.007);
+  ctx.strokeStyle = "rgba(236,214,168,0.62)";
+  ctx.lineWidth = Math.max(1.35, layout.scale * 0.015);
+  ctx.stroke(outer);
+  ctx.strokeStyle = "rgba(255,236,200,0.22)";
+  ctx.lineWidth = Math.max(0.9, layout.scale * 0.009);
   ctx.stroke(inner);
   ctx.restore();
 
@@ -459,8 +511,8 @@ function paintGlassShell(ctx: CanvasRenderingContext2D, layout: HourglassLayout)
   paintSpecular(ctx, layout, 0.58, 0.18, 0.14);
 
   ctx.save();
-  ctx.strokeStyle = "rgba(255,252,245,0.28)";
-  ctx.lineWidth = Math.max(1, layout.scale * 0.01);
+  ctx.strokeStyle = "rgba(255,252,245,0.42)";
+  ctx.lineWidth = Math.max(1.3, layout.scale * 0.014);
   ctx.lineCap = "round";
   ctx.beginPath();
   const leftSteps = 28;
@@ -516,7 +568,7 @@ function paintSpecular(
 }
 
 function paintPillars(ctx: CanvasRenderingContext2D, layout: HourglassLayout, layer: "back" | "front"): void {
-  const xs = layer === "back" ? ([-0.54, 0.54] as const) : ([-0.5, 0.5] as const);
+  const xs = layer === "back" ? ([-0.58, 0.58] as const) : ([-0.54, 0.54] as const);
   const alpha = layer === "back" ? 0.55 : 1;
   ctx.save();
   ctx.globalAlpha = alpha;
@@ -558,8 +610,8 @@ function paintCaps(ctx: CanvasRenderingContext2D, layout: HourglassLayout): void
 }
 
 function paintCap(ctx: CanvasRenderingContext2D, layout: HourglassLayout, y0: number, y1: number): void {
-  const left = toPixel(layout, -0.5, y0);
-  const right = toPixel(layout, 0.5, y1);
+  const left = toPixel(layout, -0.56, y0);
+  const right = toPixel(layout, 0.56, y1);
   const x = left.x;
   const y = Math.min(left.y, toPixel(layout, 0, y0).y);
   const w = right.x - left.x;
@@ -591,7 +643,7 @@ function paintCap(ctx: CanvasRenderingContext2D, layout: HourglassLayout, y0: nu
   ctx.fillStyle = "rgba(40,24,8,0.45)";
   ctx.fillRect(x + 10, y + h * 0.55, w - 20, 1);
 
-  for (const side of [-0.5, 0.5]) {
+  for (const side of [-0.56, 0.56]) {
     const p = toPixel(layout, side, (y0 + y1) / 2);
     const rad = h * 0.62;
     const knob = ctx.createRadialGradient(p.x - rad * 0.3, p.y - rad * 0.3, 1, p.x, p.y, rad);

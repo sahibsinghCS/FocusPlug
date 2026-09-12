@@ -47,6 +47,33 @@ try {
       console.log(crop);
     }
     console.log(full);
+
+    await page.addStyleTag({
+      content: `
+        .fp-skip, aside, header, .fp-titlebar, .fp-face-host-bar { display: none !important; }
+        #fp-main .fp-page > *:not(.fp-face-host) { display: none !important; }
+        html, body, #root { margin: 0 !important; height: 100% !important; background: #05060a !important; }
+        #root > div, #fp-main, .fp-page {
+          margin: 0 !important;
+          padding: 0 !important;
+          height: 100% !important;
+          overflow: hidden !important;
+          background: #05060a !important;
+        }
+        .fp-face-host {
+          height: 100vh !important;
+          min-height: 100vh !important;
+          max-height: none !important;
+          border: none !important;
+          border-radius: 0 !important;
+        }
+        .fp-face-stage, [data-face='hourglass'] { height: 100% !important; width: 100% !important; }
+      `,
+    });
+    await new Promise((resolveWait) => setTimeout(resolveWait, 400));
+    const hero = resolve(OUT, `${PREFIX}-${scene.name}-hero-1280x800.png`);
+    await page.screenshot({ path: hero, type: "png" });
+    console.log(hero);
     await page.close();
   }
 } finally {

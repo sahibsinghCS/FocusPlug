@@ -4,14 +4,14 @@ import { innerRadius, outerRadius, transferFromProgress } from "./math";
 describe("hourglass profile", () => {
   it("is bulbous — widest mid-chamber, not a triangle from cap to point", () => {
     const neck = innerRadius(0);
-    const mid = innerRadius(-0.6);
+    const mid = innerRadius(-0.56);
     const cap = innerRadius(-1);
-    const triangularMid = neck + 0.6 * (cap - neck);
-    expect(neck).toBeLessThan(0.055);
-    expect(mid).toBeGreaterThan(neck * 6);
-    expect(mid).toBeGreaterThan(cap);
-    expect(mid).toBeGreaterThan(triangularMid + 0.08);
-    expect(innerRadius(0.6)).toBeCloseTo(mid, 5);
+    const triangularMid = neck + 0.56 * (cap - neck);
+    expect(neck).toBeLessThan(0.05);
+    expect(mid).toBeGreaterThan(neck * 8);
+    expect(mid).toBeGreaterThan(cap + 0.14);
+    expect(mid).toBeGreaterThan(triangularMid + 0.14);
+    expect(innerRadius(0.56)).toBeCloseTo(mid, 5);
     expect(outerRadius(0)).toBeGreaterThan(neck);
   });
 });
@@ -31,7 +31,7 @@ describe("hourglass transfer", () => {
     expect(mid.flowing).toBe(true);
     expect(mid.bottom.kind).not.toBe("empty");
     expect(mid.topSurfaceY).toBeGreaterThan(idle.topSurfaceY);
-    expect(mid.streamHalfWidth).toBeGreaterThan(0.01);
+    expect(mid.streamHalfWidth).toBeGreaterThan(0.02);
 
     const done = transferFromProgress(1, "focus");
     expect(done.topFill).toBe(0);
