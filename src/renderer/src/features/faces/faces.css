@@ -1,0 +1,363 @@
+.fp-face-host {
+  position: relative;
+  display: flex;
+  min-height: 260px;
+  height: min(38vh, 328px);
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--color-fp-line);
+  border-radius: var(--radius-fp);
+  background: #07080c;
+}
+
+.fp-face-host-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px 8px;
+  border-bottom: 1px solid var(--color-fp-line);
+  background: color-mix(in srgb, var(--color-fp-panel) 88%, #000);
+  z-index: 2;
+}
+
+.fp-face-stage {
+  position: relative;
+  min-height: 0;
+  flex: 1;
+}
+
+.fp-face-crash {
+  height: 100%;
+  padding: 20px 16px;
+}
+
+.fp-face-pending {
+  height: 100%;
+  background:
+    radial-gradient(ellipse at 50% 30%, rgba(122, 162, 255, 0.07), transparent 55%),
+    #080a10;
+}
+
+.fp-face-pending-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(170, 190, 220, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(170, 190, 220, 0.04) 1px, transparent 1px);
+  background-size: 28px 28px;
+  mask-image: radial-gradient(ellipse at center, #000 40%, transparent 80%);
+}
+
+.fp-face-pending-sil {
+  opacity: 0.7;
+}
+
+.fp-hourglass {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  background: #05060a;
+}
+
+.fp-hourglass-room {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 50% 62%, rgba(201, 163, 106, 0.16), transparent 42%),
+    radial-gradient(ellipse at 50% 100%, rgba(0, 0, 0, 0.65), transparent 55%),
+    linear-gradient(180deg, #0a0c12 0%, #05060a 70%);
+}
+
+.fp-hourglass.is-focus .fp-hourglass-room {
+  background:
+    radial-gradient(ellipse at 50% 62%, rgba(212, 255, 58, 0.08), transparent 46%),
+    radial-gradient(ellipse at 50% 62%, rgba(201, 163, 106, 0.18), transparent 42%),
+    linear-gradient(180deg, #0a0c12 0%, #05060a 70%);
+}
+
+.fp-hourglass.is-break .fp-hourglass-room {
+  background:
+    radial-gradient(ellipse at 50% 62%, rgba(255, 45, 85, 0.14), transparent 48%),
+    radial-gradient(ellipse at 50% 62%, rgba(201, 163, 106, 0.16), transparent 42%),
+    linear-gradient(180deg, #12080c 0%, #05060a 70%);
+}
+
+.fp-hourglass-motes {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.fp-hourglass-motes span {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  border-radius: 99px;
+  background: rgba(240, 211, 146, 0.45);
+  animation: fp-mote 7s linear infinite;
+}
+
+.fp-hourglass-motes span:nth-child(1) {
+  left: 22%;
+  top: 30%;
+  animation-duration: 8s;
+}
+.fp-hourglass-motes span:nth-child(2) {
+  left: 70%;
+  top: 24%;
+  animation-duration: 11s;
+}
+.fp-hourglass-motes span:nth-child(3) {
+  left: 40%;
+  top: 72%;
+  animation-duration: 9s;
+}
+.fp-hourglass-motes span:nth-child(4) {
+  left: 80%;
+  top: 60%;
+  animation-duration: 6s;
+}
+.fp-hourglass-motes span:nth-child(5) {
+  left: 16%;
+  top: 64%;
+  animation-duration: 10s;
+}
+
+.fp-hourglass-svg {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: calc(100% - 36px);
+}
+
+.fp-hourglass-meta {
+  position: absolute;
+  right: 14px;
+  bottom: 10px;
+  z-index: 2;
+  text-align: right;
+}
+
+.fp-hourglass-kicker {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-fp-faint);
+}
+
+.fp-hourglass-read {
+  margin-top: 2px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-fp-ink);
+}
+
+.fp-hourglass-grain {
+  animation: fp-grain 0.7s linear infinite;
+}
+
+.fp-hourglass-grain.g2 {
+  animation-delay: -0.35s;
+}
+
+.fp-readout {
+  position: relative;
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 14px 18px 16px;
+  background: #080a10;
+}
+
+.fp-readout-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(122, 162, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(122, 162, 255, 0.045) 1px, transparent 1px);
+  background-size: 24px 24px;
+  mask-image: linear-gradient(180deg, #000 20%, transparent 95%);
+  pointer-events: none;
+}
+
+.fp-readout-head,
+.fp-readout-clock,
+.fp-readout-track,
+.fp-readout-foot {
+  position: relative;
+  z-index: 1;
+}
+
+.fp-readout-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.fp-readout-kicker,
+.fp-readout-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-fp-faint);
+}
+
+.fp-readout-phase {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: var(--color-fp-ink);
+}
+
+.fp-readout.is-focus .fp-readout-phase {
+  color: var(--color-fp-lime);
+}
+
+.fp-readout.is-break .fp-readout-phase {
+  color: var(--color-fp-red);
+}
+
+.fp-readout-id {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-fp-faint);
+}
+
+.fp-readout-clock {
+  padding: 4px 0 8px;
+}
+
+.fp-readout-digits {
+  font-family: var(--font-mono);
+  font-size: clamp(56px, 9vw, 92px);
+  font-weight: 700;
+  line-height: 0.88;
+  letter-spacing: -0.04em;
+  color: var(--color-fp-ink);
+  text-shadow: 0 0 24px rgba(238, 242, 248, 0.08);
+}
+
+.fp-readout.is-break .fp-readout-digits {
+  color: var(--color-fp-red);
+  text-shadow: 0 0 28px rgba(255, 45, 85, 0.22);
+}
+
+.fp-readout.is-focus .fp-readout-digits {
+  text-shadow: 0 0 28px rgba(212, 255, 58, 0.12);
+}
+
+.fp-readout-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--color-fp-mute);
+}
+
+.fp-readout-track {
+  position: relative;
+  height: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(170, 190, 220, 0.16);
+  border-radius: 99px;
+  background: #10131a;
+}
+
+.fp-readout-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #9ec22c, #d4ff3a);
+  box-shadow: 0 0 12px rgba(212, 255, 58, 0.28);
+  transition: width 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.fp-readout.is-break .fp-readout-fill {
+  background: linear-gradient(90deg, #a01830, #ff2d55);
+  box-shadow: 0 0 12px rgba(255, 45, 85, 0.35);
+}
+
+.fp-readout.is-idle .fp-readout-fill {
+  background: #3f4654;
+  box-shadow: none;
+}
+
+.fp-readout-ticks {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 2px;
+  pointer-events: none;
+}
+
+.fp-readout-ticks span {
+  width: 1px;
+  height: 100%;
+  background: rgba(7, 8, 12, 0.35);
+}
+
+.fp-readout-ticks span[data-major="1"] {
+  background: rgba(7, 8, 12, 0.55);
+}
+
+.fp-readout-foot {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  padding-top: 6px;
+}
+
+.fp-readout-sec {
+  margin-top: 3px;
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-fp-ink);
+}
+
+.fp-readout-sec.is-hot {
+  color: var(--color-fp-red);
+}
+
+.fp-face-picker-rail {
+  flex-shrink: 0;
+}
+
+@keyframes fp-mote {
+  0% {
+    transform: translateY(0);
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 0.55;
+  }
+  100% {
+    transform: translateY(-18px);
+    opacity: 0.1;
+  }
+}
+
+@keyframes fp-grain {
+  0% {
+    transform: translateY(-6px);
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fp-hourglass-motes span,
+  .fp-hourglass-grain {
+    animation: none;
+  }
+}

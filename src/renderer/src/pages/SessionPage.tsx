@@ -1,5 +1,7 @@
-import type { JSX } from "react";
+import { useState, type JSX } from "react";
+import type { FaceId } from "@shared/faces";
 import { ErrorBanner, PageFrame } from "../components/page";
+import { FaceHost, buildFaceProps, readFaceOverride, selectedFaceId } from "../features/faces";
 import { ArmedLists } from "../features/session/ArmedLists";
 import { DecisionHero } from "../features/session/DecisionHero";
 import { EventTimeline } from "../features/session/EventTimeline";
@@ -21,7 +23,8 @@ import { useAppState } from "../state/AppState";
 
 export function SessionPage(): JSX.Element {
   const app = useAppState();
-  const { elapsedSec } = useSessionElapsed(app.state.sessionActive, app.log);
+  const { elapsedSec, startedAt, now } = useSessionElapsed(app.state.sessionActive, app.log);
+  const [previewFace, setPreviewFace] = useState<FaceId | null>(() => readFaceOverride());
 
   if (!app.ready) {
     return <SessionLoading />;
@@ -40,6 +43,19 @@ export function SessionPage(): JSX.Element {
   ];
   const preview = buildTimelinePreview(app.log);
   const killNote = demoKillNote(app);
+  const faceId = previewFace ?? selectedFaceId(app.settings.faceId);
+  const face = buildFaceProps({
+    sessionActive: app.state.sessionActive,
+    decision: app.state.decision,
+    elapsedSec,
+    countdownSec: app.countdown?.seconds ?? 0,
+    fuseArmedSec: app.settings.countdownSec,
+    startedAt,
+    log: app.log,
+    now: new Date(now),
+    width: 960,
+    height: 300,
+  });
 
   return (
     <PageFrame className="gap-3">
@@ -52,6 +68,15 @@ export function SessionPage(): JSX.Element {
         />
       ) : null}
 
+      <FaceHost
+        faceId={faceId}
+        face={face}
+        onFaceId={(id) => {
+          setPreviewFace(null);
+          void app.patchSettings({ faceId: id });
+        }}
+      />
+
       <div className="grid min-h-0 gap-3 min-[960px]:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.85fr)]">
         <DecisionHero
           decision={app.state.decision}
@@ -59,6 +84,7 @@ export function SessionPage(): JSX.Element {
           sessionActive={app.state.sessionActive}
           strictMode={app.settings.strictMode}
           usingMock={app.usingMock}
+          compact
         />
         <div className="flex min-w-0 flex-col gap-3">
           <SessionClock clock={clock} />
