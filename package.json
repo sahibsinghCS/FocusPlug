@@ -20,6 +20,7 @@
     "test:kill": "node --experimental-strip-types --disable-warning=ExperimentalWarning --import ./src/main/kill/register.mjs --test src/main/kill/match.test.ts src/main/kill/probe.test.ts src/main/kill/terminator.test.ts",
     "gauntlet:plugs": "tsx --tsconfig tsconfig.node.json src/main/plugs/gauntlet.ts",
     "probe:plugs": "tsx --tsconfig tsconfig.node.json src/main/plugs/probe.ts",
+    "mock:plug": "node scripts/mock-kasa-device.mjs",
     "typecheck": "npm run check:contracts && npm run typecheck:node && npm run typecheck:web",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json",
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json",

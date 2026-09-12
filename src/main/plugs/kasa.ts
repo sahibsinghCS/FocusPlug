@@ -1,5 +1,6 @@
 import { createConnection } from "node:net";
 import { createSocket, type RemoteInfo, type Socket as UdpSocket } from "node:dgram";
+import { networkInterfaces } from "node:os";
 import type { PlugDevice } from "../../shared/types.ts";
 import type { PlugHost } from "./types.ts";
 
@@ -69,6 +70,51 @@ export function kasaEncodeUdp(plain: string): Buffer {
 
 export function kasaDecodeUdp(packet: Buffer): string {
   return kasaDecrypt(packet).toString("utf8");
+}
+
+/** Directed broadcast for one interface, e.g. 192.168.1.14/24 → 192.168.1.255. */
+export function subnetBroadcast(address: string, netmask: string): string | null {
+  const host = address.split(".").map(Number);
+  const mask = netmask.split(".").map(Number);
+  if (host.length !== 4 || mask.length !== 4) {
+    return null;
+  }
+  const octets: number[] = [];
+  for (let i = 0; i < 4; i += 1) {
+    const hostOctet = host[i];
+    const maskOctet = mask[i];
+    if (!Number.isInteger(hostOctet) || !Number.isInteger(maskOctet)) {
+      return null;
+    }
+    octets.push(((hostOctet as number) & (maskOctet as number)) | (~(maskOctet as number) & 0xff));
+  }
+  return octets.join(".");
+}
+
+/**
+ * Every local subnet's broadcast address, plus the global one.
+ *
+ * 255.255.255.255 alone leaves the interface choice to the routing table. On a
+ * Windows box with VirtualBox/WSL/Hyper-V adapters that is regularly the wrong
+ * one: the probe answered from 192.168.56.1 (host-only) for a device on the
+ * Wi-Fi subnet, so a real plug is either missed or recorded at an address that
+ * does not reach it.
+ */
+export function broadcastTargets(): string[] {
+  const targets = new Set<string>(["255.255.255.255"]);
+  const interfaces = networkInterfaces();
+  for (const entries of Object.values(interfaces)) {
+    for (const entry of entries ?? []) {
+      if (entry.family !== "IPv4" || entry.internal || !entry.netmask) {
+        continue;
+      }
+      const broadcast = subnetBroadcast(entry.address, entry.netmask);
+      if (broadcast !== null) {
+        targets.add(broadcast);
+      }
+    }
+  }
+  return [...targets];
 }
 
 export function parseKasaSysinfo(body: string): KasaSysinfo {
@@ -189,11 +235,18 @@ export class TcpKasaTransport implements KasaTransport {
       socket.bind(() => {
         try {
           socket.setBroadcast(true);
-          socket.send(request, 0, request.length, KASA_PORT, "255.255.255.255", (error) => {
-            if (error) {
-              finish();
-            }
-          });
+          const targets = broadcastTargets();
+          let sent = 0;
+          for (const target of targets) {
+            socket.send(request, 0, request.length, KASA_PORT, target, (error) => {
+              sent += 1;
+              // Only give up if every target failed; a host-only adapter that
+              // refuses the send must not cancel the real LAN.
+              if (error && sent === targets.length && found.size === 0) {
+                finish();
+              }
+            });
+          }
         } catch {
           finish();
         }
@@ -232,13 +285,19 @@ export class KasaPlugHost implements PlugHost {
     } catch {
       return [];
     }
-    const found: PlugDevice[] = [];
+    const found = new Map<string, PlugDevice>();
     for (const reply of replies) {
       try {
         const info = parseKasaSysinfo(reply.body);
         const name = info.alias?.trim() || info.model?.trim() || `Kasa ${reply.host}`;
-        found.push({
-          id: info.deviceId ? `kasa:${info.deviceId}` : `kasa:${reply.host}`,
+        const id = info.deviceId ? `kasa:${info.deviceId}` : `kasa:${reply.host}`;
+        // One device can answer on several interfaces now that we broadcast to
+        // each subnet; keep one entry per device, not one per route to it.
+        if (found.has(id)) {
+          continue;
+        }
+        found.set(id, {
+          id,
           name,
           protocol: "kasa",
           address: reply.host,
@@ -249,7 +308,7 @@ export class KasaPlugHost implements PlugHost {
         // skip unreadable replies
       }
     }
-    return found;
+    return [...found.values()];
   }
 }
 
