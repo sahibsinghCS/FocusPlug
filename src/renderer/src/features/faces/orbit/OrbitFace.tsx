@@ -68,8 +68,25 @@ export function OrbitFace(props: FaceProps): JSX.Element {
 
         <rect width={VW} height={VH} fill="url(#fp-orbit-void)" />
 
-        <line x1={cx} y1={cy - outer - 28} x2={cx} y2={cy + outer + 8} stroke={locked ? "rgba(212,255,58,0.16)" : "rgba(238,242,248,0.06)"} strokeWidth="2" strokeDasharray="4 10" />
-        <line x1={cx} y1={cy - outer - 28} x2={cx} y2={cy - outer + 6} stroke={locked ? "#d4ff3a" : "rgba(238,242,248,0.55)"} strokeWidth="2" />
+        <circle cx={cx} cy={cy} r={outer + 28} fill="none" stroke="rgba(170,190,220,0.16)" strokeWidth="10" />
+        <circle
+          cx={cx}
+          cy={cy}
+          r={outer + 28}
+          fill="none"
+          stroke={locked ? "#d4ff3a" : "#7aa2ff"}
+          strokeWidth="10"
+          strokeLinecap="round"
+          strokeDasharray={`${(outer + 28) * Math.PI * 2}`}
+          strokeDashoffset={`${(outer + 28) * Math.PI * 2 * (1 - progress)}`}
+          transform={`rotate(-90 ${cx} ${cy})`}
+        />
+
+        <line x1={cx} y1={cy - outer - 36} x2={cx} y2={cy + outer + 8} stroke={locked ? "rgba(212,255,58,0.2)" : "rgba(238,242,248,0.08)"} strokeWidth="2" strokeDasharray="4 10" />
+        <rect x={cx - 22} y={cy - outer - 48} width="44" height="20" rx="4" fill={locked ? "#d4ff3a" : "#161a24"} stroke={locked ? "#d4ff3a" : "rgba(238,242,248,0.45)"} />
+        <text x={cx} y={cy - outer - 34} textAnchor="middle" className="fp-orbit-locktag" fill={locked ? "#07080c" : "#eef2f8"}>
+          LOCK
+        </text>
         <polygon
           points={`${tick.x},${tick.y - 7} ${tick.x - 6},${tick.y + 4} ${tick.x + 6},${tick.y + 4}`}
           fill={locked ? "#d4ff3a" : "#eef2f8"}
@@ -79,8 +96,8 @@ export function OrbitFace(props: FaceProps): JSX.Element {
           const ghost = polar(cx, cy, radius, ALIGN_ANGLE);
           return (
             <g key={`ring-${i}`}>
-              <circle cx={cx} cy={cy} r={radius} fill="none" stroke="rgba(170,190,220,0.22)" strokeWidth="1.25" />
-              <circle cx={ghost.x} cy={ghost.y} r={3} fill={locked ? "#d4ff3a" : "rgba(238,242,248,0.28)"} />
+              <circle cx={cx} cy={cy} r={radius} fill="none" stroke="rgba(170,190,220,0.26)" strokeWidth="1.4" />
+              <circle cx={ghost.x} cy={ghost.y} r={4} fill={locked ? "#d4ff3a" : "rgba(212,255,58,0.45)"} />
             </g>
           );
         })}
