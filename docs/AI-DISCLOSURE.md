@@ -54,6 +54,13 @@ presence → fuse → force-quit blocklist apps, never the study PC.
 **Shipped since this doc was first written:**
 
 - **A trained custom desk model** (#23): BlazeFace crops + a MobileNetV2-0.50-160 ImageNet feature vector into a trained MLP head, weights committed under `src/main/desk/model/weights/`, 95.16% on a 723-image held-out split (`docs/CUSTOM-MODEL.md`). It is **opt-in** — `deskModelId` defaults to `blazeface`, so say which model you filmed with. The 95.16% is a held-out *dataset* number; it is not a measurement of live webcam accuracy on your desk.
+- **An adaptive fuse — a second model, learned on-device.** The countdown length is no longer the fixed Settings number: a 17-feature logistic model predicts P(you fix this yourself | this moment, a fuse of N seconds) and picks the shortest fuse still clearing 85%. It trains on labels the app already produces — `cancel_countdown` is a recovery and its timing says *how long you needed*, `kill` is a failure with longer fuses left censored — so **it needs no annotation and no dataset**. Weights live in the user's own data dir; nothing is uploaded, and there is no network call on this path.
+
+  Say this carefully. Two numbers, two meanings:
+  - The **shipped prior** (day one, before it has seen you drift) is fitted on `datasets/focusplug-drifts.csv` — **9,600 simulated drifts from a hand-written sampler**, not people. Held-out log-loss 0.6225 → 0.5600. It recovers the simulator's assumptions and is **not** evidence about students.
+  - `npm run gauntlet:adapt` reports 77.2% right at 8.5 s waited per drift vs the fixed fuse's 69.4% at 9.4 s. That is **a simulation against simulated students**, and the script prints the whole constant-fuse curve so nothing is hidden.
+  - The **per-user** model is the actual claim, and it has no number yet: it only learns from real drifts on a real machine. If you have not run sessions with it, say "it learns on-device" and do not quote an accuracy.
+
 - **LAN smart plugs** — Kasa (local 9999 XOR) and generic HTTP adapters, wired to kill/unlock and Demo Kill, with the study PC hard-denied (`docs/SMART-PLUGS.md`). Claim them as working *only* if you demo them with a plug on your LAN; the app ships with zero plugs configured.
 
 ---

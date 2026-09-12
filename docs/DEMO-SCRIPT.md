@@ -12,6 +12,13 @@ Do **not** say: streak, gentle reminder, nudge, productivity coach, tutor. Never
 2. `npm run probe:golden` — 10 seconds, no GUI, kills nothing. It must print **GOLDEN PATH PROBE: PASS**; if the window sensor is dead on this machine, everything below is unfilmable.
 3. `npm run dev` (or packaged build). Confirm the UI is live IPC, not a stuck mock — the sensor line in lock mode must name your real window once a round is running.
 4. **Settings:** Countdown **10s**, Strict mode **on**, Desk AI webcam **on**, desk threshold default (~60%).
+5. **Filming the fuse — read this or the take is a coin flip.** The adaptive fuse deliberately hands out a longer probe fuse on a fraction of early drifts, so the overlay can read **30** while you are saying "ten-second fuse". For a scripted take, launch with the fuse pinned to the Settings number:
+
+   ```
+   FOCUSPLUG_NO_ADAPT=1 npm run dev
+   ```
+
+   Everything else is unchanged. If you would rather **show** the adaptation (it is the stronger AI/ML story), drop the flag, say "the fuse is learned, not fixed", and read the number off the overlay instead of scripting it.
 5. **Allowlist** includes Chrome / Google Docs. **Blocklist** includes Discord.
 6. On the **Session** panel leave the **Flight** face selected, set the length to 15 minutes so the film fits, hold the switch into lock mode, and sit in frame until the sensor line reads **At desk** with a real confidence (not 0%). Sensors read **Standby** until a round is running. Hold **End** to come back out before you record.
 7. Close extra windows. Hide this script. Have a second take ready with **Demo Kill**.

@@ -55,9 +55,18 @@ export class AdaptiveFuse {
   /** Recomputed each tick; only read on the tick a countdown actually arms. */
   private pending: { moment: DriftMoment; choice: FuseChoice } | null = null;
 
+  /**
+   * Set `FOCUSPLUG_NO_ADAPT=1` to pin the fuse to the Settings value. The fuse
+   * deliberately hands out a generous probe on a fraction of early drifts,
+   * which is correct for learning and wrong for a scripted one-take demo where
+   * the narration says a number out loud. This is the filming switch.
+   */
+  private readonly pinned: boolean;
+
   constructor(options: { store?: AdaptiveFuseStore; random?: () => number } = {}) {
     this.store = options.store ?? null;
     this.random = options.random ?? Math.random;
+    this.pinned = process.env.FOCUSPLUG_NO_ADAPT === "1";
     this.model = this.restore();
   }
 
@@ -125,7 +134,7 @@ export class AdaptiveFuse {
     base: number,
     ts: number,
   ): number {
-    if (this.sessionStartedAt === null || this.active !== null) {
+    if (this.pinned || this.sessionStartedAt === null || this.active !== null) {
       return base;
     }
     const violation = this.violationFor(input);

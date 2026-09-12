@@ -137,6 +137,24 @@ describe("AdaptiveFuse", () => {
     expect(new AdaptiveFuse({ store, random: NEVER }).snapshot().drifts).toBe(0);
   });
 
+  it("pins to the Settings value when FOCUSPLUG_NO_ADAPT is set", () => {
+    const previous = process.env.FOCUSPLUG_NO_ADAPT;
+    process.env.FOCUSPLUG_NO_ADAPT = "1";
+    try {
+      // ALWAYS would otherwise force a 30s probe; pinned must ignore it.
+      const fuse = new AdaptiveFuse({ random: ALWAYS });
+      fuse.startSession(T0);
+      fuse.noteFocus(blocked(T0));
+      expect(fuse.fuseFor({ focus: blocked(T0), desk: atDesk(T0) }, 10, T0)).toBe(10);
+    } finally {
+      if (previous === undefined) {
+        delete process.env.FOCUSPLUG_NO_ADAPT;
+      } else {
+        process.env.FOCUSPLUG_NO_ADAPT = previous;
+      }
+    }
+  });
+
   it("counts drifts within a session so later ones read as a worse night", () => {
     const fuse = new AdaptiveFuse({ random: NEVER });
     fuse.startSession(T0);
