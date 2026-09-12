@@ -90,7 +90,7 @@ describe("lock face phase mapping", () => {
     expect(rest.estimateMinutes).toBe(5);
   });
 
-  it("freezes the face when the lock timer is paused", () => {
+  it("keeps the lock face in motion even when the timer is paused", () => {
     const face = buildLockFaceProps({
       status: "paused",
       position: focusPosition,
@@ -103,6 +103,6 @@ describe("lock face phase mapping", () => {
       height: 600,
     });
     expect(face.phase).toBe("focus");
-    expect(face.paused).toBe(true);
+    expect(face.paused).toBe(false);
   });
 });

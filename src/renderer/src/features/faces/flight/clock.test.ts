@@ -49,6 +49,19 @@ describe("toFlightClock", () => {
     expect(clock.complete).toBe(false);
   });
 
+  it("keeps flying when FaceProps.paused is false, even on a scheduled rest", () => {
+    const clock = toFlightClock(
+      face({
+        phase: "break",
+        paused: false,
+        remainingMs: 180_000,
+        elapsedMs: 120_000,
+        estimateMinutes: 5,
+      }),
+    );
+    expect(clock.paused).toBe(false);
+  });
+
   it("marks destination-set when the host progress is done", () => {
     const clock = toFlightClock(
       face({

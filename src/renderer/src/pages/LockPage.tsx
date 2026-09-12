@@ -179,7 +179,6 @@ function LockFaceStage(props: { timer: SessionTimer }): JSX.Element {
     now: new Date(),
     width: size.width,
     height: size.height,
-    paused: props.timer.status === "paused",
   });
 
   return (

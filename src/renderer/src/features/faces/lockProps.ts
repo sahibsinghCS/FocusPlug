@@ -14,7 +14,6 @@ export interface BuildLockFacePropsInput {
   now: Date;
   width: number;
   height: number;
-  paused?: boolean;
 }
 
 /**
@@ -55,6 +54,8 @@ export function buildLockFaceProps(input: BuildLockFacePropsInput): FaceProps {
     now: input.now,
     width: Math.max(1, Math.round(input.width)),
     height: Math.max(1, Math.round(input.height)),
-    paused: input.paused === true || input.status === "paused",
+    // Live lock must keep painting (sand, flame, globe, leak). Catalog
+    // previews freeze via previewFaceProps — never this mapper.
+    paused: false,
   };
 }
