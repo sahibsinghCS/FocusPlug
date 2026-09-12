@@ -38,7 +38,7 @@ export interface AdaptiveModel {
 }
 
 /** Raise when FEATURE_NAMES changes; older stored models are then dropped. */
-export const FEATURE_LAYOUT = 2;
+export const FEATURE_LAYOUT = 3;
 
 /**
  * Shipped starting point, in log-odds of recovering. Hand-set from the same
@@ -47,24 +47,36 @@ export const FEATURE_LAYOUT = 2;
  * more seconds means more chance to recover.
  */
 export const PRIOR_WEIGHTS: Readonly<Record<FeatureName, number>> = {
-  bias: 0.4,
-  blockedWindow: -0.5,
-  deskAway: -0.2,
-  deskConfidence: -0.1,
-  minutesIn: -0.3,
-  freshSwitch: 0.3,
-  switchRate: -0.4,
-  priorDrifts: -0.5,
-  priorKills: -0.6,
-  lateNight: -0.3,
-  sessionLeft: 0.2,
-  fuseLength: 0.6,
+  /*
+   * Fitted, not hand-set: `npm run prior:adapt datasets/focusplug-drifts.csv`,
+   * split by drift so near-copies of one moment cannot straddle the split.
+   * Held-out log-loss 0.6225 -> 0.5600, accuracy 67.7% -> 71.5% against the
+   * hand-set numbers these replace.
+   *
+   * Read them for what they are. They are fitted on the SIMULATED population
+   * in `population.ts`, so they encode that sampler's assumptions, not any
+   * real student's. That is still a better day-one guess than a shrug — every
+   * install moves off these the moment it sees a real drift — but it is not
+   * evidence about people, and must never be quoted as if it were.
+   */
+  bias: -0.395,
+  blockedWindow: -0.171,
+  deskAway: -0.1,
+  deskConfidence: -0.133,
+  minutesIn: -0.155,
+  freshSwitch: -0.171,
+  switchRate: -0.276,
+  priorDrifts: -0.09,
+  priorKills: -0.406,
+  lateNight: -0.298,
+  sessionLeft: -0.095,
+  fuseLength: 0.266,
   // Each extra threshold crossed is a little more chance to notice and fix it.
-  fuseOver5: 0.45,
-  fuseOver8: 0.45,
-  fuseOver12: 0.45,
-  fuseOver18: 0.35,
-  fuseOver25: 0.25,
+  fuseOver5: 0.054,
+  fuseOver8: 0.393,
+  fuseOver12: 0.527,
+  fuseOver18: 0.434,
+  fuseOver25: 0.229,
 };
 
 const LEARNING_RATE = 0.35;
