@@ -1,0 +1,78 @@
+{
+  "trainedAt": "2026-09-11T23:22:56.047Z",
+  "config": {
+    "hidden": [
+      64,
+      32
+    ],
+    "epochs": 600,
+    "lr": 0.002,
+    "batch": 128,
+    "seed": 42,
+    "l2": 0.0003,
+    "patience": 100,
+    "valFraction": 0.1,
+    "mainWeight": 3,
+    "centroidsPerClass": 0,
+    "slices": null,
+    "out": "C:/Users/SS/AppData/Local/Temp/claude/C--Users-SS-FocusPlug/1d7eac55-3757-4bd3-be0c-97c71804bead/scratchpad/head-A.json",
+    "arch": [
+      2025,
+      64,
+      32,
+      3
+    ]
+  },
+  "dataset": {
+    "train": 2498,
+    "val": 279,
+    "mainVal": 126,
+    "perClass": {
+      "at_desk": 1341,
+      "away": 1018,
+      "uncertain": 139
+    },
+    "codebookSizes": []
+  },
+  "bestEpoch": 49,
+  "bestScore": 0.9000269103059538,
+  "valMetrics": {
+    "total": 279,
+    "correct": 260,
+    "accuracy": 0.931899641577061,
+    "perClass": {
+      "at_desk": {
+        "total": 150,
+        "correct": 138,
+        "accuracy": 0.92
+      },
+      "away": {
+        "total": 113,
+        "correct": 106,
+        "accuracy": 0.9380530973451328
+      },
+      "uncertain": {
+        "total": 16,
+        "correct": 16,
+        "accuracy": 1
+      }
+    },
+    "confusion": {
+      "at_desk": {
+        "at_desk": 138,
+        "away": 10,
+        "uncertain": 2
+      },
+      "away": {
+        "at_desk": 6,
+        "away": 106,
+        "uncertain": 1
+      },
+      "uncertain": {
+        "at_desk": 0,
+        "away": 0,
+        "uncertain": 16
+      }
+    }
+  }
+}
