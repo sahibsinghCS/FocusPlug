@@ -1,4 +1,5 @@
 import type {
+  AttentionLabel,
   Decision,
   DeskLabel,
   DeskModelId,
@@ -29,6 +30,12 @@ export function deskLabel(label: DeskLabel): string {
   if (label === "at_desk") return "At desk";
   if (label === "away") return "Away";
   return "Uncertain";
+}
+
+export function attentionLabel(label: AttentionLabel): string {
+  if (label === "phone") return "On phone";
+  if (label === "unfocused") return "Unfocused";
+  return "Focused";
 }
 
 export function deskTone(label: DeskLabel): Tone {
@@ -99,6 +106,7 @@ export function windowSecondary(focus: FocusSnapshot | null): string {
 
 export function deskPrimary(desk: DeskSnapshot | null): string {
   if (!desk) return "Desk AI standby";
+  if (desk.label === "at_desk" && desk.attention) return attentionLabel(desk.attention.label);
   return deskLabel(desk.label);
 }
 
@@ -153,6 +161,15 @@ export function deskChrome(desk: DeskSnapshot | null): ChromeStatus {
   }
   if (!desk.webcamEnabled) {
     return { label: "Desk AI", detail: "Webcam off", tone: "mute", live: false };
+  }
+  if (desk.label === "at_desk" && desk.attention) {
+    const focused = desk.attention.label === "focused";
+    return {
+      label: "Desk AI",
+      detail: `${attentionLabel(desk.attention.label)} ${formatConfidence(desk.attention.confidence)}`,
+      tone: focused ? "focus" : "warn",
+      live: focused,
+    };
   }
   return {
     label: "Desk AI",

@@ -107,6 +107,63 @@ scenes. Eval images are 3rd-person stock while the runtime webcam is
 1st-person: the bar is met on the pack's own protocol, and BlazeFace's
 face-presence signal is what transfers most directly to selfie-view use.
 
+## Attention head (`focused` / `unfocused` / `phone`)
+
+A second head over the **same** feature vector, consulted only when the
+presence head says `at_desk` (`model/weights/attention-head.json`, surfaced as
+`DeskModelOutput.attention`). It reads the 1280-d MobileNet slice through a
+16-unit hidden layer: one small matrix multiply, no second model, no added
+latency.
+
+**Labels came from Adaption Labs.** The pack's `distracted` class ("on phone /
+looking away") is mostly phone product shots, crowds and street scenes, with a
+few people plainly working, so it cannot teach "is the person at the desk on
+their phone". `scripts/desk-model/adaption-label.py` sent the 1,577 `main`
+images (downscaled, filenames hidden because they contain the pack label) to
+Adaptive Data's multimodal run with one fixed instruction, and got back per
+image: is a person visible, are they at a workspace, is a phone in use, and
+where are they looking. A 100-image pilot was checked by eye first. It caught
+a prompt flaw — looking *into the camera* counted as looking away, but a
+webcam sits on the screen — fixed before the full run. 170 credits in total.
+Output: `datasets/desk-attention-labels.csv`. Near-duplicate photos (dHash
+within 6 bits) stay on one side of the split, which moved 122 train images to
+eval.
+
+```
+python scripts/desk-model/adaption-label.py build  --name main
+python scripts/desk-model/adaption-label.py submit --name main --go   # spends credits
+python scripts/desk-model/adaption-label.py fetch  --name main
+python scripts/desk-model/adaption-label.py export --name main
+npx tsx --tsconfig tsconfig.node.json scripts/desk-model/train-attention.ts --hidden 16 --l2 0.01 --slices 745-2025
+npx tsx --tsconfig tsconfig.node.json scripts/desk-model/eval-attention.ts
+```
+
+The config was picked from a 12-run sweep scored on the validation slice only
+(hidden 0 / 16 × three L2 strengths × full vector vs MobileNet slice).
+
+### Results — read before quoting anything
+
+Held-out eval, 143 images. Truth is Adaption's annotation, not a human label.
+
+| | |
+| --- | --- |
+| 3-way accuracy | **56.6%** — below always answering `focused` (65.7%) |
+| phone detection | precision 42.9% · recall 50.0% · F1 46.2% (18 phones) |
+| off task (unfocused or phone) | precision 45.2% · recall 67.3% · F1 54.1% |
+| the pack's own `distracted` label, as a phone detector | F1 60.0% |
+
+**This head is not reliable yet.** Validation said 70.6%, but it held 68
+images (9 unfocused, 13 phone) — too few to choose a model, and the drop to
+56.6% is that selection noise. It also learns from 3rd-person stock photos
+while the runtime camera is 1st-person. Claim the pipeline, not phone
+detection. The data that would fix it is the actual webcam: a minute focused
+and a minute on the phone label themselves.
+
+It is opt-in by construction: attention only exists with
+`deskModelId: "custom"`, so the default BlazeFace install never nudges on it.
+For a filmed demo use Settings → When you drift → Test nudge, which fires the
+same nudge path (window forward, overlay, lamp) on demand.
+
 ## Licenses / attribution
 
 - MobileNetV2 feature vector — Google, TF Hub graph model, **Apache-2.0**.

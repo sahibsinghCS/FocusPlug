@@ -14,6 +14,8 @@ import type {
   AppSettings,
   DeskModelId,
   KillResult,
+  NudgeEvent,
+  NudgeKind,
   PlugDevice,
   PlugProtocol,
   PlugSnapshot,
@@ -56,9 +58,13 @@ interface AppStateValue {
   error: string | null;
   killResult: KillResult | null;
   countdown: LocalCountdown | null;
+  /** The latest drift nudge from main, until dismissed. */
+  nudge: NudgeEvent | null;
+  dismissNudge: () => void;
   startSession: () => Promise<void>;
   stopSession: () => Promise<void>;
   demoKill: () => Promise<void>;
+  demoNudge: (kind: NudgeKind) => Promise<void>;
   setAllowlist: (entries: AppEntry[]) => Promise<AppLists>;
   setBlocklist: (entries: AppEntry[]) => Promise<AppLists>;
   patchSettings: (patch: Partial<AppSettings>) => Promise<void>;
@@ -107,6 +113,7 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [killResult, setKillResult] = useState<KillResult | null>(null);
   const [localCountdown, setLocalCountdown] = useState<LocalCountdown | null>(null);
+  const [nudge, setNudge] = useState<NudgeEvent | null>(null);
   const localTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const clearLocalTimer = useCallback((): void => {
@@ -197,6 +204,8 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
       }
     });
 
+    const unsubNudge = api.onNudge(setNudge);
+
     const scene = readUrlScene();
     if (!usingMock && scene.countdown !== null) {
       if (scene.freeze) {
@@ -217,6 +226,7 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
       unsubDesk();
       unsubLog();
       unsubPolicy();
+      unsubNudge();
       clearLocalTimer();
     };
   }, [api, clearLocalTimer, previewCountdown, usingMock]);
@@ -392,6 +402,17 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
     [api, runWithResult],
   );
 
+  const dismissNudge = useCallback((): void => setNudge(null), []);
+
+  const demoNudge = useCallback(
+    async (kind: NudgeKind): Promise<void> => {
+      await run(async () => {
+        await api.demoNudge(kind);
+      }, "Failed to test the nudge");
+    },
+    [api, run],
+  );
+
   const countdown = useMemo((): LocalCountdown | null => {
     if (state.countdownSec > 0) {
       return {
@@ -420,6 +441,9 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
       error,
       killResult,
       countdown,
+      nudge,
+      dismissNudge,
+      demoNudge,
       startSession,
       stopSession,
       demoKill,
@@ -443,6 +467,9 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
       killResult,
       lists,
       log,
+      nudge,
+      dismissNudge,
+      demoNudge,
       patchSettings,
       plugs,
       previewCountdown,

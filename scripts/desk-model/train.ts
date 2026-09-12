@@ -15,12 +15,21 @@ import {
   formatMetrics,
   type FeatureRow,
 } from "./lib";
+import {
+  argmax,
+  balancedAccuracy,
+  createLayers,
+  forward,
+  serializeLayers,
+  trainMlp,
+  type Sample as MlpSample,
+} from "./mlp";
 
 /**
  * Deterministic trainer for the custom desk-presence head. Hand-rolled
- * MLP + Adam plus a per-class k-means codebook (retrieval features), no new
- * dependencies. Only `split: "train"` rows are ever touched here — the
- * held-out eval split is scored exclusively by eval.ts.
+ * MLP + Adam (`mlp.ts`) plus a per-class k-means codebook (retrieval
+ * features), no new dependencies. Only `split: "train"` rows are ever touched
+ * here — the held-out eval split is scored exclusively by eval.ts.
  *
  * The `nc` (Edinburgh) bucket is large and easy, so `--main-weight` upweights
  * the diverse `main` bucket and early stopping tracks main-val balanced
@@ -92,120 +101,8 @@ function readConfig(): TrainConfig {
   };
 }
 
-interface Matrix {
-  rows: number;
-  cols: number;
-  data: Float64Array;
-}
-
-function matrix(rows: number, cols: number): Matrix {
-  return { rows, cols, data: new Float64Array(rows * cols) };
-}
-
-interface Layer {
-  w: Matrix;
-  b: Float64Array;
-}
-
-function heInit(layer: Layer, rand: () => number): void {
-  const scale = Math.sqrt(2 / layer.w.cols);
-  for (let i = 0; i < layer.w.data.length; i += 1) {
-    const u1 = Math.max(rand(), 1e-12);
-    const u2 = rand();
-    layer.w.data[i] = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2) * scale;
-  }
-  layer.b.fill(0);
-}
-
-function cloneLayers(layers: Layer[]): Layer[] {
-  return layers.map((layer) => ({
-    w: { rows: layer.w.rows, cols: layer.w.cols, data: Float64Array.from(layer.w.data) },
-    b: Float64Array.from(layer.b),
-  }));
-}
-
-function forward(layers: Layer[], input: Float64Array): {
-  activations: Float64Array[];
-  probs: Float64Array;
-} {
-  const activations: Float64Array[] = [input];
-  let current = input;
-  for (let l = 0; l < layers.length; l += 1) {
-    const layer = layers[l] as Layer;
-    const out = new Float64Array(layer.w.rows);
-    for (let o = 0; o < layer.w.rows; o += 1) {
-      let sum = layer.b[o] ?? 0;
-      const offset = o * layer.w.cols;
-      for (let i = 0; i < layer.w.cols; i += 1) {
-        sum += (layer.w.data[offset + i] ?? 0) * (current[i] ?? 0);
-      }
-      out[o] = l < layers.length - 1 ? Math.max(0, sum) : sum;
-    }
-    activations.push(out);
-    current = out;
-  }
-  const logits = activations[activations.length - 1] as Float64Array;
-  let maxLogit = -Infinity;
-  for (const value of logits) {
-    maxLogit = Math.max(maxLogit, value);
-  }
-  const probs = new Float64Array(logits.length);
-  let total = 0;
-  for (let i = 0; i < logits.length; i += 1) {
-    probs[i] = Math.exp((logits[i] ?? 0) - maxLogit);
-    total += probs[i] ?? 0;
-  }
-  for (let i = 0; i < probs.length; i += 1) {
-    probs[i] = (probs[i] ?? 0) / (total || 1);
-  }
-  return { activations, probs };
-}
-
-function argmax(values: Float64Array): number {
-  let best = 0;
-  for (let i = 1; i < values.length; i += 1) {
-    if ((values[i] ?? 0) > (values[best] ?? 0)) {
-      best = i;
-    }
-  }
-  return best;
-}
-
-interface Sample {
-  x: Float64Array;
-  y: number;
-  weight: number;
+interface Sample extends MlpSample {
   row: FeatureRow;
-}
-
-function balancedAccuracy(
-  layers: Layer[],
-  samples: Sample[],
-): { balanced: number; accuracy: number } {
-  const perClass = new Map<number, { total: number; correct: number }>();
-  let correct = 0;
-  for (const sample of samples) {
-    const predicted = argmax(forward(layers, sample.x).probs);
-    const cls = perClass.get(sample.y) ?? { total: 0, correct: 0 };
-    cls.total += 1;
-    if (predicted === sample.y) {
-      cls.correct += 1;
-      correct += 1;
-    }
-    perClass.set(sample.y, cls);
-  }
-  let recallSum = 0;
-  let classes = 0;
-  for (const cls of perClass.values()) {
-    if (cls.total > 0) {
-      recallSum += cls.correct / cls.total;
-      classes += 1;
-    }
-  }
-  return {
-    balanced: classes > 0 ? recallSum / classes : 0,
-    accuracy: samples.length > 0 ? correct / samples.length : 0,
-  };
 }
 
 /** Plain seeded Lloyd k-means; empty clusters are reseeded from the data. */
@@ -279,7 +176,7 @@ function kMeans(
 
 async function main(): Promise<void> {
   const config = readConfig();
-  const labels = [...DESK_HEAD_LABELS];
+  const labels: string[] = [...DESK_HEAD_LABELS];
   const rows = readFeatureRows();
   const trainRows = rows.filter((row) => row.split === "train");
   if (trainRows.length === 0) {
@@ -409,119 +306,20 @@ async function main(): Promise<void> {
 
   const inputDim = dim + (codebook ? 2 * labels.length : 0);
   const sizes = [inputDim, ...config.hidden, labels.length];
-  const layers: Layer[] = [];
-  for (let l = 0; l < sizes.length - 1; l += 1) {
-    const layer: Layer = {
-      w: matrix(sizes[l + 1] as number, sizes[l] as number),
-      b: new Float64Array(sizes[l + 1] as number),
-    };
-    heInit(layer, rand);
-    layers.push(layer);
-  }
-
-  const mW = layers.map((layer) => new Float64Array(layer.w.data.length));
-  const vW = layers.map((layer) => new Float64Array(layer.w.data.length));
-  const mB = layers.map((layer) => new Float64Array(layer.b.length));
-  const vB = layers.map((layer) => new Float64Array(layer.b.length));
-  const beta1 = 0.9;
-  const beta2 = 0.999;
-  const eps = 1e-8;
-  let step = 0;
-
-  let best = { score: -1, epoch: -1, layers: cloneLayers(layers) };
-  let sinceBest = 0;
+  const layers = createLayers(sizes, rand);
 
   console.log(
     `train ${trainSamples.length} / val ${valSamples.length} (main ${mainValSamples.length}) | input ${inputDim} | arch ${sizes.join("-")} | seed ${config.seed} | main-weight ${config.mainWeight}`,
   );
 
-  for (let epoch = 0; epoch < config.epochs; epoch += 1) {
-    const order = shuffled(trainSamples, rand);
-    for (let start = 0; start < order.length; start += config.batch) {
-      const batch = order.slice(start, start + config.batch);
-      const gW = layers.map((layer) => new Float64Array(layer.w.data.length));
-      const gB = layers.map((layer) => new Float64Array(layer.b.length));
-      const batchWeight = batch.reduce((sum, sample) => sum + sample.weight, 0) || 1;
-      for (const sample of batch) {
-        const { activations, probs } = forward(layers, sample.x);
-        let delta = new Float64Array(labels.length);
-        for (let i = 0; i < labels.length; i += 1) {
-          delta[i] = ((probs[i] ?? 0) - (i === sample.y ? 1 : 0)) * sample.weight;
-        }
-        for (let l = layers.length - 1; l >= 0; l -= 1) {
-          const layer = layers[l] as Layer;
-          const input = activations[l] as Float64Array;
-          const gw = gW[l] as Float64Array;
-          const gb = gB[l] as Float64Array;
-          for (let o = 0; o < layer.w.rows; o += 1) {
-            const d = delta[o] ?? 0;
-            gb[o] = (gb[o] ?? 0) + d;
-            const offset = o * layer.w.cols;
-            for (let i = 0; i < layer.w.cols; i += 1) {
-              gw[offset + i] = (gw[offset + i] ?? 0) + d * (input[i] ?? 0);
-            }
-          }
-          if (l > 0) {
-            const next = new Float64Array(layer.w.cols);
-            const hidden = activations[l] as Float64Array;
-            for (let i = 0; i < layer.w.cols; i += 1) {
-              if ((hidden[i] ?? 0) > 0) {
-                let sum = 0;
-                for (let o = 0; o < layer.w.rows; o += 1) {
-                  sum += (delta[o] ?? 0) * (layer.w.data[o * layer.w.cols + i] ?? 0);
-                }
-                next[i] = sum;
-              }
-            }
-            delta = next;
-          }
-        }
-      }
-      step += 1;
-      const lr = config.lr * (Math.sqrt(1 - beta2 ** step) / (1 - beta1 ** step));
-      for (let l = 0; l < layers.length; l += 1) {
-        const layer = layers[l] as Layer;
-        const gw = gW[l] as Float64Array;
-        const gb = gB[l] as Float64Array;
-        const mw = mW[l] as Float64Array;
-        const vw = vW[l] as Float64Array;
-        const mb = mB[l] as Float64Array;
-        const vb = vB[l] as Float64Array;
-        for (let i = 0; i < layer.w.data.length; i += 1) {
-          const grad = (gw[i] ?? 0) / batchWeight + config.l2 * (layer.w.data[i] ?? 0);
-          mw[i] = beta1 * (mw[i] ?? 0) + (1 - beta1) * grad;
-          vw[i] = beta2 * (vw[i] ?? 0) + (1 - beta2) * grad * grad;
-          layer.w.data[i] =
-            (layer.w.data[i] ?? 0) - (lr * (mw[i] ?? 0)) / (Math.sqrt(vw[i] ?? 0) + eps);
-        }
-        for (let i = 0; i < layer.b.length; i += 1) {
-          const grad = (gb[i] ?? 0) / batchWeight;
-          mb[i] = beta1 * (mb[i] ?? 0) + (1 - beta1) * grad;
-          vb[i] = beta2 * (vb[i] ?? 0) + (1 - beta2) * grad * grad;
-          layer.b[i] = (layer.b[i] ?? 0) - (lr * (mb[i] ?? 0)) / (Math.sqrt(vb[i] ?? 0) + eps);
-        }
-      }
-    }
-
-    const mainVal = balancedAccuracy(layers, mainValSamples);
-    const allVal = balancedAccuracy(layers, valSamples);
-    const score = 0.8 * mainVal.balanced + 0.2 * allVal.balanced;
-    if (score > best.score + 1e-6) {
-      best = { score, epoch, layers: cloneLayers(layers) };
-      sinceBest = 0;
-    } else {
-      sinceBest += 1;
-    }
-    if (epoch % 20 === 0 || sinceBest === 0) {
-      console.log(
-        `epoch ${String(epoch).padStart(3)} | main-val bal ${(mainVal.balanced * 100).toFixed(2)}% | all-val bal ${(allVal.balanced * 100).toFixed(2)}% acc ${(allVal.accuracy * 100).toFixed(2)}%${sinceBest === 0 ? " *" : ""}`,
-      );
-    }
-    if (sinceBest >= config.patience) {
-      console.log(`early stop at epoch ${epoch} (best epoch ${best.epoch})`);
-      break;
-    }
-  }
+  const best = trainMlp(layers, trainSamples, config, rand, (current) => {
+    const mainVal = balancedAccuracy(current, mainValSamples);
+    const allVal = balancedAccuracy(current, valSamples);
+    return {
+      score: 0.8 * mainVal.balanced + 0.2 * allVal.balanced,
+      line: `main-val bal ${(mainVal.balanced * 100).toFixed(2)}% | all-val bal ${(allVal.balanced * 100).toFixed(2)}% acc ${(allVal.accuracy * 100).toFixed(2)}%`,
+    };
+  });
 
   const weights: DeskHeadWeights = {
     version: 2,
@@ -537,14 +335,7 @@ async function main(): Promise<void> {
           ),
         }
       : {}),
-    layers: best.layers.map((layer) => ({
-      w: Array.from({ length: layer.w.rows }, (_, o) =>
-        Array.from({ length: layer.w.cols }, (_, i) =>
-          Number(((layer.w.data[o * layer.w.cols + i] ?? 0)).toPrecision(8)),
-        ),
-      ),
-      b: [...layer.b].map((value) => Number(value.toPrecision(8))),
-    })),
+    layers: serializeLayers(best.layers),
   };
   mkdirSync(dirname(config.out), { recursive: true });
   writeFileSync(config.out, JSON.stringify(weights));

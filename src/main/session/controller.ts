@@ -1,6 +1,8 @@
 import { DEFAULT_SESSION_STATE } from "../../shared/defaults.ts";
 import { isFaceId } from "../../shared/faces.ts";
 import { isFlightIata } from "../../shared/flightRoute.ts";
+import { isNudgeKind, isPlugMode, type NudgeEvent, type NudgeKind } from "../../shared/nudge.ts";
+import { REASONS } from "../../shared/policy/constants.ts";
 import {
   PLUG_DRIVER_NOT_IMPLEMENTED,
   type AppLists,
@@ -15,6 +17,7 @@ import {
 } from "../../shared/ipc.ts";
 import { enabledFunPlugIds, PolicyEngine, type PolicyEngineInput } from "../../shared/policy/index.ts";
 import { AdaptiveFuse } from "./adaptiveFuse.ts";
+import { NudgeTracker } from "./nudge.ts";
 import type {
   AppEntry,
   DeskModelId,
@@ -67,6 +70,8 @@ export interface SessionControllerOptions {
   now?: () => number;
   /** Policy/countdown loop interval. `0` disables the timer (tests drive `flush`). */
   tickIntervalMs?: number;
+  /** Bring the app window to the front for a nudge. Absent in tests and headless runs. */
+  revealWindow?: () => void;
 }
 
 function cloneState(state: SessionState): SessionState {
@@ -167,6 +172,12 @@ function requirePatch(value: unknown): Partial<AppSettings> {
     }
     patch.flightArr = record.flightArr.trim().toUpperCase();
   }
+  if ("plugMode" in record) {
+    if (!isPlugMode(record.plugMode)) {
+      throw new Error("plugMode must be nudge or cut");
+    }
+    patch.plugMode = record.plugMode;
+  }
   if ("plugs" in record) {
     if (!Array.isArray(record.plugs)) {
       throw new Error("plugs must be an array of PlugDevice objects");
@@ -213,6 +224,8 @@ export class SessionController {
   private readonly policyFactory: () => PolicyEngineSeam;
   private readonly now: () => number;
   private readonly tickIntervalMs: number;
+  private readonly revealWindow: (() => void) | undefined;
+  private readonly nudges = new NudgeTracker();
 
   private policy: PolicyEngineSeam;
   private generation = 0;
@@ -231,6 +244,7 @@ export class SessionController {
     this.windowMonitor = options.windowMonitor;
     this.deskMonitor = options.deskMonitor;
     this.killer = options.killer;
+    this.revealWindow = options.revealWindow;
     this.store = options.store;
     this.plugs =
       options.plugs ??
@@ -288,8 +302,13 @@ export class SessionController {
       }
       this.desk = snap;
       this.push.deskSnapshot({ ...snap });
+      const drift = this.nudges.observeDesk(snap, this.loadSettings().deskThreshold, this.now());
+      if (drift !== null) {
+        void this.nudge(drift);
+      }
       this.enqueueEvaluate();
     });
+    this.nudges.reset();
     this.startTicker(gen);
     this.appendLog("session", "Session started");
     this.publishState();
@@ -565,6 +584,10 @@ export class SessionController {
         if (choice !== null) {
           this.appendLog("adapt", choice.reason);
         }
+        if (event.reason === REASONS.blockedFocus) {
+          this.nudges.blocked(armedAt);
+          await this.nudge("blocked", this.focus?.processName);
+        }
         return;
       }
       case "cancel_countdown":
@@ -586,11 +609,19 @@ export class SessionController {
         this.appendLog("unlock", "Unlocked — back on task");
         return;
       case "plug_off":
+        // In nudge mode plugs are a lamp that switches on when you drift;
+        // cutting it at the kill would undo the nudge.
+        if (this.loadSettings().plugMode === "nudge") {
+          return;
+        }
         await this.applyPlugCommand("off", event.deviceIds, event.reason, {
           emitEvent: false,
         });
         return;
       case "plug_on":
+        if (this.loadSettings().plugMode === "nudge") {
+          return;
+        }
         await this.applyPlugCommand("on", event.deviceIds, event.reason, {
           emitEvent: false,
         });
@@ -611,6 +642,35 @@ export class SessionController {
         void _exhaustive;
         return;
       }
+    }
+  }
+
+  /** Demo trigger, like Demo Kill: the same nudge a real drift would fire. */
+  async demoNudge(kind: unknown): Promise<void> {
+    if (!isNudgeKind(kind)) {
+      throw new Error("nudge kind must be phone, unfocused, or blocked");
+    }
+    this.appendLog("demo", `Test nudge · ${kind}`);
+    await this.nudge(kind);
+  }
+
+  /**
+   * Pull them back: the window comes to the front with the timer and a
+   * motivational line, and in nudge mode the enabled plugs (a lamp) switch on.
+   */
+  private async nudge(kind: NudgeKind, app?: string): Promise<void> {
+    const event: NudgeEvent = { ts: this.now(), kind, ...(app ? { app } : {}) };
+    this.push.nudge(event);
+    try {
+      this.revealWindow?.();
+    } catch (error) {
+      console.error("Failed to bring FocusPlug to the front:", errorMessage(error));
+    }
+    this.appendLog("nudge", app ? `${kind} · ${app}` : kind);
+    const settings = this.loadSettings();
+    const lampIds = settings.plugMode === "nudge" ? enabledFunPlugIds(settings.plugs) : [];
+    if (lampIds.length > 0) {
+      await this.applyPlugCommand("on", lampIds, `nudge_${kind}`, { emitEvent: false });
     }
   }
 

@@ -90,6 +90,7 @@ async function main(): Promise<void> {
     faceId: DEFAULT_FACE_ID,
     flightDep: DEFAULT_FLIGHT_DEP,
     flightArr: DEFAULT_FLIGHT_ARR,
+    plugMode: "cut",
     plugs: [],
   });
 
@@ -104,6 +105,7 @@ async function main(): Promise<void> {
       focusSnapshot: (snap) => focus.push(snap),
       deskSnapshot: () => undefined,
       sessionEvent: () => undefined,
+      nudge: () => undefined,
     },
   });
 

@@ -209,6 +209,67 @@ export function SettingsPage(): JSX.Element {
         />
       </section>
 
+      <section className="fp-card space-y-3 p-4">
+        <div>
+          <p className="fp-section-label">When you drift</p>
+          <p className="mt-1 text-[12px] text-fp-mute">
+            On your phone, looking away, or on a blocked app: FocusPlug comes back to the front
+            with your timer. Phone and looking-away need the custom desk model.
+          </p>
+        </div>
+        <div className="grid gap-2 min-[720px]:grid-cols-2" role="radiogroup" aria-label="Plugs when you drift">
+          {(
+            [
+              ["nudge", "Lamp on", "Enabled plugs switch on to pull you back."],
+              ["cut", "Cut power", "Enabled plugs power off when a blocked app is killed."],
+            ] as const
+          ).map(([id, title, detail]) => {
+            const selected = settings.plugMode === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                onClick={() => {
+                  void app.patchSettings({ plugMode: id });
+                }}
+                className={`fp-btn rounded-[var(--radius-fp)] border px-3 py-2.5 text-left ${
+                  selected ? "border-fp-focus/60 bg-fp-focus/10" : "border-fp-line hover:border-white/25"
+                }`}
+              >
+                <p className="text-[13px] font-medium">{title}</p>
+                <p className="mt-0.5 text-[12px] text-fp-mute">{detail}</p>
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex flex-wrap items-center gap-2 border-t border-fp-line pt-3">
+          <p className="mr-auto text-[12px] text-fp-mute">
+            Test it: click, switch to another window, and the nudge fires in 5 seconds.
+          </p>
+          {(
+            [
+              ["phone", "Test phone nudge"],
+              ["blocked", "Test blocked-app nudge"],
+            ] as const
+          ).map(([kind, label]) => (
+            <button
+              key={kind}
+              type="button"
+              onClick={() => {
+                setTimeout(() => {
+                  void app.demoNudge(kind);
+                }, 5000);
+              }}
+              className="fp-btn h-9 rounded-[var(--radius-fp)] border border-fp-line px-3 text-[12px] font-medium hover:border-white/25"
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </section>
+
       <section className="fp-card space-y-3 p-4" aria-busy={modelSave.saving}>
         <div className="flex items-start justify-between gap-3">
           <div>

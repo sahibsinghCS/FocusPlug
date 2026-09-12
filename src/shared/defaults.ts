@@ -114,6 +114,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   faceId: DEFAULT_FACE_ID,
   flightDep: DEFAULT_FLIGHT_DEP,
   flightArr: DEFAULT_FLIGHT_ARR,
+  plugMode: "nudge",
   plugs: [],
 };
 

@@ -53,6 +53,7 @@ presence → fuse → force-quit blocklist apps, never the study PC.
 
 **Shipped since this doc was first written:**
 
+- **Nudges and an attention head.** A sustained phone or looking-away reading, or a blocked app, brings FocusPlug to the front with the timer and a motivational line, and in plug mode `nudge` (the default) switches enabled plugs on. Phone / looking-away come from a second head on the custom desk model, trained on labels **Adaption Labs' Adaptive Data** produced by looking at the desk-data pack's stock photos. That head is **not reliable yet**: 56.6% held-out, below the always-"focused" baseline of 65.7% (`docs/CUSTOM-MODEL.md`). Say "the pipeline", never "it detects your phone". The Settings → Test nudge buttons are demo triggers, like Demo Kill.
 - **A trained custom desk model** (#23): BlazeFace crops + a MobileNetV2-0.50-160 ImageNet feature vector into a trained MLP head, weights committed under `src/main/desk/model/weights/`, 95.16% on a 723-image held-out split (`docs/CUSTOM-MODEL.md`). It is **opt-in** — `deskModelId` defaults to `blazeface`, so say which model you filmed with. The 95.16% is a held-out *dataset* number; it is not a measurement of live webcam accuracy on your desk.
 - **An adaptive fuse — a second model, learned on-device.** The countdown length is no longer the fixed Settings number: a 17-feature logistic model predicts P(you fix this yourself | this moment, a fuse of N seconds) and picks the shortest fuse still clearing 85%. It trains on labels the app already produces — `cancel_countdown` is a recovery and its timing says *how long you needed*, `kill` is a failure with longer fuses left censored — so **it needs no annotation and no dataset**. Weights live in the user's own data dir; nothing is uploaded, and there is no network call on this path.
 
@@ -86,6 +87,8 @@ presence → fuse → force-quit blocklist apps, never the study PC.
 | `face.jpg` | MediaPipe public portrait test asset | Desk-ai gauntlet fixture |
 | `empty.jpg` | Unsplash interior photo (see ATTRIBUTION) | Away / no-face fixture |
 | `covered.jpg` / `noise.jpg` | Synthetic ffmpeg frames | Occlusion / sensor-static |
+| `datasets/desk-attention-labels.csv` | Adaption Labs Adaptive Data annotations of desk-data pack photos (model-labelled, not human) | Attention head training labels |
+| `model/weights/attention-head.json` | Trained in-repo by `scripts/desk-model/train-attention.ts` | On-device focused / unfocused / phone head |
 
 ---
 

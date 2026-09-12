@@ -56,6 +56,16 @@ const EMBED_LATE_NODE = "StatefulPartitionedCall/model/activation_16/Relu";
 /** Output order of the head's softmax. Index = class id used in training. */
 export const DESK_HEAD_LABELS = ["at_desk", "away", "uncertain"] as const;
 
+/**
+ * Attention head over the same feature vector, consulted only when the
+ * presence head says `at_desk`: is the person on their work, looking away, or
+ * on their phone. Trained by `scripts/desk-model/train-attention.ts` on labels
+ * from Adaption Labs; absent weights mean no attention reading, never a guess.
+ */
+export const ATTENTION_HEAD_LABELS = ["focused", "unfocused", "phone"] as const;
+export type AttentionHeadLabel = (typeof ATTENTION_HEAD_LABELS)[number];
+export const ATTENTION_HEAD_RELATIVE_PATH = join("model", "weights", "attention-head.json");
+
 const THUMB_SIDE = 64;
 const GRID_SIDE = 8;
 const COLOR_GRID_SIDE = 4;
@@ -513,7 +523,10 @@ function isLayer(value: unknown): value is DeskHeadLayer {
   );
 }
 
-export function parseDeskHeadWeights(jsonText: string): DeskHeadWeights | null {
+export function parseDeskHeadWeights(
+  jsonText: string,
+  labels: readonly string[] = DESK_HEAD_LABELS,
+): DeskHeadWeights | null {
   let parsed: unknown;
   try {
     parsed = JSON.parse(jsonText);
@@ -530,7 +543,8 @@ export function parseDeskHeadWeights(jsonText: string): DeskHeadWeights | null {
     weights.layers.length === 0 ||
     !weights.layers.every(isLayer) ||
     !Array.isArray(weights.labels) ||
-    weights.labels.length !== DESK_HEAD_LABELS.length ||
+    weights.labels.length !== labels.length ||
+    weights.labels.some((label, index) => label !== labels[index]) ||
     typeof weights.featureDim !== "number"
   ) {
     return null;
@@ -541,7 +555,7 @@ export function parseDeskHeadWeights(jsonText: string): DeskHeadWeights | null {
     return null;
   }
   const lastLayer = weights.layers[weights.layers.length - 1];
-  if (!lastLayer || lastLayer.b.length !== DESK_HEAD_LABELS.length) {
+  if (!lastLayer || lastLayer.b.length !== labels.length) {
     return null;
   }
   for (const layer of weights.layers) {
@@ -554,9 +568,10 @@ export function parseDeskHeadWeights(jsonText: string): DeskHeadWeights | null {
 
 export function loadDeskHeadWeights(
   file: string = join(deskRoot(), DESK_HEAD_RELATIVE_PATH),
+  labels: readonly string[] = DESK_HEAD_LABELS,
 ): DeskHeadWeights | null {
   try {
-    return parseDeskHeadWeights(readFileSync(file, "utf8"));
+    return parseDeskHeadWeights(readFileSync(file, "utf8"), labels);
   } catch {
     return null;
   }
@@ -586,7 +601,7 @@ export function applyInputSlices(
 }
 
 /** Slice → standardize → codebook retrieval → dense/ReLU stack → softmax. */
-export function deskHeadPredict(weights: DeskHeadWeights, vector: number[]): DeskHeadPrediction {
+export function headProbabilities(weights: DeskHeadWeights, vector: number[]): number[] {
   const sliced = applyInputSlices(weights.inputSlices, vector);
   const standardized = new Array<number>(weights.featureDim);
   for (let i = 0; i < weights.featureDim; i += 1) {
@@ -615,26 +630,47 @@ export function deskHeadPredict(weights: DeskHeadWeights, vector: number[]): Des
   const maxLogit = Math.max(...activations);
   const exps = activations.map((logit) => Math.exp(logit - maxLogit));
   const total = exps.reduce((sum, value) => sum + value, 0) || 1;
-  const probs = exps.map((value) => value / total);
+  return exps.map((value) => value / total);
+}
+
+function argmaxIndex(probs: number[]): number {
   let best = 0;
   for (let i = 1; i < probs.length; i += 1) {
     if ((probs[i] ?? 0) > (probs[best] ?? 0)) {
       best = i;
     }
   }
+  return best;
+}
+
+export function deskHeadPredict(weights: DeskHeadWeights, vector: number[]): DeskHeadPrediction {
+  const probs = headProbabilities(weights, vector);
+  const best = argmaxIndex(probs);
   const label = DESK_HEAD_LABELS[best] ?? "uncertain";
   return { label, confidence: probs[best] ?? 0, probs };
+}
+
+export function attentionHeadPredict(
+  weights: DeskHeadWeights,
+  vector: number[],
+): { label: AttentionHeadLabel; confidence: number; probs: number[] } {
+  const probs = headProbabilities(weights, vector);
+  const best = argmaxIndex(probs);
+  return { label: ATTENTION_HEAD_LABELS[best] ?? "focused", confidence: probs[best] ?? 0, probs };
 }
 
 export class YourModel implements DeskModel {
   readonly id = "custom";
   private weights: DeskHeadWeights | null = null;
+  private attentionWeights: DeskHeadWeights | null = null;
   private weightsLoaded = false;
   private readonly weightsFile: string | undefined;
+  private readonly attentionWeightsFile: string | undefined;
 
-  /** `weightsFile` is a test seam — production loads the committed default. */
-  constructor(weightsFile?: string) {
+  /** Both files are test seams — production loads the committed defaults. */
+  constructor(weightsFile?: string, attentionWeightsFile?: string) {
     this.weightsFile = weightsFile;
+    this.attentionWeightsFile = attentionWeightsFile;
   }
 
   async init(): Promise<void> {
@@ -642,6 +678,11 @@ export class YourModel implements DeskModel {
       this.weights = this.weightsFile
         ? loadDeskHeadWeights(this.weightsFile)
         : loadDeskHeadWeights();
+      // Optional: without an attention head the model reports presence only.
+      this.attentionWeights = loadDeskHeadWeights(
+        this.attentionWeightsFile ?? join(deskRoot(), ATTENTION_HEAD_RELATIVE_PATH),
+        ATTENTION_HEAD_LABELS,
+      );
       this.weightsLoaded = true;
     }
     if (this.weights) {
@@ -674,9 +715,17 @@ export class YourModel implements DeskModel {
     }
     const { vector, base } = await extractDeskFeatures(frame);
     const prediction = deskHeadPredict(this.weights, vector);
+    // Attention only means something for someone who is at the desk.
+    const attention =
+      prediction.label === "at_desk" && this.attentionWeights
+        ? attentionHeadPredict(this.attentionWeights, vector)
+        : null;
     return {
       label: prediction.label,
       confidence: prediction.confidence,
+      ...(attention
+        ? { attention: { label: attention.label, confidence: attention.confidence } }
+        : {}),
       faces: base.faces,
       debug: {
         ...base.debug,

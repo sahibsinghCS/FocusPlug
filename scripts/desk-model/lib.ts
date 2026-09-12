@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { DESK_FEATURE_VERSION } from "../../src/main/desk/model/your-model";
 
 /**
@@ -167,6 +168,104 @@ export function scorePredictions(
     perClass,
     confusion,
   };
+}
+
+/** One row of `datasets/desk-attention-labels.csv` (written by adaption-label.py export). */
+export interface AttentionLabelRow {
+  path: string;
+  split: "train" | "eval";
+  /** Near-duplicate group; every member shares one split. */
+  group: string;
+  /** focused / unfocused / phone, or "" when the image is not a usable example. */
+  attention: string;
+  person: string;
+  workspace: string;
+  phone: string;
+  gaze: string;
+  note: string;
+  packLabel: string;
+}
+
+export function attentionLabelsFile(): string {
+  return join(dirname(fileURLToPath(import.meta.url)), "..", "..", "datasets", "desk-attention-labels.csv");
+}
+
+/** RFC 4180 CSV: quoted fields may hold commas, quotes ("") and newlines. */
+export function parseCsv(text: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = "";
+  let quoted = false;
+  for (let i = 0; i < text.length; i += 1) {
+    const char = text[i] as string;
+    if (quoted) {
+      if (char === '"' && text[i + 1] === '"') {
+        field += '"';
+        i += 1;
+      } else if (char === '"') {
+        quoted = false;
+      } else {
+        field += char;
+      }
+    } else if (char === '"') {
+      quoted = true;
+    } else if (char === ",") {
+      row.push(field);
+      field = "";
+    } else if (char === "\n" || char === "\r") {
+      if (char === "\r" && text[i + 1] === "\n") {
+        i += 1;
+      }
+      row.push(field);
+      rows.push(row);
+      row = [];
+      field = "";
+    } else {
+      field += char;
+    }
+  }
+  if (field.length > 0 || row.length > 0) {
+    row.push(field);
+    rows.push(row);
+  }
+  return rows;
+}
+
+export function readAttentionLabels(file: string = attentionLabelsFile()): AttentionLabelRow[] {
+  const [header, ...rows] = parseCsv(readFileSync(file, "utf8"));
+  const column = (name: string): number => {
+    const index = header?.indexOf(name) ?? -1;
+    if (index < 0) {
+      throw new Error(`${file} has no ${name} column`);
+    }
+    return index;
+  };
+  const index = {
+    path: column("path"),
+    split: column("split"),
+    group: column("group"),
+    attention: column("attention"),
+    person: column("person"),
+    workspace: column("workspace"),
+    phone: column("phone"),
+    gaze: column("gaze"),
+    note: column("note"),
+    packLabel: column("pack_label"),
+  };
+  return rows
+    .filter((cells) => cells.length > 1)
+    .map((cells) => ({
+      path: cells[index.path] ?? "",
+      split: cells[index.split] === "eval" ? "eval" : "train",
+      group: cells[index.group] ?? "",
+      attention: cells[index.attention] ?? "",
+      person: cells[index.person] ?? "",
+      workspace: cells[index.workspace] ?? "",
+      phone: cells[index.phone] ?? "",
+      gaze: cells[index.gaze] ?? "",
+      note: cells[index.note] ?? "",
+      packLabel: cells[index.packLabel] ?? "",
+    }));
 }
 
 export function formatMetrics(name: string, metrics: EvalMetrics): string {

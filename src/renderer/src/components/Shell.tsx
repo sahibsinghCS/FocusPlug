@@ -4,6 +4,7 @@ import { useAppState } from "../state/AppState";
 import { useSessionTimer } from "../features/timer/useSessionTimer";
 import { ErrorBanner } from "./page";
 import { KillOverlay } from "../features/kill/KillOverlay";
+import { NudgeOverlay } from "../features/nudge/NudgeOverlay";
 import { TopRail } from "./TopRail";
 import { SetupPage } from "../pages/SetupPage";
 import { LockPage } from "../pages/LockPage";
@@ -104,6 +105,10 @@ export function Shell(): JSX.Element {
             void app.demoKill();
           }}
         />
+      ) : null}
+
+      {app.nudge ? (
+        <NudgeOverlay nudge={app.nudge} position={timer.position} onDismiss={app.dismissNudge} />
       ) : null}
     </div>
   );

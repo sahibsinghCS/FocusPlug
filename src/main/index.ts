@@ -13,6 +13,35 @@ import { assertControllable, type PlugController } from "./plugs";
 import { createFocusPlugRuntime, type SessionController, type SessionPush } from "./session";
 
 let session: SessionController | null = null;
+let mainWindow: BrowserWindow | null = null;
+
+/**
+ * A nudge brings FocusPlug back to the front. Windows refuses focus() from a
+ * background app, so pin the window on top while focusing it, and flash the
+ * taskbar button in case focus is still denied.
+ */
+function revealMainWindow(): void {
+  const win = mainWindow;
+  if (win === null || win.isDestroyed()) {
+    return;
+  }
+  if (win.isMinimized()) {
+    win.restore();
+  }
+  win.show();
+  win.setAlwaysOnTop(true);
+  win.moveTop();
+  win.focus();
+  if (!win.isFocused()) {
+    win.flashFrame(true);
+    win.once("focus", () => win.flashFrame(false));
+  }
+  setTimeout(() => {
+    if (!win.isDestroyed()) {
+      win.setAlwaysOnTop(false);
+    }
+  }, 1500);
+}
 
 function broadcast(channel: string, payload: unknown): void {
   for (const win of BrowserWindow.getAllWindows()) {
@@ -29,6 +58,7 @@ function createElectronPush(): SessionPush {
     focusSnapshot: (snap) => broadcast(IPC_PUSH.FOCUS_SNAPSHOT, snap),
     deskSnapshot: (snap) => broadcast(IPC_PUSH.DESK_SNAPSHOT, snap),
     sessionEvent: (event) => broadcast(IPC_PUSH.SESSION_EVENT, event),
+    nudge: (event) => broadcast(IPC_PUSH.NUDGE, event),
   };
 }
 
@@ -73,10 +103,13 @@ function registerIpc(controller: SessionController, plugs: PlugController): void
     return snap;
   });
   ipcMain.handle(IPC_INVOKE.DEMO_KILL, async () => controller.demoKill());
+  ipcMain.handle(IPC_INVOKE.DEMO_NUDGE, async (_event, kind: unknown) =>
+    controller.demoNudge(kind),
+  );
 }
 
 function createWindow(): void {
-  const mainWindow = new BrowserWindow({
+  const win = new BrowserWindow({
     width: 1280,
     height: 800,
     minWidth: 900,
@@ -93,19 +126,26 @@ function createWindow(): void {
     },
   });
 
-  mainWindow.on("ready-to-show", () => {
-    mainWindow.show();
+  mainWindow = win;
+  win.on("closed", () => {
+    if (mainWindow === win) {
+      mainWindow = null;
+    }
   });
 
-  mainWindow.webContents.setWindowOpenHandler((details) => {
+  win.on("ready-to-show", () => {
+    win.show();
+  });
+
+  win.webContents.setWindowOpenHandler((details) => {
     void shell.openExternal(details.url);
     return { action: "deny" };
   });
 
   if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
-    void mainWindow.loadURL(process.env["ELECTRON_RENDERER_URL"]);
+    void win.loadURL(process.env["ELECTRON_RENDERER_URL"]);
   } else {
-    void mainWindow.loadFile(join(__dirname, "../renderer/index.html"));
+    void win.loadFile(join(__dirname, "../renderer/index.html"));
   }
 }
 
@@ -118,6 +158,7 @@ app.whenReady().then(() => {
   const runtime = createFocusPlugRuntime({
     userDataDir: app.getPath("userData"),
     push: createElectronPush(),
+    revealWindow: revealMainWindow,
   });
   session = runtime.session;
   registerIpc(runtime.session, runtime.plugs);

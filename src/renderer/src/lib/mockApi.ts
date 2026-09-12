@@ -21,6 +21,7 @@ import {
 import { isFaceId } from "@shared/faces";
 import { isFlightIata, normalizeFlightPair } from "@shared/flightRoute";
 import { isDeskModelId } from "./plugsUi";
+import { isPlugMode, type NudgeEvent, type NudgeKind } from "@shared/nudge";
 import { readUrlScene } from "./urlScene";
 import { goldenSessionEvents } from "../features/logs/fixtures";
 
@@ -168,6 +169,7 @@ function loadStoredSettings(): AppSettings {
     deskModelId: isDeskModelId(record.deskModelId) ? record.deskModelId : DEFAULT_SETTINGS.deskModelId,
     faceId: isFaceId(record.faceId) ? record.faceId : DEFAULT_SETTINGS.faceId,
     ...normalizeFlightPair(record.flightDep, record.flightArr),
+    plugMode: isPlugMode(record.plugMode) ? record.plugMode : DEFAULT_SETTINGS.plugMode,
     plugs,
   };
 }
@@ -216,6 +218,13 @@ export function createMockApi(): FocusPlugApi {
   const focusBus = createBus<FocusSnapshot>();
   const deskBus = createBus<DeskSnapshot>();
   const logBus = createBus<SessionEvent>();
+  const nudgeBus = createBus<NudgeEvent>();
+
+  // Preview hook: run `__focusplugNudge("phone")` in the console to see a nudge without Electron.
+  if (typeof window !== "undefined") {
+    (window as unknown as { __focusplugNudge?: (kind: NudgeKind, app?: string) => void }).__focusplugNudge =
+      (kind, app) => nudgeBus.emit({ ts: now(), kind, ...(app ? { app } : {}) });
+  }
 
   function lists(): AppLists {
     return {
@@ -493,6 +502,11 @@ export function createMockApi(): FocusPlugApi {
     onFocusSnapshot: (cb) => focusBus.on(cb),
     onDeskSnapshot: (cb) => deskBus.on(cb),
     onSessionEvent: (cb) => logBus.on(cb),
+    onNudge: (cb) => nudgeBus.on(cb),
+    demoNudge: async (kind) => {
+      appendLog("demo", `Test nudge · ${kind}`);
+      nudgeBus.emit({ ts: now(), kind });
+    },
   };
 
   return api;

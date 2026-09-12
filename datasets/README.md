@@ -152,3 +152,35 @@ It is a **measurement**, not training data. Nothing in the app consumes it, and
 no model is fitted on it. It exists to size a gap that is currently unfixed:
 a title-aware on-task signal.
 
+---
+
+# The desk attention labels
+
+`desk-attention-labels.csv` — 1,577 photos from the desk-data pack's `main`
+bucket, each annotated by **Adaption Labs' Adaptive Data** (multimodal
+`datasets.run`, one fixed instruction, 160 credits plus a 10-credit pilot).
+No images are in this file or this repo; `path` points into the
+`desk-data-v2-full` release. Made and exported by
+`scripts/desk-model/adaption-label.py`; trained on by
+`scripts/desk-model/train-attention.ts`.
+
+| Column | Meaning |
+| --- | --- |
+| `path` | Pack-relative image path. |
+| `split` | `train` / `eval`. Near-duplicate groups share a split, and a group touching a pack eval image is eval. |
+| `group` | Near-duplicate group id (dHash within 6 bits). |
+| `attention` | `focused` / `unfocused` / `phone` — the attention head's target. Empty when the photo is not a usable example: no person, gaze unclear, or looking into the camera. |
+| `person`, `workspace`, `phone`, `gaze`, `note` | Adaption's raw answer. |
+| `pack_label` | The pack's original label, kept for comparison only. |
+
+| | focused | unfocused | phone | no label |
+| --- | --- | --- | --- | --- |
+| train | 296 | 65 | 89 | 683 |
+| eval | 94 | 31 | 18 | 301 |
+
+**Truth here is a model's reading of a photo, not a human label.** The pilot's
+100 answers were checked against a contact sheet of the images and described
+them accurately, with a few borderline calls; nobody has audited all 1,577.
+Treat scores against this file as agreement with Adaption, and see
+`docs/CUSTOM-MODEL.md` for what the head trained on it can and cannot do.
+

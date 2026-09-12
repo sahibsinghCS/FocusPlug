@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 import { DEFAULT_BLOCKLIST, DEFAULT_SETTINGS } from "../../shared/defaults.ts";
 import { ALL_BLOCKLIST_TARGET } from "../../shared/policy/index.ts";
-import type { AppEntry, PlugDevice, PolicyEvent } from "../../shared/types.ts";
+import type { AppEntry, DeskSnapshot, PlugDevice, PolicyEvent } from "../../shared/types.ts";
 import { SAMPLE_PLUGS } from "./fixtures.ts";
 import { SessionController } from "./controller.ts";
 import {
@@ -37,7 +37,10 @@ interface Harness {
 }
 
 function makeHarness(
-  init?: Parameters<typeof createMemoryStore>[0] & { plugDevices?: PlugDevice[] },
+  init?: Parameters<typeof createMemoryStore>[0] & {
+    plugDevices?: PlugDevice[];
+    revealWindow?: () => void;
+  },
 ): Harness {
   const clock = new MutableClock();
   const window = new ScriptedWindowMonitor();
@@ -65,6 +68,7 @@ function makeHarness(
     tickIntervalMs: 0,
     // Never explore: these cover countdown mechanics, not the adaptive fuse.
     adaptiveRandom: () => 1,
+    revealWindow: init?.revealWindow,
   });
   return { controller, window, desk, killer, plugs, clock, store, trace };
 }
@@ -145,7 +149,13 @@ describe("SessionController", () => {
   it("gauntlet: Docs→Discord→countdown→kill→return→unlock + Demo Kill", async () => {
     const h = makeHarness({
       plugs: SAMPLE_PLUGS,
-      settings: { ...DEFAULT_SETTINGS, countdownSec: 10, strictMode: true, plugs: SAMPLE_PLUGS },
+      settings: {
+        ...DEFAULT_SETTINGS,
+        countdownSec: 10,
+        strictMode: true,
+        plugMode: "cut",
+        plugs: SAMPLE_PLUGS,
+      },
     });
     const steps: Array<Record<string, unknown>> = [];
 
@@ -365,7 +375,10 @@ describe("SessionController", () => {
   });
 
   it("never sends plug commands for isStudyPc, even when policy asks", async () => {
-    const h = makeHarness({ plugs: SAMPLE_PLUGS });
+    const h = makeHarness({
+      plugs: SAMPLE_PLUGS,
+      settings: { ...DEFAULT_SETTINGS, plugMode: "cut", plugs: SAMPLE_PLUGS },
+    });
     const scripted: PolicyEvent[] = [
       { type: "plug_off", deviceIds: ["study-pc", "console-lamp"], reason: "forced" },
       { type: "status", decision: "DISTRACTED", detail: "forced plug_off" },
@@ -382,6 +395,7 @@ describe("SessionController", () => {
         focusSnapshot: () => undefined,
         deskSnapshot: () => undefined,
         sessionEvent: (event) => h.trace.events.push(event),
+        nudge: () => undefined,
       },
       policyFactory: () => ({
         step: () => {
@@ -404,7 +418,7 @@ describe("SessionController", () => {
   it("consumes plug_on after unlock and swallows plug host errors", async () => {
     const h = makeHarness({
       plugs: SAMPLE_PLUGS,
-      settings: { ...DEFAULT_SETTINGS, countdownSec: 1, plugs: SAMPLE_PLUGS },
+      settings: { ...DEFAULT_SETTINGS, countdownSec: 1, plugMode: "cut", plugs: SAMPLE_PLUGS },
     });
     h.plugs.failWith = "tapo unreachable";
     await h.controller.start();
@@ -461,7 +475,7 @@ describe("SessionController", () => {
   it("does not kill twice while still on the blocked app after fuse", async () => {
     const h = makeHarness({
       plugs: SAMPLE_PLUGS,
-      settings: { ...DEFAULT_SETTINGS, countdownSec: 1, plugs: SAMPLE_PLUGS },
+      settings: { ...DEFAULT_SETTINGS, countdownSec: 1, plugMode: "cut", plugs: SAMPLE_PLUGS },
     });
     await h.controller.start();
     h.window.emit(discordFocus(h.clock.ms));
@@ -591,6 +605,70 @@ describe("FocusPlugStore persistence", () => {
         isStudyPc: false,
       },
     ]);
+  });
+});
+
+describe("nudges", () => {
+  const onPhone = (ts: number): DeskSnapshot => ({
+    ...presentDesk(ts),
+    attention: { label: "phone", confidence: 0.9 },
+  });
+
+  it("a sustained phone reading brings the window forward and switches the lamp on", async () => {
+    const reveal = vi.fn();
+    const h = makeHarness({ plugs: SAMPLE_PLUGS, revealWindow: reveal });
+    await h.controller.start();
+    h.window.emit(docsFocus(h.clock.ms));
+    h.desk.emit(onPhone(h.clock.ms));
+    expect(h.trace.nudges).toEqual([]);
+    h.desk.emit(onPhone(h.clock.ms));
+    await h.controller.flush();
+    expect(h.trace.nudges.map((nudge) => nudge.kind)).toEqual(["phone"]);
+    expect(reveal).toHaveBeenCalledTimes(1);
+    expect(h.plugs.onCalls).toEqual([enabledPlugIds(SAMPLE_PLUGS)]);
+    expectNoStudyPc(h.plugs.onCalls[0]);
+    expect(logKinds(h.controller)).toContain("nudge");
+  });
+
+  it("a blocked app nudges with the app name, and the kill leaves the lamp on", async () => {
+    const h = makeHarness({
+      plugs: SAMPLE_PLUGS,
+      settings: { ...DEFAULT_SETTINGS, countdownSec: 1, plugs: SAMPLE_PLUGS },
+    });
+    await h.controller.start();
+    h.window.emit(discordFocus(h.clock.ms));
+    h.desk.emit(presentDesk(h.clock.ms));
+    await h.controller.flush();
+    expect(h.trace.nudges).toMatchObject([{ kind: "blocked", app: discordFocus(0).processName }]);
+    expect(h.plugs.onCalls.length).toBe(1);
+
+    h.clock.advance(1000);
+    await h.controller.tick();
+    expect(h.killer.calls.length).toBe(1);
+    expect(policyTypes(h.trace)).toContain("plug_off");
+    expect(h.plugs.offCalls).toEqual([]);
+  });
+
+  it("cut mode keeps the original enforcer: no lamp on a nudge, power off at the kill", async () => {
+    const h = makeHarness({
+      plugs: SAMPLE_PLUGS,
+      settings: { ...DEFAULT_SETTINGS, countdownSec: 1, plugMode: "cut", plugs: SAMPLE_PLUGS },
+    });
+    await h.controller.start();
+    h.window.emit(discordFocus(h.clock.ms));
+    h.desk.emit(presentDesk(h.clock.ms));
+    await h.controller.flush();
+    expect(h.trace.nudges.map((nudge) => nudge.kind)).toEqual(["blocked"]);
+    expect(h.plugs.onCalls).toEqual([]);
+
+    h.clock.advance(1000);
+    await h.controller.tick();
+    expect(h.plugs.offCalls.length).toBe(1);
+  });
+
+  it("rejects an unknown plugMode", () => {
+    const h = makeHarness();
+    expect(() => h.controller.setSettings({ plugMode: "off" })).toThrow(/plugMode/);
   });
 });
 

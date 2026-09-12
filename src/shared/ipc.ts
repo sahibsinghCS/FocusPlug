@@ -1,4 +1,5 @@
 import type { FaceId } from "./faces";
+import type { NudgeEvent, NudgeKind, PlugMode } from "./nudge";
 import type {
   AppEntry,
   Decision,
@@ -14,9 +15,12 @@ import type {
 } from "./types";
 
 export type { FaceId, FacePhase } from "./faces";
+export type { NudgeEvent, NudgeKind, PlugMode } from "./nudge";
 export type {
   AppEntry,
+  AttentionLabel,
   Decision,
+  DeskAttention,
   DeskFrame,
   DeskLabel,
   DeskModel,
@@ -51,6 +55,7 @@ export const IPC_INVOKE = {
   PLUGS_REMOVE: "focusplug:plugs:remove",
   PLUGS_TEST: "focusplug:plugs:test",
   DEMO_KILL: "focusplug:demo:kill",
+  DEMO_NUDGE: "focusplug:demo:nudge",
 } as const;
 
 /** Main → renderer push (event) channels. */
@@ -60,6 +65,7 @@ export const IPC_PUSH = {
   FOCUS_SNAPSHOT: "focusplug:focus:snapshot",
   DESK_SNAPSHOT: "focusplug:desk:snapshot",
   SESSION_EVENT: "focusplug:log:event",
+  NUDGE: "focusplug:session:nudge",
 } as const;
 
 export type IpcInvokeChannel = (typeof IPC_INVOKE)[keyof typeof IPC_INVOKE];
@@ -77,6 +83,8 @@ export interface AppSettings {
   flightDep: string;
   /** Flight face arrival IATA. Default EDI. */
   flightArr: string;
+  /** What enabled plugs do when you drift: `nudge` switches them on, `cut` powers off on kill. Default nudge. */
+  plugMode: PlugMode;
   plugs: PlugDevice[];
 }
 
@@ -117,6 +125,7 @@ export interface IpcInvokeChannelMap {
   "focusplug:plugs:remove": { args: [deviceId: string]; result: PlugDevice[] };
   "focusplug:plugs:test": { args: [deviceId: string]; result: PlugSnapshot };
   "focusplug:demo:kill": { args: []; result: KillResult };
+  "focusplug:demo:nudge": { args: [kind: NudgeKind]; result: void };
 }
 
 export interface IpcPushChannelMap {
@@ -125,6 +134,7 @@ export interface IpcPushChannelMap {
   "focusplug:focus:snapshot": FocusSnapshot;
   "focusplug:desk:snapshot": DeskSnapshot;
   "focusplug:log:event": SessionEvent;
+  "focusplug:session:nudge": NudgeEvent;
 }
 
 /** Preload API exposed on `window.focusplug`. */
@@ -146,11 +156,14 @@ export interface FocusPlugApi {
   plugsRemove(deviceId: string): Promise<PlugDevice[]>;
   plugsTest(deviceId: string): Promise<PlugSnapshot>;
   demoKill(): Promise<KillResult>;
+  /** Fire a nudge now (window forward, overlay, lamp in nudge mode) — for demos. */
+  demoNudge(kind: NudgeKind): Promise<void>;
   onSessionState(cb: (state: SessionState) => void): () => void;
   onPolicyEvent(cb: (event: PolicyEvent) => void): () => void;
   onFocusSnapshot(cb: (snap: FocusSnapshot) => void): () => void;
   onDeskSnapshot(cb: (snap: DeskSnapshot) => void): () => void;
   onSessionEvent(cb: (event: SessionEvent) => void): () => void;
+  onNudge(cb: (event: NudgeEvent) => void): () => void;
 }
 
 export interface WindowMonitor {
