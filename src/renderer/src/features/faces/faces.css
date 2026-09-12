@@ -380,3 +380,91 @@
     animation: none;
   }
 }
+
+.fp-face {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.fp-face canvas,
+.fp-face svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.fp-face-solo {
+  width: 100vw;
+  height: 100vh;
+  background: #07080c;
+}
+
+.fp-face-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #10131a;
+  color: #eef2f8;
+}
+
+.fp-face-bar-inner {
+  width: min(720px, 86%);
+}
+
+.fp-face-bar-kicker {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #6b768a;
+}
+
+.fp-face-bar-title {
+  margin: 10px 0 0;
+  font-size: 64px;
+  font-weight: 650;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.fp-face-bar-meta {
+  margin: 10px 0 0;
+  color: #9aa6b8;
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.fp-face-bar-track {
+  position: relative;
+  height: 16px;
+  margin-top: 28px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #1c2230;
+}
+
+.fp-face-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: #d4ff3a;
+}
+
+.fp-face-bar-tick {
+  position: absolute;
+  top: 0;
+  width: 2px;
+  height: 100%;
+  background: #ff2d55;
+}
+
+.fp-face-bar-tick-countdown {
+  background: #ffb020;
+}
+
+.fp-face-bar-tick-drift {
+  background: #7aa2ff;
+}
