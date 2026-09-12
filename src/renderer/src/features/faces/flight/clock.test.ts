@@ -31,6 +31,11 @@ describe("toFlightClock", () => {
     expect(clock.now).toBe(NOW.getTime());
   });
 
+  it("honors FaceProps.paused so catalog previews do not keep flying", () => {
+    const clock = toFlightClock(face({ paused: true }));
+    expect(clock.paused).toBe(true);
+  });
+
   it("does not treat a fuse countdown as ground speed during break", () => {
     const clock = toFlightClock(
       face({

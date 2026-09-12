@@ -37,6 +37,7 @@ export function GardenFace(props: FaceProps): JSX.Element {
       width={width}
       height={height}
       freeze={stillsFreeze()}
+      paused={props.paused}
     />
   );
 }

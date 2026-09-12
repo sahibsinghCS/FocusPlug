@@ -20,6 +20,8 @@ export interface FaceProps {
   now: Date;
   width: number;
   height: number;
+  /** Stop RAF / instrument motion. Previews pass this so thirteen faces do not animate at once. */
+  paused?: boolean;
 }
 
 export type FaceComponent = (props: FaceProps) => JSX.Element;

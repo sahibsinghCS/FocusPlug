@@ -1,7 +1,8 @@
 import { useEffect, useState, type JSX } from "react";
+import { normalizeFaceId, type FaceId } from "@shared/faces";
 import { ErrorBanner } from "../components/page";
+import { SetupFacePicker } from "../features/faces";
 import { Dial } from "../features/timer/Dial";
-import { FacePicker } from "../features/timer/FacePicker";
 import { HoldSwitch } from "../features/timer/HoldSwitch";
 import { Ribbon } from "../features/timer/Ribbon";
 import { ShapePicker } from "../features/timer/ShapePicker";
@@ -67,7 +68,13 @@ export function SetupPage(props: { timer: SessionTimer }): JSX.Element {
           <p className="fp-stencil">Watch it run out</p>
           <p className="font-mono text-[11px] text-fp-faint tabular">live preview</p>
         </div>
-        <FacePicker value={timer.face} totalSec={timer.plan.focusMin * 60} onPick={timer.setFace} />
+        <SetupFacePicker
+          value={normalizeFaceId(app.settings.faceId)}
+          estimateMinutes={timer.plan.focusMin}
+          onPick={(id: FaceId) => {
+            void app.patchSettings({ faceId: id });
+          }}
+        />
       </section>
 
       <div

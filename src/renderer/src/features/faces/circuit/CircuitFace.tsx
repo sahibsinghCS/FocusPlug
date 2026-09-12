@@ -43,7 +43,7 @@ export function CircuitFace(props: VisualFaceProps): JSX.Element {
         viewBox={`0 0 ${CIRCUIT_VIEW.width} ${CIRCUIT_VIEW.height}`}
         width={box.width}
         height={box.height}
-        preserveAspectRatio="xMidYMid slice"
+        preserveAspectRatio="xMidYMid meet"
         aria-hidden="true"
       >
         <defs>

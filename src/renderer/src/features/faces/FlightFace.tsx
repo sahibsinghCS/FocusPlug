@@ -41,7 +41,7 @@ export function FlightFace(props: FaceProps): JSX.Element {
     arrLon: extras.settings.arrLon,
   };
   const clock = toFlightClock(props, {
-    paused: extras.freeze || undefined,
+    paused: extras.freeze || props.paused || undefined,
     reducedMotion: extras.reducedMotion,
     settings,
     estimateMinutes: extras.estimateMinutes,

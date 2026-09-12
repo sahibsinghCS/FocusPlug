@@ -13,6 +13,7 @@ export interface FlaskVesselProps {
   width: number;
   height: number;
   freeze?: boolean;
+  paused?: boolean;
 }
 
 export function FlaskVessel(props: FlaskVesselProps): JSX.Element {
@@ -32,7 +33,7 @@ export function FlaskVessel(props: FlaskVesselProps): JSX.Element {
   }
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const freeze = props.freeze === true;
+  const freeze = props.freeze === true || props.paused === true;
   const fill = Math.max(0, Math.min(1, 1 - props.progress));
 
   useFaceCanvas(

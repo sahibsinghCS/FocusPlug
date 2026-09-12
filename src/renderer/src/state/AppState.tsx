@@ -22,6 +22,7 @@ import type {
   SessionState,
 } from "@shared/ipc";
 import type { AppEntry } from "@shared/types";
+import { DEFAULT_FACE_ID, normalizeFaceId } from "@shared/faces";
 import { DEFAULT_SESSION_STATE, DEFAULT_SETTINGS } from "@shared/defaults";
 import { getApi } from "../lib/api";
 import { newEntryId } from "../lib/ids";
@@ -156,10 +157,22 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
         }
         setState(nextState);
         setLists(nextLists);
-        setSettings({
+        const settingsWithPlugs = {
           ...nextSettings,
           plugs: listedPlugs,
-        });
+        };
+        const legacyFace = readLegacyFaceId();
+        if (
+          legacyFace &&
+          settingsWithPlugs.faceId === DEFAULT_FACE_ID &&
+          legacyFace !== settingsWithPlugs.faceId
+        ) {
+          settingsWithPlugs.faceId = legacyFace;
+          void api.settingsSet({ faceId: legacyFace }).catch(() => {
+            // Settings persist is best-effort; the in-memory choice still applies.
+          });
+        }
+        setSettings(settingsWithPlugs);
         setLog(nextLog);
         setReady(true);
       } catch (caught) {
@@ -463,6 +476,21 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
   );
 
   return <AppStateContext.Provider value={value}>{props.children}</AppStateContext.Provider>;
+}
+
+const LEGACY_FACE_KEY = "focusplug.face.v1";
+
+function readLegacyFaceId(): ReturnType<typeof normalizeFaceId> | null {
+  try {
+    const raw = window.localStorage.getItem(LEGACY_FACE_KEY);
+    if (!raw) {
+      return null;
+    }
+    window.localStorage.removeItem(LEGACY_FACE_KEY);
+    return normalizeFaceId(raw);
+  } catch {
+    return null;
+  }
 }
 
 export function useOptionalAppState(): AppStateValue | null {

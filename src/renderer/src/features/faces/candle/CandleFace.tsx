@@ -15,6 +15,7 @@ export interface CandleVesselProps {
   width: number;
   height: number;
   freeze?: boolean;
+  paused?: boolean;
 }
 
 export function CandleVessel(props: CandleVesselProps): JSX.Element {
@@ -37,7 +38,7 @@ export function CandleVessel(props: CandleVesselProps): JSX.Element {
   }
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const freeze = props.freeze === true;
+  const freeze = props.freeze === true || props.paused === true;
   const remain = waxRemain(props.progress);
 
   useFaceCanvas(

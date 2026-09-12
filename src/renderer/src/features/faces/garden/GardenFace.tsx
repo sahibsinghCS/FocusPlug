@@ -14,6 +14,7 @@ export interface GardenVisualProps {
   width: number;
   height: number;
   freeze?: boolean;
+  paused?: boolean;
 }
 
 export function GardenVisual(props: GardenVisualProps): JSX.Element {
@@ -25,7 +26,7 @@ export function GardenVisual(props: GardenVisualProps): JSX.Element {
   const world = useMemo(() => buildGardenWorld(props.sessionId), [props.sessionId]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const phase = gardenPhase(progress);
-  const freeze = props.freeze === true;
+  const freeze = props.freeze === true || props.paused === true;
 
   useFaceCanvas(
     canvasRef,

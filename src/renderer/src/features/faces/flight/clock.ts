@@ -56,7 +56,7 @@ export function toFlightClock(props: FaceProps, extras: FlightClockExtras = {}):
     remaining: complete ? 0 : sessionRemainingMs / 1000,
     estimateMinutes,
     now: props.now.getTime(),
-    paused: extras.paused ?? props.phase !== "focus",
+    paused: extras.paused ?? props.paused ?? props.phase !== "focus",
     complete,
     reducedMotion: extras.reducedMotion ?? false,
     settings: extras.settings,
