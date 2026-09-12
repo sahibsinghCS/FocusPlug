@@ -49,9 +49,12 @@ presence → fuse → force-quit blocklist apps, never the study PC.
 
 **Fixture / eval (not a user feature):** `npm run test:desk` plus `src/main/desk/fixtures/` (MediaPipe portrait, Unsplash empty interior, synthetic covered/noise frames). See `src/main/desk/fixtures/ATTRIBUTION.txt`.
 
-**Not in the MVP (do not claim on Devpost):** custom-trained student-attention model, cloud Vision API, pose/skeleton tracking, phone camera, macOS support.
+**Not in the MVP (do not claim on Devpost):** cloud Vision API, pose/skeleton tracking, phone camera, macOS support.
 
-**Shipped since this doc was first written:** LAN smart plugs are real, not a stub — Kasa (local 9999 XOR) and generic HTTP adapters, wired to kill/unlock and Demo Kill, with the study PC hard-denied (`docs/SMART-PLUGS.md`). Claim them as working *only* if you demo them with a plug on your LAN; the app ships with zero plugs configured.
+**Shipped since this doc was first written:**
+
+- **A trained custom desk model** (#23): BlazeFace crops + a MobileNetV2-0.50-160 ImageNet feature vector into a trained MLP head, weights committed under `src/main/desk/model/weights/`, 95.16% on a 723-image held-out split (`docs/CUSTOM-MODEL.md`). It is **opt-in** — `deskModelId` defaults to `blazeface`, so say which model you filmed with. The 95.16% is a held-out *dataset* number; it is not a measurement of live webcam accuracy on your desk.
+- **LAN smart plugs** — Kasa (local 9999 XOR) and generic HTTP adapters, wired to kill/unlock and Demo Kill, with the study PC hard-denied (`docs/SMART-PLUGS.md`). Claim them as working *only* if you demo them with a plug on your LAN; the app ships with zero plugs configured.
 
 ---
 
