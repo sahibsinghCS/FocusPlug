@@ -19,6 +19,7 @@ import {
   type SessionState,
 } from "@shared/ipc";
 import { isFaceId } from "@shared/faces";
+import { isFlightIata, normalizeFlightPair } from "@shared/flightRoute";
 import { isDeskModelId } from "./plugsUi";
 import { readUrlScene } from "./urlScene";
 import { goldenSessionEvents } from "../features/logs/fixtures";
@@ -166,6 +167,7 @@ function loadStoredSettings(): AppSettings {
         : DEFAULT_SETTINGS.webcamEnabled,
     deskModelId: isDeskModelId(record.deskModelId) ? record.deskModelId : DEFAULT_SETTINGS.deskModelId,
     faceId: isFaceId(record.faceId) ? record.faceId : DEFAULT_SETTINGS.faceId,
+    ...normalizeFlightPair(record.flightDep, record.flightArr),
     plugs,
   };
 }
@@ -368,6 +370,12 @@ export function createMockApi(): FocusPlugApi {
       if (patch.faceId !== undefined && !isFaceId(patch.faceId)) {
         throw new Error("faceId must be a known session face");
       }
+      if (patch.flightDep !== undefined && !isFlightIata(patch.flightDep)) {
+        throw new Error("flightDep must be a curated IATA code");
+      }
+      if (patch.flightArr !== undefined && !isFlightIata(patch.flightArr)) {
+        throw new Error("flightArr must be a curated IATA code");
+      }
       if (patch.plugs) {
         for (const plug of patch.plugs) {
           if (plug.isStudyPc !== false) {
@@ -379,6 +387,10 @@ export function createMockApi(): FocusPlugApi {
         ...settings,
         ...patch,
         plugs: clonePlugs(patch.plugs ?? settings.plugs),
+        ...normalizeFlightPair(
+          patch.flightDep ?? settings.flightDep,
+          patch.flightArr ?? settings.flightArr,
+        ),
       };
       persistSettings();
       if (patch.webcamEnabled !== undefined && state.desk) {

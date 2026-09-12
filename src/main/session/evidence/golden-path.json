@@ -9,7 +9,9 @@
     "strictMode": true,
     "webcamEnabled": true,
     "deskModelId": "blazeface",
-    "faceId": "readout",
+    "faceId": "flight",
+    "flightDep": "DUB",
+    "flightArr": "EDI",
     "plugs": [
       {
         "id": "console-lamp",
@@ -88,6 +90,11 @@
       "ts": 1000250,
       "kind": "decision",
       "detail": "DISTRACTED · Distracted: discord.exe"
+    },
+    {
+      "ts": 1000250,
+      "kind": "adapt",
+      "detail": "Using your 10s setting — no drifts learned from yet"
     },
     {
       "ts": 1000250,

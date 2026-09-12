@@ -580,7 +580,7 @@ describe("FocusPlugStore persistence", () => {
     const store = new FocusPlugStore(dir);
     const settings = store.loadSettings();
     expect(settings.deskModelId).toBe("blazeface");
-    expect(settings.faceId).toBe("readout");
+    expect(settings.faceId).toBe("flight");
     expect(settings.plugs).toEqual([
       {
         id: "lamp",
@@ -597,10 +597,28 @@ describe("FocusPlugStore persistence", () => {
 describe("session face settings", () => {
   it("persists faceId on the same settings blob and rejects retired ids", () => {
     const h = makeHarness();
-    expect(h.controller.getSettings().faceId).toBe("readout");
+    expect(h.controller.getSettings().faceId).toBe("flight");
     expect(h.controller.setSettings({ faceId: "hourglass" }).faceId).toBe("hourglass");
     expect(h.store.loadSettings().faceId).toBe("hourglass");
+    expect(h.controller.setSettings({ faceId: "flask" }).faceId).toBe("flask");
+    expect(h.store.loadSettings().faceId).toBe("flask");
+    expect(h.controller.setSettings({ faceId: "candle" }).faceId).toBe("candle");
+    expect(h.store.loadSettings().faceId).toBe("candle");
     expect(() => h.controller.setSettings({ faceId: "eclipse" })).toThrow(/faceId/);
+    expect(() => h.controller.setSettings({ faceId: "column" })).toThrow(/faceId/);
+    expect(() => h.controller.setSettings({ faceId: "field" })).toThrow(/faceId/);
+  });
+
+  it("persists Flight origin and destination on the same settings blob", () => {
+    const h = makeHarness();
+    expect(h.controller.getSettings().flightDep).toBe("DUB");
+    expect(h.controller.getSettings().flightArr).toBe("EDI");
+    const next = h.controller.setSettings({ flightDep: "jfk", flightArr: "lhr" });
+    expect(next.flightDep).toBe("JFK");
+    expect(next.flightArr).toBe("LHR");
+    expect(h.store.loadSettings().flightDep).toBe("JFK");
+    expect(h.store.loadSettings().flightArr).toBe("LHR");
+    expect(() => h.controller.setSettings({ flightDep: "XXX" })).toThrow(/flightDep/);
   });
 });
 

@@ -4,7 +4,7 @@ Immersive timer **faces** replace a blank session hero. They are atmosphere / pr
 
 Selected face persists as `AppSettings.faceId` on the existing settings blob (`Store.loadSettings` / `saveSettings`). No second store.
 
-Default: **`readout`** until Flight lands, then **`flight`**. Flip `FACE_READY.flight` in `src/shared/faces.ts` when `FlightFace.tsx` is a real instrument.
+Default: **`flight`**. `FACE_READY.flight` is true — `FlightFace.tsx` is the UTC terminator instrument. Route persists as `AppSettings.flightDep` / `flightArr` (default DUB→EDI).
 
 ## Contract
 
@@ -38,8 +38,8 @@ Replace the listed file. Do not fork `FaceHost` or invent a second picker.
 
 | Face | Stream | File | This foundation |
 | --- | --- | --- | --- |
-| `flight` | `agent/faces-flight` | `src/renderer/src/features/faces/FlightFace.tsx` | stub (stream not merged) |
-| `hourglass` | `agent/faces-foundation` | `src/renderer/src/features/faces/HourglassFace.tsx` | ready — flipped sand |
+| `flight` | `agent/faces-flight` | `src/renderer/src/features/faces/FlightFace.tsx` | ready — terminator / ETA instrument |
+| `hourglass` | `agent/faces-hourglass-v2` | `src/renderer/src/features/faces/HourglassFace.tsx` | ready — curved glass, sand transfer |
 | `readout` | `agent/faces-foundation` | `src/renderer/src/features/faces/ReadoutFace.tsx` | ready — honest digits |
 | `descent` | `agent/faces-descent` | `src/renderer/src/features/faces/DescentFace.tsx` | ready — deep-sea zones |
 | `movement` | `agent/faces-mid` | `src/renderer/src/features/faces/MovementFace.tsx` | ready — exposed calibre |
@@ -48,6 +48,9 @@ Replace the listed file. Do not fork `FaceHost` or invent a second picker.
 | `line` | `agent/faces-mid` | `src/renderer/src/features/faces/LineFace.tsx` | ready — transit map |
 | `orbit` | `agent/faces-orbit` | `src/renderer/src/features/faces/OrbitFace.tsx` | ready — alignment lock |
 | `growth` | `agent/faces-growth` | `src/renderer/src/features/faces/GrowthFace.tsx` | ready — bonsai + wilt stakes |
+| `flask` | `agent/faces-flask` | `src/renderer/src/features/faces/FlaskFace.tsx` | ready — glass vessel + visible leak |
+| `garden` | `agent/faces-garden` | `src/renderer/src/features/faces/GardenFace.tsx` | ready — sunrise garden (replaces retired Eclipse) |
+| `candle` | `agent/faces-candle` | `src/renderer/src/features/faces/CandleFace.tsx` | ready — melting beeswax timer |
 
 Shared (foundation only, unless a merge needs a one-line registry hook):
 
@@ -62,14 +65,15 @@ Registry already maps every `FaceId`. A landing stream swaps the component body 
 
 ## Retired — do not build
 
-**Column / Grid / Eclipse / Field** are retired. They are not `FaceId`s. Persistence maps those strings back to the default face. Do not add them to the catalog, picker, or stubs.
+**Column / Grid / Eclipse / Field** are retired. They are not `FaceId`s. Persistence maps those strings back to the default face. Do not add them to the catalog, picker, or stubs. Garden (`garden`) is the colorful sunrise face — do not revive `eclipse`. Candle (`candle`) is the melting-wax face — do not revive `field`.
 
 ## Preview stills
 
 ```bash
 npx vite --config scripts/renderer-preview.vite.ts
 # #/?scene=live
-# #/?scene=live&face=hourglass
+# #/?scene=live&face=hourglass&freeze=1
+# #/?scene=live&face=hourglass&progress=0.62&freeze=1
 # #/?scene=live&face=readout
 # #/?scene=distracted&countdown=8&freeze=1&face=hourglass
 # #/?scene=live&face=flight
@@ -78,4 +82,11 @@ npx vite --config scripts/renderer-preview.vite.ts
 # #/?scene=live&face=circuit&progress=0.62
 # #/?scene=live&face=growth&progress=0.74&session=gauntlet-growth-01
 # #/?scene=live&face=growth&progress=0.74&session=gauntlet-growth-01&kills=3
+# #/?scene=live&face=flask&progress=0.62
+# #/?scene=live&face=garden&progress=0&session=gauntlet-garden-01&freeze=1
+# #/?scene=live&face=garden&progress=0.48&session=gauntlet-garden-01&freeze=1
+# #/?scene=live&face=garden&progress=1&session=gauntlet-garden-01&freeze=1
+# #/?scene=live&face=candle&progress=0.04&freeze=1
+# #/?scene=live&face=candle&progress=0.5&freeze=1
+# #/?scene=live&face=candle&progress=0.92&freeze=1
 ```

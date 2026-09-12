@@ -17,3 +17,4 @@ Cheap-wow A/B (standalone preview):
 | `descent-062-1280x800.png` | `#/descent?p=0.62` |
 | `orbit-062-1280x800.png` | `#/orbit?p=0.62` |
 | `circuit-062-1280x800.png` | `#/circuit?p=0.62` |
+| `after-live-flask-1280x800.png` | `#/?scene=live&face=flask&progress=0.62` |

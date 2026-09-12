@@ -5,14 +5,19 @@ import { MovementFace } from "./movement";
 import { ProgressBarFace } from "./ProgressBarFace";
 import { RecordFace } from "./record";
 import type { FaceId, FaceProps } from "./instrument";
-import { readFaceUrl, type SoloFaceId } from "./urlFace";
+import { parseProgressParam, readFaceUrl, type SoloFaceId } from "./urlFace";
 
 export function FaceSolo(): JSX.Element {
   const url = readFaceUrl();
   const id: SoloFaceId = url.face ?? "record";
   const resolved = id === "bar" ? "artifact" : url.scene === "bar" ? defaultSceneFor("record") : url.scene;
   const base = faceFixture(id === "bar" ? "record" : id, resolved);
-  const props: FaceProps = { ...base, freeze: url.freeze || base.freeze };
+  const progress = parseProgressParam(window.location.search, window.location.hash);
+  const props: FaceProps = {
+    ...base,
+    freeze: url.freeze || base.freeze,
+    progress: progress ?? base.progress,
+  };
   return (
     <div className="fp-face-solo" data-face={id} data-scene={resolved}>
       {renderFace(id, props)}

@@ -1,0 +1,32 @@
+.fp-flask-face,
+.fp-flask {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #05060a;
+}
+
+.fp-flask canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.fp-flask-preview {
+  min-height: 100vh;
+  margin: 0;
+  background: #05060a;
+  color: #eef2f8;
+}
+
+.fp-flask-preview__stage {
+  box-sizing: border-box;
+  width: 100vw;
+  height: 100vh;
+}
+
+.fp-flask-preview__stage .fp-flask {
+  width: 100%;
+  height: 100%;
+}

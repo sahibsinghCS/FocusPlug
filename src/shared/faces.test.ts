@@ -14,7 +14,7 @@ import {
 } from "./faces";
 
 describe("faces catalog", () => {
-  it("owns the ten live FaceIds and refuses retired names", () => {
+  it("owns the thirteen live FaceIds and refuses retired names", () => {
     expect([...FACE_IDS]).toEqual([
       "flight",
       "hourglass",
@@ -26,36 +26,49 @@ describe("faces catalog", () => {
       "line",
       "orbit",
       "growth",
+      "flask",
+      "garden",
+      "candle",
     ]);
     expect([...RETIRED_FACE_IDS]).toEqual(["column", "grid", "eclipse", "field"]);
     for (const id of RETIRED_FACE_IDS) {
       expect(isFaceId(id)).toBe(false);
       expect(isRetiredFaceId(id)).toBe(true);
-      expect(normalizeFaceId(id)).toBe("readout");
+      expect(normalizeFaceId(id)).toBe("flight");
     }
   });
 
-  it("defaults to readout until Flight is marked ready", () => {
-    expect(FACE_READY.flight).toBe(false);
+  it("defaults to flight once the instrument is marked ready", () => {
+    expect(FACE_READY.flight).toBe(true);
     expect(FACE_READY.growth).toBe(true);
+    expect(FACE_READY.flask).toBe(true);
+    expect(FACE_READY.garden).toBe(true);
+    expect(FACE_READY.candle).toBe(true);
     expect(faceMeta("growth").readiness).toBe("ready");
-    expect(DEFAULT_FACE_ID).toBe("readout");
-    expect(resolveDefaultFaceId({ ...FACE_READY, flight: true })).toBe("flight");
+    expect(faceMeta("flask").readiness).toBe("ready");
+    expect(faceMeta("flask").file).toContain("FlaskFace.tsx");
+    expect(faceMeta("garden").readiness).toBe("ready");
+    expect(faceMeta("garden").stream).toBe("agent/faces-garden");
+    expect(faceMeta("candle").readiness).toBe("ready");
+    expect(faceMeta("candle").file).toContain("CandleFace.tsx");
+    expect(faceMeta("candle").stream).toBe("agent/faces-candle");
+    expect(DEFAULT_FACE_ID).toBe("flight");
+    expect(resolveDefaultFaceId({ ...FACE_READY, flight: false })).toBe("readout");
     expect(DEFAULT_ESTIMATE_MINUTES).toBe(50);
   });
 
   it("catalogs one owner file per FaceId for parallel streams", () => {
     expect(FACE_CATALOG.map((entry) => entry.id)).toEqual([...FACE_IDS]);
-    expect(faceMeta("hourglass").stream).toBe("agent/faces-foundation");
+    expect(faceMeta("hourglass").stream).toBe("agent/faces-hourglass-v2");
     expect(faceMeta("readout").file).toContain("ReadoutFace.tsx");
-    expect(faceMeta("flight").readiness).toBe("pending");
+    expect(faceMeta("flight").readiness).toBe("ready");
     expect(faceMeta("descent").readiness).toBe("ready");
     expect(faceMeta("orbit").readiness).toBe("ready");
     expect(faceMeta("circuit").readiness).toBe("ready");
     expect(FACE_READY.descent).toBe(true);
     expect(FACE_READY.orbit).toBe(true);
     expect(FACE_READY.circuit).toBe(true);
-    expect(normalizeFaceId("not-a-face")).toBe("readout");
+    expect(normalizeFaceId("not-a-face")).toBe("flight");
     expect(normalizeFaceId("orbit")).toBe("orbit");
   });
 });

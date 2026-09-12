@@ -1,4 +1,5 @@
 import { useState, type JSX } from "react";
+import { FACE_CATALOG, type FaceId } from "@shared/faces";
 import type { DeskModelId } from "@shared/ipc";
 import { Field, GhostButton, Toggle } from "../components/ui";
 import { pageCopy } from "../lib/routes";
@@ -14,14 +15,34 @@ import {
   Notice,
   useSaveState,
 } from "../features/config";
+import { FacePicker } from "../features/faces";
+import { FlightRoutePicker } from "../features/faces/flight/RoutePicker";
 import { useAppState } from "../state/AppState";
 
 export function SettingsPage(): JSX.Element {
   const app = useAppState();
   const { settings } = app;
   const modelSave = useSaveState();
+  const faceSave = useSaveState();
   const [modelError, setModelError] = useState<string | null>(null);
+  const [faceError, setFaceError] = useState<string | null>(null);
   const readiness = customReadiness();
+
+  async function onFace(id: FaceId): Promise<void> {
+    if (id === settings.faceId || faceSave.saving) {
+      return;
+    }
+    setFaceError(null);
+    faceSave.begin();
+    try {
+      await app.patchSettings({ faceId: id });
+      faceSave.succeed();
+    } catch (caught) {
+      const message = errorMessage(caught, "Could not save session face");
+      setFaceError(message);
+      faceSave.fail(message);
+    }
+  }
 
   async function onModel(id: DeskModelId): Promise<void> {
     if (id === settings.deskModelId || modelSave.saving) {
@@ -74,7 +95,7 @@ export function SettingsPage(): JSX.Element {
               onChange={(event) => {
                 void app.patchSettings({ countdownSec: Number(event.target.value) });
               }}
-              className="h-1 flex-1 accent-fp-focus"
+              className="h-1 flex-1 accent-fp-lime"
             />
             <span className="w-12 font-mono text-[13px] tabular">{settings.countdownSec}s</span>
           </div>
@@ -95,7 +116,7 @@ export function SettingsPage(): JSX.Element {
               onChange={(event) => {
                 void app.patchSettings({ deskThreshold: Number(event.target.value) });
               }}
-              className="h-1 flex-1 accent-fp-focus"
+              className="h-1 flex-1 accent-fp-lime"
             />
             <span className="w-12 font-mono text-[13px] tabular">
               {Math.round(settings.deskThreshold * 100)}%
@@ -135,6 +156,57 @@ export function SettingsPage(): JSX.Element {
             label="Desk AI webcam"
           />
         </div>
+      </section>
+
+      <section className="fp-card space-y-3 p-4" aria-busy={faceSave.saving}>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="fp-section-label">Session face</p>
+            <p className="mt-1 text-[12px] text-fp-mute">
+              The instrument lock mode draws your session on. Pick the one you want on
+              screen for the next hour.
+            </p>
+          </div>
+          <p className="shrink-0 font-mono text-[11px] text-fp-faint">
+            {faceSave.saving ? "Saving…" : `active ${settings.faceId}`}
+          </p>
+        </div>
+        <FacePicker
+          value={settings.faceId}
+          disabled={faceSave.saving}
+          layout="grid"
+          faces={FACE_CATALOG}
+          onChange={(id) => {
+            void onFace(id);
+          }}
+        />
+        {faceError ? (
+          <p className="text-[12px] text-fp-red" role="alert">
+            {faceError}
+          </p>
+        ) : faceSave.state.status === "saved" ? (
+          <p className="text-[12px] text-fp-lime" aria-live="polite">
+            Face set to {settings.faceId}
+          </p>
+        ) : null}
+      </section>
+
+      <section className="fp-card space-y-3 p-4">
+        <div>
+          <p className="fp-section-label">Flight route</p>
+          <p className="mt-1 text-[12px] text-fp-mute">
+            Origin and arrival for the Flight face. Default is Dublin to Edinburgh.
+            Both ends are user-choosable and persist on the same settings blob.
+          </p>
+        </div>
+        <FlightRoutePicker
+          dep={settings.flightDep}
+          arr={settings.flightArr}
+          layout="settings"
+          onChange={(next) => {
+            void app.patchSettings({ flightDep: next.dep, flightArr: next.arr });
+          }}
+        />
       </section>
 
       <section className="fp-card space-y-3 p-4" aria-busy={modelSave.saving}>
@@ -182,7 +254,7 @@ export function SettingsPage(): JSX.Element {
             {modelError}
           </p>
         ) : modelSave.state.status === "saved" ? (
-          <p className="text-[12px] text-fp-focus" aria-live="polite">
+          <p className="text-[12px] text-fp-lime" aria-live="polite">
             Model set to {settings.deskModelId}
           </p>
         ) : null}

@@ -11,6 +11,9 @@ export const FACE_IDS = [
   "line",
   "orbit",
   "growth",
+  "flask",
+  "garden",
+  "candle",
 ] as const;
 
 export type FaceId = (typeof FACE_IDS)[number];
@@ -32,12 +35,9 @@ export interface FaceMeta {
   readiness: FaceReadiness;
 }
 
-/**
- * Flip `flight` to ready when `FlightFace.tsx` is merged.
- * Default face is `flight` once that lands, otherwise `readout`.
- */
+/** Flight is the default once marked ready. */
 export const FACE_READY: Readonly<Record<FaceId, boolean>> = {
-  flight: false,
+  flight: true,
   hourglass: true,
   readout: true,
   descent: true,
@@ -47,22 +47,25 @@ export const FACE_READY: Readonly<Record<FaceId, boolean>> = {
   line: true,
   orbit: true,
   growth: true,
+  flask: true,
+  garden: true,
+  candle: true,
 };
 
 export const FACE_CATALOG: readonly FaceMeta[] = [
   {
     id: "flight",
     title: "Flight",
-    blurb: "Terminator / ETA instrument — destination clock.",
-    stream: "agent/faces-flight",
+    blurb: "Zoomed globe, choosable route, terminator instrument.",
+    stream: "agent/faces-flight-v2",
     file: "src/renderer/src/features/faces/FlightFace.tsx",
     readiness: FACE_READY.flight ? "ready" : "pending",
   },
   {
     id: "hourglass",
     title: "Hourglass",
-    blurb: "Flipped sand in a dark room. Progress is transfer.",
-    stream: "agent/faces-foundation",
+    blurb: "Blown glass in a dark room. Progress is the sand that has fallen.",
+    stream: "agent/faces-hourglass-v2",
     file: "src/renderer/src/features/faces/HourglassFace.tsx",
     readiness: FACE_READY.hourglass ? "ready" : "pending",
   },
@@ -129,6 +132,30 @@ export const FACE_CATALOG: readonly FaceMeta[] = [
     stream: "agent/faces-growth",
     file: "src/renderer/src/features/faces/GrowthFace.tsx",
     readiness: FACE_READY.growth ? "ready" : "pending",
+  },
+  {
+    id: "flask",
+    title: "Flask",
+    blurb: "Glass water vessel. Remaining time is the water; you can see it leak.",
+    stream: "agent/faces-flask",
+    file: "src/renderer/src/features/faces/FlaskFace.tsx",
+    readiness: FACE_READY.flask ? "ready" : "pending",
+  },
+  {
+    id: "garden",
+    title: "Garden",
+    blurb: "Sunrise timer — night moon to a colorful garden day.",
+    stream: "agent/faces-garden",
+    file: "src/renderer/src/features/faces/GardenFace.tsx",
+    readiness: FACE_READY.garden ? "ready" : "pending",
+  },
+  {
+    id: "candle",
+    title: "Candle",
+    blurb: "Melting beeswax timer. Elapsed burns the pillar down.",
+    stream: "agent/faces-candle",
+    file: "src/renderer/src/features/faces/CandleFace.tsx",
+    readiness: FACE_READY.candle ? "ready" : "pending",
   },
 ];
 

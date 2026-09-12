@@ -23,6 +23,7 @@ import { createAppStore } from "../store/appStore.ts";
 import { createPlatformForegroundReader } from "../window/index.ts";
 import { createSessionRuntime } from "./runtime.ts";
 import { DEFAULT_FACE_ID } from "../../shared/faces.ts";
+import { DEFAULT_FLIGHT_ARR, DEFAULT_FLIGHT_DEP } from "../../shared/flightRoute.ts";
 import type { SessionState } from "../../shared/ipc.ts";
 import type { FocusSnapshot, PolicyEvent } from "../../shared/types.ts";
 
@@ -87,6 +88,8 @@ async function main(): Promise<void> {
     webcamEnabled: false,
     deskModelId: "stub",
     faceId: DEFAULT_FACE_ID,
+    flightDep: DEFAULT_FLIGHT_DEP,
+    flightArr: DEFAULT_FLIGHT_ARR,
     plugs: [],
   });
 

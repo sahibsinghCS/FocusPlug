@@ -1,10 +1,14 @@
 export { FaceHost } from "./FaceHost";
 export { FacePicker } from "./FacePicker";
+export { FlightFace } from "./FlightFace";
 export { HourglassFace } from "./HourglassFace";
 export { ReadoutFace } from "./ReadoutFace";
 export { DescentFace } from "./DescentFace";
 export { OrbitFace } from "./OrbitFace";
 export { CircuitFace } from "./CircuitFace";
+export { FlaskFace } from "./FlaskFace";
+export { GardenFace } from "./GardenFace";
+export { CandleFace } from "./CandleFace";
 export { buildFaceProps, selectedFaceId } from "./props";
 export { faceComponent } from "./registry";
 export {

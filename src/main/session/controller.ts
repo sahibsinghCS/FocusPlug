@@ -1,5 +1,6 @@
 import { DEFAULT_SESSION_STATE } from "../../shared/defaults.ts";
 import { isFaceId } from "../../shared/faces.ts";
+import { isFlightIata } from "../../shared/flightRoute.ts";
 import {
   PLUG_DRIVER_NOT_IMPLEMENTED,
   type AppLists,
@@ -153,6 +154,18 @@ function requirePatch(value: unknown): Partial<AppSettings> {
       throw new Error("faceId must be a known session face");
     }
     patch.faceId = record.faceId;
+  }
+  if ("flightDep" in record) {
+    if (!isFlightIata(record.flightDep)) {
+      throw new Error("flightDep must be a curated IATA code");
+    }
+    patch.flightDep = record.flightDep.trim().toUpperCase();
+  }
+  if ("flightArr" in record) {
+    if (!isFlightIata(record.flightArr)) {
+      throw new Error("flightArr must be a curated IATA code");
+    }
+    patch.flightArr = record.flightArr.trim().toUpperCase();
   }
   if ("plugs" in record) {
     if (!Array.isArray(record.plugs)) {

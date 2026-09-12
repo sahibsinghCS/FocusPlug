@@ -38,7 +38,14 @@
     "stills:readme": "node scripts/readme-stills.mjs",
     "faces:preview": "vite --config scripts/faces-preview.vite.ts",
     "faces:stills": "node scripts/faces-stills.mjs",
-    "eval:titles": "tsx --tsconfig tsconfig.node.json scripts/window-title-eval.ts"
+    "eval:titles": "tsx --tsconfig tsconfig.node.json scripts/window-title-eval.ts",
+    "test:flight": "vitest run src/renderer/src/features/faces/flight",
+    "gauntlet:flight": "node scripts/flight-stills.mjs",
+    "test:flask": "vitest run src/renderer/src/features/faces/flask src/shared/faces.test.ts src/renderer/src/features/faces/registry.test.ts",
+    "gauntlet:flask": "node src/renderer/src/features/faces/flask/stills.mjs",
+    "gauntlet:garden": "node src/renderer/src/features/faces/garden/stills.mjs",
+    "test:candle": "vitest run src/renderer/src/features/faces/candle src/shared/faces.test.ts src/renderer/src/features/faces/registry.test.ts",
+    "gauntlet:candle": "node src/renderer/src/features/faces/candle/stills.mjs"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",
