@@ -54,7 +54,7 @@ export function horizonY(height: unknown): number {
   if (typeof height !== "number" || !Number.isFinite(height) || height <= 0) {
     return 160;
   }
-  return height * 0.5;
+  return height * 0.46;
 }
 
 export function gardenPhase(progress: unknown): GardenSkyPhase {
@@ -113,11 +113,11 @@ export function sunDisk(progress: unknown, width: unknown, height: unknown): Sun
   const w = typeof width === "number" && width > 0 ? width : 960;
   const h = typeof height === "number" && height > 0 ? height : 320;
   const horizon = horizonY(h);
-  const travel = horizon * 0.64;
+  const travel = horizon * 0.4;
   const lift = (elevation - SUN_RISE) / (1 - SUN_RISE);
   const y = horizon - lift * travel;
-  const x = lerp(w * 0.16, w * 0.56, elevation);
-  const r = lerp(17, 28, elevation);
+  const x = lerp(w * 0.2, w * 0.52, elevation);
+  const r = lerp(18, 26, elevation);
   return {
     x,
     y,
@@ -133,9 +133,9 @@ export function moonDisk(progress: unknown, width: unknown, height: unknown): Mo
   const w = typeof width === "number" && width > 0 ? width : 960;
   const h = typeof height === "number" && height > 0 ? height : 320;
   return {
-    x: w * 0.78,
-    y: h * 0.26,
-    r: Math.max(10, Math.min(w, h) * 0.042),
+    x: w * 0.76,
+    y: h * 0.3,
+    r: Math.max(11, Math.min(w, h) * 0.046),
     alpha: clamp01(1 - elevation / 0.52),
   };
 }
@@ -165,12 +165,12 @@ export function timeLight(progress: unknown): TimeLight {
   const phase = gardenPhase(elevation);
   if (phase === "night") {
     return {
-      ambient: { r: 28, g: 22, b: 58 },
-      warm: { r: 70, g: 64, b: 110 },
-      shadow: { r: 8, g: 8, b: 22 },
-      saturate: 0.08,
-      silhouette: 0.88,
-      bloom: 0.12,
+      ambient: { r: 18, g: 14, b: 48 },
+      warm: { r: 48, g: 40, b: 90 },
+      shadow: { r: 6, g: 6, b: 20 },
+      saturate: 0.04,
+      silhouette: 0.94,
+      bloom: 0.1,
     };
   }
   if (phase === "twilight") {

@@ -41,6 +41,10 @@ node src/renderer/src/features/faces/garden/stills.mjs
 | full day | `#/?scene=live&face=garden&progress=1&session=gauntlet-garden-01&freeze=1` |
 | bar control | `#/?face=bar&solo=1&faceScene=artifact&freeze=1` |
 
+## Critic
+
+Blind stills critic (no builder rationale): **WIN**. Picked Garden over the 48% progress bar. Night / dawn / day read as three lighting states. Eclipse stays retired.
+
 ## Hard fail
 
 - Critic prefers the plain bar

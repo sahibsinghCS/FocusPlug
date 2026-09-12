@@ -102,31 +102,31 @@ export function buildGardenWorld(sessionId: unknown): GardenWorld {
   const rng = mulberry32(hashString(`garden:${sessionId}`));
 
   const hills: GardenHill[] = [
-    { y: 0.5, amplitude: 0.045, seed: rng() * 8, color: { r: 46, g: 62, b: 48 } },
-    { y: 0.56, amplitude: 0.055, seed: rng() * 8, color: { r: 52, g: 92, b: 46 } },
-    { y: 0.64, amplitude: 0.04, seed: rng() * 8, color: { r: 62, g: 112, b: 48 } },
+    { y: 0.455, amplitude: 0.07, seed: rng() * 8, color: { r: 36, g: 52, b: 58 } },
+    { y: 0.54, amplitude: 0.08, seed: rng() * 8, color: { r: 42, g: 78, b: 44 } },
+    { y: 0.64, amplitude: 0.055, seed: rng() * 8, color: { r: 58, g: 108, b: 46 } },
   ];
 
   const trees: GardenTree[] = [
-    { x: 0.1, y: 0.58, scale: 0.72, lean: -0.08, apples: 7, seed: rng() },
-    { x: 0.22, y: 0.56, scale: 0.9, lean: 0.05, apples: 9, seed: rng() },
-    { x: 0.38, y: 0.54, scale: 0.62, lean: -0.03, apples: 6, seed: rng() },
-    { x: 0.7, y: 0.55, scale: 0.84, lean: 0.07, apples: 8, seed: rng() },
-    { x: 0.84, y: 0.58, scale: 0.7, lean: -0.05, apples: 7, seed: rng() },
-    { x: 0.93, y: 0.6, scale: 0.5, lean: 0.04, apples: 5, seed: rng() },
+    { x: 0.13, y: 0.68, scale: 1.18, lean: -0.06, apples: 11, seed: rng() },
+    { x: 0.28, y: 0.62, scale: 0.78, lean: 0.05, apples: 8, seed: rng() },
+    { x: 0.41, y: 0.58, scale: 0.52, lean: -0.04, apples: 6, seed: rng() },
+    { x: 0.68, y: 0.6, scale: 0.7, lean: 0.06, apples: 8, seed: rng() },
+    { x: 0.84, y: 0.66, scale: 1.08, lean: -0.05, apples: 10, seed: rng() },
+    { x: 0.94, y: 0.61, scale: 0.56, lean: 0.04, apples: 5, seed: rng() },
   ].map((tree) => ({
     ...tree,
-    x: tree.x + (rng() - 0.5) * 0.02,
-    lean: tree.lean + (rng() - 0.5) * 0.04,
+    x: tree.x + (rng() - 0.5) * 0.012,
+    lean: tree.lean + (rng() - 0.5) * 0.03,
     seed: rng() * Math.PI * 2,
   }));
 
   const flowers: GardenFlower[] = [];
-  clusterFlowers(rng, flowers, 0.32, 0.78, 16, 0.22, 0.08);
-  clusterFlowers(rng, flowers, 0.55, 0.74, 14, 0.2, 0.07);
-  clusterFlowers(rng, flowers, 0.74, 0.8, 12, 0.16, 0.06);
-  clusterFlowers(rng, flowers, 0.16, 0.82, 10, 0.14, 0.06);
-  clusterFlowers(rng, flowers, 0.48, 0.86, 11, 0.28, 0.05);
+  clusterFlowers(rng, flowers, 0.34, 0.8, 18, 0.2, 0.07);
+  clusterFlowers(rng, flowers, 0.54, 0.76, 16, 0.18, 0.06);
+  clusterFlowers(rng, flowers, 0.72, 0.82, 14, 0.16, 0.06);
+  clusterFlowers(rng, flowers, 0.18, 0.84, 12, 0.14, 0.05);
+  clusterFlowers(rng, flowers, 0.46, 0.9, 14, 0.26, 0.04);
   for (let i = 0; i < 18; i += 1) {
     flowers.push({
       x: 0.06 + rng() * 0.88,

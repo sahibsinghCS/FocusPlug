@@ -23,7 +23,7 @@ const SCENES = [
   },
   {
     name: "bar-mid",
-    path: "/#/?face=bar&solo=1&faceScene=artifact&freeze=1",
+    path: "/#/?face=bar&solo=1&faceScene=artifact&progress=0.48&freeze=1",
   },
 ];
 
