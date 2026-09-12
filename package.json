@@ -37,7 +37,8 @@
     "preview:renderer": "vite --config scripts/renderer-preview.vite.ts",
     "stills:readme": "node scripts/readme-stills.mjs",
     "faces:preview": "vite --config scripts/faces-preview.vite.ts",
-    "faces:stills": "node scripts/faces-stills.mjs"
+    "faces:stills": "node scripts/faces-stills.mjs",
+    "eval:titles": "tsx --tsconfig tsconfig.node.json scripts/window-title-eval.ts"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",
