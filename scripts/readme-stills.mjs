@@ -31,11 +31,20 @@ const CHROME_CANDIDATES = [
 
 /** Multi-round so the ribbon and a break exist to photograph. */
 const ROUNDED_PLAN = { shape: "sprint", focusMin: 15, breakMin: 3, rounds: 6 };
+/** Short, so `settleMs` gets the aircraft a visible way along its route. */
+const SHORT_PLAN = { shape: "custom", focusMin: 5, breakMin: 10, rounds: 1 };
 
 /** `lock` throws the hold switch; `skip` then advances into the break. */
 const SHOTS = [
   { file: "01-session-panel.png", path: "/#/?scene=live" },
-  { file: "02-lock-flight.png", path: "/#/?scene=live", lock: true },
+  {
+    file: "02-lock-flight.png",
+    path: "/#/?scene=live",
+    plan: SHORT_PLAN,
+    lock: true,
+    // A still of a flight that has not left yet sells nothing; let it fly.
+    settleMs: 75_000,
+  },
   { file: "03-kill-overlay.png", path: "/#/?scene=distracted&countdown=8&freeze=1" },
   { file: "04-lock-hourglass.png", path: "/#/?scene=live", face: "hourglass", lock: true },
   { file: "05-session-log.png", path: "/#/log?scene=golden" },
@@ -121,6 +130,10 @@ try {
     }
     for (let index = 0; index < (shot.skip ?? 0); index += 1) {
       await skipPhase(page);
+    }
+    if (shot.settleMs) {
+      console.log(`  … flying for ${Math.round(shot.settleMs / 1000)}s`);
+      await wait(shot.settleMs);
     }
 
     const file = resolve(OUT, shot.file);
