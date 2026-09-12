@@ -3,9 +3,10 @@ import type { FaceProps } from "../types";
 import { drawFlightFace, type FaceVariant } from "./draw";
 import "./flight.css";
 import {
+  formatBank,
   formatClockHm,
-  formatGs,
-  formatKm,
+  formatHdg,
+  formatInt,
   formatZulu,
 } from "./math";
 import { buildFlightModel } from "./model";
@@ -100,12 +101,12 @@ export function FlightFace(props: FlightFaceViewProps): JSX.Element {
 
   const model = buildFlightModel(props, props.idleOverride);
   const variant = props.variant ?? "instrument";
-  const remain = model.complete ? "0 km" : formatKm(model.remainKm);
+  const remain = model.complete ? "0" : formatInt(model.remainKm);
   const eta = model.complete ? "ARR" : formatClockHm(model.eta);
-  const gs = model.complete ? "0 km/h" : formatGs(model.gsKmh);
+  const gs = model.complete ? "0" : formatInt(model.gsKmh);
   const label = model.complete
     ? `Flight complete. Destination ${model.arr.name}.`
-    : `Flight ${model.dep.code} to ${model.arr.code}. ${remain} remaining. ETA ${eta}. ${gs}. ${model.phase}.`;
+    : `Flight ${model.dep.code} to ${model.arr.code}. ${remain} km remaining. ETA ${eta}. ${gs} kph. ${model.phase}.`;
 
   return (
     <div
@@ -124,6 +125,8 @@ export function FlightFace(props: FlightFaceViewProps): JSX.Element {
           </span>
           <span>
             {formatZulu(model.now)} <em>{model.phase.toUpperCase()}</em>
+            <span className="fp-flight-meta">HDG {formatHdg(model.heading)}</span>
+            <em className="fp-flight-bank">BANK {formatBank(model.bank)}</em>
           </span>
         </div>
       ) : null}
@@ -145,7 +148,7 @@ export function FlightFace(props: FlightFaceViewProps): JSX.Element {
             </b>
           </div>
           <div>
-            <span>REMAIN</span>
+            <span>REMAIN KM</span>
             <b>{remain}</b>
           </div>
           <div>
@@ -153,7 +156,7 @@ export function FlightFace(props: FlightFaceViewProps): JSX.Element {
             <b>{eta}</b>
           </div>
           <div>
-            <span>GS</span>
+            <span>GS KPH</span>
             <b>{gs}</b>
           </div>
         </div>

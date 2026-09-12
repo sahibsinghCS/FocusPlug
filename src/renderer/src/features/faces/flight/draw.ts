@@ -10,7 +10,9 @@ import {
   formatZulu,
   greatCirclePoint,
   latLonToUnit,
+  phasePitchDeg,
   phaseScale,
+  wingAttitude,
 } from "./math";
 import { projectWorld, type FlightModel } from "./model";
 
@@ -201,11 +203,11 @@ function drawCityLights(ctx: CanvasRenderingContext2D, model: FlightModel, cx: n
     const alpha = night * city.weight * Math.min(1, pr.z * 1.4);
     const x = Math.round(pr.x);
     const y = Math.round(pr.y);
-    ctx.fillStyle = `rgba(255, 168, 72, ${(alpha * 0.45).toFixed(3)})`;
+    ctx.fillStyle = `rgba(255, 168, 72, ${(alpha * 0.62).toFixed(3)})`;
     ctx.beginPath();
-    ctx.arc(x + 0.5, y + 0.5, 2.4, 0, Math.PI * 2);
+    ctx.arc(x + 0.5, y + 0.5, 2.8, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = `rgba(255, 220, 160, ${Math.min(1, alpha * 1.15).toFixed(3)})`;
+    ctx.fillStyle = `rgba(255, 226, 170, ${Math.min(1, alpha * 1.25).toFixed(3)})`;
     ctx.fillRect(x, y, 1, 1);
   }
   ctx.restore();
@@ -270,65 +272,135 @@ function drawAircraft(
   const here = projectWorld(latLonToUnit(model.planeLat, model.planeLon), model, cx, cy, radius);
   if (!here.visible) return;
   const heading = screenHeading(model, cx, cy, radius);
-  const bank = degToRad(model.bank);
-  const s = (model.phase === "climb" ? 1.22 : model.phase === "descent" ? 0.9 : 1) * 1.85;
+  const pitch = degToRad(phasePitchDeg(model.phase));
+  const wings = wingAttitude(model.bank, 30);
+  const s = (model.phase === "climb" ? 1.28 : model.phase === "descent" ? 0.92 : 1) * 1.95;
 
   ctx.save();
-  ctx.translate(here.x + 10, here.y + 11);
+  ctx.translate(here.x + 9 + wings.drop * 0.15, here.y + 11);
   ctx.rotate(heading);
-  ctx.scale(s, s * Math.max(0.7, Math.cos(bank)));
-  ctx.fillStyle = "rgba(0,0,0,0.4)";
+  ctx.scale(s, s * 0.72);
+  ctx.fillStyle = "rgba(0,0,0,0.42)";
   ctx.beginPath();
-  ctx.ellipse(0, 0, 16, 5.5, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, 2, 20, 7, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 
   ctx.save();
   ctx.translate(here.x, here.y);
-  ctx.rotate(heading + bank);
-  ctx.scale(s, s * Math.max(0.58, Math.cos(bank)));
+  ctx.rotate(heading);
+  ctx.rotate(pitch);
+  ctx.scale(s, s);
+
+  ctx.strokeStyle = "rgba(6, 8, 14, 0.55)";
+  ctx.lineWidth = 7.2;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(-wings.leftSpan, wings.leftY);
+  ctx.lineTo(wings.rightSpan, wings.rightY);
+  ctx.stroke();
 
   ctx.fillStyle = "#f4f7fc";
   ctx.beginPath();
-  ctx.moveTo(0, -19);
-  ctx.bezierCurveTo(2.6, -13, 2.8, 9, 1.8, 15);
-  ctx.lineTo(-1.8, 15);
-  ctx.bezierCurveTo(-2.8, 9, -2.6, -13, 0, -19);
-  ctx.fill();
-
-  ctx.beginPath();
-  ctx.moveTo(-19, 0.2);
-  ctx.lineTo(-2.2, -2.4);
-  ctx.lineTo(-1.6, 3.8);
-  ctx.lineTo(-17, 5.4);
+  ctx.moveTo(-wings.leftSpan, wings.leftY - 1.4);
+  ctx.lineTo(-2.4, -1.8);
+  ctx.lineTo(-2.0, 3.6);
+  ctx.lineTo(-wings.leftSpan + 1.6, wings.leftY + 4.6);
   ctx.closePath();
-  ctx.moveTo(19, 0.2);
-  ctx.lineTo(2.2, -2.4);
-  ctx.lineTo(1.6, 3.8);
-  ctx.lineTo(17, 5.4);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(wings.rightSpan, wings.rightY - 1.4);
+  ctx.lineTo(2.4, -1.8);
+  ctx.lineTo(2.0, 3.6);
+  ctx.lineTo(wings.rightSpan - 1.6, wings.rightY + 4.6);
   ctx.closePath();
   ctx.fill();
 
   ctx.beginPath();
-  ctx.moveTo(-6.4, 12.2);
-  ctx.lineTo(-1.4, 10.4);
-  ctx.lineTo(-1.2, 14.4);
-  ctx.lineTo(-5.6, 15.2);
+  ctx.moveTo(0, -21);
+  ctx.bezierCurveTo(2.8, -14, 3.1, 8, 2.0, 16);
+  ctx.lineTo(-2.0, 16);
+  ctx.bezierCurveTo(-3.1, 8, -2.8, -14, 0, -21);
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(-1.2, 11);
+  ctx.lineTo(-7.2, 12.2 + wings.drop * 0.12);
+  ctx.lineTo(-6.4, 16.4 + wings.drop * 0.12);
+  ctx.lineTo(-1.0, 15.2);
   ctx.closePath();
-  ctx.moveTo(6.4, 12.2);
-  ctx.lineTo(1.4, 10.4);
-  ctx.lineTo(1.2, 14.4);
-  ctx.lineTo(5.6, 15.2);
+  ctx.moveTo(1.2, 11);
+  ctx.lineTo(7.2, 12.2 - wings.drop * 0.12);
+  ctx.lineTo(6.4, 16.4 - wings.drop * 0.12);
+  ctx.lineTo(1.0, 15.2);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(0.2, 8);
+  ctx.lineTo(2.4 + wings.drop * 0.08, 4);
+  ctx.lineTo(1.4, 16);
+  ctx.lineTo(-1.2, 15.4);
   ctx.closePath();
   ctx.fill();
 
   ctx.fillStyle = "#d4ff3a";
-  ctx.fillRect(-18.4, 1.6, 2.2, 2.2);
+  ctx.beginPath();
+  ctx.arc(-wings.leftSpan + 1.2, wings.leftY + 1.4, 1.7, 0, Math.PI * 2);
+  ctx.fill();
   ctx.fillStyle = "#ff2d55";
-  ctx.fillRect(16.2, 1.6, 2.2, 2.2);
+  ctx.beginPath();
+  ctx.arc(wings.rightSpan - 1.2, wings.rightY + 1.4, 1.7, 0, Math.PI * 2);
+  ctx.fill();
 
-  ctx.fillStyle = "rgba(122,162,255,0.6)";
-  ctx.fillRect(-0.8, -10, 1.6, 7);
+  ctx.fillStyle = "rgba(122,162,255,0.7)";
+  ctx.beginPath();
+  ctx.ellipse(0, -9, 1.15, 4.2, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawBankScale(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  radius: number,
+  bank: number,
+): void {
+  ctx.save();
+  ctx.translate(cx, cy);
+  const rTick = radius + 20;
+  const marks = [-30, -20, -10, 10, 20, 30];
+  for (const deg of marks) {
+    const a = degToRad(deg) - Math.PI / 2;
+    const major = Math.abs(deg) === 30 || Math.abs(deg) === 20;
+    ctx.strokeStyle = major ? "rgba(238,242,248,0.72)" : "rgba(238,242,248,0.4)";
+    ctx.lineWidth = major ? 2.2 : 1.3;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(a) * (rTick - (major ? 12 : 7)), Math.sin(a) * (rTick - (major ? 12 : 7)));
+    ctx.lineTo(Math.cos(a) * rTick, Math.sin(a) * rTick);
+    ctx.stroke();
+  }
+
+  ctx.fillStyle = "#d4ff3a";
+  ctx.beginPath();
+  ctx.moveTo(0, -rTick - 2);
+  ctx.lineTo(-5.5, -rTick + 9);
+  ctx.lineTo(5.5, -rTick + 9);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.rotate(degToRad(bank));
+  ctx.fillStyle = "#eef2f8";
+  ctx.strokeStyle = "rgba(7,8,12,0.55)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, -radius - 4);
+  ctx.lineTo(-8, -radius + 12);
+  ctx.lineTo(8, -radius + 12);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
   ctx.restore();
 }
 
@@ -495,6 +567,7 @@ export function drawFlightFace(input: DrawFlightInput): void {
   }
 
   drawBezel(ctx, cx, cy, radius);
+  drawBankScale(ctx, cx, cy, radius, model.bank);
   const rasterSize = Math.max(288, Math.min(512, Math.round(radius * 1.7)));
   const globe = globeLayer(model, rasterSize, "instrument");
 
@@ -527,8 +600,10 @@ function drawWake(
   cy: number,
   radius: number,
 ): void {
+  if (model.complete) return;
   const here = projectWorld(latLonToUnit(model.planeLat, model.planeLon), model, cx, cy, radius);
   if (!here.visible) return;
+  const heading = screenHeading(model, cx, cy, radius);
   const aheadGeo = greatCirclePoint(
     model.dep.lat,
     model.dep.lon,
@@ -541,34 +616,43 @@ function drawWake(
   let dy = here.y - ahead.y;
   let len = Math.hypot(dx, dy);
   if (len < 0.8) {
-    const heading = screenHeading(model, cx, cy, radius);
     dx = Math.sin(heading);
     dy = Math.cos(heading);
     len = 1;
   }
   const ux = dx / len;
   const uy = dy / len;
+  const px = -uy;
+  const py = ux;
   const widthScale = contrailWidthScale(model.phase);
-  const tail = 72 * (model.phase === "cruise" ? 0.78 : 1);
-  const tx = here.x + ux * tail;
-  const ty = here.y + uy * tail;
-  const fade = ctx.createLinearGradient(here.x, here.y, tx, ty);
-  fade.addColorStop(0, `rgba(236, 246, 255, ${0.88 * Math.max(0.55, widthScale)})`);
-  fade.addColorStop(1, "rgba(236, 246, 255, 0)");
+  const tail = model.phase === "climb" ? 128 : model.phase === "descent" ? 108 : 96;
+  const curve = degToRad(model.bank) * 18;
   ctx.save();
   ctx.lineCap = "round";
-  ctx.strokeStyle = "rgba(6, 8, 14, 0.4)";
-  ctx.lineWidth = 11 * Math.max(0.55, widthScale);
-  ctx.beginPath();
-  ctx.moveTo(here.x, here.y);
-  ctx.lineTo(tx, ty);
-  ctx.stroke();
-  ctx.strokeStyle = fade;
-  ctx.lineWidth = 7 * Math.max(0.55, widthScale);
-  ctx.beginPath();
-  ctx.moveTo(here.x, here.y);
-  ctx.lineTo(tx, ty);
-  ctx.stroke();
+  ctx.lineJoin = "round";
+  const steps = 9;
+  for (let i = 0; i < steps; i += 1) {
+    const t0 = i / steps;
+    const t1 = (i + 1) / steps;
+    const life0 = 1 - t0;
+    const life1 = 1 - t1;
+    const x0 = here.x + ux * tail * t0 + px * curve * t0 * t0;
+    const y0 = here.y + uy * tail * t0 + py * curve * t0 * t0;
+    const x1 = here.x + ux * tail * t1 + px * curve * t1 * t1;
+    const y1 = here.y + uy * tail * t1 + py * curve * t1 * t1;
+    ctx.strokeStyle = `rgba(8, 10, 16, ${(0.18 + life0 * 0.34).toFixed(3)})`;
+    ctx.lineWidth = (3.2 + life0 * 11) * Math.max(0.5, widthScale);
+    ctx.beginPath();
+    ctx.moveTo(x0, y0);
+    ctx.lineTo(x1, y1);
+    ctx.stroke();
+    ctx.strokeStyle = `rgba(236, 246, 255, ${(0.16 + life0 * 0.7 * Math.max(0.55, widthScale)).toFixed(3)})`;
+    ctx.lineWidth = (1.1 + life1 * 5.4) * Math.max(0.5, widthScale);
+    ctx.beginPath();
+    ctx.moveTo(x0, y0);
+    ctx.lineTo(x1, y1);
+    ctx.stroke();
+  }
   ctx.restore();
 }
 

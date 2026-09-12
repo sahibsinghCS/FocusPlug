@@ -46,6 +46,16 @@
   font-style: normal;
 }
 
+.fp-flight-meta {
+  margin-left: 14px;
+  letter-spacing: 0.1em;
+}
+
+.fp-flight-bank {
+  margin-left: 14px;
+  color: #d4ff3a;
+}
+
 .fp-flight-plate {
   top: 64px;
   display: flex;

@@ -5,7 +5,10 @@ import {
   dayAmount,
   flightPhase,
   flightProgress,
+  formatBank,
   formatClockHm,
+  formatHdg,
+  formatInt,
   formatZulu,
   greatCirclePoint,
   groundSpeedKmh,
@@ -14,6 +17,7 @@ import {
   solarDeclinationDeg,
   subsolar,
   twilightBand,
+  wingAttitude,
   wrapLon,
 } from "./math";
 
@@ -110,5 +114,22 @@ describe("progress, phases, honest strip math", () => {
     const eta = SEP_12_2026_16Z + 45 * 60 * 1000;
     expect(formatClockHm(eta, "UTC")).toBe("16:45");
     expect(formatZulu(SEP_12_2026_16Z)).toBe("16:00Z");
+  });
+
+  it("prints bank, heading, and bare strip integers without unit suffixes", () => {
+    expect(formatBank(15.2)).toBe("15°R");
+    expect(formatBank(-4.4)).toBe("4°L");
+    expect(formatBank(0.2)).toBe("LVL");
+    expect(formatHdg(72.9)).toBe("073");
+    expect(formatInt(791.4)).toBe("791");
+  });
+
+  it("rolls wing tips vertically so bank is a silhouette, not extra yaw", () => {
+    const right = wingAttitude(15, 28);
+    expect(right.rightY - right.leftY).toBeGreaterThan(22);
+    expect(right.leftSpan).toBeGreaterThan(right.rightSpan);
+    const left = wingAttitude(-15, 28);
+    expect(left.leftY).toBeGreaterThan(left.rightY);
+    expect(wingAttitude(0, 28).drop).toBe(0);
   });
 });

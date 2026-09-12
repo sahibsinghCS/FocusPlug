@@ -299,15 +299,74 @@ export function formatKm(km: number): string {
   if (!Number.isFinite(km)) {
     throw new Error("formatKm requires a finite value");
   }
-  const rounded = Math.round(Math.max(0, km));
-  return `${rounded.toLocaleString("en-US")} km`;
+  return `${Math.round(Math.max(0, km))} km`;
 }
 
 export function formatGs(kmh: number): string {
   if (!Number.isFinite(kmh)) {
     throw new Error("formatGs requires a finite value");
   }
-  return `${Math.round(Math.max(0, kmh)).toLocaleString("en-US")} km/h`;
+  return `${Math.round(Math.max(0, kmh))} kph`;
+}
+
+export function formatInt(value: number): string {
+  if (!Number.isFinite(value)) {
+    throw new Error("formatInt requires a finite value");
+  }
+  return String(Math.round(Math.max(0, value)));
+}
+
+export function formatBank(bank: number): string {
+  if (!Number.isFinite(bank)) {
+    throw new Error("formatBank requires a finite value");
+  }
+  const mag = Math.round(Math.abs(bank));
+  if (mag < 1) return "LVL";
+  return `${mag}°${bank > 0 ? "R" : "L"}`;
+}
+
+export function formatHdg(deg: number): string {
+  if (!Number.isFinite(deg)) {
+    throw new Error("formatHdg requires a finite value");
+  }
+  const n = ((Math.round(deg) % 360) + 360) % 360;
+  return String(n).padStart(3, "0");
+}
+
+/** Nose pitch for the silhouette. Screen -Y is up after heading rotate. */
+export function phasePitchDeg(phase: FlightPhase): number {
+  if (phase === "climb") return -18;
+  if (phase === "descent") return 12;
+  return 0;
+}
+
+export interface WingAttitude {
+  leftY: number;
+  rightY: number;
+  leftSpan: number;
+  rightSpan: number;
+  drop: number;
+}
+
+/**
+ * Roll the wing planform: fuselage stays on heading, tips split vertically.
+ * Positive bank = right wing down (standard).
+ */
+export function wingAttitude(bank: number, span: number): WingAttitude {
+  if (!Number.isFinite(bank) || !Number.isFinite(span) || span <= 0) {
+    throw new Error("wingAttitude requires a finite bank and a positive span");
+  }
+  const limited = clamp(bank, -MAX_BANK_DEG, MAX_BANK_DEG);
+  const rad = degToRad(limited);
+  const signed = limited === 0 ? 0 : limited > 0 ? 1 : -1;
+  const drop = Math.sin(rad) * span * 0.98 + signed * Math.min(12, span * 0.38);
+  return {
+    leftY: -drop,
+    rightY: drop,
+    leftSpan: span * (1 + Math.sin(rad) * 0.34),
+    rightSpan: span * (1 - Math.sin(rad) * 0.34),
+    drop,
+  };
 }
 
 export function orthonormalBasis(forward: Vec3): { right: Vec3; up: Vec3; forward: Vec3 } {

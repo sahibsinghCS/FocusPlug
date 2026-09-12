@@ -80,11 +80,11 @@ function shadePixel(
   const duskR = 196;
   const duskG = 118;
   const duskB = 72;
-  r = mix(r, duskR, dusk * 0.42);
-  g = mix(g, duskG, dusk * 0.42);
-  b = mix(b, duskB, dusk * 0.42);
+  r = mix(r, duskR, dusk * 0.5);
+  g = mix(g, duskG, dusk * 0.5);
+  b = mix(b, duskB, dusk * 0.5);
 
-  const tw = twilight * 0.4;
+  const tw = twilight * 0.58;
   r = mix(r, twilightCyan[0], tw);
   g = mix(g, twilightCyan[1], tw);
   b = mix(b, twilightCyan[2], tw);

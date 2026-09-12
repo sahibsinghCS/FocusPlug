@@ -30,6 +30,7 @@ describe("flight model", () => {
     );
     expect(model.phase).toBe("cruise");
     expect(Math.abs(model.bank)).toBeLessThanOrEqual(25);
+    expect(Math.abs(model.bank)).toBeGreaterThan(8);
     const look =
       model.planeLat * 0 +
       model.cameraForward[0] ** 2 +
