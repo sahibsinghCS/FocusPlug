@@ -41,9 +41,9 @@ describe("Descent zones", () => {
   });
 
   it("keeps three fixed particle layers", () => {
-    expect(FAR_SILT.length).toBe(72);
-    expect(MID_MOTES.length).toBe(40);
-    expect(NEAR_BIO.length).toBe(22);
+    expect(FAR_SILT.length).toBe(110);
+    expect(MID_MOTES.length).toBe(56);
+    expect(NEAR_BIO.length).toBe(28);
     expect(FAR_SILT[0]?.x).toBeGreaterThanOrEqual(0);
     expect(FAR_SILT[0]?.x).toBeLessThanOrEqual(1);
   });

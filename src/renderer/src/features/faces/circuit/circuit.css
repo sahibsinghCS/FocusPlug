@@ -17,36 +17,43 @@
 
 .fp-circuit-silk {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 500;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.14em;
 }
 
 .fp-circuit-word {
   font-family: var(--font-sans);
-  font-size: 22px;
+  font-size: 28px;
   font-weight: 650;
   letter-spacing: -0.03em;
 }
 
 .fp-circuit-readout {
   font-family: var(--font-mono);
-  font-size: 18px;
+  font-size: 22px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
 .fp-circuit-trace {
   fill: none;
-  stroke: #1f3d2e;
-  stroke-width: 7;
+  stroke: #3a5a44;
+  stroke-width: 9;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+}
+
+.fp-circuit-dead {
+  fill: none;
+  stroke: #274233;
+  stroke-width: 5;
   stroke-linecap: square;
   stroke-linejoin: miter;
 }
 
 .fp-circuit-live,
-.fp-circuit-glow,
-.fp-circuit-head {
+.fp-circuit-glow {
   fill: none;
   stroke-linecap: square;
   stroke-linejoin: miter;
@@ -56,22 +63,23 @@
 
 .fp-circuit-glow {
   stroke: var(--circuit-live);
-  stroke-width: 14;
-  opacity: 0.28;
+  stroke-width: 16;
+  opacity: 0.32;
   filter: url(#fp-circuit-blur);
 }
 
 .fp-circuit-live {
   stroke: var(--circuit-live);
-  stroke-width: 5.5;
+  stroke-width: 6.5;
 }
 
 .fp-circuit-head {
+  fill: none;
   stroke: #f4ffff;
-  stroke-width: 8;
-  stroke-dasharray: 16 var(--circuit-length);
-  stroke-dashoffset: calc(var(--circuit-length) * (1 - var(--circuit-progress)) - 16);
+  stroke-width: 9;
   stroke-linecap: round;
+  stroke-dasharray: 18 var(--circuit-length);
+  stroke-dashoffset: calc(var(--circuit-length) * (1 - var(--circuit-progress)) - 18);
   filter: url(#fp-circuit-blur);
 }
 
@@ -80,7 +88,7 @@
 }
 
 .fp-circuit-led-core {
-  fill: color-mix(in srgb, #ff2d55 calc((1 - var(--circuit-progress)) * 100%), #d4ff3a);
+  fill: #ff2d55;
 }
 
 .fp-circuit[data-complete="1"] .fp-circuit-led-core {

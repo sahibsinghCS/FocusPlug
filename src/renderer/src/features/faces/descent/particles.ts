@@ -29,7 +29,7 @@ function makeLayer(count: number, seed: number, radius: { min: number; max: numb
   return specks;
 }
 
-/** Fixed arrays — no physics. Alpha is a phase sine of `now`. */
-export const FAR_SILT = makeLayer(72, 0x51c7, { min: 0.6, max: 1.35 });
-export const MID_MOTES = makeLayer(40, 0xa31e, { min: 1.1, max: 2.15 });
-export const NEAR_BIO = makeLayer(22, 0x0e4d, { min: 1.6, max: 3.1 });
+/** Fixed arrays — no physics. Alpha is a phase sine of `now`. Radii are viewBox units (960×640). */
+export const FAR_SILT = makeLayer(110, 0x51c7, { min: 1.1, max: 2.2 });
+export const MID_MOTES = makeLayer(56, 0xa31e, { min: 1.8, max: 3.4 });
+export const NEAR_BIO = makeLayer(28, 0x0e4d, { min: 2.4, max: 4.6 });

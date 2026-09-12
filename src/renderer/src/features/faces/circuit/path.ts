@@ -63,6 +63,15 @@ export function pathFromPoints(points: readonly CircuitPoint[]): string {
 export const CIRCUIT_D = pathFromPoints(CIRCUIT_POINTS);
 export const CIRCUIT_LENGTH = polylineLength(CIRCUIT_POINTS);
 
+/** Static unpowered copper — density only, not driven by progress. */
+export const DEAD_TRACES: readonly string[] = [
+  "M 80 430 H 200 V 470 H 320 L 350 500 H 460",
+  "M 720 430 H 800 V 390 H 860 V 460",
+  "M 240 90 H 300 V 130 H 360",
+  "M 540 90 H 620 V 70 H 700",
+  "M 140 200 V 160 H 80 V 120",
+];
+
 export const CIRCUIT_START = CIRCUIT_POINTS[0] ?? { x: 100, y: 360 };
 export const CIRCUIT_END = CIRCUIT_POINTS[CIRCUIT_POINTS.length - 1] ?? { x: 880, y: 160 };
 
