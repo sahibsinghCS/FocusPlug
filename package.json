@@ -27,7 +27,9 @@
     "probe:window": "node --experimental-strip-types src/main/window/probe.ts",
     "test:desk": "tsx --tsconfig tsconfig.node.json src/main/desk/gauntlet.ts",
     "faces:preview": "vite --config scripts/faces-preview.vite.ts",
-    "faces:stills": "node scripts/faces-stills.mjs"
+    "faces:stills": "node scripts/faces-stills.mjs",
+    "test:flight": "vitest run src/renderer/src/features/faces/flight",
+    "gauntlet:flight": "node scripts/flight-stills.mjs"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",

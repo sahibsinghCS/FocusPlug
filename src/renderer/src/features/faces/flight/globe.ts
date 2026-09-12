@@ -1,0 +1,143 @@
+import { landCoverage } from "./continents";
+import { dayAmount, dot, twilightBand, unitToLatLon, type Vec3 } from "./math";
+import type { FlightModel } from "./model";
+
+interface DiskSample {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  vz: number;
+}
+
+const sampleCache = new Map<number, DiskSample[]>();
+
+function diskSamples(size: number): DiskSample[] {
+  const hit = sampleCache.get(size);
+  if (hit) return hit;
+  const samples: DiskSample[] = [];
+  const r = (size - 1) / 2;
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const vx = (x - r) / r;
+      const vy = (r - y) / r;
+      const rr = vx * vx + vy * vy;
+      if (rr > 1) continue;
+      const vz = Math.sqrt(Math.max(0, 1 - rr));
+      samples.push({ x, y, vx, vy, vz });
+    }
+  }
+  sampleCache.set(size, samples);
+  return samples;
+}
+
+function mix(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
+
+function shadePixel(
+  world: Vec3,
+  viewZ: number,
+  sun: Vec3,
+): [number, number, number, number] {
+  const geo = unitToLatLon(world);
+  const land = landCoverage(geo.lat, geo.lon);
+  const intensity = dot(world, sun);
+  const day = dayAmount(intensity);
+  const twilight = twilightBand(intensity);
+
+  const oceanDay = [214, 188, 128] as const;
+  const landDay = [164, 142, 86] as const;
+  const oceanNight = [7, 10, 26] as const;
+  const landNight = [4, 6, 16] as const;
+  const twilightCyan = [86, 214, 230] as const;
+  const atm = [118, 186, 214] as const;
+
+  const dayR = mix(oceanDay[0], landDay[0], land);
+  const dayG = mix(oceanDay[1], landDay[1], land);
+  const dayB = mix(oceanDay[2], landDay[2], land);
+  const nightR = mix(oceanNight[0], landNight[0], land);
+  const nightG = mix(oceanNight[1], landNight[1], land);
+  const nightB = mix(oceanNight[2], landNight[2], land);
+
+  let r = mix(nightR, dayR, day);
+  let g = mix(nightG, dayG, day);
+  let b = mix(nightB, dayB, day);
+
+  const tw = twilight * 0.62;
+  r = mix(r, twilightCyan[0], tw);
+  g = mix(g, twilightCyan[1], tw);
+  b = mix(b, twilightCyan[2], tw);
+
+  const warm = Math.max(0, intensity) * (1 - land) * 0.16;
+  r += 38 * warm;
+  g += 22 * warm;
+  b += 4 * warm;
+
+  const halfX = sun[0] + world[0];
+  const halfY = sun[1] + world[1];
+  const halfZ = sun[2] + world[2];
+  const halfLen = Math.hypot(halfX, halfY, halfZ) || 1;
+  const spec = Math.max(0, (world[0] * halfX + world[1] * halfY + world[2] * halfZ) / halfLen);
+  const glint = (1 - land) * day * spec ** 42 * 210;
+  r += glint;
+  g += glint * 0.92;
+  b += glint * 0.72;
+
+  const limb = (1 - viewZ) ** 2.35;
+  const haze = limb * (0.22 + 0.78 * day) * 0.7;
+  r = mix(r, atm[0], haze);
+  g = mix(g, atm[1], haze);
+  b = mix(b, atm[2], haze);
+
+  const darken = 0.7 + 0.3 * viewZ;
+  r *= darken;
+  g *= darken;
+  b *= darken;
+
+  return [
+    Math.max(0, Math.min(255, r)),
+    Math.max(0, Math.min(255, g)),
+    Math.max(0, Math.min(255, b)),
+    255,
+  ];
+}
+
+export function rasterGlobe(model: FlightModel, size: number): ImageData {
+  if (size < 32 || size > 768) {
+    throw new Error("rasterGlobe size must be between 32 and 768");
+  }
+  const samples = diskSamples(size);
+  const data = new Uint8ClampedArray(size * size * 4);
+  const right = model.cameraRight;
+  const up = model.cameraUp;
+  const fwd = model.cameraForward;
+  const sun = model.sun;
+
+  for (const s of samples) {
+    const wx = s.vx * right[0] + s.vy * up[0] + s.vz * fwd[0];
+    const wy = s.vx * right[1] + s.vy * up[1] + s.vz * fwd[1];
+    const wz = s.vx * right[2] + s.vy * up[2] + s.vz * fwd[2];
+    const [r, g, b, a] = shadePixel([wx, wy, wz], s.vz, sun);
+    const i = (s.y * size + s.x) * 4;
+    data[i] = r;
+    data[i + 1] = g;
+    data[i + 2] = b;
+    data[i + 3] = a;
+  }
+  return new ImageData(data, size, size);
+}
+
+export function rasterStickerGlobe(size: number): ImageData {
+  const samples = diskSamples(size);
+  const data = new Uint8ClampedArray(size * size * 4);
+  for (const s of samples) {
+    const t = (s.vy + 1) * 0.5;
+    const i = (s.y * size + s.x) * 4;
+    data[i] = 96 + t * 70;
+    data[i + 1] = 108 + t * 40;
+    data[i + 2] = 128 + t * 20;
+    data[i + 3] = 255;
+  }
+  return new ImageData(data, size, size);
+}
