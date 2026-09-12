@@ -1,5 +1,15 @@
 import { landCoverage } from "./continents";
-import { clamp, dayAmount, dot, smoothstep, twilightBand, unitToLatLon, type Vec3 } from "./math";
+import {
+  chartLandFade,
+  chartRangeKm,
+  clamp,
+  dayAmount,
+  dot,
+  smoothstep,
+  twilightBand,
+  unitToLatLon,
+  type Vec3,
+} from "./math";
 import type { FlightModel } from "./model";
 
 function lightingWrap(intensity: number): number {
@@ -53,10 +63,12 @@ function shadePixel(
   world: Vec3,
   viewZ: number,
   sun: Vec3,
+  look: Vec3,
+  rangeKm: number,
   landMode: "grid" | "coast",
 ): [number, number, number, number] {
   const geo = unitToLatLon(world);
-  const land = landCoverage(geo.lat, geo.lon, landMode);
+  const land = landCoverage(geo.lat, geo.lon, landMode) * chartLandFade(world, look, rangeKm);
   const intensity = dot(world, sun);
   const day = dayAmount(intensity);
   const wrap = lightingWrap(intensity);
@@ -71,10 +83,11 @@ function shadePixel(
   const twilightCyan = [92, 226, 236] as const;
   const atm = [110, 196, 220] as const;
 
-  const coast = land > 0.1 && land < 0.9 ? 1 : 0;
-  const dayR = mix(oceanDay[0], landDay[0], land) - coast * 26;
-  const dayG = mix(oceanDay[1], landDay[1], land) - coast * 16;
-  const dayB = mix(oceanDay[2], landDay[2], land) - coast * 10;
+  const coast = land > 0.08 && land < 0.92 ? 1 : 0;
+  const hill = land > 0.2 ? 0.84 + grain * 0.28 : 1;
+  const dayR = (mix(oceanDay[0], landDay[0], land) - coast * 32) * hill;
+  const dayG = (mix(oceanDay[1], landDay[1], land) - coast * 20) * hill;
+  const dayB = (mix(oceanDay[2], landDay[2], land) - coast * 12) * hill;
   const nightR = mix(oceanNight[0], landNight[0], land);
   const nightG = mix(oceanNight[1], landNight[1], land);
   const nightB = mix(oceanNight[2], landNight[2], land);
@@ -141,6 +154,7 @@ export function rasterGlobe(model: FlightModel, size: number): ImageData {
   const sun = model.sun;
   const zoom = Math.max(1, model.cameraZoom);
   const landMode: "grid" | "coast" = "coast";
+  const rangeKm = chartRangeKm(model.totalKm);
 
   for (const s of samples) {
     const vx = s.vx / zoom;
@@ -158,7 +172,7 @@ export function rasterGlobe(model: FlightModel, size: number): ImageData {
     const wx = vx * right[0] + vy * up[0] + vz * fwd[0];
     const wy = vx * right[1] + vy * up[1] + vz * fwd[1];
     const wz = vx * right[2] + vy * up[2] + vz * fwd[2];
-    const [r, g, b, a] = shadePixel([wx, wy, wz], vz, sun, landMode);
+    const [r, g, b, a] = shadePixel([wx, wy, wz], vz, sun, fwd, rangeKm, landMode);
     data[i] = r;
     data[i + 1] = g;
     data[i + 2] = b;

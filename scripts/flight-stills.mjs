@@ -25,7 +25,7 @@ const SCENES = [
   },
   {
     name: "dub-edi-cruise-16z-orbit-b",
-    path: `/face.html?${HOP}&progress=0.46&estimateMinutes=${SIT}&now=${DAY}&freeze=1&idle=1.55`,
+    path: `/face.html?${HOP}&progress=0.46&estimateMinutes=${SIT}&now=${DAY}&freeze=1&idle=2.05`,
   },
   {
     name: "dub-edi-cruise-02z",

@@ -7,9 +7,9 @@ export const TWILIGHT_LO = -0.045;
 export const TWILIGHT_HI = 0.07;
 /** Slow continuous orbit — one revolution every ~2 minutes. */
 export const ORBIT_RAD_PER_SEC = 0.052;
-export const MIN_ROUTE_ZOOM = 2.6;
-export const MAX_ROUTE_ZOOM = 8.2;
-export const COMPLETE_MIN_ZOOM = 1.75;
+export const MIN_ROUTE_ZOOM = 2.15;
+export const MAX_ROUTE_ZOOM = 6.15;
+export const COMPLETE_MIN_ZOOM = 1.6;
 
 export type Vec3 = readonly [number, number, number];
 
@@ -259,6 +259,26 @@ export function phaseScale(phase: FlightPhase): number {
 }
 
 /**
+ * ND-style chart range: fade land past the hop so a short sit does not
+ * fill the disc with continental Europe.
+ */
+export function chartRangeKm(totalKm: number): number {
+  if (!Number.isFinite(totalKm)) {
+    throw new Error("chartRangeKm requires a finite distance");
+  }
+  return Math.max(Math.abs(totalKm) * 3.4, 980);
+}
+
+export function chartLandFade(world: Vec3, look: Vec3, rangeKm: number): number {
+  if (!Number.isFinite(rangeKm) || rangeKm <= 0) {
+    throw new Error("chartLandFade requires a positive range");
+  }
+  const maxAng = rangeKm / EARTH_RADIUS_KM;
+  const ang = Math.acos(clamp(dot(normalize(world), normalize(look)), -1, 1));
+  return 1 - smoothstep(maxAng * 0.7, maxAng * 1.02, ang);
+}
+
+/**
  * Track the hop tightly so landforms read large. Short hops (DUB–EDI)
  * zoom hard; ocean crossings stay closer than a full-hemisphere sticker.
  */
@@ -266,10 +286,10 @@ export function routeCameraZoom(totalKm: number, complete: boolean): number {
   if (!Number.isFinite(totalKm)) {
     throw new Error("routeCameraZoom requires a finite distance");
   }
-  const viewKm = Math.max(Math.abs(totalKm) * 4.2, 1550);
+  const viewKm = Math.max(Math.abs(totalKm) * 5.2, 2200);
   const raw = clamp((2 * EARTH_RADIUS_KM) / viewKm, MIN_ROUTE_ZOOM, MAX_ROUTE_ZOOM);
   if (complete) {
-    return clamp(raw * 0.58, COMPLETE_MIN_ZOOM, 5.2);
+    return clamp(raw * 0.62, COMPLETE_MIN_ZOOM, 4.4);
   }
   return raw;
 }

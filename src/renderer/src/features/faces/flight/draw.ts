@@ -1,6 +1,10 @@
 import { CITY_LIGHTS } from "./cities";
+import { coastRings } from "./continents";
 import { rasterGlobe, rasterStickerGlobe } from "./globe";
 import {
+  chartLandFade,
+  chartRangeKm,
+  clamp,
   contrailWidthScale,
   dayAmount,
   degToRad,
@@ -39,6 +43,9 @@ function globeKey(model: FlightModel, size: number, variant: FaceVariant): strin
     model.cameraForward[0].toFixed(3),
     model.cameraForward[1].toFixed(3),
     model.cameraForward[2].toFixed(3),
+    model.cameraRight[0].toFixed(3),
+    model.cameraRight[1].toFixed(3),
+    model.cameraRight[2].toFixed(3),
     model.sunLat.toFixed(2),
     model.sunLon.toFixed(2),
   ].join("|");
@@ -186,6 +193,51 @@ function drawRoute(ctx: CanvasRenderingContext2D, model: FlightModel, cx: number
   }
 }
 
+function drawCoasts(
+  ctx: CanvasRenderingContext2D,
+  model: FlightModel,
+  cx: number,
+  cy: number,
+  radius: number,
+): void {
+  ctx.save();
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+  const width = clamp(1.35 + model.cameraZoom * 0.18, 1.4, 2.8);
+  const rangeKm = chartRangeKm(model.totalKm);
+  const look = model.cameraForward;
+  for (const ring of coastRings()) {
+    if (ring.length < 3) continue;
+    let started = false;
+    ctx.beginPath();
+    for (const node of ring) {
+      const world = latLonToUnit(node.lat, node.lon);
+      if (chartLandFade(world, look, rangeKm) < 0.18) {
+        started = false;
+        continue;
+      }
+      const pr = projectWorld(world, model, cx, cy, radius);
+      if (!pr.visible) {
+        started = false;
+        continue;
+      }
+      if (!started) {
+        ctx.moveTo(pr.x, pr.y);
+        started = true;
+      } else {
+        ctx.lineTo(pr.x, pr.y);
+      }
+    }
+    ctx.strokeStyle = "rgba(10, 18, 12, 0.78)";
+    ctx.lineWidth = width;
+    ctx.stroke();
+    ctx.strokeStyle = "rgba(240, 228, 176, 0.22)";
+    ctx.lineWidth = Math.max(0.8, width * 0.4);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 function drawCityLights(ctx: CanvasRenderingContext2D, model: FlightModel, cx: number, cy: number, radius: number): void {
   ctx.save();
   for (const city of CITY_LIGHTS) {
@@ -270,7 +322,8 @@ function drawAircraft(
   const heading = screenHeading(model, cx, cy, radius);
   const pitch = degToRad(phasePitchDeg(model.phase));
   const wings = wingAttitude(model.bank, 34);
-  const s = (model.phase === "climb" ? 1.22 : model.phase === "descent" ? 0.94 : 1) * 1.85;
+  const phaseBoost = model.phase === "climb" ? 1.22 : model.phase === "descent" ? 0.94 : 1;
+  const s = phaseBoost * 1.72 * clamp(radius / 240, 0.52, 1.12);
 
   ctx.save();
   ctx.translate(here.x + 8 + wings.drop * 0.12, here.y + 10);
@@ -577,6 +630,7 @@ export function drawFlightFace(input: DrawFlightInput): void {
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
   ctx.drawImage(globe, cx - radius, cy - radius, radius * 2, radius * 2);
+  drawCoasts(ctx, model, cx, cy, radius);
   drawCityLights(ctx, model, cx, cy, radius);
   drawRoute(ctx, model, cx, cy, radius);
   drawContrail(ctx, model, cx, cy, radius);

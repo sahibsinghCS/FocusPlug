@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CITY_LIGHTS } from "./cities";
+import { landCoverage } from "./continents";
 import { latLonToUnit } from "./math";
 import { buildFlightModel, projectWorld, seedContrail } from "./model";
 import { DEFAULT_ARR, DEFAULT_DEP, resolveRoute } from "./airports";
@@ -42,7 +43,7 @@ describe("flight model", () => {
     expect(model.dep.code).toBe("DUB");
     expect(model.arr.code).toBe("EDI");
     expect(model.phase).toBe("cruise");
-    expect(model.cameraZoom).toBeGreaterThan(8);
+    expect(model.cameraZoom).toBeGreaterThan(5);
     expect(model.orbit).toBeCloseTo(0.9, 6);
     expect(Math.abs(model.bank)).toBeLessThanOrEqual(25);
     const pr = projectWorld(
@@ -86,6 +87,7 @@ describe("flight model", () => {
     expect(a.cameraZoom).toBeLessThan(5);
     expect(a.orbit).not.toBeCloseTo(b.orbit, 3);
     expect(a.cameraRight[0]).not.toBeCloseTo(b.cameraRight[0], 3);
+    expect(landCoverage(a.planeLat, a.planeLon, "coast")).toBeLessThan(0.35);
   });
 
   it("pulls back and names the destination when complete", () => {

@@ -53,7 +53,7 @@
   align-items: flex-start;
   padding: 18px 28px 0;
   font-size: 13px;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.04em;
   color: #8b97a8;
 }
 
@@ -70,7 +70,7 @@
 
 .fp-flight-meta {
   margin-left: 14px;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.06em;
 }
 
 .fp-flight-bank {
@@ -96,7 +96,7 @@
 .fp-flight-plate span {
   display: block;
   font-size: 11px;
-  letter-spacing: 0.22em;
+  letter-spacing: 0.12em;
   color: #8b97a8;
 }
 
@@ -105,7 +105,7 @@
   margin-top: 6px;
   font-size: 32px;
   font-weight: 400;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.08em;
 }
 
 .fp-flight-strip {
@@ -130,7 +130,7 @@
 .fp-flight-strip span {
   display: block;
   font-size: 11px;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.08em;
   color: #8b97a8;
 }
 
@@ -140,7 +140,7 @@
   font-size: 26px;
   font-weight: 400;
   color: #eef2f8;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.02em;
 }
 
 .fp-flight-strip small {
@@ -148,7 +148,7 @@
   margin-left: 0;
   margin-top: 4px;
   font-size: 11px;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.08em;
   color: #8b97a8;
 }
 
@@ -210,7 +210,7 @@
   display: block;
   margin-bottom: 4px;
   font-size: 10px;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #8b97a8;
 }
