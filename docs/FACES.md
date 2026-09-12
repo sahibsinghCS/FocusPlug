@@ -39,7 +39,7 @@ Replace the listed file. Do not fork `FaceHost` or invent a second picker.
 | Face | Stream | File | This foundation |
 | --- | --- | --- | --- |
 | `flight` | `agent/faces-flight` | `src/renderer/src/features/faces/FlightFace.tsx` | ready — terminator / ETA instrument |
-| `hourglass` | `agent/faces-foundation` | `src/renderer/src/features/faces/HourglassFace.tsx` | ready — flipped sand |
+| `hourglass` | `agent/faces-hourglass-v2` | `src/renderer/src/features/faces/HourglassFace.tsx` | ready — curved glass, sand transfer |
 | `readout` | `agent/faces-foundation` | `src/renderer/src/features/faces/ReadoutFace.tsx` | ready — honest digits |
 | `descent` | `agent/faces-descent` | `src/renderer/src/features/faces/DescentFace.tsx` | ready — deep-sea zones |
 | `movement` | `agent/faces-mid` | `src/renderer/src/features/faces/MovementFace.tsx` | ready — exposed calibre |
@@ -69,7 +69,8 @@ Registry already maps every `FaceId`. A landing stream swaps the component body 
 ```bash
 npx vite --config scripts/renderer-preview.vite.ts
 # #/?scene=live
-# #/?scene=live&face=hourglass
+# #/?scene=live&face=hourglass&freeze=1
+# #/?scene=live&face=hourglass&progress=0.62&freeze=1
 # #/?scene=live&face=readout
 # #/?scene=distracted&countdown=8&freeze=1&face=hourglass
 # #/?scene=live&face=flight

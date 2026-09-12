@@ -58,8 +58,8 @@ export const FACE_CATALOG: readonly FaceMeta[] = [
   {
     id: "hourglass",
     title: "Hourglass",
-    blurb: "Flipped sand in a dark room. Progress is transfer.",
-    stream: "agent/faces-foundation",
+    blurb: "Blown glass in a dark room. Progress is the sand that has fallen.",
+    stream: "agent/faces-hourglass-v2",
     file: "src/renderer/src/features/faces/HourglassFace.tsx",
     readiness: FACE_READY.hourglass ? "ready" : "pending",
   },

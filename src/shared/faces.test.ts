@@ -46,7 +46,7 @@ describe("faces catalog", () => {
 
   it("catalogs one owner file per FaceId for parallel streams", () => {
     expect(FACE_CATALOG.map((entry) => entry.id)).toEqual([...FACE_IDS]);
-    expect(faceMeta("hourglass").stream).toBe("agent/faces-foundation");
+    expect(faceMeta("hourglass").stream).toBe("agent/faces-hourglass-v2");
     expect(faceMeta("readout").file).toContain("ReadoutFace.tsx");
     expect(faceMeta("flight").readiness).toBe("ready");
     expect(faceMeta("descent").readiness).toBe("ready");
