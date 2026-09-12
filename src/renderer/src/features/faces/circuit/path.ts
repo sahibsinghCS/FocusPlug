@@ -3,19 +3,15 @@ export interface CircuitPoint {
   y: number;
 }
 
-/** Hand-authored vertices — only 90° and 45° segments. Not autorouted. */
+/** Hand-authored fuse-plate vertices — only 90° and 45° segments. */
 export const CIRCUIT_POINTS: readonly CircuitPoint[] = [
-  { x: 100, y: 360 },
-  { x: 180, y: 360 },
-  { x: 180, y: 240 },
-  { x: 260, y: 240 },
-  { x: 310, y: 190 },
-  { x: 420, y: 190 },
-  { x: 420, y: 280 },
-  { x: 520, y: 280 },
-  { x: 570, y: 330 },
-  { x: 680, y: 330 },
-  { x: 680, y: 200 },
+  { x: 170, y: 330 },
+  { x: 270, y: 330 },
+  { x: 310, y: 290 },
+  { x: 390, y: 290 },
+  { x: 570, y: 290 },
+  { x: 610, y: 330 },
+  { x: 780, y: 330 },
   { x: 780, y: 200 },
   { x: 820, y: 160 },
   { x: 880, y: 160 },
@@ -63,16 +59,7 @@ export function pathFromPoints(points: readonly CircuitPoint[]): string {
 export const CIRCUIT_D = pathFromPoints(CIRCUIT_POINTS);
 export const CIRCUIT_LENGTH = polylineLength(CIRCUIT_POINTS);
 
-/** Static unpowered copper — density only, not driven by progress. */
-export const DEAD_TRACES: readonly string[] = [
-  "M 80 430 H 200 V 470 H 320 L 350 500 H 460",
-  "M 720 430 H 800 V 390 H 860 V 460",
-  "M 240 90 H 300 V 130 H 360",
-  "M 540 90 H 620 V 70 H 700",
-  "M 140 200 V 160 H 80 V 120",
-];
-
-export const CIRCUIT_START = CIRCUIT_POINTS[0] ?? { x: 100, y: 360 };
+export const CIRCUIT_START = CIRCUIT_POINTS[0] ?? { x: 170, y: 330 };
 export const CIRCUIT_END = CIRCUIT_POINTS[CIRCUIT_POINTS.length - 1] ?? { x: 880, y: 160 };
 
 export function assertRightOr45(points: readonly CircuitPoint[]): boolean {
@@ -92,11 +79,6 @@ export function assertRightOr45(points: readonly CircuitPoint[]): boolean {
 export function dashOffset(length: number, progress: number): number {
   const p = Math.min(1, Math.max(0, progress));
   return length * (1 - p);
-}
-
-/** Pads sit on vertices; vias sit on 45° joints. */
-export function vertexPads(points: readonly CircuitPoint[]): CircuitPoint[] {
-  return points.slice();
 }
 
 export function viaPoints(points: readonly CircuitPoint[]): CircuitPoint[] {
