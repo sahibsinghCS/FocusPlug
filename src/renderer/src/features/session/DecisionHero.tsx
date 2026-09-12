@@ -11,6 +11,7 @@ export function DecisionHero(props: {
   sessionActive: boolean;
   strictMode?: boolean;
   usingMock?: boolean;
+  compact?: boolean;
 }): JSX.Element {
   const copy = decisionHeroCopy(props.decision, props.detail);
   const toneClass =
@@ -33,7 +34,8 @@ export function DecisionHero(props: {
   return (
     <section
       className={cn(
-        "fp-session-hero relative min-w-0 overflow-hidden rounded-lg border border-fp-line bg-fp-panel px-5 py-4",
+        "fp-session-hero relative min-w-0 overflow-hidden rounded-lg border border-fp-line bg-fp-panel",
+        props.compact ? "px-4 py-3" : "px-5 py-4",
         glow,
       )}
       aria-labelledby="fp-session-decision"
@@ -54,16 +56,23 @@ export function DecisionHero(props: {
         {props.usingMock ? <Chip tone="amber">Mock IPC</Chip> : null}
       </div>
 
-      <div className="mt-3 flex items-center gap-4">
+      <div className={cn("flex items-center gap-4", props.compact ? "mt-2" : "mt-3")}>
         <DecisionGlyph
           decision={props.decision}
-          className={cn("h-14 w-14 shrink-0 sm:h-16 sm:w-16", toneClass)}
+          className={cn(
+            "shrink-0",
+            props.compact ? "h-10 w-10 sm:h-12 sm:w-12" : "h-14 w-14 sm:h-16 sm:w-16",
+            toneClass,
+          )}
         />
         <div className="min-w-0">
           <h1
             id="fp-session-decision"
             className={cn(
-              "text-[clamp(40px,6vw,72px)] font-semibold leading-[0.92] tracking-[-0.04em]",
+              "font-semibold leading-[0.92] tracking-[-0.04em]",
+              props.compact
+                ? "text-[clamp(28px,4.2vw,44px)]"
+                : "text-[clamp(40px,6vw,72px)]",
               toneClass,
             )}
             aria-live="polite"
@@ -76,9 +85,11 @@ export function DecisionHero(props: {
         </div>
       </div>
 
-      <p className="mt-4 max-w-2xl text-[13px] leading-5 text-fp-mute">
-        {decisionConsequence(props.decision)}
-      </p>
+      {props.compact ? null : (
+        <p className="mt-4 max-w-2xl text-[13px] leading-5 text-fp-mute">
+          {decisionConsequence(props.decision)}
+        </p>
+      )}
     </section>
   );
 }

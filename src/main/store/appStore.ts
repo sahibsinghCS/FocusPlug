@@ -9,6 +9,7 @@ import {
 } from "node:fs";
 import { dirname, join } from "node:path";
 import { DEFAULT_SETTINGS } from "../../shared/defaults.ts";
+import { isFaceId } from "../../shared/faces.ts";
 import type { AppSettings, Store } from "../../shared/ipc.ts";
 import type {
   AppEntry,
@@ -135,6 +136,7 @@ export function normalizeSettings(raw: Partial<AppSettings> | null | undefined):
         ? raw.webcamEnabled
         : DEFAULT_SETTINGS.webcamEnabled,
     deskModelId: isDeskModelId(raw?.deskModelId) ? raw.deskModelId : DEFAULT_SETTINGS.deskModelId,
+    faceId: isFaceId(raw?.faceId) ? raw.faceId : DEFAULT_SETTINGS.faceId,
     plugs: normalizePlugs(raw?.plugs),
   };
 }

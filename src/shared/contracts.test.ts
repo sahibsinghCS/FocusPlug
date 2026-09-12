@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_SETTINGS } from "./defaults";
+import { DEFAULT_FACE_ID, FACE_IDS, isFaceId, normalizeFaceId } from "./faces";
 import {
   IPC_INVOKE,
   PLUG_DRIVER_NOT_IMPLEMENTED,
@@ -69,6 +70,15 @@ describe("Phase 2 contracts", () => {
   it("defaults deskModelId to blazeface and plugs to empty", () => {
     expect(DEFAULT_SETTINGS.deskModelId).toBe("blazeface");
     expect(DEFAULT_SETTINGS.plugs).toEqual([]);
+  });
+
+  it("defaults faceId to readout until Flight is ready", () => {
+    expect(DEFAULT_SETTINGS.faceId).toBe(DEFAULT_FACE_ID);
+    expect(DEFAULT_FACE_ID).toBe("readout");
+    expect(isFaceId("hourglass")).toBe(true);
+    expect(isFaceId("column")).toBe(false);
+    expect(normalizeFaceId("eclipse")).toBe("readout");
+    expect(FACE_IDS).toHaveLength(10);
   });
 
   it("accepts existing RGB desk frames on DeskModel.infer", async () => {

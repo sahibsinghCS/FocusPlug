@@ -524,6 +524,7 @@ describe("FocusPlugStore persistence", () => {
       strictMode: true,
       webcamEnabled: false,
       deskModelId: "blazeface",
+      faceId: "hourglass",
     });
     store.appendSessionLog({ ts: 10, kind: "session", detail: "started" });
     store.appendSessionLog({ ts: 11, kind: "kill", detail: "discord" });
@@ -532,6 +533,7 @@ describe("FocusPlugStore persistence", () => {
     expect(reloaded.loadSettings().countdownSec).toBe(7);
     expect(reloaded.loadSettings().webcamEnabled).toBe(false);
     expect(reloaded.loadSettings().deskModelId).toBe("blazeface");
+    expect(reloaded.loadSettings().faceId).toBe("hourglass");
     expect(reloaded.loadSettings().plugs).toEqual([]);
     const log = reloaded.loadSessionLog();
     expect(log[0]?.kind).toBe("kill");
@@ -574,6 +576,7 @@ describe("FocusPlugStore persistence", () => {
     const store = new FocusPlugStore(dir);
     const settings = store.loadSettings();
     expect(settings.deskModelId).toBe("blazeface");
+    expect(settings.faceId).toBe("readout");
     expect(settings.plugs).toEqual([
       {
         id: "lamp",
@@ -584,6 +587,16 @@ describe("FocusPlugStore persistence", () => {
         isStudyPc: false,
       },
     ]);
+  });
+});
+
+describe("session face settings", () => {
+  it("persists faceId on the same settings blob and rejects retired ids", () => {
+    const h = makeHarness();
+    expect(h.controller.getSettings().faceId).toBe("readout");
+    expect(h.controller.setSettings({ faceId: "hourglass" }).faceId).toBe("hourglass");
+    expect(h.store.loadSettings().faceId).toBe("hourglass");
+    expect(() => h.controller.setSettings({ faceId: "eclipse" })).toThrow(/faceId/);
   });
 });
 

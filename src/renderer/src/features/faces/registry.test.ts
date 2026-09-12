@@ -1,0 +1,24 @@
+import { describe, expect, it } from "vitest";
+import { FACE_IDS } from "@shared/faces";
+import { faceComponent, FACE_COMPONENTS, faceIsReady } from "./registry";
+import { parseFaceParam, parseProgressParam } from "./urlFace";
+
+describe("face registry", () => {
+  it("registers every FaceId so parallel streams replace a file, not the host", () => {
+    expect(Object.keys(FACE_COMPONENTS).sort()).toEqual([...FACE_IDS].sort());
+    expect(faceComponent("hourglass").name).toBe("HourglassFace");
+    expect(faceComponent("readout").name).toBe("ReadoutFace");
+    expect(faceComponent("flight").name).toBe("FlightFace");
+    expect(faceComponent("column").name).toBe("ReadoutFace");
+    expect(faceIsReady("hourglass")).toBe(true);
+    expect(faceIsReady("flight")).toBe(false);
+  });
+
+  it("reads a stills override from search or hash without inventing ids", () => {
+    expect(parseFaceParam("?face=hourglass", "")).toBe("hourglass");
+    expect(parseFaceParam("", "#/?scene=live&face=flight")).toBe("flight");
+    expect(parseFaceParam("?face=eclipse", "")).toBeNull();
+    expect(parseProgressParam("?progress=0.62", "")).toBe(0.62);
+    expect(parseProgressParam("?progress=2", "")).toBe(1);
+  });
+});

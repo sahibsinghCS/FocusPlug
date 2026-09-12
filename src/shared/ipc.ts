@@ -1,3 +1,4 @@
+import type { FaceId } from "./faces";
 import type {
   AppEntry,
   Decision,
@@ -12,6 +13,7 @@ import type {
   SessionEvent,
 } from "./types";
 
+export type { FaceId, FacePhase } from "./faces";
 export type {
   AppEntry,
   Decision,
@@ -69,6 +71,8 @@ export interface AppSettings {
   strictMode: boolean;
   webcamEnabled: boolean;
   deskModelId: DeskModelId;
+  /** Immersive session face. Default is readout until Flight lands. */
+  faceId: FaceId;
   plugs: PlugDevice[];
 }
 

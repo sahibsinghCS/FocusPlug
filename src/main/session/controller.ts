@@ -1,4 +1,5 @@
 import { DEFAULT_SESSION_STATE } from "../../shared/defaults.ts";
+import { isFaceId } from "../../shared/faces.ts";
 import {
   PLUG_DRIVER_NOT_IMPLEMENTED,
   type AppLists,
@@ -140,6 +141,12 @@ function requirePatch(value: unknown): Partial<AppSettings> {
       throw new Error("deskModelId must be stub, blazeface, or custom");
     }
     patch.deskModelId = record.deskModelId;
+  }
+  if ("faceId" in record) {
+    if (!isFaceId(record.faceId)) {
+      throw new Error("faceId must be a known session face");
+    }
+    patch.faceId = record.faceId;
   }
   if ("plugs" in record) {
     if (!Array.isArray(record.plugs)) {
