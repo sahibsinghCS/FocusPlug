@@ -1,9 +1,8 @@
 .fp-face-host {
   position: relative;
-  display: flex;
-  min-height: 260px;
-  height: min(38vh, 328px);
-  flex-direction: column;
+  display: block;
+  min-height: 300px;
+  height: min(46vh, 380px);
   overflow: hidden;
   border: 1px solid var(--color-fp-line);
   border-radius: var(--radius-fp);
@@ -11,20 +10,27 @@
 }
 
 .fp-face-host-bar {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 3;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 14px 8px;
-  border-bottom: 1px solid var(--color-fp-line);
-  background: color-mix(in srgb, var(--color-fp-panel) 88%, #000);
-  z-index: 2;
+  padding: 10px 14px 28px;
+  background: linear-gradient(180deg, rgba(7, 8, 12, 0.82), rgba(7, 8, 12, 0));
+  pointer-events: none;
+}
+
+.fp-face-host-bar > * {
+  pointer-events: auto;
 }
 
 .fp-face-stage {
-  position: relative;
-  min-height: 0;
-  flex: 1;
+  position: absolute;
+  inset: 0;
 }
 
 .fp-face-crash {
@@ -64,23 +70,23 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse at 50% 62%, rgba(201, 163, 106, 0.16), transparent 42%),
-    radial-gradient(ellipse at 50% 100%, rgba(0, 0, 0, 0.65), transparent 55%),
-    linear-gradient(180deg, #0a0c12 0%, #05060a 70%);
+    radial-gradient(ellipse at 50% 58%, rgba(240, 197, 106, 0.28), transparent 46%),
+    radial-gradient(ellipse at 50% 100%, rgba(0, 0, 0, 0.72), transparent 55%),
+    linear-gradient(180deg, #121018 0%, #07080c 68%);
 }
 
 .fp-hourglass.is-focus .fp-hourglass-room {
   background:
-    radial-gradient(ellipse at 50% 62%, rgba(212, 255, 58, 0.08), transparent 46%),
-    radial-gradient(ellipse at 50% 62%, rgba(201, 163, 106, 0.18), transparent 42%),
-    linear-gradient(180deg, #0a0c12 0%, #05060a 70%);
+    radial-gradient(ellipse at 50% 58%, rgba(212, 255, 58, 0.1), transparent 48%),
+    radial-gradient(ellipse at 50% 58%, rgba(240, 197, 106, 0.3), transparent 46%),
+    linear-gradient(180deg, #121018 0%, #07080c 68%);
 }
 
 .fp-hourglass.is-break .fp-hourglass-room {
   background:
-    radial-gradient(ellipse at 50% 62%, rgba(255, 45, 85, 0.14), transparent 48%),
-    radial-gradient(ellipse at 50% 62%, rgba(201, 163, 106, 0.16), transparent 42%),
-    linear-gradient(180deg, #12080c 0%, #05060a 70%);
+    radial-gradient(ellipse at 50% 58%, rgba(255, 45, 85, 0.18), transparent 50%),
+    radial-gradient(ellipse at 50% 58%, rgba(240, 197, 106, 0.24), transparent 46%),
+    linear-gradient(180deg, #1a0c10 0%, #07080c 68%);
 }
 
 .fp-hourglass-motes {
@@ -129,7 +135,7 @@
   z-index: 1;
   display: block;
   width: 100%;
-  height: calc(100% - 36px);
+  height: 100%;
 }
 
 .fp-hourglass-meta {
@@ -168,8 +174,9 @@
   display: flex;
   height: 100%;
   flex-direction: column;
-  justify-content: space-between;
-  padding: 14px 18px 16px;
+  justify-content: flex-end;
+  gap: 14px;
+  padding: 54px 22px 18px;
   background: #080a10;
 }
 
@@ -261,11 +268,12 @@
 
 .fp-readout-track {
   position: relative;
-  height: 10px;
+  height: 16px;
   overflow: hidden;
-  border: 1px solid rgba(170, 190, 220, 0.16);
+  border: 1px solid rgba(170, 190, 220, 0.32);
   border-radius: 99px;
-  background: #10131a;
+  background: #1a2030;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
 }
 
 .fp-readout-fill {
@@ -283,6 +291,17 @@
 .fp-readout.is-idle .fp-readout-fill {
   background: #3f4654;
   box-shadow: none;
+}
+
+.fp-readout-needle {
+  position: absolute;
+  top: -4px;
+  z-index: 2;
+  width: 2px;
+  height: calc(100% + 8px);
+  background: #eef2f8;
+  box-shadow: 0 0 10px rgba(238, 242, 248, 0.55);
+  transform: translateX(-1px);
 }
 
 .fp-readout-ticks {

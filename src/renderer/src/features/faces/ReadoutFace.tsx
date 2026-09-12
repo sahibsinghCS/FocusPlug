@@ -35,6 +35,7 @@ export function ReadoutFace(props: FaceProps): JSX.Element {
 
       <div className="fp-readout-track" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress * 100)}>
         <div className="fp-readout-fill" style={{ width: formatFacePercent(progress) }} />
+        <span className="fp-readout-needle" style={{ left: formatFacePercent(progress) }} aria-hidden="true" />
         <div className="fp-readout-ticks" aria-hidden="true">
           {Array.from({ length: TICKS + 1 }, (_, index) => (
             <span key={index} data-major={index % 3 === 0 ? "1" : "0"} />

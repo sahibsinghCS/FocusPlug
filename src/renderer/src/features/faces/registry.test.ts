@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { FACE_IDS } from "@shared/faces";
 import { faceComponent, FACE_COMPONENTS, faceIsReady } from "./registry";
-import { parseFaceParam } from "./urlFace";
+import { parseFaceParam, parseProgressParam } from "./urlFace";
 
 describe("face registry", () => {
   it("registers every FaceId so parallel streams replace a file, not the host", () => {
@@ -18,5 +18,7 @@ describe("face registry", () => {
     expect(parseFaceParam("?face=hourglass", "")).toBe("hourglass");
     expect(parseFaceParam("", "#/?scene=live&face=flight")).toBe("flight");
     expect(parseFaceParam("?face=eclipse", "")).toBeNull();
+    expect(parseProgressParam("?progress=0.62", "")).toBe(0.62);
+    expect(parseProgressParam("?progress=2", "")).toBe(1);
   });
 });

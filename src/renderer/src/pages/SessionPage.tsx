@@ -1,7 +1,13 @@
-import { useState, type JSX } from "react";
+import { useEffect, useState, type JSX } from "react";
 import type { FaceId } from "@shared/faces";
 import { ErrorBanner, PageFrame } from "../components/page";
-import { FaceHost, buildFaceProps, readFaceOverride, selectedFaceId } from "../features/faces";
+import {
+  FaceHost,
+  buildFaceProps,
+  readFaceOverride,
+  readProgressOverride,
+  selectedFaceId,
+} from "../features/faces";
 import { ArmedLists } from "../features/session/ArmedLists";
 import { DecisionHero } from "../features/session/DecisionHero";
 import { EventTimeline } from "../features/session/EventTimeline";
@@ -26,6 +32,18 @@ export function SessionPage(): JSX.Element {
   const { elapsedSec, startedAt, now } = useSessionElapsed(app.state.sessionActive, app.log);
   const [previewFace, setPreviewFace] = useState<FaceId | null>(() => readFaceOverride());
 
+  useEffect(() => {
+    const apply = (): void => {
+      const next = readFaceOverride();
+      if (next) {
+        setPreviewFace(next);
+      }
+    };
+    apply();
+    window.addEventListener("hashchange", apply);
+    return () => window.removeEventListener("hashchange", apply);
+  }, []);
+
   if (!app.ready) {
     return <SessionLoading />;
   }
@@ -44,7 +62,7 @@ export function SessionPage(): JSX.Element {
   const preview = buildTimelinePreview(app.log);
   const killNote = demoKillNote(app);
   const faceId = previewFace ?? selectedFaceId(app.settings.faceId);
-  const face = buildFaceProps({
+  const built = buildFaceProps({
     sessionActive: app.state.sessionActive,
     decision: app.state.decision,
     elapsedSec,
@@ -56,6 +74,9 @@ export function SessionPage(): JSX.Element {
     width: 960,
     height: 300,
   });
+  const progressOverride = readProgressOverride();
+  const face =
+    progressOverride === null ? built : { ...built, progress: progressOverride };
 
   return (
     <PageFrame className="gap-3">
