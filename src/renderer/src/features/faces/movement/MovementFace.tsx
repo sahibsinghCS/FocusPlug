@@ -124,14 +124,15 @@ function paintMovement(
   blitGear(ctx, sprites, fourth, angles.fourth);
   blitGear(ctx, sprites, escape, angles.escape);
 
-  drawPallet(ctx, escape.x + 6, escape.y - 50, angles.pallet);
-  const balanceX = escape.x + 10;
-  const balanceY = escape.y - 128;
+  drawPallet(ctx, escape.x + 4, escape.y - 46, angles.pallet);
+  const balanceX = escape.x + 4;
+  const balanceY = escape.y - 118;
   ctx.save();
   ctx.translate(balanceX, balanceY);
   drawBalance(ctx, angles.balance);
   ctx.restore();
-  drawTrainBridge(ctx, third, fourth, escape);
+  drawJewelCocks(ctx, [center, third, fourth, escape]);
+  drawBarrelBridge(ctx, barrel);
   drawBalanceCock(ctx, balanceX, balanceY);
 
   const screws: Array<[number, number, number]> = [
@@ -200,36 +201,48 @@ function blit(
   ctx.restore();
 }
 
-function drawTrainBridge(
-  ctx: CanvasRenderingContext2D,
-  third: LaidGear,
-  fourth: LaidGear,
-  escape: LaidGear,
-): void {
+function drawJewelCocks(ctx: CanvasRenderingContext2D, gears: readonly LaidGear[]): void {
+  for (const gear of gears) {
+    ctx.save();
+    ctx.translate(gear.x, gear.y);
+    ctx.beginPath();
+    ctx.arc(0, 0, 18, 0, Math.PI * 2);
+    const steel = ctx.createRadialGradient(-6, -6, 2, 0, 0, 18);
+    steel.addColorStop(0, "#c5ccd4");
+    steel.addColorStop(0.55, "#6a727c");
+    steel.addColorStop(1, "#2e333a");
+    ctx.fillStyle = steel;
+    ctx.fill();
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(0, 0, 16, 0, Math.PI * 2);
+    ctx.clip();
+    drawCotes(ctx, 36, 36);
+    ctx.restore();
+    ctx.beginPath();
+    ctx.arc(0, 0, 18, 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(255,255,255,0.28)";
+    ctx.lineWidth = 1.1;
+    ctx.stroke();
+    drawJewel(ctx, 6.6);
+    ctx.restore();
+  }
+}
+
+function drawBarrelBridge(ctx: CanvasRenderingContext2D, barrel: LaidGear): void {
   ctx.save();
+  ctx.translate(barrel.x, barrel.y);
   ctx.beginPath();
-  ctx.moveTo(third.x - 34, third.y - 18);
-  ctx.quadraticCurveTo(third.x + 10, third.y - 48, fourth.x - 8, fourth.y - 28);
-  ctx.quadraticCurveTo(escape.x - 10, escape.y - 8, escape.x + 22, escape.y - 6);
-  ctx.quadraticCurveTo(escape.x + 36, escape.y + 18, fourth.x + 30, fourth.y + 22);
-  ctx.quadraticCurveTo(third.x + 40, third.y + 36, third.x - 8, third.y + 28);
+  ctx.arc(0, 0, 156, -2.4, -0.6, false);
+  ctx.arc(0, 0, 128, -0.6, -2.4, true);
   ctx.closePath();
-  const steel = ctx.createLinearGradient(third.x, third.y, escape.x, escape.y);
-  steel.addColorStop(0, "#8b939e");
-  steel.addColorStop(0.5, "#5c646e");
-  steel.addColorStop(1, "#2e333a");
+  const steel = ctx.createLinearGradient(-140, -80, 40, 40);
+  steel.addColorStop(0, "#9aa3ae");
+  steel.addColorStop(1, "#3a4048");
   ctx.fillStyle = steel;
-  ctx.globalAlpha = 0.55;
   ctx.fill();
-  ctx.save();
-  ctx.globalAlpha = 0.28;
-  ctx.clip();
-  ctx.translate((third.x + escape.x) / 2, (third.y + escape.y) / 2);
-  drawCotes(ctx, 220, 160);
-  ctx.restore();
-  ctx.globalAlpha = 1;
-  ctx.strokeStyle = "rgba(255,255,255,0.16)";
-  ctx.lineWidth = 1.1;
+  ctx.strokeStyle = "rgba(255,255,255,0.2)";
+  ctx.lineWidth = 1;
   ctx.stroke();
   ctx.restore();
 }
@@ -238,29 +251,29 @@ function drawBalanceCock(ctx: CanvasRenderingContext2D, x: number, y: number): v
   ctx.save();
   ctx.translate(x, y);
   ctx.beginPath();
-  ctx.moveTo(-22, 8);
-  ctx.quadraticCurveTo(-48, -8, -18, -52);
-  ctx.quadraticCurveTo(8, -78, 36, -42);
-  ctx.quadraticCurveTo(48, -8, 20, 14);
-  ctx.quadraticCurveTo(4, 20, -22, 8);
+  ctx.moveTo(-16, 10);
+  ctx.quadraticCurveTo(-62, -6, -36, -78);
+  ctx.quadraticCurveTo(-8, -118, 28, -96);
+  ctx.quadraticCurveTo(62, -70, 40, -18);
+  ctx.quadraticCurveTo(22, 16, -16, 10);
   ctx.closePath();
-  const steel = ctx.createRadialGradient(-8, -20, 6, 0, 0, 70);
-  steel.addColorStop(0, "#9aa3ae");
-  steel.addColorStop(0.55, "#5c646e");
-  steel.addColorStop(1, "#2a3038");
+  const steel = ctx.createLinearGradient(-40, -110, 40, 20);
+  steel.addColorStop(0, "#c5ccd4");
+  steel.addColorStop(0.45, "#7a828c");
+  steel.addColorStop(1, "#2e333a");
   ctx.fillStyle = steel;
   ctx.fill();
   ctx.save();
   ctx.clip();
-  drawCotes(ctx, 140, 140);
+  drawCotes(ctx, 180, 220);
   ctx.restore();
-  ctx.strokeStyle = "rgba(255,255,255,0.2)";
-  ctx.lineWidth = 1.2;
+  ctx.strokeStyle = "rgba(255,255,255,0.28)";
+  ctx.lineWidth = 1.3;
   ctx.stroke();
   ctx.beginPath();
-  ctx.arc(0, 0, 16, 0, Math.PI * 2);
-  ctx.fillStyle = "#3a4048";
+  ctx.arc(0, 0, 15, 0, Math.PI * 2);
+  ctx.fillStyle = "#2a3038";
   ctx.fill();
-  drawJewel(ctx, 7.2);
+  drawJewel(ctx, 7.4);
   ctx.restore();
 }

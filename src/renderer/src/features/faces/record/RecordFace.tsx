@@ -174,24 +174,24 @@ function drawBench(ctx: CanvasRenderingContext2D, w: number, h: number, drum: Dr
 }
 
 function drawUpright(ctx: CanvasRenderingContext2D, drum: Drum, side: -1 | 1): void {
-  const x = drum.cx + side * (drum.rx + 36) - 16;
-  const y = drum.top - 22;
-  const wood = ctx.createLinearGradient(x, y, x + 32, y);
-  wood.addColorStop(0, "#4a3222");
-  wood.addColorStop(0.5, "#6a4630");
-  wood.addColorStop(1, "#2e1c12");
+  const x = drum.cx + side * (drum.rx + 42) - 22;
+  const y = drum.top - 26;
+  const wood = ctx.createLinearGradient(x, y, x + 44, y);
+  wood.addColorStop(0, "#3a2418");
+  wood.addColorStop(0.45, "#6a4630");
+  wood.addColorStop(1, "#24160e");
   ctx.fillStyle = wood;
-  roundRectFill(ctx, x, y, 32, drum.hh + 58, 5);
+  roundRectFill(ctx, x, y, 44, drum.hh + 66, 6);
   ctx.fillStyle = BRASS;
   ctx.beginPath();
-  ctx.arc(x + 16, drum.top + 4, 9, 0, Math.PI * 2);
+  ctx.arc(x + 22, drum.top + 4, 10, 0, Math.PI * 2);
   ctx.fill();
   ctx.beginPath();
-  ctx.arc(x + 16, drum.top + drum.hh - 4, 9, 0, Math.PI * 2);
+  ctx.arc(x + 22, drum.top + drum.hh - 4, 10, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = "#1a120c";
   ctx.beginPath();
-  ctx.arc(x + 16, drum.top + 4, 3.2, 0, Math.PI * 2);
+  ctx.arc(x + 22, drum.top + 4, 3.4, 0, Math.PI * 2);
   ctx.fill();
 }
 

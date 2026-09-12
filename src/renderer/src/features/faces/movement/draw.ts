@@ -34,7 +34,7 @@ export function meshDistance(a: GearSpec, b: GearSpec): number {
 
 /** Pitch-aware layout so neighbouring wheels actually mesh. */
 export function layoutGears(): Record<string, LaidGear> {
-  const barrel = { spec: GEARS[0]!, x: 352, y: 572 };
+  const barrel = { spec: GEARS[0]!, x: 400, y: 555 };
   const center = place(barrel, GEARS[1]!, -0.18);
   const third = place(center, GEARS[2]!, -1.46);
   const fourth = place(third, GEARS[3]!, 0.7);

@@ -82,7 +82,8 @@ function propsAt(input: {
 export function faceFixture(face: FaceId | "bar", scene: FaceSceneId): FaceProps {
   if (face === "movement") {
     // Beat fraction 0.34 → escapement is in the overshoot, not a linear step.
-    const beats = 184.34;
+    // Mid-session so the mainspring reads as a ribbon, not a speaker coil.
+    const beats = 4 * (0.45 * DURATION) / 1000 + 0.34;
     const elapsedSec = beats / 4;
     const progress = (elapsedSec * 1000) / DURATION;
     return propsAt({ progress, scene: scene === "idle" ? "idle" : "live" });
