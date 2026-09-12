@@ -35,6 +35,10 @@ npm test
 npm run typecheck
 ```
 
+## Critic
+
+Blind stills critic (no builder rationale): **WIN**. Picked The Record over the progress bar. Movement read as an opened calibre. Line made rounds/breaks obvious; plain collapsed to two stops.
+
 ## Hard fail
 
 - Record looks like a pie / ring / progress bar
