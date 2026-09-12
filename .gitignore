@@ -12,3 +12,7 @@ Thumbs.db
 .idea/
 .vscode/
 *.local
+
+# Regenerable: `npm run dataset:adapt`. The CSV is committed; the JSONL duplicates it.
+datasets/*.jsonl
+datasets/*.improved.*

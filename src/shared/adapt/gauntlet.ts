@@ -5,7 +5,8 @@
  *
  * This is a SIMULATION, not a user study. It invents a population of students
  * with different self-correction habits, replays drifts against them, and
- * compares three policies. Quote it as a simulation or not at all.
+ * compares three policies. Quote it as a simulation or not at all. The generator
+ * and its hand-written assumptions live in `population.ts`.
  *
  * The baseline is deliberately strong: not the shipped 10 seconds, but the
  * single best constant fuse found by sweeping every value against the whole
@@ -16,9 +17,9 @@
  * below are from the drifts after that, which the model never learned on.
  */
 
-import { type DriftMoment } from "./features";
 import { chooseFuse, FUSE_CANDIDATES, MAX_FUSE_SEC } from "./fuse";
 import { createModel, type AdaptiveModel } from "./model";
+import { HABITS, momentFor, population, type Student } from "./population";
 import { observeDrift } from "./train";
 
 const STUDENTS = 120;
@@ -27,44 +28,6 @@ const TRAIN_DRIFTS = 12;
 const SHIPPED_FUSE = 10;
 /** Past this, nobody was coming back on their own anyway. */
 const PATIENCE_SEC = MAX_FUSE_SEC;
-
-/** Deterministic so the printed numbers are reproducible. */
-function rng(seed: number): () => number {
-  let state = seed >>> 0 || 1;
-  return () => {
-    state ^= state << 13;
-    state ^= state >>> 17;
-    state ^= state << 5;
-    state >>>= 0;
-    return state / 4_294_967_296;
-  };
-}
-
-interface Habit {
-  name: string;
-  /** Chance they come back at all, rather than sinking into it. */
-  returns: number;
-  /** Typical seconds to notice and come back. */
-  medianSec: number;
-  spread: number;
-}
-
-const HABITS: readonly Habit[] = [
-  { name: "snaps back", returns: 0.92, medianSec: 4, spread: 1.8 },
-  { name: "drifts, then returns", returns: 0.78, medianSec: 13, spread: 5 },
-  { name: "slow to notice", returns: 0.6, medianSec: 22, spread: 7 },
-  { name: "gone once gone", returns: 0.08, medianSec: 26, spread: 8 },
-];
-
-/** How long this drift would have taken to fix, or null if never. */
-function drawRecovery(habit: Habit, random: () => number): number | null {
-  if (random() > habit.returns) {
-    return null;
-  }
-  // Two uniforms make a rough bell without pulling in a normal sampler.
-  const noise = (random() + random() - 1) * habit.spread;
-  return Math.max(1, habit.medianSec + noise);
-}
 
 interface Cost {
   /** Decisions that matched what the student would actually have done. */
@@ -105,49 +68,6 @@ function per100(cost: Cost): { accuracy: number; waitedSec: number; meanFuse: nu
   };
 }
 
-function moment(ts: number): DriftMoment {
-  return {
-    ts,
-    sessionStartedAt: ts - 10 * 60_000,
-    sessionEndsAt: ts + 40 * 60_000,
-    focus: {
-      ts,
-      processName: "discord",
-      windowTitle: "Discord",
-      matchedAllow: false,
-      matchedBlock: true,
-    },
-    desk: { ts, label: "at_desk", confidence: 0.93, webcamEnabled: true },
-    violation: "blocked",
-    dwellMs: 5_000,
-    switchesLastTwoMin: 3,
-    priorDrifts: 0,
-    priorKills: 0,
-    fuseSec: SHIPPED_FUSE,
-    hour: 21,
-  };
-}
-
-interface Student {
-  habit: Habit;
-  /** Recovery times drawn up front so every policy faces the same person. */
-  drifts: Array<number | null>;
-}
-
-function population(): Student[] {
-  const random = rng(20260911);
-  const students: Student[] = [];
-  for (let i = 0; i < STUDENTS; i += 1) {
-    const habit = HABITS[i % HABITS.length]!;
-    const drifts: Array<number | null> = [];
-    for (let d = 0; d < DRIFTS_EACH; d += 1) {
-      drifts.push(drawRecovery(habit, random));
-    }
-    students.push({ habit, drifts });
-  }
-  return students;
-}
-
 /**
  * Every constant fuse, scored. There is no single "best" without an exchange
  * rate between a wrong call and a wasted second, and inventing one is how you
@@ -161,8 +81,8 @@ function constantSweep(students: readonly Student[]): Array<{ fuseSec: number; c
 function runFixed(students: readonly Student[], fuseSec: number): Cost {
   const cost = emptyCost();
   for (const student of students) {
-    for (const recovery of student.drifts.slice(TRAIN_DRIFTS)) {
-      score(cost, fuseSec, recovery);
+    for (const drift of student.drifts.slice(TRAIN_DRIFTS)) {
+      score(cost, fuseSec, drift.latentRecoverySec);
     }
   }
   return cost;
@@ -175,31 +95,34 @@ function runAdaptive(students: readonly Student[]): { cost: Cost; byHabit: Map<s
 
   for (const student of students) {
     let model: AdaptiveModel = createModel();
-    student.drifts.forEach((recovery, index) => {
-      const at = moment(base + index * 60_000);
-      const choice = chooseFuse(model, at, SHIPPED_FUSE);
-      const observed = recovery !== null && recovery <= choice.seconds ? recovery : null;
+    const history = { priorDrifts: 0, priorKills: 0 };
 
-      if (index < TRAIN_DRIFTS) {
-        model = observeDrift(model, { ...at, fuseSec: choice.seconds }, {
-          recoveredAfterSec: observed,
-          fuseSec: choice.seconds,
-          probed: choice.exploring,
-        });
-        return;
+    student.drifts.forEach((drift, index) => {
+      const at = base + index * 60_000;
+      const moment = momentFor(drift, at, SHIPPED_FUSE, history);
+      const choice = chooseFuse(model, moment, SHIPPED_FUSE);
+      const latent = drift.latentRecoverySec;
+      const observed = latent !== null && latent <= choice.seconds ? latent : null;
+
+      if (index >= TRAIN_DRIFTS) {
+        score(cost, choice.seconds, latent);
+        const habitCost = byHabit.get(student.habit.name) ?? emptyCost();
+        score(habitCost, choice.seconds, latent);
+        byHabit.set(student.habit.name, habitCost);
       }
 
-      score(cost, choice.seconds, recovery);
-      const habitCost = byHabit.get(student.habit.name) ?? emptyCost();
-      score(habitCost, choice.seconds, recovery);
-      byHabit.set(student.habit.name, habitCost);
-      // Keep learning after the split; the score above was recorded first, so
-      // the model never sees a drift before it is graded on it.
-      model = observeDrift(model, { ...at, fuseSec: choice.seconds }, {
+      // Learning happens on every drift, but the score above was recorded first,
+      // so the model never sees a drift before it is graded on it.
+      model = observeDrift(model, { ...moment, fuseSec: choice.seconds }, {
         recoveredAfterSec: observed,
         fuseSec: choice.seconds,
         probed: choice.exploring,
       });
+
+      history.priorDrifts += 1;
+      if (observed === null) {
+        history.priorKills += 1;
+      }
     });
   }
 
@@ -213,7 +136,7 @@ function line(label: string, cost: Cost): string {
     .padStart(5)}s waited/drift   fuse ${meanFuse.toFixed(1).padStart(4)}s`;
 }
 
-const students = population();
+const students = population({ students: STUDENTS, driftsEach: DRIFTS_EACH });
 const shipped = runFixed(students, SHIPPED_FUSE);
 const sweep = constantSweep(students);
 const adaptive = runAdaptive(students);

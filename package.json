@@ -32,6 +32,8 @@
     "probe:golden": "tsx --tsconfig tsconfig.node.json src/main/session/probe.ts",
     "test:desk": "tsx --tsconfig tsconfig.node.json src/main/desk/gauntlet.ts",
     "gauntlet:adapt": "tsx --tsconfig tsconfig.node.json src/shared/adapt/gauntlet.ts",
+    "dataset:adapt": "tsx --tsconfig tsconfig.node.json src/shared/adapt/export.ts",
+    "prior:adapt": "tsx --tsconfig tsconfig.node.json src/shared/adapt/fit-prior.ts",
     "preview:renderer": "vite --config scripts/renderer-preview.vite.ts",
     "stills:readme": "node scripts/readme-stills.mjs"
   },
