@@ -1,19 +1,50 @@
 import type { JSX } from "react";
-import { PendingFace } from "./PendingFace";
+import { GrowthFace as GrowthBonsai } from "./growth/GrowthFace";
+import { parseKillsParam, parseSessionParam } from "./urlFace";
 import type { FaceProps } from "./types";
 
-/** Owned by agent/faces-growth. Foundation ships the empty slot only. */
+function stillsSessionId(fallback: string): string {
+  if (typeof fallback !== "string" || fallback.length === 0) {
+    throw new Error("sessionId must be a non-empty string");
+  }
+  if (typeof window === "undefined") {
+    return fallback;
+  }
+  return parseSessionParam(window.location.search, window.location.hash) ?? fallback;
+}
+
+function stillsKillCount(fallback: number): number {
+  if (typeof fallback !== "number" || !Number.isFinite(fallback)) {
+    throw new Error("killCount must be a finite number");
+  }
+  if (typeof window === "undefined") {
+    return Math.max(0, fallback);
+  }
+  return parseKillsParam(window.location.search, window.location.hash) ?? Math.max(0, fallback);
+}
+
+/** Growth slot — session-seeded bonsai. Wilt is kill-count stakes. */
 export function GrowthFace(props: FaceProps): JSX.Element {
+  const sessionId = stillsSessionId(props.sessionId);
+  const killCount = stillsKillCount(props.killCount);
+  const width = Math.max(1, Math.round(props.width));
+  const height = Math.max(1, Math.round(props.height));
   return (
-    <PendingFace
-      {...props}
-      id="growth"
-      silhouette={
-        <svg viewBox="0 0 72 48" className="h-10 w-14" fill="none">
-          <path d="M12 40 V28 H22 V40 M28 40 V18 H38 V40 M44 40 V10 H54 V40" stroke="currentColor" strokeWidth="1.6" />
-          <path d="M50 10 C58 6 62 14 54 16" stroke="currentColor" strokeWidth="1.2" />
-        </svg>
-      }
-    />
+    <div
+      className="fp-growth-face"
+      data-face="growth"
+      data-face-status="ready"
+      data-phase={props.phase}
+    >
+      <GrowthBonsai
+        sessionId={sessionId}
+        progress={props.progress}
+        killCount={killCount}
+        killEvents={props.events}
+        width={width}
+        height={height}
+        className="fp-growth--host"
+      />
+    </div>
   );
 }

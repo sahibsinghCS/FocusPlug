@@ -37,6 +37,8 @@ describe("faces catalog", () => {
 
   it("defaults to readout until Flight is marked ready", () => {
     expect(FACE_READY.flight).toBe(false);
+    expect(FACE_READY.growth).toBe(true);
+    expect(faceMeta("growth").readiness).toBe("ready");
     expect(DEFAULT_FACE_ID).toBe("readout");
     expect(resolveDefaultFaceId({ ...FACE_READY, flight: true })).toBe("flight");
     expect(DEFAULT_ESTIMATE_MINUTES).toBe(50);
