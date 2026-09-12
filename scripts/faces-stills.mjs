@@ -9,7 +9,8 @@ const PREFIX = process.argv[3] ?? "after";
 const SCENES = [
   { name: "idle-readout", path: "/#/?face=readout" },
   { name: "live-readout", path: "/#/?scene=live&face=readout" },
-  { name: "live-hourglass", path: "/#/?scene=live&face=hourglass&progress=0.62" },
+  { name: "live-hourglass", path: "/#/?scene=live&face=hourglass" },
+  { name: "mid-hourglass", path: "/#/?scene=live&face=hourglass&progress=0.62" },
   { name: "idle-hourglass", path: "/#/?face=hourglass" },
   { name: "live-flight", path: "/#/?scene=live&face=flight" },
   { name: "settings", path: "/#/settings" },
