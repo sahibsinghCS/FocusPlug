@@ -4,9 +4,10 @@ Bar: a fresh harsh critic compares **healthy mid-growth** vs **wilted-after-kill
 
 ## Owns
 
+- `src/renderer/src/features/faces/GrowthFace.tsx` (replaces foundation stub)
 - `src/renderer/src/features/faces/growth/**`
 
-Does not own SessionPage, IPC, or other faces.
+Registers `growth` as ready in `FACE_READY` / `FACE_COMPONENTS`. Does not fork FaceHost.
 
 ## Must hold
 
@@ -29,6 +30,14 @@ Stills (isolated preview, mock-free):
 ```bash
 npx vite --config scripts/growth-preview.vite.ts
 node src/renderer/src/features/faces/growth/stills.mjs
+```
+
+Host-mounted (FaceHost on Session):
+
+```bash
+npx vite --config scripts/renderer-preview.vite.ts
+# #/?scene=live&face=growth&progress=0.74&session=gauntlet-growth-01
+# #/?scene=live&face=growth&progress=0.74&session=gauntlet-growth-01&kills=3
 ```
 
 Scenes: `?scene=healthy|wilted|complete|sprout|stall|diptych` plus `&still=1`.

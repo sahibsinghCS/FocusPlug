@@ -46,7 +46,7 @@ export const FACE_READY: Readonly<Record<FaceId, boolean>> = {
   circuit: true,
   line: false,
   orbit: true,
-  growth: false,
+  growth: true,
 };
 
 export const FACE_CATALOG: readonly FaceMeta[] = [
@@ -125,7 +125,7 @@ export const FACE_CATALOG: readonly FaceMeta[] = [
   {
     id: "growth",
     title: "Growth",
-    blurb: "Accretion — time as something that accumulates.",
+    blurb: "Bonsai — progress reveals wood; kills wilt the same tree.",
     stream: "agent/faces-growth",
     file: "src/renderer/src/features/faces/GrowthFace.tsx",
     readiness: FACE_READY.growth ? "ready" : "pending",

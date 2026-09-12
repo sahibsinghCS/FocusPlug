@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { FACE_IDS } from "@shared/faces";
 import { faceComponent, FACE_COMPONENTS, faceIsReady } from "./registry";
-import { parseFaceParam, parseProgressParam } from "./urlFace";
+import { parseFaceParam, parseKillsParam, parseProgressParam, parseSessionParam } from "./urlFace";
 
 describe("face registry", () => {
   it("registers every FaceId so parallel streams replace a file, not the host", () => {
@@ -10,7 +10,9 @@ describe("face registry", () => {
     expect(faceComponent("readout").name).toBe("ReadoutFace");
     expect(faceComponent("flight").name).toBe("FlightFace");
     expect(faceComponent("column").name).toBe("ReadoutFace");
+    expect(faceComponent("growth").name).toBe("GrowthFace");
     expect(faceIsReady("hourglass")).toBe(true);
+    expect(faceIsReady("growth")).toBe(true);
     expect(faceIsReady("flight")).toBe(false);
     expect(faceIsReady("descent")).toBe(true);
     expect(faceIsReady("orbit")).toBe(true);
@@ -26,5 +28,9 @@ describe("face registry", () => {
     expect(parseFaceParam("?face=eclipse", "")).toBeNull();
     expect(parseProgressParam("?progress=0.62", "")).toBe(0.62);
     expect(parseProgressParam("?progress=2", "")).toBe(1);
+    expect(parseKillsParam("?kills=3", "")).toBe(3);
+    expect(parseSessionParam("", "#/?scene=live&face=growth&session=gauntlet-growth-01")).toBe(
+      "gauntlet-growth-01",
+    );
   });
 });

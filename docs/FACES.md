@@ -47,7 +47,7 @@ Replace the listed file. Do not fork `FaceHost` or invent a second picker.
 | `circuit` | `agent/faces-circuit` | `src/renderer/src/features/faces/CircuitFace.tsx` | ready — session fuse plate |
 | `line` | `agent/faces-line` | `src/renderer/src/features/faces/LineFace.tsx` | stub |
 | `orbit` | `agent/faces-orbit` | `src/renderer/src/features/faces/OrbitFace.tsx` | ready — alignment lock |
-| `growth` | `agent/faces-growth` | `src/renderer/src/features/faces/GrowthFace.tsx` | stub |
+| `growth` | `agent/faces-growth` | `src/renderer/src/features/faces/GrowthFace.tsx` | ready — bonsai + wilt stakes |
 
 Shared (foundation only, unless a merge needs a one-line registry hook):
 
@@ -76,4 +76,6 @@ npx vite --config scripts/renderer-preview.vite.ts
 # #/?scene=live&face=descent&progress=0.62
 # #/?scene=live&face=orbit&progress=0.62
 # #/?scene=live&face=circuit&progress=0.62
+# #/?scene=live&face=growth&progress=0.74&session=gauntlet-growth-01
+# #/?scene=live&face=growth&progress=0.74&session=gauntlet-growth-01&kills=3
 ```
