@@ -1,36 +1,22 @@
-# Independent critic (faces-flight)
+# Independent critic (faces-flight-v2)
 
-Blind critic. Bar: 1280×800 before/after. WIN only if AFTER reads as a photographed flight instrument at a real local time.
+Blind critic. Bar: 1280×800. WIN only if AFTER reads as a real flight instrument — zoomed hop, globe actually rotating, no lat/lon grid, origin and arrival user-choosable.
 
-Plates were unlabeled (`plate-p` … `plate-u`). Critic was not told which prefix is new.
+Plates were unlabeled (`plate-m` … `plate-r`). Critic was not told which prefix is new.
 
-## Round 1 — LOSE
+## Round 1 — WIN
 
-- **Selected:** AFTER (still lost the bar)
-- **Largest gap:** Flat screensaver globe — knife-edge terminator, level airplane decal, no tapering contrail, doubled canvas type, 3,693 km/h strip from a 90-minute JFK–LHR clock.
-
-## Round 2 — LOSE
-
-- **Selected:** AFTER (still lost the bar)
-- **Largest gap:** Wings-level silhouette; strip GS OCR’d as 7911 from `791 km/h`.
-
-## Round 3 — WIN
-
-- **Selected:** Q (instrument family). P is the flat gray disc + orange arc sticker.
-- **Largest remaining ding (not a loss):** Land is still a smooth brown mask; terminator is a thin cyan band, not a photographed Earth texture.
-
-## Round 4 — WIN (rebase onto FaceHost)
-
-Foundation merged (`4fab72d`). Flight stub replaced. Fresh unlabeled plates including host chrome (`plate-u`).
-
-- **Selected:** Q
-- **Host check:** U is the same banked globe + strip inside FocusPlug session chrome, not a pending silhouette.
-- **Largest remaining ding (not a loss):** Continents stay matte cutouts under a cyan terminator.
+- **Selected:** N, O, P, Q, R (instrument family)
+- **Rejected:** M (tiny gridded DUB→EDI globe sticker)
+- **Largest remaining ding (not a loss):** Disc still stages a hero airliner on matte land without ND range rings, compass rose, or a flown-track line, so it reads more like a product render in a bezel than a crew navigation display.
 
 **Why WIN:**
 
-- Q at 16:00Z: warm gold day / indigo night / cyan twilight. R at 02:00Z flips to night with orange city lights.
-- Airplane banks 15°R on Q/R and 9°R on S with a tapering wake; T is wings-level on arrival + DESTINATION SETS LONDON.
-- Strip: JFK→LHR, remain 5318 / 2,992 / 0 km, ETA 22:43 / 19:46 / ARR, GS 791 then 0 kph.
+- N vs O: same DUB→EDI hop, aircraft stays near center, landmasses rotate — globe is not a static sticker.
+- No lat/lon graticule. Coasts and land shading only; Irish Sea stays water.
+- Q: searchable IATA/city picker (origin list open).
+- R: same instrument on a choosable JFK→LHR crossing (2,992 km remain, ETA 19:46, GS 791 kph).
+- P: night side with city lights.
+- Strip on N/O: DUB → EDI, 181 km, 16:27, 403 kph.
 
-**Checks:** `npm test` (279) and `npm run typecheck:web` / `typecheck:node` pass. Default `AppSettings.faceId` is `flight`.
+**Checks:** `npx vitest run src/renderer/src/features/faces/flight src/shared/flightRoute.test.ts` (36) and `npx tsc --noEmit -p tsconfig.web.json` pass.
