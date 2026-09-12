@@ -2,6 +2,7 @@ import type { FaceId } from "@shared/faces";
 import { FACE_READY, normalizeFaceId } from "@shared/faces";
 import { CircuitFace } from "./CircuitFace";
 import { DescentFace } from "./DescentFace";
+import { FlaskFace } from "./FlaskFace";
 import { FlightFace } from "./FlightFace";
 import { GrowthFace } from "./GrowthFace";
 import { HourglassFace } from "./HourglassFace";
@@ -23,6 +24,7 @@ export const FACE_COMPONENTS: Readonly<Record<FaceId, FaceComponent>> = {
   line: LineFace,
   orbit: OrbitFace,
   growth: GrowthFace,
+  flask: FlaskFace,
 };
 
 export function faceComponent(id: unknown): FaceComponent {

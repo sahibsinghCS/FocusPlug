@@ -48,6 +48,7 @@ Replace the listed file. Do not fork `FaceHost` or invent a second picker.
 | `line` | `agent/faces-mid` | `src/renderer/src/features/faces/LineFace.tsx` | ready — transit map |
 | `orbit` | `agent/faces-orbit` | `src/renderer/src/features/faces/OrbitFace.tsx` | ready — alignment lock |
 | `growth` | `agent/faces-growth` | `src/renderer/src/features/faces/GrowthFace.tsx` | ready — bonsai + wilt stakes |
+| `flask` | `agent/faces-flask` | `src/renderer/src/features/faces/FlaskFace.tsx` | ready — glass vessel + visible leak |
 
 Shared (foundation only, unless a merge needs a one-line registry hook):
 
@@ -78,4 +79,5 @@ npx vite --config scripts/renderer-preview.vite.ts
 # #/?scene=live&face=circuit&progress=0.62
 # #/?scene=live&face=growth&progress=0.74&session=gauntlet-growth-01
 # #/?scene=live&face=growth&progress=0.74&session=gauntlet-growth-01&kills=3
+# #/?scene=live&face=flask&progress=0.62
 ```

@@ -69,6 +69,7 @@ describe("face props", () => {
   it("counts kill/demo events and keeps selected ids in the catalog", () => {
     expect(countKills(log)).toBe(2);
     expect(selectedFaceId("hourglass")).toBe("hourglass");
+    expect(selectedFaceId("flask")).toBe("flask");
     expect(selectedFaceId("column")).toBe("flight");
     const props = buildFaceProps({
       sessionActive: true,

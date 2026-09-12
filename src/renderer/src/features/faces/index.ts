@@ -6,6 +6,7 @@ export { ReadoutFace } from "./ReadoutFace";
 export { DescentFace } from "./DescentFace";
 export { OrbitFace } from "./OrbitFace";
 export { CircuitFace } from "./CircuitFace";
+export { FlaskFace } from "./FlaskFace";
 export { buildFaceProps, selectedFaceId } from "./props";
 export { faceComponent } from "./registry";
 export {
