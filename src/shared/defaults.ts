@@ -1,3 +1,4 @@
+import { DEFAULT_FACE_ID } from "./faces.ts";
 import type { AppSettings, SessionState } from "./ipc";
 import type { AppEntry } from "./types";
 
@@ -109,6 +110,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   strictMode: true,
   webcamEnabled: true,
   deskModelId: "blazeface",
+  faceId: DEFAULT_FACE_ID,
   plugs: [],
 };
 

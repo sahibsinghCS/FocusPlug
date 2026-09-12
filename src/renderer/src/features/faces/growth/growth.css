@@ -1,0 +1,62 @@
+.fp-growth-face {
+  box-sizing: border-box;
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: end center;
+  padding: 36px 12px 8px;
+}
+
+.fp-growth {
+  display: grid;
+  place-items: end center;
+  line-height: 0;
+}
+
+.fp-growth--host,
+.fp-growth--host svg {
+  width: 100%;
+  height: 100%;
+}
+
+.fp-growth svg {
+  display: block;
+  overflow: visible;
+}
+
+.fp-growth-preview {
+  min-height: 100vh;
+  margin: 0;
+  background: #07080c;
+  color: #eef2f8;
+  font-family: Geist, "Segoe UI Variable", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+}
+
+.fp-growth-preview__stage {
+  box-sizing: border-box;
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 24px;
+}
+
+.fp-growth-preview__pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 36px;
+  align-items: end;
+}
+
+.fp-growth-preview__caption {
+  margin: 0 0 12px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #6b768a;
+  text-align: center;
+}
+
+.fp-growth-preview[data-still="1"] .fp-growth-preview__caption {
+  display: none;
+}

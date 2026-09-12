@@ -18,6 +18,7 @@ import {
   type SessionEvent,
   type SessionState,
 } from "@shared/ipc";
+import { isFaceId } from "@shared/faces";
 import { isDeskModelId } from "./plugsUi";
 import { readUrlScene } from "./urlScene";
 import { goldenSessionEvents } from "../features/logs/fixtures";
@@ -164,6 +165,7 @@ function loadStoredSettings(): AppSettings {
         ? record.webcamEnabled
         : DEFAULT_SETTINGS.webcamEnabled,
     deskModelId: isDeskModelId(record.deskModelId) ? record.deskModelId : DEFAULT_SETTINGS.deskModelId,
+    faceId: isFaceId(record.faceId) ? record.faceId : DEFAULT_SETTINGS.faceId,
     plugs,
   };
 }
@@ -362,6 +364,9 @@ export function createMockApi(): FocusPlugApi {
     settingsSet: async (patch) => {
       if (patch.deskModelId !== undefined && !isDeskModelId(patch.deskModelId)) {
         throw new Error("deskModelId must be stub, blazeface, or custom");
+      }
+      if (patch.faceId !== undefined && !isFaceId(patch.faceId)) {
+        throw new Error("faceId must be a known session face");
       }
       if (patch.plugs) {
         for (const plug of patch.plugs) {

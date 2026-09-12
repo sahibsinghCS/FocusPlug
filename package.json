@@ -35,7 +35,9 @@
     "dataset:adapt": "tsx --tsconfig tsconfig.node.json src/shared/adapt/export.ts",
     "prior:adapt": "tsx --tsconfig tsconfig.node.json src/shared/adapt/fit-prior.ts",
     "preview:renderer": "vite --config scripts/renderer-preview.vite.ts",
-    "stills:readme": "node scripts/readme-stills.mjs"
+    "stills:readme": "node scripts/readme-stills.mjs",
+    "faces:preview": "vite --config scripts/faces-preview.vite.ts",
+    "faces:stills": "node scripts/faces-stills.mjs"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",
