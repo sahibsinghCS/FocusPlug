@@ -12,9 +12,11 @@ describe("face registry", () => {
     expect(faceComponent("column").name).toBe("FlightFace");
     expect(faceComponent("growth").name).toBe("GrowthFace");
     expect(faceComponent("flask").name).toBe("FlaskFace");
+    expect(faceComponent("garden").name).toBe("GardenFace");
     expect(faceIsReady("hourglass")).toBe(true);
     expect(faceIsReady("growth")).toBe(true);
     expect(faceIsReady("flask")).toBe(true);
+    expect(faceIsReady("garden")).toBe(true);
     expect(faceIsReady("flight")).toBe(true);
     expect(faceIsReady("descent")).toBe(true);
     expect(faceIsReady("orbit")).toBe(true);
@@ -29,6 +31,7 @@ describe("face registry", () => {
     expect(parseFaceParam("?face=flask", "")).toBe("flask");
     expect(parseFaceParam("", "#/?scene=live&face=flight")).toBe("flight");
     expect(parseFaceParam("", "#/?scene=live&face=flask&progress=0.62")).toBe("flask");
+    expect(parseFaceParam("?face=garden", "")).toBe("garden");
     expect(parseFaceParam("?face=eclipse", "")).toBeNull();
     expect(parseProgressParam("?progress=0.62", "")).toBe(0.62);
     expect(parseProgressParam("?progress=2", "")).toBe(1);

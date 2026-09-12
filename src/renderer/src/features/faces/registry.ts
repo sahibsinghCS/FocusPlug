@@ -4,6 +4,7 @@ import { CircuitFace } from "./CircuitFace";
 import { DescentFace } from "./DescentFace";
 import { FlaskFace } from "./FlaskFace";
 import { FlightFace } from "./FlightFace";
+import { GardenFace } from "./GardenFace";
 import { GrowthFace } from "./GrowthFace";
 import { HourglassFace } from "./HourglassFace";
 import { LineFace } from "./LineFace";
@@ -25,6 +26,7 @@ export const FACE_COMPONENTS: Readonly<Record<FaceId, FaceComponent>> = {
   orbit: OrbitFace,
   growth: GrowthFace,
   flask: FlaskFace,
+  garden: GardenFace,
 };
 
 export function faceComponent(id: unknown): FaceComponent {

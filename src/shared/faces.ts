@@ -12,6 +12,7 @@ export const FACE_IDS = [
   "orbit",
   "growth",
   "flask",
+  "garden",
 ] as const;
 
 export type FaceId = (typeof FACE_IDS)[number];
@@ -46,6 +47,7 @@ export const FACE_READY: Readonly<Record<FaceId, boolean>> = {
   orbit: true,
   growth: true,
   flask: true,
+  garden: true,
 };
 
 export const FACE_CATALOG: readonly FaceMeta[] = [
@@ -136,6 +138,14 @@ export const FACE_CATALOG: readonly FaceMeta[] = [
     stream: "agent/faces-flask",
     file: "src/renderer/src/features/faces/FlaskFace.tsx",
     readiness: FACE_READY.flask ? "ready" : "pending",
+  },
+  {
+    id: "garden",
+    title: "Garden",
+    blurb: "Sunrise timer — night moon to a colorful garden day.",
+    stream: "agent/faces-garden",
+    file: "src/renderer/src/features/faces/GardenFace.tsx",
+    readiness: FACE_READY.garden ? "ready" : "pending",
   },
 ];
 
