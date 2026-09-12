@@ -3,10 +3,10 @@ import { cn } from "../../lib/cn";
 import type { PlanSegment } from "./plan";
 
 /**
- * The session, drawn to scale — lit tungsten bars for the work, dark notches
- * for the breaks. It is the same object in both places: on the panel you are
- * shaping it, in lock mode it is filling up. Nothing else shows you the shape
- * of the next three hours before you agree to it.
+ * A multi-round session drawn to scale — solid bars for the work, hollow
+ * notches for the breaks. It is the same object in both places: on the panel
+ * you are shaping it, in lock mode it is filling up. Only appears when there
+ * is more than one round, because otherwise it has nothing to say.
  */
 export function Ribbon(props: {
   segments: readonly PlanSegment[];
@@ -44,13 +44,13 @@ export function Ribbon(props: {
               className={cn(
                 "relative min-w-[5px] overflow-hidden rounded-[3px] transition-[flex-grow] duration-500",
                 running
-                  ? "self-stretch bg-fp-break/12"
-                  : "my-[14px] self-auto border border-fp-break/55 bg-fp-break/28",
+                  ? "self-stretch bg-current/10"
+                  : "my-[14px] self-auto border border-dashed border-current/40",
               )}
             >
               {running ? (
                 <span
-                  className="absolute inset-y-0 left-0 bg-fp-break/80 transition-[width] duration-300 ease-linear"
+                  className="absolute inset-y-0 left-0 bg-current/45 transition-[width] duration-300 ease-linear"
                   style={{ width: `${fill * 100}%` }}
                 />
               ) : null}
@@ -64,21 +64,19 @@ export function Ribbon(props: {
             style={{ flexGrow: segment.seconds, flexBasis: 0 }}
             className={cn(
               "relative min-w-[6px] overflow-hidden rounded-[4px] transition-[flex-grow] duration-500",
-              running
-                ? "bg-fp-focus/22"
-                : "bg-[linear-gradient(180deg,#ffc183_0%,#ffa653_52%,#f3903f_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.4)]",
-              current && "ring-1 ring-inset ring-fp-focus/70",
+              running ? "bg-current/15" : "bg-current",
+              current && "ring-1 ring-inset ring-current/70",
               spent && "opacity-70",
             )}
           >
             {running ? (
               <span
-                className="absolute inset-y-0 left-0 bg-fp-focus transition-[width] duration-300 ease-linear"
+                className="absolute inset-y-0 left-0 bg-current transition-[width] duration-300 ease-linear"
                 style={{ width: `${fill * 100}%` }}
               />
             ) : (
               <span className="absolute inset-0 flex items-center justify-center overflow-hidden">
-                <span className="fp-display text-[13px] font-bold text-[#2a1405] tabular">
+                <span className="fp-display text-[13px] font-bold text-[color:var(--ground)] tabular">
                   {Math.round(segment.seconds / 60)}
                 </span>
               </span>

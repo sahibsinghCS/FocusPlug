@@ -1,13 +1,12 @@
 @import "tailwindcss";
 
 /*
- * FocusPlug — "Mains" design system.
+ * FocusPlug design system.
  *
- * The app is a piece of electrical apparatus, not a wellness tracker. Two
- * registers: the panel (setup, instrumented and tactile) and the sealed room
- * (lock mode, everything gone but the time). Colour temperature carries the
- * phase — tungsten while you work, daylight on a break — so `--phase` is set
- * once on a container and every accent below reads from it.
+ * The app is a piece of apparatus, not a wellness tracker. Two registers: the
+ * panel (setup, instrumented and tactile) and the sealed room (lock mode,
+ * everything gone but the object running out). Monochrome throughout — red is
+ * the only colour in the product and it means a kill is coming.
  */
 
 @font-face {
@@ -56,30 +55,30 @@
   --font-sans: Geist, "Segoe UI Variable", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
 
-  /* Surfaces — warm violet-black, so tungsten sits on it without turning muddy. */
-  --color-fp-bg: #0b0910;
-  --color-fp-title: #0e0b14;
-  --color-fp-panel: #14111a;
-  --color-fp-elev: #1c1824;
-  --color-fp-hover: #272231;
-  --color-fp-line: rgba(255, 230, 205, 0.09);
-  --color-fp-line-strong: rgba(255, 230, 205, 0.2);
+  /* Surfaces — neutral near-black. No hue anywhere but the kill. */
+  --color-fp-bg: #0a0a0b;
+  --color-fp-title: #0d0d0f;
+  --color-fp-panel: #131315;
+  --color-fp-elev: #1a1a1d;
+  --color-fp-hover: #242428;
+  --color-fp-line: rgba(255, 255, 255, 0.09);
+  --color-fp-line-strong: rgba(255, 255, 255, 0.2);
 
-  /* Ink — warm off-white, never blue-white. */
-  --color-fp-ink: #f7f2ea;
-  --color-fp-mute: #a79fac;
-  --color-fp-faint: #7c7482;
-  --color-fp-mark-ink: #0b0910;
+  /* Ink — bone, a shade off pure white so it does not glare at midnight. */
+  --color-fp-ink: #f2f1ec;
+  --color-fp-mute: #a2a1a4;
+  --color-fp-faint: #6d6d73;
+  --color-fp-mark-ink: #0a0a0b;
 
-  /* Phase temperature. Tungsten = working. Daylight = released. */
-  --color-fp-focus: #ffb061;
-  --color-fp-focus-dim: #c98342;
-  --color-fp-break: #8fd3ff;
-  --color-fp-ember: #ff7a3d;
+  /* The working state is simply lit. The break state is the room inverted. */
+  --color-fp-focus: #f2f1ec;
+  --color-fp-focus-dim: #b8b7b2;
+  --color-fp-break: #9fa6b2;
+  --color-fp-ember: #d9d7d1;
 
-  /* Status. Violet reads as absent; crimson only ever means a kill. */
-  --color-fp-warn: #ae8cff;
-  --color-fp-red: #ff3b58;
+  /* Status. Grey-blue reads as absent; red is the only colour in the product. */
+  --color-fp-warn: #9fa6b2;
+  --color-fp-red: #ff3b3b;
 
   --shadow-fp-pop: 0 18px 44px rgba(0, 0, 0, 0.6);
   --shadow-fp-lift: 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 12px 28px rgba(0, 0, 0, 0.4);
@@ -94,29 +93,37 @@
   --fp-ease: 170ms cubic-bezier(0.2, 0.8, 0.2, 1);
   --fp-ease-slow: 420ms cubic-bezier(0.2, 0.8, 0.2, 1);
 
-  /* Overridden per phase by [data-phase]; the default is the panel at rest. */
-  --phase: var(--color-fp-focus);
-  --phase-soft: rgba(255, 176, 97, 0.12);
-  --phase-glow: rgba(255, 176, 97, 0.34);
+  /*
+   * `--ground` and `--phase` are the whole colour system: what the room is
+   * made of, and what is drawn on it. A break inverts them rather than
+   * introducing a hue — the lock lifting should be visible from the doorway.
+   */
+  --ground: var(--color-fp-bg);
+  --phase: var(--color-fp-ink);
+  --phase-soft: rgba(242, 241, 236, 0.1);
+  --phase-glow: rgba(242, 241, 236, 0.16);
 }
 
 [data-phase="focus"] {
-  --phase: var(--color-fp-focus);
-  --phase-soft: rgba(255, 176, 97, 0.12);
-  --phase-glow: rgba(255, 176, 97, 0.34);
+  --ground: #0a0a0b;
+  --phase: #f2f1ec;
+  --phase-soft: rgba(242, 241, 236, 0.1);
+  --phase-glow: rgba(242, 241, 236, 0.16);
 }
 
+/* Break: the room flips. Black on bone, and you can see it across a room. */
 [data-phase="break"] {
-  --phase: var(--color-fp-break);
-  --phase-soft: rgba(143, 211, 255, 0.12);
-  --phase-glow: rgba(143, 211, 255, 0.32);
+  --ground: #ebe9e2;
+  --phase: #131315;
+  --phase-soft: rgba(19, 19, 21, 0.08);
+  --phase-glow: rgba(19, 19, 21, 0.12);
 }
 
-/* Finished: the tungsten warmth left in the room after the switch goes off. */
 [data-phase="done"] {
-  --phase: #ffd2a1;
-  --phase-soft: rgba(255, 210, 161, 0.1);
-  --phase-glow: rgba(255, 176, 97, 0.26);
+  --ground: #0a0a0b;
+  --phase: #f2f1ec;
+  --phase-soft: rgba(242, 241, 236, 0.1);
+  --phase-glow: rgba(242, 241, 236, 0.2);
 }
 
 html,
@@ -142,7 +149,7 @@ body {
 }
 
 ::selection {
-  background: var(--color-fp-focus);
+  background: var(--color-fp-ink);
   color: var(--color-fp-mark-ink);
 }
 
@@ -177,7 +184,7 @@ button {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #322c3c;
+  background: #35353a;
   border-radius: 99px;
   border: 2px solid var(--color-fp-bg);
 }
@@ -219,7 +226,7 @@ button {
   top: 8px;
   z-index: 90;
   border-radius: 6px;
-  background: var(--color-fp-focus);
+  background: var(--color-fp-ink);
   color: var(--color-fp-mark-ink);
   padding: 8px 12px;
   font-size: 12px;
@@ -253,6 +260,17 @@ button {
 .fp-rail button,
 .fp-rail a,
 .fp-rail input {
+  -webkit-app-region: no-drag;
+}
+
+/* Drag region without the rail's own surface — lock mode paints its own. */
+.fp-drag {
+  -webkit-app-region: drag;
+}
+
+.fp-drag button,
+.fp-drag a,
+.fp-drag input {
   -webkit-app-region: no-drag;
 }
 

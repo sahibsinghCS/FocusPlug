@@ -83,7 +83,13 @@ export const SHAPES: readonly ShapeDef[] = [
   },
 ];
 
-export const DEFAULT_PLAN: TimerPlan = planFromShape("classic");
+/** One block, no breaks. Rounds are available, they are just not the default. */
+export const DEFAULT_PLAN: TimerPlan = {
+  shape: "custom",
+  focusMin: 50,
+  breakMin: 10,
+  rounds: 1,
+};
 
 export function shapeDef(id: ShapeId): ShapeDef {
   const found = SHAPES.find((shape) => shape.id === id);
@@ -216,7 +222,7 @@ export function planSummary(plan: TimerPlan): string {
   const breaks = breakCount(safe);
   const roundWord = safe.rounds === 1 ? "round" : "rounds";
   if (breaks === 0) {
-    return `1 ${roundWord} of ${safe.focusMin}m · no breaks`;
+    return `one unbroken block of ${safe.focusMin}m`;
   }
   return `${safe.rounds} ${roundWord} of ${safe.focusMin}m · ${breaks} break${
     breaks === 1 ? "" : "s"

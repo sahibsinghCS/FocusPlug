@@ -1,16 +1,14 @@
 import type { JSX, ReactNode } from "react";
-import { Led } from "../components/ui";
-import { Ribbon } from "../features/timer/Ribbon";
 import { HoldSwitch } from "../features/timer/HoldSwitch";
-import { formatReadout, formatSpan, planFocusSec } from "../features/timer/plan";
+import { Ribbon } from "../features/timer/Ribbon";
+import { faceDef } from "../features/timer/faces";
+import { formatSpan, planFocusSec } from "../features/timer/plan";
 import { positionCaption } from "../features/timer/runtime";
 import type { SessionTimer } from "../features/timer/useSessionTimer";
 import { cn } from "../lib/cn";
 import {
   decisionLabel,
-  decisionTone,
   deskPrimary,
-  deskTone,
   formatConfidence,
   formatHmClock,
   windowPrimary,
@@ -22,10 +20,10 @@ import { useAppState } from "../state/AppState";
 import "../features/timer/timer.css";
 
 /**
- * Lock mode. The console gets out of the way: one number, the ribbon filling,
- * and — only while the lock is actually on — a quiet line proving the sensors
- * are awake. Tungsten while you work, daylight on a break, so a glance from
- * across the room tells you which one you are in.
+ * Lock mode. The console gets out of the way and leaves one object running
+ * out, whichever one you picked. A break inverts the whole room — black on
+ * bone instead of bone on black — so the lock lifting is visible from the
+ * doorway without a single hue being involved.
  */
 export function LockPage(props: { timer: SessionTimer }): JSX.Element {
   const app = useAppState();
@@ -40,47 +38,78 @@ export function LockPage(props: { timer: SessionTimer }): JSX.Element {
   const paused = timer.status === "paused";
   const phase = onBreak ? "break" : "focus";
   const armedPlugs = enabledPlugViews(app.plugs);
+  const face = faceDef(timer.face);
+  const progress = position?.segmentProgress ?? 0;
+  const remainingSec = position?.remainingSec ?? 0;
+  const multiRound = timer.segments.length > 1;
 
   return (
     <div
       data-phase={phase}
-      className="relative flex h-full min-h-0 flex-col overflow-hidden bg-fp-bg text-fp-ink"
+      className="relative flex h-full min-h-0 flex-col overflow-hidden bg-[var(--ground)] text-[color:var(--phase)]"
     >
-      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
-        <div className="fp-lock-glow absolute left-1/2 top-1/2 h-[130vmin] w-[130vmin] -translate-x-1/2 -translate-y-1/2" />
-      </div>
+      {face.ambient ? (
+        <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+          <face.Face
+            progress={progress}
+            remainingSec={remainingSec}
+            className="h-full w-full"
+          />
+        </div>
+      ) : null}
 
-      <header className="fp-rail relative z-10 flex items-center justify-between px-4">
+      <header className="fp-drag relative z-10 flex h-[var(--fp-rail-h)] shrink-0 items-center justify-between px-4">
         <div className="flex items-center gap-2">
-          <Led tone={paused ? "mute" : onBreak ? "mute" : "focus"} live={!paused} />
-          <p className="fp-stencil text-fp-mute">
+          <span
+            className={cn(
+              "h-1.5 w-1.5 rounded-full bg-current",
+              paused || onBreak ? "opacity-40" : "led-live",
+            )}
+            aria-hidden="true"
+          />
+          <p className="fp-stencil fp-lock-dim">
             {paused ? "Paused — lock released" : onBreak ? "Break — lock released" : "Locked"}
           </p>
         </div>
-        <p className="font-mono text-[11px] text-fp-faint tabular">
+        <p className="fp-lock-faint font-mono text-[11px] tabular">
           {paused ? "finish time on hold" : `free ${formatHmClock(timer.endsAtMs ?? Date.now())}`}
         </p>
       </header>
 
       <main className="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-center px-6">
-        <p className="fp-stencil fp-lock-in text-[color:var(--phase)]">
+        <p
+          className={cn(
+            "fp-stencil fp-lock-in",
+            // The field face lights the middle of the room, so its text has to
+            // sit at full strength to stay legible on top of it.
+            face.ambient ? "text-[color:var(--phase)]" : "fp-lock-dim",
+          )}
+        >
           {positionCaption(position, timer.status)}
         </p>
 
-        <p
-          className="fp-readout fp-lock-readout fp-lock-in mt-3"
-          style={{ animationDelay: "60ms" }}
-          aria-live="off"
-        >
-          {formatReadout(position?.remainingSec ?? 0)}
-        </p>
+        {face.ambient ? null : (
+          <div
+            className="fp-lock-face fp-lock-in mt-4 flex w-full items-center justify-center"
+            style={{ animationDelay: "60ms" }}
+          >
+            <face.Face
+              progress={progress}
+              remainingSec={remainingSec}
+              className="h-full w-auto max-w-full"
+            />
+          </div>
+        )}
+
         <p className="sr-only" aria-live="polite">
-          {positionCaption(position, timer.status)}, {formatReadout(position?.remainingSec ?? 0)}{" "}
-          remaining
+          {positionCaption(position, timer.status)}, {formatSpan(remainingSec)} remaining
         </p>
 
         <p
-          className="fp-lock-in mt-5 max-w-[46ch] text-center text-[14px] leading-6 text-fp-mute"
+          className={cn(
+            "fp-lock-in mt-6 max-w-[46ch] text-center text-[14px] leading-6",
+            face.ambient ? "text-[color:var(--phase)]" : "fp-lock-dim",
+          )}
           style={{ animationDelay: "120ms" }}
         >
           {paused
@@ -92,32 +121,31 @@ export function LockPage(props: { timer: SessionTimer }): JSX.Element {
       </main>
 
       <footer className="relative z-10 flex shrink-0 flex-col items-center gap-5 px-6 pb-6">
-        <div
-          className="fp-lock-in w-full max-w-[760px]"
-          style={{ animationDelay: "160ms" }}
-        >
-          <Ribbon segments={timer.segments} elapsedSec={timer.elapsedSec} variant="run" />
-          <div className="mt-2 flex justify-between font-mono text-[11px] text-fp-faint tabular">
-            <span>{formatSpan(timer.elapsedSec)} in</span>
-            <span>{formatSpan(timer.remainingSec)} left</span>
+        {multiRound ? (
+          <div className="fp-lock-in w-full max-w-[760px]" style={{ animationDelay: "160ms" }}>
+            <Ribbon segments={timer.segments} elapsedSec={timer.elapsedSec} variant="run" />
+            <div className="fp-lock-faint mt-2 flex justify-between font-mono text-[11px] tabular">
+              <span>{formatSpan(timer.elapsedSec)} in</span>
+              <span>{formatSpan(timer.remainingSec)} left</span>
+            </div>
           </div>
-        </div>
+        ) : (
+          // One block: the face already shows the proportion, so this is the
+          // only number worth printing.
+          <p className="fp-lock-faint font-mono text-[11px] tabular">
+            {formatSpan(timer.remainingSec)} left
+          </p>
+        )}
 
         {!onBreak && !paused ? (
-          <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
             <Sensor
-              tone={
-                app.state.focus?.matchedBlock
-                  ? "red"
-                  : app.state.focus?.matchedAllow
-                    ? "focus"
-                    : "warn"
-              }
+              alert={Boolean(app.state.focus?.matchedBlock)}
               value={windowPrimary(app.state.focus)}
               detail={windowSecondary(app.state.focus)}
             />
             <Sensor
-              tone={app.state.desk ? deskTone(app.state.desk.label) : "mute"}
+              alert={app.state.desk?.label === "away"}
               value={deskPrimary(app.state.desk)}
               detail={
                 app.state.desk
@@ -126,7 +154,7 @@ export function LockPage(props: { timer: SessionTimer }): JSX.Element {
               }
             />
             <Sensor
-              tone={decisionTone(app.state.decision)}
+              alert={app.state.decision === "DISTRACTED" || app.state.decision === "AWAY"}
               value={decisionLabel(app.state.decision)}
               detail={
                 armedPlugs.length > 0
@@ -141,12 +169,13 @@ export function LockPage(props: { timer: SessionTimer }): JSX.Element {
           <Quiet onClick={paused ? timer.resume : timer.pause}>
             {paused ? "Resume" : "Pause"}
           </Quiet>
-          <Quiet onClick={timer.skip}>{onBreak ? "Skip break" : "Skip round"}</Quiet>
+          {multiRound ? (
+            <Quiet onClick={timer.skip}>{onBreak ? "Skip break" : "Skip round"}</Quiet>
+          ) : null}
           <Quiet
             onClick={() => {
               void app.demoKill();
             }}
-            danger
             tip="Skips the fuse: force-quit blocklist apps and cut armed plugs. Never the study PC."
           >
             <IconBolt className="h-3.5 w-3.5" />
@@ -155,7 +184,7 @@ export function LockPage(props: { timer: SessionTimer }): JSX.Element {
           <HoldSwitch
             label="Hold to end"
             holdingLabel="Ending…"
-            tone="danger"
+            tone="lock"
             className="w-[176px]"
             onComplete={timer.end}
           />
@@ -171,19 +200,16 @@ function Finished(props: { timer: SessionTimer }): JSX.Element {
   return (
     <div
       data-phase="done"
-      className="relative flex h-full flex-col items-center justify-center gap-6 overflow-hidden bg-fp-bg px-6 text-center"
+      className="relative flex h-full flex-col items-center justify-center gap-7 overflow-hidden bg-[var(--ground)] px-6 text-center text-[color:var(--phase)]"
     >
-      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
-        <div className="fp-lock-glow absolute left-1/2 top-1/2 h-[110vmin] w-[110vmin] -translate-x-1/2 -translate-y-1/2" />
-      </div>
       <div className="fp-lock-in relative z-10">
-        <p className="fp-stencil text-[color:var(--phase)]">Session complete</p>
+        <p className="fp-stencil fp-lock-dim">Session complete</p>
         <h1 className="fp-display mt-3 text-[clamp(34px,6vw,64px)] font-semibold leading-[1.02]">
-          <span className="text-[color:var(--phase)]">{formatSpan(timer.workedSec)}</span> of work.
+          {formatSpan(timer.workedSec)} of work.
           <br />
-          <span className="text-fp-mute">The lock is off.</span>
+          <span className="fp-lock-dim">The lock is off.</span>
         </h1>
-        <p className="mt-4 max-w-[52ch] text-[14px] leading-6 text-fp-mute">
+        <p className="fp-lock-dim mt-4 max-w-[52ch] text-[14px] leading-6">
           {short
             ? "You skipped part of the plan, so that is the focus time you actually served."
             : `${timer.plan.rounds} round${timer.plan.rounds === 1 ? "" : "s"} of ${timer.plan.focusMin} minutes.`}{" "}
@@ -191,60 +217,45 @@ function Finished(props: { timer: SessionTimer }): JSX.Element {
         </p>
       </div>
 
-      <div
-        className="fp-lock-in relative z-10 w-full max-w-[520px]"
-        style={{ animationDelay: "90ms" }}
+      <button
+        type="button"
+        onClick={timer.end}
+        className="fp-btn fp-lock-btn relative z-10 h-11 w-full max-w-[320px] rounded-[var(--radius-fp)] px-4 text-[14px] font-semibold"
       >
-        <Ribbon segments={timer.segments} elapsedSec={timer.elapsedSec} variant="run" />
-      </div>
-
-      <div className="relative z-10 w-full max-w-[320px]">
-        <button
-          type="button"
-          onClick={timer.end}
-          className="fp-btn h-11 w-full rounded-[var(--radius-fp)] border border-fp-line-strong bg-fp-elev px-4 text-[14px] font-semibold text-fp-ink hover:bg-fp-hover"
-        >
-          Back to the panel
-        </button>
-      </div>
+        Back to the panel
+      </button>
     </div>
   );
 }
 
-function Sensor(props: {
-  tone: "focus" | "red" | "warn" | "mute";
-  value: string;
-  detail: string;
-}): JSX.Element {
+function Sensor(props: { alert: boolean; value: string; detail: string }): JSX.Element {
   return (
     <div className="flex min-w-0 max-w-[230px] items-start gap-2">
-      <Led tone={props.tone} className="mt-[6px]" />
+      <span
+        className={cn(
+          "mt-[6px] h-1.5 w-1.5 shrink-0 rounded-full",
+          props.alert ? "bg-fp-red" : "bg-current opacity-60",
+        )}
+        aria-hidden="true"
+      />
       <div className="min-w-0 text-left">
-        <p className="truncate text-[12.5px] font-medium text-fp-ink">{props.value}</p>
-        <p className="truncate text-[11px] text-fp-faint">{props.detail}</p>
+        <p className={cn("truncate text-[12.5px] font-medium", props.alert && "text-fp-red")}>
+          {props.value}
+        </p>
+        <p className="fp-lock-faint truncate text-[11px]">{props.detail}</p>
       </div>
     </div>
   );
 }
 
-function Quiet(props: {
-  children: ReactNode;
-  onClick: () => void;
-  danger?: boolean;
-  tip?: string;
-}): JSX.Element {
+function Quiet(props: { children: ReactNode; onClick: () => void; tip?: string }): JSX.Element {
   return (
     <button
       type="button"
       onClick={props.onClick}
       data-tip={props.tip}
       data-tip-up={props.tip ? "" : undefined}
-      className={cn(
-        "fp-btn inline-flex h-14 items-center justify-center gap-2 rounded-[var(--radius-fp)] border px-5 text-[14px] font-medium",
-        props.danger
-          ? "border-fp-line text-fp-mute hover:border-fp-red/40 hover:bg-fp-red/10 hover:text-fp-red"
-          : "border-fp-line text-fp-mute hover:border-fp-line-strong hover:bg-fp-hover hover:text-fp-ink",
-      )}
+      className="fp-btn fp-lock-btn inline-flex h-14 items-center justify-center gap-2 rounded-[var(--radius-fp)] px-5 text-[14px] font-medium"
     >
       {props.children}
     </button>

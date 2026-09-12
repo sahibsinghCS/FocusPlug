@@ -15,7 +15,7 @@ export function HoldSwitch(props: {
   label: string;
   holdingLabel: string;
   onComplete: () => void;
-  tone?: "phase" | "danger";
+  tone?: "phase" | "danger" | "lock";
   hint?: string;
   disabled?: boolean;
   className?: string;
@@ -26,6 +26,7 @@ export function HoldSwitch(props: {
   const completeRef = useRef(props.onComplete);
   completeRef.current = props.onComplete;
   const danger = props.tone === "danger";
+  const lock = props.tone === "lock";
 
   const paint = useCallback((to: number, ms: number): void => {
     const node = fillRef.current;
@@ -94,9 +95,10 @@ export function HoldSwitch(props: {
         aria-describedby={props.hint ? "fp-hold-hint" : undefined}
         className={cn(
           "fp-btn group relative flex w-full select-none items-center justify-center overflow-hidden rounded-[var(--radius-fp)] border disabled:cursor-not-allowed disabled:opacity-40",
-          danger
-            ? "h-14 border-fp-line text-fp-mute hover:border-fp-red/40 hover:bg-fp-red/10 hover:text-fp-red"
-            : "h-[58px] border-[1.5px] border-fp-focus/55 bg-fp-focus/10 text-fp-focus shadow-[0_14px_44px_-16px_rgba(255,176,97,0.7)] hover:bg-fp-focus/18",
+          lock && "fp-lock-btn h-14",
+          danger && "h-14 border-fp-line text-fp-mute hover:border-fp-red/40 hover:bg-fp-red/10 hover:text-fp-red",
+          !lock && !danger &&
+            "h-[58px] border-[1.5px] border-fp-ink/45 bg-fp-ink/[0.07] text-fp-ink hover:border-fp-ink/70 hover:bg-fp-ink/[0.13]",
         )}
       >
         <span
@@ -104,16 +106,16 @@ export function HoldSwitch(props: {
           aria-hidden="true"
           className={cn(
             "absolute inset-0 origin-left scale-x-0",
-            danger ? "bg-fp-red/25" : "bg-fp-focus/25",
+            lock ? "fp-lock-fill" : danger ? "bg-fp-red/25" : "bg-fp-ink/20",
           )}
         />
         <span
           className={cn(
             "fp-display relative flex items-center gap-2.5 font-semibold tracking-[0.02em]",
-            danger ? "text-[14px]" : "text-[17px]",
+            danger || lock ? "text-[14px]" : "text-[17px]",
           )}
         >
-          <SwitchGlyph thrown={holding} className={danger ? "h-4 w-4" : "h-[19px] w-[19px]"} />
+          <SwitchGlyph thrown={holding} className={danger || lock ? "h-4 w-4" : "h-[19px] w-[19px]"} />
           {holding ? props.holdingLabel : props.label}
         </span>
       </button>

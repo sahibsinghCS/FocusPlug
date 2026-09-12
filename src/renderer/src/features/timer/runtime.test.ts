@@ -52,5 +52,7 @@ describe("timer runtime", () => {
       "Break · after round 1 of 3",
     );
     expect(positionCaption(null, "done")).toBe("Session complete");
+    const solo = planSegments({ shape: "custom", focusMin: 50, breakMin: 10, rounds: 1 });
+    expect(positionCaption(positionAt(solo, 10), "running")).toBe("Focus");
   });
 });

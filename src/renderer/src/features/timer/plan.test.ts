@@ -44,7 +44,7 @@ describe("timer plan", () => {
     const solo = { shape: "custom", focusMin: 45, breakMin: 10, rounds: 1 } as const;
     expect(planSegments(solo)).toHaveLength(1);
     expect(planTotalSec(solo)).toBe(45 * 60);
-    expect(planSummary(solo)).toBe("1 round of 45m · no breaks");
+    expect(planSummary(solo)).toBe("one unbroken block of 45m");
   });
 
   it("clamps dials to the limits instead of accepting nonsense", () => {
@@ -74,7 +74,7 @@ describe("timer plan", () => {
         shape.rounds,
       );
     }
-    expect(DEFAULT_PLAN.shape).toBe("classic");
+    expect(DEFAULT_PLAN.rounds).toBe(1);
   });
 
   it("formats spans and readouts the way the panel reads them", () => {

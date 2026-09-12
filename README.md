@@ -1,14 +1,14 @@
 # FocusPlug
 
-**A Pomodoro timer that can actually make you keep it.** You set the shape of the session — focus length, break length, rounds — and throw the switch. While a round is running FocusPlug watches the foreground window and, through an on-device AI, whether you are still in the chair. Drift and it force-quits Discord and the games. Breaks hand them back.
+**A focus timer that can actually make you keep it.** Pick how the time should look — an hourglass, a draining column, a grid burning down, an eclipse, a dimming room, or a plain clock — set how long, and hold the switch. While the session runs FocusPlug watches the foreground window and, through an on-device AI, whether you are still in the chair. Drift and it force-quits Discord and the games.
 
 > Every other focus timer asks you to keep the promise. This one keeps it for you. Never kills the study PC.
 
-Homework is open. Discord is where the session actually happens. Students know the pattern: a Docs tab for the screenshot, a game or chat client for the hours. Ordinary pomodoro apps lose that fight because all they do is count. They cannot see that you tabbed to Discord. They cannot see that you left the chair. After a week the ding is just another notification to dismiss.
+Homework is open. Discord is where the session actually happens. Students know the pattern: a Docs tab for the screenshot, a game or chat client for the hours. Ordinary focus apps lose that fight because all they do is count. They cannot see that you tabbed to Discord. They cannot see that you left the chair. After a week the ding is just another notification to dismiss.
 
 FocusPlug keeps the timer and adds the part that was missing: consequences.
 
-You open the panel and dial in a session: a shape (Classic 25/5, Deep work 50/10, Sprint 15/3, or your own), how long each round runs, how long the breaks are, and how many rounds. A ribbon draws the whole evening to scale and tells you the hour you will be free. Then you hold the switch to enter **lock mode**.
+You open the panel, choose a face from six live previews running side by side, set the length, and hold the switch to enter **lock mode**. Rounds and breaks are there if you want them — presets for 25/5, 50/10 and 15/3, or your own numbers — but the default is one unbroken block, and a ribbon only appears once there is more than one round to draw.
 
 You allowlist the assignment — Chrome, Google Docs, Word, VS Code, Notion — and blocklist the usual leaks: Discord, Steam, Epic, common games. While a focus round runs, two sensors decide whether you are still on the work. On a break the lock lifts on its own and everything is handed back, which is what makes the next round bearable.
 
@@ -16,7 +16,7 @@ The first sensor is the focused window: process name and title, matched against 
 
 That presence signal is load-bearing, not a dashboard widget. Session off is observe-only. Session on plus a blocked window starts a ten-second fuse, then FocusPlug force-quits the blocked process. High-confidence desk-away starts the same fuse and kills running blocklist apps even if Discord is only in the background. Return to an allowlisted window while you are actually at the desk and the session unlocks; recover before zero and the countdown cancels. Default strict mode will not call you **On task** unless both the window and the body are on the assignment.
 
-Lock mode is the whole screen: the time left in the round, the ribbon filling up, and one quiet line proving the sensors are awake. The colour carries the phase — tungsten while a round is running, daylight the moment a break starts — so a glance from across the room tells you which one you are in. Drift and the room floods crimson with an opaque kill overlay that names exactly what is about to die. A **Demo Kill** control skips the fuse so a two-minute film can show the consequence without waiting on Discord, and the session log keeps the causal chain. We never power off the study PC. We never tutor. The product is the kill — and the AI is what makes the kill honest when you walk away.
+Lock mode is the whole screen: the face you picked running out, and one quiet line proving the sensors are awake. It is monochrome on purpose — bone on near-black, no accent colour anywhere — and a break inverts the entire room to black on bone, so you can see the lock has lifted from across the room without a single hue being involved. Drift and the room floods crimson with an opaque kill overlay that names exactly what is about to die. Red is the only colour in the product and it only ever means a kill is coming. A **Demo Kill** control skips the fuse so a two-minute film can show the consequence without waiting on Discord, and the session log keeps the causal chain. We never power off the study PC. We never tutor. The product is the kill — and the AI is what makes the kill honest when you walk away.
 
 Optional LAN smart plugs (TP-Link Kasa local protocol, or generic HTTP POST on/off) can sit on **secondary fun devices only**. Add a plug by LAN IP; **Demo Kill will cut it**. Both TP-Link dialects work: legacy Kasa (HS103/KP105-class) needs nothing, and **Tapo** (P100/P105/P110/P110M, recent Kasa firmware) speaks KLAP — set `FOCUSPLUG_TAPO_USERNAME` / `FOCUSPLUG_TAPO_PASSWORD` and it is used automatically. `npm run mock:plug` and `npm run mock:tapo` test both paths without hardware. The study PC is hard-denied (names like `study-pc`, localhost, empty address; `isStudyPc` is always `false`). Plugs are optional — the app boots with none. No cloud account. Setup and probe steps: [docs/SMART-PLUGS.md](docs/SMART-PLUGS.md).
 
@@ -26,12 +26,12 @@ Optional LAN smart plugs (TP-Link Kasa local protocol, or generic HTTP POST on/o
 
 Stills below are the real UI rendered on seeded demo state (`npm run preview:renderer`, then `npm run stills:readme`), not a live session. The film in [docs/DEMO-SCRIPT.md](docs/DEMO-SCRIPT.md) is the live run.
 
-![Session plan — shape, dials, and the hour you are free](docs/screenshots/01-session-plan.png)
+![Session panel — six faces, live, and the hour you are free](docs/screenshots/01-session-panel.png)
 
-![Lock mode — the round running, sensors awake](docs/screenshots/02-lock-focus.png)
+![Lock mode — the hourglass running, sensors awake](docs/screenshots/02-lock-hourglass.png)
 
 ![Kill overlay — the Discord fuse, and what it takes with it](docs/screenshots/03-kill-overlay.png)
 
-![Break — the lock lifts and Discord comes back](docs/screenshots/04-break-released.png)
+![Break — the room inverts and Discord comes back](docs/screenshots/04-break-released.png)
 
 ![Session log — countdown, kill, unlock](docs/screenshots/05-session-log.png)

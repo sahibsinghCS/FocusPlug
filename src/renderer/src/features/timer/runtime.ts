@@ -98,5 +98,9 @@ export function positionCaption(position: RunPosition | null, status: RunStatus)
   if (position.segment.kind === "break") {
     return `Break · after round ${position.round} of ${position.roundsTotal}`;
   }
+  // A single block has no rounds to count, and saying "1 of 1" only adds noise.
+  if (position.roundsTotal <= 1) {
+    return "Focus";
+  }
   return `Focus · round ${position.round} of ${position.roundsTotal}`;
 }
