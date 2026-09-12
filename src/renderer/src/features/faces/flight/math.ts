@@ -7,9 +7,9 @@ export const TWILIGHT_LO = -0.045;
 export const TWILIGHT_HI = 0.07;
 /** Slow continuous orbit — one revolution every ~2 minutes. */
 export const ORBIT_RAD_PER_SEC = 0.052;
-export const MIN_ROUTE_ZOOM = 2.45;
-export const MAX_ROUTE_ZOOM = 15;
-export const COMPLETE_MIN_ZOOM = 1.8;
+export const MIN_ROUTE_ZOOM = 2.6;
+export const MAX_ROUTE_ZOOM = 8.2;
+export const COMPLETE_MIN_ZOOM = 1.75;
 
 export type Vec3 = readonly [number, number, number];
 
@@ -266,7 +266,7 @@ export function routeCameraZoom(totalKm: number, complete: boolean): number {
   if (!Number.isFinite(totalKm)) {
     throw new Error("routeCameraZoom requires a finite distance");
   }
-  const viewKm = Math.max(Math.abs(totalKm) * 1.7, 480);
+  const viewKm = Math.max(Math.abs(totalKm) * 4.2, 1550);
   const raw = clamp((2 * EARTH_RADIUS_KM) / viewKm, MIN_ROUTE_ZOOM, MAX_ROUTE_ZOOM);
   if (complete) {
     return clamp(raw * 0.58, COMPLETE_MIN_ZOOM, 5.2);

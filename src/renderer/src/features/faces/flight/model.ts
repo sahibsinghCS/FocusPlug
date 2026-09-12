@@ -11,14 +11,11 @@ import {
   haversineKm,
   initialBearingDeg,
   latLonToUnit,
-  normalize,
   orbitAngleRad,
   orthonormalBasis,
   remainingKm,
   rotateAround,
   routeCameraZoom,
-  scale,
-  add,
   subsolar,
   sunDir,
   type FlightPhase,
@@ -103,12 +100,8 @@ export function buildFlightModel(clock: FlightClock, idleOverride?: number): Fli
   const orbit = orbitAngleRad(now, idleOverride, frozen || complete);
   const zoom = routeCameraZoom(totalKm, complete);
   const base = orthonormalBasis(lookRoot);
-  const spunRight = rotateAround(base.right, lookRoot, orbit);
-  const spunUp = rotateAround(base.up, lookRoot, orbit);
-  const lean = (complete ? 0.025 : 0.04) / zoom;
-  const lift = (complete ? 0.02 : 0.035) / zoom;
-  const cameraForward = normalize(add(add(lookRoot, scale(spunRight, lean)), scale(spunUp, lift)));
-  const cam = orthonormalBasis(cameraForward);
+  const cameraRight = rotateAround(base.right, lookRoot, orbit);
+  const cameraUp = rotateAround(base.up, lookRoot, orbit);
 
   return {
     now,
@@ -133,9 +126,9 @@ export function buildFlightModel(clock: FlightClock, idleOverride?: number): Fli
     sunLon: sun.lon,
     sun: sunVec,
     contrail: seedContrail(dep, arr, progress, remaining, estimateMinutes),
-    cameraForward: cam.forward,
-    cameraRight: cam.right,
-    cameraUp: cam.up,
+    cameraForward: lookRoot,
+    cameraRight,
+    cameraUp,
     cameraZoom: zoom,
     orbit,
   };

@@ -11,6 +11,7 @@ describe("continent mask", () => {
   it("keeps Dublin and Edinburgh on land and the Irish Sea as water", () => {
     expect(landCoverage(53.43, -6.25, "coast")).toBeGreaterThan(0.5);
     expect(landCoverage(55.95, -3.19, "coast")).toBeGreaterThan(0.5);
+    expect(landCoverage(53.48, -2.24, "coast")).toBeGreaterThan(0.5);
     expect(landCoverage(53.8, -5.35, "coast")).toBeLessThan(0.35);
   });
 });

@@ -104,6 +104,29 @@ describe("flight model", () => {
     expect(model.planeLat).toBeCloseTo(DEFAULT_ARR.lat, 3);
   });
 
+  it("swings the origin around the aircraft when the globe orbits", () => {
+    const clock = {
+      remaining: 25 * 60,
+      estimateMinutes: 50,
+      now: NOW,
+      paused: false,
+      complete: false,
+      reducedMotion: false,
+    };
+    const a = buildFlightModel(clock, 0.15);
+    const b = buildFlightModel(clock, 1.85);
+    const planeA = projectWorld(latLonToUnit(a.planeLat, a.planeLon), a, 200, 200, 90);
+    const planeB = projectWorld(latLonToUnit(b.planeLat, b.planeLon), b, 200, 200, 90);
+    const depA = projectWorld(latLonToUnit(a.dep.lat, a.dep.lon), a, 200, 200, 90);
+    const depB = projectWorld(latLonToUnit(b.dep.lat, b.dep.lon), b, 200, 200, 90);
+    const angA = Math.atan2(depA.x - planeA.x, planeA.y - depA.y);
+    const angB = Math.atan2(depB.x - planeB.x, planeB.y - depB.y);
+    let delta = ((angB - angA) * 180) / Math.PI;
+    while (delta > 180) delta -= 360;
+    while (delta < -180) delta += 360;
+    expect(Math.abs(delta)).toBeGreaterThan(60);
+  });
+
   it("lists about sixty city lights", () => {
     expect(CITY_LIGHTS.length).toBeGreaterThanOrEqual(60);
     expect(CITY_LIGHTS.length).toBeLessThan(80);

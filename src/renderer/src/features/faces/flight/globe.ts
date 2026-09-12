@@ -64,17 +64,17 @@ function shadePixel(
   const dusk = duskAmount(intensity);
 
   const grain = terrainGrain(geo.lat, geo.lon);
-  const oceanDay = [214, 196, 148] as const;
-  const landDay = [78 + grain * 22, 92 + grain * 18, 48 + grain * 8] as const;
-  const oceanNight = [5, 8, 20] as const;
-  const landNight = [14, 24, 40] as const;
+  const oceanDay = [196, 178, 132] as const;
+  const landDay = [64 + grain * 28, 88 + grain * 24, 42 + grain * 10] as const;
+  const oceanNight = [4, 7, 16] as const;
+  const landNight = [18 + grain * 10, 30 + grain * 12, 52 + grain * 8] as const;
   const twilightCyan = [92, 226, 236] as const;
   const atm = [110, 196, 220] as const;
 
-  const coast = land > 0.12 && land < 0.88 ? 1 : 0;
-  const dayR = mix(oceanDay[0], landDay[0], land) - coast * 18;
-  const dayG = mix(oceanDay[1], landDay[1], land) - coast * 10;
-  const dayB = mix(oceanDay[2], landDay[2], land) - coast * 6;
+  const coast = land > 0.1 && land < 0.9 ? 1 : 0;
+  const dayR = mix(oceanDay[0], landDay[0], land) - coast * 26;
+  const dayG = mix(oceanDay[1], landDay[1], land) - coast * 16;
+  const dayB = mix(oceanDay[2], landDay[2], land) - coast * 10;
   const nightR = mix(oceanNight[0], landNight[0], land);
   const nightG = mix(oceanNight[1], landNight[1], land);
   const nightB = mix(oceanNight[2], landNight[2], land);
@@ -140,7 +140,7 @@ export function rasterGlobe(model: FlightModel, size: number): ImageData {
   const fwd = model.cameraForward;
   const sun = model.sun;
   const zoom = Math.max(1, model.cameraZoom);
-  const landMode: "grid" | "coast" = zoom >= 2.5 ? "coast" : "grid";
+  const landMode: "grid" | "coast" = "coast";
 
   for (const s of samples) {
     const vx = s.vx / zoom;

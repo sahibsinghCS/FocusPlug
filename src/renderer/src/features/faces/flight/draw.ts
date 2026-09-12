@@ -269,16 +269,16 @@ function drawAircraft(
   if (!here.visible) return;
   const heading = screenHeading(model, cx, cy, radius);
   const pitch = degToRad(phasePitchDeg(model.phase));
-  const wings = wingAttitude(model.bank, 30);
-  const s = (model.phase === "climb" ? 1.28 : model.phase === "descent" ? 0.92 : 1) * 2.15;
+  const wings = wingAttitude(model.bank, 34);
+  const s = (model.phase === "climb" ? 1.22 : model.phase === "descent" ? 0.94 : 1) * 1.85;
 
   ctx.save();
-  ctx.translate(here.x + 9 + wings.drop * 0.15, here.y + 11);
+  ctx.translate(here.x + 8 + wings.drop * 0.12, here.y + 10);
   ctx.rotate(heading);
-  ctx.scale(s, s * 0.72);
-  ctx.fillStyle = "rgba(0,0,0,0.42)";
+  ctx.scale(s, s * 0.78);
+  ctx.fillStyle = "rgba(0,0,0,0.4)";
   ctx.beginPath();
-  ctx.ellipse(0, 2, 20, 7, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, 3, 18, 6, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 
@@ -288,70 +288,71 @@ function drawAircraft(
   ctx.rotate(pitch);
   ctx.scale(s, s);
 
-  ctx.strokeStyle = "rgba(6, 8, 14, 0.55)";
-  ctx.lineWidth = 7.2;
-  ctx.lineCap = "round";
+  ctx.fillStyle = "#e8edf4";
   ctx.beginPath();
   ctx.moveTo(-wings.leftSpan, wings.leftY);
-  ctx.lineTo(wings.rightSpan, wings.rightY);
-  ctx.stroke();
-
-  ctx.fillStyle = "#f4f7fc";
-  ctx.beginPath();
-  ctx.moveTo(-wings.leftSpan, wings.leftY - 1.4);
-  ctx.lineTo(-2.4, -1.8);
-  ctx.lineTo(-2.0, 3.6);
-  ctx.lineTo(-wings.leftSpan + 1.6, wings.leftY + 4.6);
+  ctx.lineTo(-3.2, -2.2);
+  ctx.lineTo(-2.4, 4.2);
+  ctx.lineTo(-wings.leftSpan + 2.4, wings.leftY + 5.2);
   ctx.closePath();
   ctx.fill();
   ctx.beginPath();
-  ctx.moveTo(wings.rightSpan, wings.rightY - 1.4);
-  ctx.lineTo(2.4, -1.8);
-  ctx.lineTo(2.0, 3.6);
-  ctx.lineTo(wings.rightSpan - 1.6, wings.rightY + 4.6);
+  ctx.moveTo(wings.rightSpan, wings.rightY);
+  ctx.lineTo(3.2, -2.2);
+  ctx.lineTo(2.4, 4.2);
+  ctx.lineTo(wings.rightSpan - 2.4, wings.rightY + 5.2);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = "#f7f9fc";
+  ctx.beginPath();
+  ctx.moveTo(0, -22);
+  ctx.bezierCurveTo(3.4, -14, 3.6, 6, 2.6, 17);
+  ctx.lineTo(-2.6, 17);
+  ctx.bezierCurveTo(-3.6, 6, -3.4, -14, 0, -22);
+  ctx.fill();
+
+  ctx.fillStyle = "#c5ccd6";
+  ctx.beginPath();
+  ctx.ellipse(-11, wings.leftY + 2.2, 2.4, 1.3, 0, 0, Math.PI * 2);
+  ctx.ellipse(11, wings.rightY + 2.2, 2.4, 1.3, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "#f7f9fc";
+  ctx.beginPath();
+  ctx.moveTo(-1.4, 10);
+  ctx.lineTo(-8.2, 13.2 + wings.drop * 0.1);
+  ctx.lineTo(-7.2, 17.4 + wings.drop * 0.1);
+  ctx.lineTo(-1.1, 15.6);
+  ctx.closePath();
+  ctx.moveTo(1.4, 10);
+  ctx.lineTo(8.2, 13.2 - wings.drop * 0.1);
+  ctx.lineTo(7.2, 17.4 - wings.drop * 0.1);
+  ctx.lineTo(1.1, 15.6);
   ctx.closePath();
   ctx.fill();
 
   ctx.beginPath();
-  ctx.moveTo(0, -21);
-  ctx.bezierCurveTo(2.8, -14, 3.1, 8, 2.0, 16);
-  ctx.lineTo(-2.0, 16);
-  ctx.bezierCurveTo(-3.1, 8, -2.8, -14, 0, -21);
-  ctx.fill();
-
-  ctx.beginPath();
-  ctx.moveTo(-1.2, 11);
-  ctx.lineTo(-7.2, 12.2 + wings.drop * 0.12);
-  ctx.lineTo(-6.4, 16.4 + wings.drop * 0.12);
-  ctx.lineTo(-1.0, 15.2);
-  ctx.closePath();
-  ctx.moveTo(1.2, 11);
-  ctx.lineTo(7.2, 12.2 - wings.drop * 0.12);
-  ctx.lineTo(6.4, 16.4 - wings.drop * 0.12);
-  ctx.lineTo(1.0, 15.2);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.beginPath();
-  ctx.moveTo(0.2, 8);
-  ctx.lineTo(2.4 + wings.drop * 0.08, 4);
-  ctx.lineTo(1.4, 16);
-  ctx.lineTo(-1.2, 15.4);
+  ctx.moveTo(-1.4, 8);
+  ctx.lineTo(0, 4);
+  ctx.lineTo(1.4, 8);
+  ctx.lineTo(1.2, 16);
+  ctx.lineTo(-1.2, 16);
   ctx.closePath();
   ctx.fill();
 
   ctx.fillStyle = "#d4ff3a";
   ctx.beginPath();
-  ctx.arc(-wings.leftSpan + 1.2, wings.leftY + 1.4, 1.7, 0, Math.PI * 2);
+  ctx.arc(-wings.leftSpan + 1.6, wings.leftY + 1.6, 1.8, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = "#ff2d55";
   ctx.beginPath();
-  ctx.arc(wings.rightSpan - 1.2, wings.rightY + 1.4, 1.7, 0, Math.PI * 2);
+  ctx.arc(wings.rightSpan - 1.6, wings.rightY + 1.6, 1.8, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.fillStyle = "rgba(122,162,255,0.7)";
+  ctx.fillStyle = "rgba(90, 140, 220, 0.75)";
   ctx.beginPath();
-  ctx.ellipse(0, -9, 1.15, 4.2, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, -10, 1.2, 4.6, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 }

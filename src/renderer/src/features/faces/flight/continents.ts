@@ -112,15 +112,17 @@ const RINGS: Ring[][] = [
     { lon: -10.2, lat: 51.57 },
     { lon: -10.48, lat: 51.9 },
   ],
-  // Great Britain
+  // Great Britain — west coast bites in so the Irish Sea stays a channel
   [
     { lon: -5.7, lat: 50.05 },
     { lon: -5.54, lat: 50.34 },
     { lon: -5.15, lat: 51.68 },
     { lon: -5.3, lat: 51.87 },
     { lon: -4.78, lat: 52.8 },
-    { lon: -4.5, lat: 53.35 },
-    { lon: -4.85, lat: 53.42 },
+    { lon: -4.2, lat: 53.2 },
+    { lon: -3.15, lat: 53.4 },
+    { lon: -3.0, lat: 54.05 },
+    { lon: -3.4, lat: 54.55 },
     { lon: -4.3, lat: 54.85 },
     { lon: -4.78, lat: 55.25 },
     { lon: -5.6, lat: 55.3 },
@@ -356,7 +358,7 @@ function inBritishIsles(lat: number, lon: number): boolean {
 export function landCoverage(lat: number, lon: number, mode: "grid" | "coast" = "grid"): number {
   if (mode === "coast" || inBritishIsles(lat, lon)) {
     const here = landFromRings(lat, lon);
-    const d = 0.07;
+    const d = 0.035;
     const edge =
       (landFromRings(lat, lon + d) +
         landFromRings(lat, lon - d) +

@@ -169,7 +169,25 @@
 }
 
 .fp-flight.is-compact .fp-flight-route.is-face {
-  bottom: 78px;
+  bottom: 62px;
+  left: 8px;
+  right: 8px;
+  gap: 6px;
+}
+
+.fp-flight.is-compact .fp-flight-airport-label,
+.fp-flight.is-compact .fp-flight-airport-btn span,
+.fp-flight.is-compact .fp-flight-route-arrow {
+  display: none;
+}
+
+.fp-flight.is-compact .fp-flight-airport-btn {
+  min-height: 28px;
+  padding: 3px 8px;
+}
+
+.fp-flight.is-compact .fp-flight-airport-btn b {
+  font-size: 14px;
 }
 
 .fp-flight-route.is-settings {

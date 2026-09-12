@@ -142,7 +142,7 @@ describe("progress, phases, honest strip math", () => {
     const close = routeCameraZoom(shortHop, false);
     const far = routeCameraZoom(longHaul, false);
     expect(shortHop).toBeLessThan(400);
-    expect(close).toBeGreaterThan(8);
+    expect(close).toBeGreaterThan(6);
     expect(far).toBeGreaterThan(2);
     expect(far).toBeLessThan(close);
     expect(routeCameraZoom(shortHop, true)).toBeLessThan(close);
