@@ -9,7 +9,7 @@
     "strictMode": true,
     "webcamEnabled": true,
     "deskModelId": "blazeface",
-    "faceId": "readout",
+    "faceId": "flight",
     "plugs": [
       {
         "id": "console-lamp",

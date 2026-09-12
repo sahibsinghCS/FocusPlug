@@ -31,16 +31,16 @@ describe("faces catalog", () => {
     for (const id of RETIRED_FACE_IDS) {
       expect(isFaceId(id)).toBe(false);
       expect(isRetiredFaceId(id)).toBe(true);
-      expect(normalizeFaceId(id)).toBe("readout");
+      expect(normalizeFaceId(id)).toBe("flight");
     }
   });
 
-  it("defaults to readout until Flight is marked ready", () => {
-    expect(FACE_READY.flight).toBe(false);
+  it("defaults to flight once the instrument is marked ready", () => {
+    expect(FACE_READY.flight).toBe(true);
     expect(FACE_READY.growth).toBe(true);
     expect(faceMeta("growth").readiness).toBe("ready");
-    expect(DEFAULT_FACE_ID).toBe("readout");
-    expect(resolveDefaultFaceId({ ...FACE_READY, flight: true })).toBe("flight");
+    expect(DEFAULT_FACE_ID).toBe("flight");
+    expect(resolveDefaultFaceId({ ...FACE_READY, flight: false })).toBe("readout");
     expect(DEFAULT_ESTIMATE_MINUTES).toBe(50);
   });
 
@@ -48,14 +48,14 @@ describe("faces catalog", () => {
     expect(FACE_CATALOG.map((entry) => entry.id)).toEqual([...FACE_IDS]);
     expect(faceMeta("hourglass").stream).toBe("agent/faces-foundation");
     expect(faceMeta("readout").file).toContain("ReadoutFace.tsx");
-    expect(faceMeta("flight").readiness).toBe("pending");
+    expect(faceMeta("flight").readiness).toBe("ready");
     expect(faceMeta("descent").readiness).toBe("ready");
     expect(faceMeta("orbit").readiness).toBe("ready");
     expect(faceMeta("circuit").readiness).toBe("ready");
     expect(FACE_READY.descent).toBe(true);
     expect(FACE_READY.orbit).toBe(true);
     expect(FACE_READY.circuit).toBe(true);
-    expect(normalizeFaceId("not-a-face")).toBe("readout");
+    expect(normalizeFaceId("not-a-face")).toBe("flight");
     expect(normalizeFaceId("orbit")).toBe("orbit");
   });
 });

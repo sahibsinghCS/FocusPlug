@@ -32,12 +32,9 @@ export interface FaceMeta {
   readiness: FaceReadiness;
 }
 
-/**
- * Flip `flight` to ready when `FlightFace.tsx` is merged.
- * Default face is `flight` once that lands, otherwise `readout`.
- */
+/** Flight is the default once marked ready. */
 export const FACE_READY: Readonly<Record<FaceId, boolean>> = {
-  flight: false,
+  flight: true,
   hourglass: true,
   readout: true,
   descent: true,

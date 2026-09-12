@@ -71,7 +71,7 @@ export interface AppSettings {
   strictMode: boolean;
   webcamEnabled: boolean;
   deskModelId: DeskModelId;
-  /** Immersive session face. Default is readout until Flight lands. */
+  /** Immersive session face. Default is flight. */
   faceId: FaceId;
   plugs: PlugDevice[];
 }

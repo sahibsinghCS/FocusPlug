@@ -576,7 +576,7 @@ describe("FocusPlugStore persistence", () => {
     const store = new FocusPlugStore(dir);
     const settings = store.loadSettings();
     expect(settings.deskModelId).toBe("blazeface");
-    expect(settings.faceId).toBe("readout");
+    expect(settings.faceId).toBe("flight");
     expect(settings.plugs).toEqual([
       {
         id: "lamp",
@@ -593,7 +593,7 @@ describe("FocusPlugStore persistence", () => {
 describe("session face settings", () => {
   it("persists faceId on the same settings blob and rejects retired ids", () => {
     const h = makeHarness();
-    expect(h.controller.getSettings().faceId).toBe("readout");
+    expect(h.controller.getSettings().faceId).toBe("flight");
     expect(h.controller.setSettings({ faceId: "hourglass" }).faceId).toBe("hourglass");
     expect(h.store.loadSettings().faceId).toBe("hourglass");
     expect(() => h.controller.setSettings({ faceId: "eclipse" })).toThrow(/faceId/);

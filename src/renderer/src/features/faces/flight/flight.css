@@ -1,0 +1,153 @@
+.fp-flight-slot {
+  height: 100%;
+}
+
+.fp-flight {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #07080c;
+  color: #eef2f8;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  overflow: hidden;
+}
+
+.fp-flight.is-compact .fp-flight-head {
+  padding-top: 42px;
+  font-size: 11px;
+}
+
+.fp-flight.is-compact .fp-flight-strip {
+  padding: 8px 6px 10px;
+}
+
+.fp-flight.is-compact .fp-flight-strip b {
+  margin-top: 4px;
+  font-size: 18px;
+}
+
+.fp-flight.is-compact .fp-flight-plate b {
+  font-size: 22px;
+}
+
+.fp-flight canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.fp-flight-head,
+.fp-flight-strip,
+.fp-flight-plate {
+  position: absolute;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.fp-flight-head {
+  top: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 18px 28px 0;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  color: #8b97a8;
+}
+
+.fp-flight-head strong {
+  color: #eef2f8;
+  font-weight: 400;
+  margin-left: 12px;
+}
+
+.fp-flight-head em {
+  color: #d4ff3a;
+  font-style: normal;
+}
+
+.fp-flight-meta {
+  margin-left: 14px;
+  letter-spacing: 0.1em;
+}
+
+.fp-flight-bank {
+  margin-left: 14px;
+  color: #d4ff3a;
+}
+
+.fp-flight-plate {
+  top: 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.fp-flight-plate > div {
+  min-width: 380px;
+  padding: 12px 28px 16px;
+  border: 1px solid rgba(212, 255, 58, 0.28);
+  background: rgba(7, 8, 12, 0.78);
+  text-align: center;
+}
+
+.fp-flight-plate span {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  color: #8b97a8;
+}
+
+.fp-flight-plate b {
+  display: block;
+  margin-top: 6px;
+  font-size: 32px;
+  font-weight: 400;
+  letter-spacing: 0.16em;
+}
+
+.fp-flight-strip {
+  bottom: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+  border-top: 1px solid rgba(212, 255, 58, 0.2);
+  background: rgba(7, 8, 12, 0.92);
+  padding: 14px 8px 18px;
+}
+
+.fp-flight-strip div {
+  padding: 0 24px;
+  border-left: 1px solid rgba(170, 190, 220, 0.1);
+}
+
+.fp-flight-strip div:first-child {
+  border-left: 0;
+}
+
+.fp-flight-strip span {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  color: #8b97a8;
+}
+
+.fp-flight-strip b {
+  display: block;
+  margin-top: 8px;
+  font-size: 26px;
+  font-weight: 400;
+  color: #eef2f8;
+  letter-spacing: 0.06em;
+}
+
+.fp-flight-strip small {
+  display: block;
+  margin-left: 0;
+  margin-top: 4px;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: #8b97a8;
+}

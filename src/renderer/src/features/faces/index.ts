@@ -1,5 +1,6 @@
 export { FaceHost } from "./FaceHost";
 export { FacePicker } from "./FacePicker";
+export { FlightFace } from "./FlightFace";
 export { HourglassFace } from "./HourglassFace";
 export { ReadoutFace } from "./ReadoutFace";
 export { DescentFace } from "./DescentFace";
