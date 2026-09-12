@@ -12,23 +12,38 @@ FocusPlug can cut **optional** LAN smart plugs when a session kill / **Demo Kill
 | **Kasa** | TP-Link HS100/HS103/KP105-class, local TCP/UDP **9999** XOR protocol | No. Device must be on the same LAN |
 | **HTTP** | `POST {address}/on` and `{address}/off` (Tasmota, Shelly, DIY) | No |
 
-> ### Which TP-Link plugs actually work
->
-> The `kasa` adapter speaks the **legacy** local protocol only: unauthenticated
-> autokey XOR on port 9999. That covers older Kasa hardware (HS100, HS103,
-> HS105, KP105, KP115 on original firmware).
->
-> It does **not** work with **Tapo** plugs (P100, P105, P110, **P110M**) or with
-> newer Kasa firmware. Those speak **KLAP** — an encrypted handshake on port 80
-> that requires your TP-Link account credentials. Port 9999 is closed on them,
-> so `plugsTest` and Demo Kill will fail with a connection error, not a wrong
-> answer.
->
-> If your plug is a Tapo, you have three options: use a legacy Kasa plug for the
-> demo; put something that already speaks KLAP (Home Assistant, or a small
-> `python-kasa` service) in front of it and point the **HTTP** adapter at that;
-> or leave plugs out of the film. Do not claim plug control on Devpost that you
-> have not seen work on your own hardware.
+### Which TP-Link plugs work, and how
+
+The `kasa` adapter speaks **both** TP-Link dialects and picks automatically:
+
+| Dialect | Devices | Port | Credentials |
+| --- | --- | --- | --- |
+| Legacy XOR | HS100, HS103, HS105, KP105, KP115 on original firmware | 9999 | none |
+| **KLAP v2** | **Tapo P100, P105, P110, P110M**, recent Kasa firmware | 80 | TP-Link account |
+
+Legacy is tried first. Tapo devices keep 9999 closed, so that attempt is refused
+in milliseconds and the adapter falls back to KLAP.
+
+#### Credentials
+
+KLAP needs your TP-Link account. `PlugDevice` is a frozen contract carrying only
+an address, and a settings file is the wrong place for a password, so
+credentials come from the environment:
+
+```powershell
+$env:FOCUSPLUG_TAPO_USERNAME = "you@example.com"
+$env:FOCUSPLUG_TAPO_PASSWORD = "your-tp-link-password"
+npm run dev
+```
+
+`TAPO_EMAIL` / `TAPO_PASSWORD` and `KASA_USERNAME` / `KASA_PASSWORD` work too.
+Without them, Tapo plugs fail with a message telling you to set them; legacy
+plugs are unaffected. **Never commit these** — they control physical devices in
+your home, and FocusPlug never writes them to disk.
+
+One connection is held per plug and reused. Re-handshaking on every command
+trips the device's local-auth throttle, which then reports *"challenge did not
+match"* — indistinguishable from a wrong password until it cools down.
 
 Frozen main-process API (`window.focusplug` / `PlugController`):
 
@@ -77,7 +92,9 @@ a host-only adapter: measured here, a device reachable at `192.168.1.14` was
 reported at `192.168.56.1`, and a real plug on the Wi-Fi subnet would simply be
 missed. One device answering on several interfaces is deduplicated by device id.
 
-### No hardware? Run the fake plug
+### No hardware? Run a fake plug
+
+Legacy:
 
 ```bash
 npm run mock:plug                                  # terminal 1
@@ -86,10 +103,41 @@ npm run probe:plugs -- --ip <your-lan-ip> --off
 npm run probe:plugs -- --ip <your-lan-ip> --on
 ```
 
-`scripts/mock-kasa-device.mjs` is a real socket server speaking the legacy
-protocol, so this exercises the actual driver — encode, TCP framing, relay set,
-and the verification read — rather than a stubbed transport. Use your machine's
-LAN address, not `localhost`: `protect.ts` refuses loopback on a real adapter.
+Tapo / KLAP:
+
+```bash
+npm run mock:tapo                                  # terminal 1, port 8080
+$env:FOCUSPLUG_TAPO_USERNAME = "user@example.com"  # the simulator's defaults
+$env:FOCUSPLUG_TAPO_PASSWORD = "hunter2"
+npm run probe:plugs -- --ip <your-lan-ip> --klap-port 8080 --off
+```
+
+Both are real socket servers, so these exercise the actual driver — framing,
+handshake, encryption, relay set and the verification read — not a stubbed
+transport. Use your machine's LAN address, not `localhost`: `protect.ts` refuses
+loopback on a real adapter.
+
+#### How the KLAP client was verified without a plug
+
+Getting a protocol subtly wrong is easy, and a simulator you wrote yourself will
+happily agree with a client you wrote yourself. So the chain is anchored to
+[python-kasa](https://github.com/python-kasa/python-kasa) 0.10.2, the reference
+implementation:
+
+1. **Derivations are pinned to reference vectors.** `klap.test.ts` checks the
+   auth hash, both handshake hashes, key, IV, starting sequence, signature and a
+   full encrypted request against values emitted by python-kasa's own
+   `KlapTransportV2` / `KlapEncryptionSession` for fixed seeds — byte for byte.
+2. **The simulator is validated by the reference client.** python-kasa's
+   `KlapTransportV2` completes handshake1, handshake2, `get_device_info` and two
+   `set_device_info` calls against `scripts/mock-tapo-device.ts`. A simulator the
+   reference accepts is behaving like a device at this layer.
+3. **Our client is validated against that same simulator** (`klapClient.test.ts`,
+   `tapoFallback.test.ts`), including credential rejection and session reuse.
+
+What this does **not** prove: that a physical P110M answers identically. Run
+`npm run probe:plugs -- --ip <plug-ip>` against the real plug before relying on
+it in a demo.
 
 ### Protocol note
 

@@ -1,6 +1,7 @@
 import { createConnection } from "node:net";
 import { createSocket, type RemoteInfo, type Socket as UdpSocket } from "node:dgram";
 import { networkInterfaces } from "node:os";
+import { KlapPool, klapCredentialsFromEnv } from "./klap.ts";
 import type { PlugDevice } from "../../shared/types.ts";
 import type { PlugHost } from "./types.ts";
 
@@ -255,23 +256,76 @@ export class TcpKasaTransport implements KasaTransport {
   }
 }
 
+/**
+ * TP-Link plugs, both dialects.
+ *
+ * Legacy first (unauthenticated XOR on 9999). If the device refuses that -- Tapo
+ * P100/P105/P110/P110M and recent Kasa firmware keep 9999 closed -- fall back to
+ * KLAP on port 80, which needs TP-Link account credentials from the environment.
+ */
 export class KasaPlugHost implements PlugHost {
   readonly protocol = "kasa" as const;
+  private klap: KlapPool | null | undefined;
 
-  constructor(private readonly transport: KasaTransport = new TcpKasaTransport()) {}
+  constructor(
+    private readonly transport: KasaTransport = new TcpKasaTransport(),
+    /** Inject for tests; omitted means "build one from the environment". */
+    klap?: KlapPool | null,
+  ) {
+    this.klap = klap;
+  }
+
+  /** Resolved late so credentials exported after startup still count. */
+  private klapPool(): KlapPool | null {
+    if (this.klap === undefined) {
+      const credentials = klapCredentialsFromEnv();
+      this.klap = credentials === null ? null : new KlapPool(credentials);
+    }
+    return this.klap;
+  }
+
+  private noKlapError(host: string, legacyError: unknown): Error {
+    const detail = legacyError instanceof Error ? legacyError.message : String(legacyError);
+    return new Error(
+      `${host} did not answer the legacy Kasa protocol (${detail}). If this is a Tapo plug ` +
+        `or recent Kasa firmware it speaks KLAP instead: set FOCUSPLUG_TAPO_USERNAME and ` +
+        `FOCUSPLUG_TAPO_PASSWORD to your TP-Link account and try again.`,
+    );
+  }
 
   async setPower(device: PlugDevice, on: boolean): Promise<boolean> {
-    await this.transport.send(device.address.trim(), setRelayPayload(on));
+    const host = device.address.trim();
     try {
-      const info = parseKasaSysinfo(await this.transport.send(device.address.trim(), GET_SYSINFO));
+      await this.transport.send(host, setRelayPayload(on));
+    } catch (legacyError) {
+      const klap = this.klapPool();
+      if (klap === null) {
+        throw this.noKlapError(host, legacyError);
+      }
+      return await klap.setPower(host, on);
+    }
+    try {
+      const info = parseKasaSysinfo(await this.transport.send(host, GET_SYSINFO));
       return relayStateOn(info);
     } catch {
+      // The command went through; only the read-back failed.
       return on;
     }
   }
 
   async query(device: PlugDevice): Promise<boolean | null> {
-    const info = parseKasaSysinfo(await this.transport.send(device.address.trim(), GET_SYSINFO));
+    const host = device.address.trim();
+    let body: string;
+    try {
+      body = await this.transport.send(host, GET_SYSINFO);
+    } catch (legacyError) {
+      const klap = this.klapPool();
+      if (klap === null) {
+        throw this.noKlapError(host, legacyError);
+      }
+      return await klap.query(host);
+    }
+    const info = parseKasaSysinfo(body);
     if (typeof info.relay_state !== "number") {
       return null;
     }
@@ -312,6 +366,9 @@ export class KasaPlugHost implements PlugHost {
   }
 }
 
-export function createKasaPlugHost(transport?: KasaTransport): KasaPlugHost {
-  return new KasaPlugHost(transport);
+export function createKasaPlugHost(
+  transport?: KasaTransport,
+  klap?: KlapPool | null,
+): KasaPlugHost {
+  return new KasaPlugHost(transport, klap);
 }
