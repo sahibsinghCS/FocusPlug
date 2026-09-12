@@ -20,3 +20,16 @@ Plates were unlabeled (`plate-m` … `plate-r`). Critic was not told which prefi
 - Strip on N/O: DUB → EDI, 181 km, 16:27, 403 kph.
 
 **Checks:** `npx vitest run src/renderer/src/features/faces/flight src/shared/flightRoute.test.ts` (36) and `npx tsc --noEmit -p tsconfig.web.json` pass.
+
+## Round 2 — WIN (2026-09-12, post-rebase onto `8b496d7`)
+
+Fresh unlabeled plates after rebase onto main (Flask #32 + Hourglass #31 + Garden #33 + Candle #35). Same v2 bar: zoomed hop, continuous orbit, no graticule, choosable route. Old Flight v1 Round 3/4 JFK–LHR WINs are historical only and do not count here.
+
+- **Selected:** N, O, Q
+- **Rejected:** M (tiny gridded DUB→EDI sticker)
+- **Stills:** `before-timmy-grid-1280x800.png` vs `after-dub-edi-cruise-16z-orbit-a-1280x800.png`, `after-dub-edi-cruise-16z-orbit-b-1280x800.png`, `after-dub-edi-picker-16z-1280x800.png`
+- **Largest remaining ding (not a loss):** No range scale / navaids — reads as a heading-up map porthole more than a ranging ND/EHSI.
+
+**Why WIN:** N vs O is the same DUB→EDI hop with the aircraft centered and land rotated (not a static sticker). No lat/lon grid. Q shows a searchable IATA origin list. Strip: DUB → EDI, 181 km, 16:27, 403 kph.
+
+**Checks after rebase:** faces + flightRoute + contracts + controller tests 142; `tsc` web + node; `check:contracts` OK. Tip `22aac32` on `8b496d7`. FACE_READY.flight/hourglass/flask/garden/candle all true. Eclipse/Field stay retired.
