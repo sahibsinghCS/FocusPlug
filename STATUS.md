@@ -18,4 +18,4 @@
 - **faces cheap-wow pack** on `cursor/faces-cheap-30ea` (PR #28). Rebased onto foundation (#26). Descent + Orbit + Circuit replace host stubs, `FACE_READY` flipped, catalog blurbs match the instruments. Critic WIN vs a plain bar at 1280×800; Circuit is the session fuse plate.
 - **faces flask** on `cursor/faces-flask-eb27` (PR #32). New `FaceId` `flask` — glass water vessel, remaining time is the water, visible leak. Column stays retired. Critic WIN vs the attached COLUMN still at 1280×800.
 - **Garden sunrise** on `agent/faces-garden`. FaceId `garden` replaces retired Eclipse conceptually (Eclipse stays retired). Night moon → dawn sun-rise → saturated orchard day. `FACE_READY.garden` is true.
-- **Candle melt** on `agent/faces-candle`. FaceId `candle` replaces retired Field conceptually (Field stays retired). Elapsed session time melts the wax and burns the flame. `FACE_READY.candle` is true.
+- **faces candle** on `agent/faces-candle` (PR #35). New `FaceId` `candle` — melting beeswax timer. Elapsed burns the pillar down. Field stays retired. Critic WIN vs a plain bar at 1280×800.

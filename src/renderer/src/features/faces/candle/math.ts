@@ -11,19 +11,19 @@ export const STILL_CLOCK_MS = 840;
 /** Pillar in a dark room. Top melts down; drips and pool grow with progress. */
 export const CANDLE_GEOM = {
   cx: 200,
-  holderY: 548,
-  dishRx: 96,
-  dishRy: 15,
-  shelfY: 596,
-  fullTop: 104,
-  stubTop: 424,
-  baseHalfW: 46,
-  midHalfW: 39,
-  topHalfW: 33,
-  collarExtra: 8,
-  wickH: 16,
-  flameH: 62,
-  flameW: 20,
+  holderY: 550,
+  dishRx: 118,
+  dishRy: 18,
+  shelfY: 598,
+  fullTop: 100,
+  stubTop: 430,
+  baseHalfW: 70,
+  midHalfW: 56,
+  topHalfW: 40,
+  collarExtra: 16,
+  wickH: 20,
+  flameH: 118,
+  flameW: 38,
 } as const;
 
 export interface CandleDripSite {
@@ -38,9 +38,9 @@ export interface CandleDripSite {
 }
 
 export const DRIP_SITES: readonly CandleDripSite[] = [
-  { id: "left-main", side: -1, attachT: 0.03, lengthT: 0.78, width: 8.2, appear: 0.04 },
-  { id: "right-main", side: 1, attachT: 0.07, lengthT: 0.7, width: 7.4, appear: 0.1 },
-  { id: "left-late", side: -1, attachT: 0.16, lengthT: 0.46, width: 5.6, appear: 0.26 },
+  { id: "left-main", side: -1, attachT: 0.02, lengthT: 0.86, width: 20, appear: 0.03 },
+  { id: "right-main", side: 1, attachT: 0.06, lengthT: 0.78, width: 18, appear: 0.08 },
+  { id: "left-late", side: -1, attachT: 0.14, lengthT: 0.52, width: 13, appear: 0.22 },
 ];
 
 export interface CandleDripPose {
@@ -110,11 +110,11 @@ export function halfWidthAt(y: number, progress: number): number {
 
 export function poolRadius(progress: number): number {
   const melt = meltAmount(progress);
-  return 20 + melt * 68;
+  return 34 + melt * 86;
 }
 
 export function poolHeight(progress: number): number {
-  return 3.5 + meltAmount(progress) * 15;
+  return 6 + meltAmount(progress) * 20;
 }
 
 export function dripLength(progress: number, site: CandleDripSite): number {
@@ -177,7 +177,7 @@ export function poseDrips(progress: number): CandleDripPose[] {
     posed.push({
       id: site.id,
       side: site.side,
-      x: CANDLE_GEOM.cx + site.side * (wall - 1.2),
+      x: CANDLE_GEOM.cx + site.side * (wall + 2.5),
       y0,
       length,
       width: site.width,
@@ -208,8 +208,8 @@ export function buildCandlePose(
     baseHalfW: CANDLE_GEOM.baseHalfW,
     midHalfW: CANDLE_GEOM.midHalfW,
     topHalfW: CANDLE_GEOM.topHalfW,
-    collar: CANDLE_GEOM.collarExtra + melt * 3.5,
-    meniscusDepth: 7 + melt * 5,
+    collar: CANDLE_GEOM.collarExtra + melt * 6,
+    meniscusDepth: 20 + melt * 16,
     poolRx: poolRadius(progress),
     poolRy: poolHeight(progress),
     drips: poseDrips(progress),

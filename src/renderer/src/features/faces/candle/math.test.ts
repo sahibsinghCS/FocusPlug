@@ -44,8 +44,13 @@ describe("candle melt from progress", () => {
     expect(waxTopY(0)).toBe(CANDLE_GEOM.fullTop);
     expect(waxTopY(1)).toBe(CANDLE_GEOM.stubTop);
     expect(waxColumnHeight(0)).toBeGreaterThan(400);
-    expect(waxColumnHeight(0.92)).toBeLessThan(160);
+    expect(waxColumnHeight(0.92)).toBeLessThan(180);
     expect(waxColumnHeight(0.92)).toBeGreaterThan(80);
+    const start = buildCandlePose(0.04, "focus", 0);
+    const mid = buildCandlePose(0.5, "focus", 0);
+    expect(start.meniscusDepth).toBeGreaterThan(18);
+    expect(mid.meniscusDepth).toBeGreaterThan(start.meniscusDepth);
+    expect(start.topHalfW / start.baseHalfW).toBeLessThan(0.65);
   });
 });
 
@@ -56,8 +61,11 @@ describe("candle silhouette", () => {
     const top = halfWidthAt(waxTopY(0.5) + 8, 0.5);
     const base = halfWidthAt(CANDLE_GEOM.holderY - 8, 0.5);
     expect(base).toBeGreaterThan(top);
-    expect(CANDLE_GEOM.baseHalfW).toBeGreaterThan(40);
-    expect(CANDLE_GEOM.baseHalfW / waxColumnHeight(0)).toBeLessThan(0.15);
+    expect(CANDLE_GEOM.baseHalfW).toBeGreaterThan(60);
+    expect(CANDLE_GEOM.topHalfW / CANDLE_GEOM.baseHalfW).toBeLessThan(0.65);
+    const squat = CANDLE_GEOM.baseHalfW / waxColumnHeight(0);
+    expect(squat).toBeGreaterThan(0.12);
+    expect(squat).toBeLessThan(0.22);
   });
 });
 
