@@ -11,25 +11,25 @@ export const STILL_CLOCK_MS = 680;
 /** Upright glass bottle. Neck is much narrower than the belly — never a capsule. */
 export const FLASK_GEOM = {
   cx: 200,
-  lipY: 86,
-  lipRx: 20,
-  neckY: 156,
-  neckRx: 13,
-  shoulderY: 218,
-  shoulderRx: 50,
-  bellyY: 352,
-  bellyRx: 66,
-  hipY: 498,
-  hipRx: 54,
-  baseY: 556,
-  baseRx: 58,
-  innerInset: 7,
-  corkTop: 48,
-  corkBot: 90,
-  corkRx: 15,
-  spigotY: 476,
-  spigotLength: 34,
-  shelfY: 598,
+  lipY: 82,
+  lipRx: 18,
+  neckY: 168,
+  neckRx: 12,
+  shoulderY: 236,
+  shoulderRx: 62,
+  bellyY: 360,
+  bellyRx: 84,
+  hipY: 500,
+  hipRx: 68,
+  baseY: 558,
+  baseRx: 74,
+  innerInset: 8,
+  corkTop: 42,
+  corkBot: 88,
+  corkRx: 16,
+  spigotY: 488,
+  spigotLength: 42,
+  shelfY: 602,
 } as const;
 
 export type FlaskGeom = typeof FLASK_GEOM;
@@ -150,14 +150,14 @@ export function streamControls(geom: FlaskGeom = FLASK_GEOM): {
 } {
   const attachR = radiusAtY(geom.spigotY, geom, 0);
   const start = {
-    x: geom.cx + attachR + geom.spigotLength - 2,
-    y: geom.spigotY + 7,
+    x: geom.cx + attachR + geom.spigotLength - 4,
+    y: geom.spigotY + 16,
   };
   return {
     start,
-    c1: { x: start.x + 10, y: start.y + 28 },
-    c2: { x: start.x + 16, y: start.y + 70 },
-    end: { x: start.x + 8, y: geom.shelfY - 6 },
+    c1: { x: start.x + 14, y: start.y + 26 },
+    c2: { x: start.x + 18, y: start.y + 64 },
+    end: { x: start.x + 6, y: geom.shelfY - 4 },
   };
 }
 

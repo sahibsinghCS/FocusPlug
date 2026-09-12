@@ -171,7 +171,7 @@ function paintShelf(ctx: CanvasRenderingContext2D, geom: FlaskGeom, wetX: number
     wet.addColorStop(1, "rgba(14, 116, 144, 0)");
     ctx.fillStyle = wet;
     ctx.beginPath();
-    ctx.ellipse(wetX, y + 3, 26, 7, 0, 0, Math.PI * 2);
+    ctx.ellipse(wetX, y + 3, 34, 9, 0, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.strokeStyle = `rgba(186, 230, 253, ${0.28 + 0.2 * pulse})`;
@@ -193,66 +193,74 @@ function paintCork(
 ): void {
   ctx.save();
   if (!seated) {
-    ctx.translate(geom.cx + 22, geom.corkTop - 6);
-    ctx.rotate(-0.32);
+    ctx.translate(geom.cx + 36, geom.corkTop - 10);
+    ctx.rotate(-0.42);
     ctx.translate(-geom.cx, -geom.corkTop);
   }
-  const cork = ctx.createLinearGradient(geom.cx - 16, geom.corkTop, geom.cx + 16, geom.corkBot);
-  cork.addColorStop(0, "#e6c08a");
-  cork.addColorStop(0.35, "#c48a48");
-  cork.addColorStop(1, "#7a4a22");
+  const cork = ctx.createLinearGradient(geom.cx - 18, geom.corkTop, geom.cx + 18, geom.corkBot);
+  cork.addColorStop(0, "#f0d2a0");
+  cork.addColorStop(0.3, "#c48a48");
+  cork.addColorStop(1, "#6a3c18");
   ctx.fillStyle = cork;
   ctx.beginPath();
-  ctx.moveTo(geom.cx - geom.corkRx + 2, geom.corkTop);
-  ctx.quadraticCurveTo(geom.cx, geom.corkTop - 6, geom.cx + geom.corkRx - 2, geom.corkTop);
-  ctx.lineTo(geom.cx + geom.corkRx + 2, geom.corkBot);
-  ctx.quadraticCurveTo(geom.cx, geom.corkBot + 4, geom.cx - geom.corkRx - 2, geom.corkBot);
+  ctx.moveTo(geom.cx - geom.corkRx + 1, geom.corkTop + 4);
+  ctx.quadraticCurveTo(geom.cx, geom.corkTop - 8, geom.cx + geom.corkRx - 1, geom.corkTop + 4);
+  ctx.lineTo(geom.cx + geom.corkRx + 3, geom.corkBot);
+  ctx.quadraticCurveTo(geom.cx, geom.corkBot + 6, geom.cx - geom.corkRx - 3, geom.corkBot);
   ctx.closePath();
   ctx.fill();
-  ctx.strokeStyle = "rgba(60, 32, 12, 0.45)";
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = "rgba(60, 32, 12, 0.55)";
+  ctx.lineWidth = 1.2;
   ctx.stroke();
-  ctx.strokeStyle = "rgba(255, 220, 170, 0.28)";
+  ctx.fillStyle = "#e8c888";
   ctx.beginPath();
-  ctx.moveTo(geom.cx - 6, geom.corkTop + 8);
-  ctx.lineTo(geom.cx - 4, geom.corkBot - 6);
+  ctx.ellipse(geom.cx, geom.corkTop + 3, geom.corkRx - 2, 4.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(255, 220, 170, 0.4)";
+  ctx.beginPath();
+  ctx.moveTo(geom.cx - 7, geom.corkTop + 12);
+  ctx.lineTo(geom.cx - 5, geom.corkBot - 8);
   ctx.stroke();
   ctx.restore();
 }
 
 function paintSpigot(ctx: CanvasRenderingContext2D, geom: FlaskGeom): Point {
   const attachR = radiusAtY(geom.spigotY, geom, 0);
-  const x0 = geom.cx + attachR - 2;
+  const x0 = geom.cx + attachR - 3;
   const y = geom.spigotY;
   const x1 = x0 + geom.spigotLength;
 
-  const brass = ctx.createLinearGradient(x0, y - 10, x0, y + 14);
-  brass.addColorStop(0, "#f0d48a");
-  brass.addColorStop(0.45, "#c4a050");
-  brass.addColorStop(1, "#6b4a12");
-
+  const brass = ctx.createLinearGradient(x0, y - 14, x0, y + 16);
+  brass.addColorStop(0, "#f8e6b0");
+  brass.addColorStop(0.4, "#d4a84a");
+  brass.addColorStop(1, "#5a3a0c");
   ctx.fillStyle = brass;
   ctx.beginPath();
-  ctx.roundRect(x0, y - 5, geom.spigotLength - 4, 10, 3);
-  ctx.fill();
-
-  ctx.beginPath();
-  ctx.roundRect(x1 - 9, y - 2, 10, 12, 3);
-  ctx.fill();
-
-  ctx.beginPath();
-  ctx.ellipse(x0 + 8, y - 9, 5, 7, 0.15, 0, Math.PI * 2);
+  ctx.roundRect(x0, y - 6, geom.spigotLength - 6, 13, 4);
   ctx.fill();
   ctx.strokeStyle = "rgba(255, 230, 160, 0.45)";
   ctx.lineWidth = 1;
   ctx.stroke();
 
-  ctx.fillStyle = "#3a2a10";
   ctx.beginPath();
-  ctx.arc(x0 + 8, y - 9, 1.6, 0, Math.PI * 2);
+  ctx.roundRect(x1 - 12, y - 1, 13, 16, 4);
   ctx.fill();
 
-  return { x: x1 - 2, y: y + 9 };
+  ctx.beginPath();
+  ctx.ellipse(x0 + 10, y - 12, 6.5, 8.5, 0.18, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = "#2a1c08";
+  ctx.beginPath();
+  ctx.arc(x0 + 10, y - 12, 2, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "#c4a050";
+  ctx.beginPath();
+  ctx.arc(x1 - 6, y + 15, 3.2, 0, Math.PI * 2);
+  ctx.fill();
+
+  return { x: x1 - 5, y: y + 16 };
 }
 
 function paintWater(
@@ -272,16 +280,17 @@ function paintWater(
   addBottlePath(ctx, geom, geom.innerInset);
   ctx.clip();
 
-  const deep = phase === "break" ? "#4a1020" : "#082f49";
-  const mid = phase === "break" ? "#9f1239" : "#0e7490";
-  const top = phase === "break" ? "#fb7185" : "#67e8f9";
+  const deep = phase === "break" ? "#3f0a18" : "#042033";
+  const mid = phase === "break" ? "#be123c" : "#0369a1";
+  const top = phase === "break" ? "#fda4af" : "#7dd3fc";
 
   const body = ctx.createLinearGradient(geom.cx, waterY, geom.cx, geom.baseY);
   body.addColorStop(0, top);
-  body.addColorStop(0.18, mid);
+  body.addColorStop(0.12, mid);
+  body.addColorStop(0.55, phase === "break" ? "#881337" : "#0c4a6e");
   body.addColorStop(1, deep);
   ctx.fillStyle = body;
-  ctx.fillRect(geom.cx - 80, waterY, 160, geom.baseY - waterY + 8);
+  ctx.fillRect(geom.cx - 120, waterY, 240, geom.baseY - waterY + 12);
 
   const shade = ctx.createLinearGradient(geom.cx - rx, waterY, geom.cx + rx, waterY);
   shade.addColorStop(0, "rgba(255, 255, 255, 0.16)");
@@ -291,15 +300,15 @@ function paintWater(
   ctx.fillStyle = shade;
   ctx.fillRect(geom.cx - rx, waterY, rx * 2, geom.baseY - waterY);
 
-  ctx.fillStyle = "rgba(224, 246, 255, 0.55)";
+  ctx.fillStyle = "rgba(224, 246, 255, 0.72)";
   ctx.beginPath();
-  ctx.ellipse(geom.cx, waterY, rx - 1, 5.5, 0, 0, Math.PI * 2);
+  ctx.ellipse(geom.cx, waterY, rx - 1, 7.5, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.strokeStyle = "rgba(255, 255, 255, 0.72)";
-  ctx.lineWidth = 1.6;
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.92)";
+  ctx.lineWidth = 2.4;
   ctx.beginPath();
-  ctx.ellipse(geom.cx, waterY, rx - 1.5, 5.2, 0, Math.PI * 1.05, Math.PI * 1.95);
+  ctx.ellipse(geom.cx, waterY, rx - 1.5, 7, 0, Math.PI * 1.02, Math.PI * 1.98);
   ctx.stroke();
 
   ctx.strokeStyle = "rgba(8, 47, 73, 0.35)";
@@ -340,21 +349,34 @@ function paintGlass(ctx: CanvasRenderingContext2D, geom: FlaskGeom): void {
   ctx.save();
   ctx.beginPath();
   addBottlePath(ctx, geom, 0);
-  const glass = ctx.createLinearGradient(geom.cx - 70, geom.lipY, geom.cx + 70, geom.baseY);
-  glass.addColorStop(0, "rgba(186, 210, 230, 0.09)");
-  glass.addColorStop(0.4, "rgba(120, 160, 190, 0.05)");
-  glass.addColorStop(1, "rgba(80, 110, 140, 0.08)");
+  const glass = ctx.createLinearGradient(geom.cx - 90, geom.lipY, geom.cx + 90, geom.baseY);
+  glass.addColorStop(0, "rgba(186, 210, 230, 0.16)");
+  glass.addColorStop(0.4, "rgba(80, 110, 140, 0.08)");
+  glass.addColorStop(1, "rgba(40, 60, 80, 0.14)");
   ctx.fillStyle = glass;
   ctx.fill();
 
-  ctx.strokeStyle = "rgba(210, 228, 245, 0.62)";
-  ctx.lineWidth = 2.1;
+  ctx.beginPath();
+  addBottlePath(ctx, geom, 0);
+  addBottlePath(ctx, geom, geom.innerInset);
+  const wall = ctx.createLinearGradient(geom.cx - 80, 0, geom.cx + 80, 0);
+  wall.addColorStop(0, "rgba(226, 240, 255, 0.38)");
+  wall.addColorStop(0.35, "rgba(148, 180, 210, 0.12)");
+  wall.addColorStop(0.7, "rgba(20, 32, 48, 0.2)");
+  wall.addColorStop(1, "rgba(200, 220, 240, 0.22)");
+  ctx.fillStyle = wall;
+  ctx.fill("evenodd");
+
+  ctx.beginPath();
+  addBottlePath(ctx, geom, 0);
+  ctx.strokeStyle = "rgba(226, 240, 255, 0.82)";
+  ctx.lineWidth = 2.8;
   ctx.stroke();
 
   ctx.beginPath();
   addBottlePath(ctx, geom, geom.innerInset);
-  ctx.strokeStyle = "rgba(255, 255, 255, 0.14)";
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.22)";
+  ctx.lineWidth = 1.2;
   ctx.stroke();
 
   ctx.restore();
@@ -434,33 +456,33 @@ function paintStream(
   const c2 = { x: stream.c2.x - wobble * 0.6, y: stream.c2.y };
 
   const ribbon = ctx.createLinearGradient(stream.start.x, stream.start.y, stream.end.x, stream.end.y);
-  ribbon.addColorStop(0, "rgba(186, 230, 253, 0.95)");
-  ribbon.addColorStop(0.4, "rgba(56, 189, 248, 0.88)");
-  ribbon.addColorStop(1, "rgba(14, 165, 233, 0.2)");
+  ribbon.addColorStop(0, "rgba(224, 246, 255, 0.98)");
+  ribbon.addColorStop(0.35, "rgba(56, 189, 248, 0.95)");
+  ribbon.addColorStop(1, "rgba(14, 165, 233, 0.35)");
 
   ctx.save();
   ctx.strokeStyle = ribbon;
-  ctx.lineWidth = 4.2;
+  ctx.lineWidth = 7.5;
   ctx.lineCap = "round";
   ctx.beginPath();
   ctx.moveTo(stream.start.x, stream.start.y);
   ctx.bezierCurveTo(c1.x, c1.y, c2.x, c2.y, stream.end.x, stream.end.y);
   ctx.stroke();
-  ctx.strokeStyle = "rgba(255, 255, 255, 0.55)";
-  ctx.lineWidth = 1.4;
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.7)";
+  ctx.lineWidth = 2.4;
   ctx.stroke();
 
   const drops = dripPhases(clockMs, 5, 860);
   for (const phase of drops) {
     const p = bezierPoint(stream.start, c1, c2, stream.end, phase);
-    const r = 2.1 + (1 - phase) * 1.3;
-    ctx.fillStyle = `rgba(186, 230, 253, ${0.95 - phase * 0.35})`;
+    const r = 4.6 + (1 - phase) * 2.4;
+    ctx.fillStyle = `rgba(186, 230, 253, ${0.98 - phase * 0.25})`;
     ctx.beginPath();
-    ctx.ellipse(p.x, p.y, r * 0.72, r * 1.15, 0.15, 0, Math.PI * 2);
+    ctx.ellipse(p.x, p.y, r * 0.7, r * 1.25, 0.12, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = "rgba(255, 255, 255, 0.55)";
+    ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
     ctx.beginPath();
-    ctx.ellipse(p.x - 0.5, p.y - 0.6, r * 0.25, r * 0.3, 0, 0, Math.PI * 2);
+    ctx.ellipse(p.x - 0.8, p.y - 1.1, r * 0.28, r * 0.32, 0, 0, Math.PI * 2);
     ctx.fill();
   }
   ctx.restore();
@@ -469,17 +491,18 @@ function paintStream(
     const mouth = mouthDripStart();
     const mouthDrops = dripPhases(clockMs + 180, 3, 640);
     ctx.save();
-    ctx.strokeStyle = "rgba(125, 211, 252, 0.55)";
-    ctx.lineWidth = 1.6;
+    ctx.strokeStyle = "rgba(125, 211, 252, 0.8)";
+    ctx.lineWidth = 3.2;
+    ctx.lineCap = "round";
     ctx.beginPath();
     ctx.moveTo(mouth.x, mouth.y);
-    ctx.quadraticCurveTo(mouth.x + 7, mouth.y + 16, mouth.x + 6, mouth.y + 34);
+    ctx.quadraticCurveTo(mouth.x + 10, mouth.y + 18, mouth.x + 8, mouth.y + 40);
     ctx.stroke();
     for (const phase of mouthDrops) {
-      const y = mouth.y + 8 + phase * 36;
-      ctx.fillStyle = "rgba(186, 230, 253, 0.8)";
+      const y = mouth.y + 10 + phase * 42;
+      ctx.fillStyle = "rgba(186, 230, 253, 0.92)";
       ctx.beginPath();
-      ctx.ellipse(mouth.x + 6 + Math.sin(phase * 8) * 1.2, y, 1.4, 2.1, 0.2, 0, Math.PI * 2);
+      ctx.ellipse(mouth.x + 8 + Math.sin(phase * 8) * 1.6, y, 2.4, 3.6, 0.2, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.restore();
@@ -500,14 +523,14 @@ function paintMeta(
   ctx.textAlign = "right";
   ctx.textBaseline = "bottom";
   ctx.fillStyle = "rgba(107, 118, 138, 0.95)";
-  ctx.font = "600 10px ui-monospace, SFMono-Regular, Menlo, monospace";
-  ctx.fillText("FLASK", w - 18, h - 36);
+  ctx.font = "600 11px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.fillText("FLASK", w - 22, h - 42);
   ctx.fillStyle = "#eef2f8";
-  ctx.font = "600 13px ui-monospace, SFMono-Regular, Menlo, monospace";
-  ctx.fillText(`${Math.round(fill * 100)}% remain · ${formatFaceClock(remainingMs)}`, w - 18, h - 20);
+  ctx.font = "600 15px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.fillText(`${Math.round(fill * 100)}% remain · ${formatFaceClock(remainingMs)}`, w - 22, h - 24);
   ctx.fillStyle = leaking ? "#7dd3fc" : "#6b768a";
-  ctx.font = "600 10px ui-sans-serif, system-ui, sans-serif";
-  ctx.fillText(label, w - 18, h - 8);
+  ctx.font = "600 11px ui-sans-serif, system-ui, sans-serif";
+  ctx.fillText(label, w - 22, h - 10);
   ctx.restore();
 }
 
