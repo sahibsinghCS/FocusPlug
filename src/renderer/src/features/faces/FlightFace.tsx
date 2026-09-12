@@ -46,7 +46,8 @@ export function FlightFace(props: FaceProps): JSX.Element {
     settings,
     estimateMinutes: extras.estimateMinutes,
   });
-  const compact = props.height > 0 && props.height < 520;
+  const thumb = props.height > 0 && props.height < 140;
+  const compact = props.height > 0 && props.height < 400;
   return (
     <div
       className="fp-flight-slot"
@@ -56,10 +57,10 @@ export function FlightFace(props: FaceProps): JSX.Element {
     >
       <FlightInstrument
         clock={clock}
-        variant={extras.variant}
+        variant={thumb ? "sticker" : extras.variant}
         idleOverride={extras.idleOverride}
         compact={compact}
-        routePickerOpen={extras.picker}
+        routePickerOpen={thumb ? null : extras.picker}
         onRouteChange={
           app
             ? (next) => {

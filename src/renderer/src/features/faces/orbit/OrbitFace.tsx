@@ -51,7 +51,7 @@ export function OrbitFace(props: VisualFaceProps): JSX.Element {
         viewBox={`0 0 ${VW} ${VH}`}
         width={box.width}
         height={box.height}
-        preserveAspectRatio="xMidYMid meet"
+        preserveAspectRatio={box.height < 140 ? "xMidYMid slice" : "xMidYMid meet"}
         aria-hidden="true"
       >
         <defs>

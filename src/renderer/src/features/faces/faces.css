@@ -277,6 +277,13 @@
   display: none;
 }
 
+.fp-setup-face-preview .fp-flight-head,
+.fp-setup-face-preview .fp-flight-strip,
+.fp-setup-face-preview .fp-flight-plate,
+.fp-setup-face-preview .fp-flight-route {
+  display: none;
+}
+
 @media (max-height: 780px) {
   .fp-setup-face-preview {
     height: 58px;

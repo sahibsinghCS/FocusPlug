@@ -138,6 +138,11 @@
   font-size: clamp(64px, min(11vw, 16vh), 160px);
 }
 
+.fp-lock-stage .fp-growth-face {
+  place-items: center;
+  padding: 16px 8% 28px;
+}
+
 .fp-lock-dim {
   color: color-mix(in srgb, var(--phase) 62%, transparent);
 }
