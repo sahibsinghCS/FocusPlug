@@ -115,6 +115,13 @@ describe("wilt is session-persistent stakes", () => {
     const wiltedMeanY =
       wilted.branches.reduce((sum, branch) => sum + branch.end.y, 0) / wilted.branches.length;
     expect(wiltedMeanY).toBeGreaterThan(healthyMeanY);
+    const healthyRoot = healthy.branches[0];
+    const wiltedRoot = wilted.branches[0];
+    expect(healthyRoot && wiltedRoot).toBeTruthy();
+    if (healthyRoot && wiltedRoot) {
+      expect(wiltedRoot.start).toEqual(healthyRoot.start);
+      expect(Math.abs(wiltedRoot.end.x - wiltedRoot.start.x)).toBeLessThan(80);
+    }
     const healthyGreen = buildDrawModel(healthy).palette.greenA;
     const wiltedGreen = buildDrawModel(wilted).palette.greenA;
     expect(wiltedGreen).not.toBe(healthyGreen);

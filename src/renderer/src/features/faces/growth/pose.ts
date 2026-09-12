@@ -114,10 +114,11 @@ function droopHeading(branch: GrowthBranch, wilt: number, maxDepth: number): num
     return branch.heading;
   }
   const depthT = maxDepth === 0 ? 1 : branch.depth / maxDepth;
-  // Outer wood hangs more; trunk only leans. Gravity is +Y (SVG down).
-  const towardDown = wilt * (0.28 + 0.42 * depthT);
-  const leaned = branch.parentId === null ? branch.heading + wilt * 0.2 : branch.heading;
-  return lerpAngle(leaned, Math.PI / 2, towardDown);
+  // Hang toward gravity on the side the branch already faces.
+  // Do not lerp through 180° — that detaches the trunk and reads as a bug.
+  const side = Math.cos(branch.heading) >= 0 ? 1 : -1;
+  const trunkGuard = branch.depth <= 0 ? 0.14 : 0.38 + 0.7 * depthT;
+  return branch.heading + side * wilt * trunkGuard;
 }
 
 function project(start: Vec2, heading: number, length: number): Vec2 {
@@ -165,5 +166,6 @@ export function leafHang(heading: number, leafAngle: number, wilt: number): numb
   if (wilt <= 0) {
     return base;
   }
-  return lerpAngle(base, Math.PI / 2, 0.55 * wilt);
+  const side = Math.cos(base) >= 0 ? 1 : -1;
+  return lerpAngle(base, side * (Math.PI / 2), 0.88 * wilt);
 }

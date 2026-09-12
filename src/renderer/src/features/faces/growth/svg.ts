@@ -64,14 +64,23 @@ export function buildDrawModel(posed: PosedGrowth): GrowthDrawModel {
     if (d) {
       woods.push({ id: branch.id, d, width: Math.max(1.1, branch.width * (0.55 + 0.45 * branch.reveal)) });
     }
-    if (branch.leaf && branch.leafScale > 0.02) {
-      const hang = leafHang(branch.heading, branch.leaf.angle, posed.view.wilt);
-      const size = branch.leaf.size * branch.leafScale * (1 - posed.view.wilt * 0.12);
-      const origin = pointAlong(branch, Math.min(1, 0.92 + 0.08 * branch.reveal));
-      leaves.push({
-        id: `leaf-${branch.id}`,
-        d: leafPath(origin, hang, size),
-        fill: branch.leaf.tone === 0 ? palette.greenA : palette.greenB,
+    const leaf = branch.leaf;
+    if (leaf && branch.leafScale > 0.02) {
+      const origin = pointAlong(branch, Math.min(1, 0.9 + 0.1 * branch.reveal));
+      const cluster = branch.depth >= 2 ? [-0.52, 0, 0.5] : [0];
+      cluster.forEach((offset, index) => {
+        const hang = leafHang(branch.heading, leaf.angle + offset, posed.view.wilt);
+        const size =
+          leaf.size *
+          branch.leafScale *
+          (1 - posed.view.wilt * 0.14) *
+          (index === 1 || cluster.length === 1 ? 1 : 0.78);
+        const tone = (leaf.tone + index) % 2 === 0 ? palette.greenA : palette.greenB;
+        leaves.push({
+          id: `leaf-${branch.id}-${index}`,
+          d: leafPath(origin, hang, size),
+          fill: tone,
+        });
       });
     }
   }
@@ -80,19 +89,19 @@ export function buildDrawModel(posed: PosedGrowth): GrowthDrawModel {
   let blossom: GrowthDrawModel["blossom"] = null;
   if (host && posed.view.blossomOpen && host.reveal > 0.98) {
     const center = host.end;
-    const open = 1 - posed.view.wilt * 0.28;
+    const open = 1 - posed.view.wilt * 0.22;
     const petals = [0, 1, 2, 3, 4].map((i) => {
       const spread = (Math.PI * 2 * i) / 5 - Math.PI / 2;
-      const angle = posed.view.wilt > 0 ? leafHang(spread, 0, posed.view.wilt * 0.85) : spread;
+      const angle = posed.view.wilt > 0 ? leafHang(spread, 0, posed.view.wilt * 0.7) : spread;
       return {
-        d: blossomPetalPath(center, angle, 11 * open),
+        d: blossomPetalPath(center, angle, 15 * open),
         fill: palette.blossom,
       };
     });
     blossom = {
       open: true,
       petals,
-      heart: { cx: center.x, cy: center.y, r: 3.1, fill: palette.blossomHeart },
+      heart: { cx: center.x, cy: center.y, r: 3.8, fill: palette.blossomHeart },
     };
   }
 
@@ -113,16 +122,16 @@ function pointAlong(branch: PosedBranch, t: number): Vec2 {
 
 function potPaths(): GrowthDrawModel["pot"] {
   return {
-    shadow: "M -62 38 Q 0 52 62 38 Q 0 58 -62 38 Z",
-    d: "M -48 6 L -38 46 Q 0 56 38 46 L 48 6 Z",
-    rim: "M -54 4 Q 0 -2 54 4 Q 0 14 -54 4 Z",
+    shadow: "M -78 42 Q 0 62 78 42 Q 0 72 -78 42 Z",
+    d: "M -56 8 L -42 54 Q 0 66 42 54 L 56 8 Z",
+    rim: "M -64 6 Q 0 -4 64 6 Q 0 18 -64 6 Z",
   };
 }
 
 function soilPaths(): GrowthDrawModel["soil"] {
   return {
-    mound: "M -44 6 Q 0 -16 44 6 Q 0 16 -44 6 Z",
-    rim: "M -40 8 Q 0 18 40 8 Q 0 2 -40 8 Z",
+    mound: "M -50 8 Q 0 -18 50 8 Q 0 20 -50 8 Z",
+    rim: "M -46 10 Q 0 20 46 10 Q 0 4 -46 10 Z",
   };
 }
 

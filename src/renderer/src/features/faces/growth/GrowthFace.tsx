@@ -52,9 +52,6 @@ export function GrowthFace(props: GrowthFaceProps): JSX.Element {
         <title>{label}</title>
         <ellipse cx="0" cy="40" rx="70" ry="12" fill={palette.potShadow} opacity="0.55" />
         <path d={model.pot.d} fill={palette.pot} />
-        <path d={model.pot.rim} fill={palette.potRim} />
-        <path d={model.soil.rim} fill={palette.soilRim} />
-        <path d={model.soil.mound} fill={palette.soil} />
 
         {model.woods.map((wood) => (
           <path
@@ -78,6 +75,10 @@ export function GrowthFace(props: GrowthFaceProps): JSX.Element {
             strokeLinejoin="round"
           />
         ))}
+
+        <path d={model.pot.rim} fill={palette.potRim} />
+        <path d={model.soil.rim} fill={palette.soilRim} />
+        <path d={model.soil.mound} fill={palette.soil} />
 
         {model.leaves.map((leaf) => (
           <path key={leaf.id} d={leaf.d} fill={leaf.fill} />

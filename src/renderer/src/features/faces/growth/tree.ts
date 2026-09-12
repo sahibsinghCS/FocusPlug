@@ -3,10 +3,10 @@ import type { GrowthBranch, GrowthLeaf, GrowthTree, Vec2 } from "./types";
 
 const treeCache = new Map<string, GrowthTree>();
 
-const ITERATIONS = 4;
-const AXIOM = "X";
-const TARGET_HEIGHT = 268;
-const TARGET_HALF_WIDTH = 148;
+const ITERATIONS = 3;
+const AXIOM = "F[+X]F[-X]F[+X][-X]X";
+const TARGET_HEIGHT = 292;
+const TARGET_HALF_WIDTH = 152;
 
 /**
  * Generate the FULL bonsai once per sessionId.
@@ -100,10 +100,10 @@ function buildTree(sessionId: string): GrowthTree {
   const branches: GrowthBranch[] = drafted.map((branch) => {
     maxDepth = Math.max(maxDepth, branch.depth);
     const isTip = (childCounts.get(branch.id) ?? 0) === 0;
-    const leaf = isTip || branch.depth >= 2 ? makeLeaf(rng, branch.depth) : null;
+    const leafy = isTip || branch.depth >= 2;
     return {
       ...branch,
-      leaf,
+      leaf: leafy ? makeLeaf(rng, branch.depth, isTip) : null,
       blossomHost: branch.id === blossomId,
     };
   });
@@ -125,8 +125,8 @@ function buildTree(sessionId: string): GrowthTree {
 }
 
 /**
- * Stochastic bonsai L-system.
- * X = apex. F = internodal wood. Same rng stream → identical word.
+ * Stochastic bonsai L-system. Axiom is a trunk with alternating laterals.
+ * X = apex. F = internodal wood. Bracket depth is canopy generation.
  */
 function expandLSystem(rng: () => number): string {
   let word = AXIOM;
@@ -135,14 +135,14 @@ function expandLSystem(rng: () => number): string {
     for (const token of word) {
       if (token === "X") {
         const roll = rng();
-        if (roll < 0.4) {
+        if (roll < 0.38) {
           next += "F[+X][-X]X";
-        } else if (roll < 0.66) {
-          next += "F[+X]X";
-        } else if (roll < 0.9) {
+        } else if (roll < 0.64) {
+          next += "F[+X]F[-X]";
+        } else if (roll < 0.86) {
           next += "F[-X]X";
         } else {
-          next += "F[+X][-X]";
+          next += "F[+X]X";
         }
       } else {
         next += token;
@@ -170,20 +170,18 @@ interface DraftBranch {
 
 function turtle(word: string, rng: () => number): DraftBranch[] {
   const branches: DraftBranch[] = [];
-  const lean = lerp(-0.16, 0.16, rng());
+  const lean = lerp(-0.14, 0.14, rng());
+  const baseWidth = lerp(13.2, 15.4, rng());
+  const baseLength = lerp(34, 42, rng());
   type Frame = {
     pos: Vec2;
     heading: number;
-    width: number;
-    depth: number;
     parentId: number | null;
   };
   const stack: Frame[] = [];
   let state: Frame = {
-    pos: { x: 0, y: 0 },
+    pos: { x: 0, y: 14 },
     heading: -Math.PI / 2 + lean,
-    width: lerp(10.5, 13.2, rng()),
-    depth: 0,
     parentId: null,
   };
   let arc = 0;
@@ -191,13 +189,15 @@ function turtle(word: string, rng: () => number): DraftBranch[] {
 
   for (const token of word) {
     if (token === "F") {
-      const length = lerp(16, 28, rng()) * Math.pow(0.72, state.depth);
-      const heading = state.heading + lerp(-0.08, 0.08, rng());
+      const depth = stack.length;
+      const length = baseLength * Math.pow(0.7, depth) * lerp(0.88, 1.08, rng());
+      const width = Math.max(1.6, baseWidth * Math.pow(0.58, depth));
+      const heading = state.heading + lerp(-0.07, 0.07, rng());
       const end = {
         x: state.pos.x + Math.cos(heading) * length,
         y: state.pos.y + Math.sin(heading) * length,
       };
-      const curve = (rng() - 0.5) * length * 0.32;
+      const curve = (rng() - 0.5) * length * (depth === 0 ? 0.18 : 0.3);
       const control = controlFromCurve(state.pos, end, heading, curve);
       const startArc = arc;
       arc += length;
@@ -209,8 +209,8 @@ function turtle(word: string, rng: () => number): DraftBranch[] {
         end,
         curve,
         length,
-        width: state.width,
-        depth: state.depth,
+        width,
+        depth,
         heading,
         startArc,
         endArc: arc,
@@ -219,17 +219,15 @@ function turtle(word: string, rng: () => number): DraftBranch[] {
       state = {
         pos: end,
         heading,
-        width: Math.max(1.35, state.width * 0.66),
-        depth: state.depth + 1,
         parentId: id,
       };
       id += 1;
     } else if (token === "+") {
-      state = { ...state, heading: state.heading + lerp(0.42, 0.98, rng()) };
+      state = { ...state, heading: state.heading + lerp(0.48, 1.05, rng()) };
     } else if (token === "-") {
-      state = { ...state, heading: state.heading - lerp(0.42, 0.98, rng()) };
+      state = { ...state, heading: state.heading - lerp(0.48, 1.05, rng()) };
     } else if (token === "[") {
-      stack.push({ ...state, pos: { ...state.pos } });
+      stack.push({ pos: { ...state.pos }, heading: state.heading, parentId: state.parentId });
     } else if (token === "]") {
       const popped = stack.pop();
       if (popped) {
@@ -256,7 +254,12 @@ function normalizeSkeleton(drafted: DraftBranch[]): DraftBranch[] {
   let maxAbsX = 0;
   for (const branch of drafted) {
     minY = Math.min(minY, branch.start.y, branch.control.y, branch.end.y);
-    maxAbsX = Math.max(maxAbsX, Math.abs(branch.start.x), Math.abs(branch.control.x), Math.abs(branch.end.x));
+    maxAbsX = Math.max(
+      maxAbsX,
+      Math.abs(branch.start.x),
+      Math.abs(branch.control.x),
+      Math.abs(branch.end.x),
+    );
   }
   const treeHeight = Math.max(24, -minY);
   const scale = Math.min(TARGET_HEIGHT / treeHeight, TARGET_HALF_WIDTH / Math.max(36, maxAbsX));
@@ -267,6 +270,7 @@ function normalizeSkeleton(drafted: DraftBranch[]): DraftBranch[] {
     end: scaleVec(branch.end, scale),
     curve: branch.curve * scale,
     length: branch.length * scale,
+    width: Math.max(1.5, branch.width * Math.min(1.15, scale * 0.45 + 0.7)),
     startArc: branch.startArc * scale,
     endArc: branch.endArc * scale,
   }));
@@ -276,10 +280,10 @@ function scaleVec(vec: Vec2, scale: number): Vec2 {
   return { x: vec.x * scale, y: vec.y * scale };
 }
 
-function makeLeaf(rng: () => number, depth: number): GrowthLeaf {
+function makeLeaf(rng: () => number, depth: number, isTip: boolean): GrowthLeaf {
   return {
-    angle: lerp(-0.55, 0.55, rng()),
-    size: lerp(9.5, 14.5, rng()) * (depth >= 3 ? 1 : 0.86),
+    angle: lerp(-0.5, 0.5, rng()),
+    size: lerp(20, 30, rng()) * (isTip ? 1 : 0.8) * (depth >= 2 ? 1 : 0.84),
     tone: rng() < 0.5 ? 0 : 1,
   };
 }

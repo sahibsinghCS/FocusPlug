@@ -19,17 +19,17 @@ function Preview(): JSX.Element {
           <div className="fp-growth-preview__pair">
             <figure>
               {still ? null : <p className="fp-growth-preview__caption">{healthy.label}</p>}
-              <GrowthFace {...sceneToProps(healthy)} width={460} height={620} />
+              <GrowthFace {...sceneToProps(healthy)} width={520} height={700} />
             </figure>
             <figure>
               {still ? null : <p className="fp-growth-preview__caption">{wilted.label}</p>}
-              <GrowthFace {...sceneToProps(wilted)} width={460} height={620} />
+              <GrowthFace {...sceneToProps(wilted)} width={520} height={700} />
             </figure>
           </div>
         ) : (
           <figure>
             {still ? null : <p className="fp-growth-preview__caption">{GROWTH_SCENES[scene].label}</p>}
-            <GrowthFace {...sceneToProps(GROWTH_SCENES[scene])} width={520} height={680} />
+            <GrowthFace {...sceneToProps(GROWTH_SCENES[scene])} width={560} height={740} />
           </figure>
         )}
       </div>
