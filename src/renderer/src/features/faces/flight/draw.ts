@@ -22,6 +22,8 @@ export interface DrawFlightInput {
   height: number;
   model: FlightModel;
   variant: FaceVariant;
+  /** HTML overlay owns type; canvas keeps the globe. */
+  chrome?: "overlay" | "canvas";
 }
 
 const globeBitmapCache = new Map<string, ImageBitmap | HTMLCanvasElement>();
@@ -283,9 +285,8 @@ function drawAircraft(
 
   ctx.save();
   ctx.translate(here.x, here.y);
-  ctx.rotate(heading + bank * 0.18);
-  ctx.transform(1, 0, Math.sin(bank) * 0.55, Math.max(0.62, Math.cos(bank)), 0, 0);
-  ctx.scale(s, s);
+  ctx.rotate(heading + bank);
+  ctx.scale(s, s * Math.max(0.58, Math.cos(bank)));
 
   ctx.fillStyle = "#f4f7fc";
   ctx.beginPath();
@@ -507,13 +508,68 @@ export function drawFlightFace(input: DrawFlightInput): void {
   drawCityLights(ctx, model, cx, cy, radius);
   drawRoute(ctx, model, cx, cy, radius);
   drawContrail(ctx, model, cx, cy, radius);
+  drawWake(ctx, model, cx, cy, radius);
   drawAircraft(ctx, model, cx, cy, radius);
   ctx.restore();
   drawGlass(ctx, cx, cy, radius);
-  drawHeader(ctx, model, width);
-  drawCompletePlate(ctx, model, width);
-  drawStrip(ctx, model, width, height);
+  if (input.chrome !== "overlay") {
+    drawHeader(ctx, model, width);
+    drawCompletePlate(ctx, model, width);
+    drawStrip(ctx, model, width, height);
+  }
   drawGrain(ctx, width, height);
+}
+
+function drawWake(
+  ctx: CanvasRenderingContext2D,
+  model: FlightModel,
+  cx: number,
+  cy: number,
+  radius: number,
+): void {
+  const here = projectWorld(latLonToUnit(model.planeLat, model.planeLon), model, cx, cy, radius);
+  if (!here.visible) return;
+  const aheadGeo = greatCirclePoint(
+    model.dep.lat,
+    model.dep.lon,
+    model.arr.lat,
+    model.arr.lon,
+    Math.min(1, model.progress + 0.02),
+  );
+  const ahead = projectWorld(latLonToUnit(aheadGeo.lat, aheadGeo.lon), model, cx, cy, radius);
+  let dx = here.x - ahead.x;
+  let dy = here.y - ahead.y;
+  let len = Math.hypot(dx, dy);
+  if (len < 0.8) {
+    const heading = screenHeading(model, cx, cy, radius);
+    dx = Math.sin(heading);
+    dy = Math.cos(heading);
+    len = 1;
+  }
+  const ux = dx / len;
+  const uy = dy / len;
+  const widthScale = contrailWidthScale(model.phase);
+  const tail = 72 * (model.phase === "cruise" ? 0.78 : 1);
+  const tx = here.x + ux * tail;
+  const ty = here.y + uy * tail;
+  const fade = ctx.createLinearGradient(here.x, here.y, tx, ty);
+  fade.addColorStop(0, `rgba(236, 246, 255, ${0.88 * Math.max(0.55, widthScale)})`);
+  fade.addColorStop(1, "rgba(236, 246, 255, 0)");
+  ctx.save();
+  ctx.lineCap = "round";
+  ctx.strokeStyle = "rgba(6, 8, 14, 0.4)";
+  ctx.lineWidth = 11 * Math.max(0.55, widthScale);
+  ctx.beginPath();
+  ctx.moveTo(here.x, here.y);
+  ctx.lineTo(tx, ty);
+  ctx.stroke();
+  ctx.strokeStyle = fade;
+  ctx.lineWidth = 7 * Math.max(0.55, widthScale);
+  ctx.beginPath();
+  ctx.moveTo(here.x, here.y);
+  ctx.lineTo(tx, ty);
+  ctx.stroke();
+  ctx.restore();
 }
 
 function drawGrain(ctx: CanvasRenderingContext2D, w: number, h: number): void {

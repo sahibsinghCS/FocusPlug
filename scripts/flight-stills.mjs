@@ -9,31 +9,33 @@ const PREFIX = process.argv[3] ?? "after";
 const DAY = "2026-09-12T16:00:00.000Z";
 const NIGHT = "2026-09-12T02:00:00.000Z";
 
+const HOURS = 420;
+
 const SCENES = [
   {
     name: "sticker-cruise-16z",
     prefix: "before",
-    path: `/face.html?variant=sticker&progress=0.46&estimateMinutes=90&now=${DAY}&freeze=1&idle=0.35`,
+    path: `/face.html?variant=sticker&progress=0.46&estimateMinutes=${HOURS}&now=${DAY}&freeze=1&idle=0.35`,
   },
   {
     name: "cruise-16z",
-    path: `/face.html?progress=0.46&estimateMinutes=90&now=${DAY}&freeze=1&idle=0.35`,
+    path: `/face.html?progress=0.46&estimateMinutes=${HOURS}&now=${DAY}&freeze=1&idle=0.35`,
   },
   {
     name: "cruise-02z",
-    path: `/face.html?progress=0.46&estimateMinutes=90&now=${NIGHT}&freeze=1&idle=0.55`,
+    path: `/face.html?progress=0.46&estimateMinutes=${HOURS}&now=${NIGHT}&freeze=1&idle=0.55`,
   },
   {
     name: "climb-16z",
-    path: `/face.html?progress=0.04&estimateMinutes=90&now=${DAY}&freeze=1&idle=0.15`,
+    path: `/face.html?progress=0.04&estimateMinutes=${HOURS}&now=${DAY}&freeze=1&idle=0.15`,
   },
   {
     name: "descent-16z",
-    path: `/face.html?progress=0.93&estimateMinutes=90&now=${DAY}&freeze=1&idle=0.2`,
+    path: `/face.html?progress=0.93&estimateMinutes=${HOURS}&now=${DAY}&freeze=1&idle=0.2`,
   },
   {
     name: "complete-16z",
-    path: `/face.html?remaining=0&estimateMinutes=90&now=${DAY}&complete=1&freeze=1&idle=0`,
+    path: `/face.html?remaining=0&estimateMinutes=${HOURS}&now=${DAY}&complete=1&freeze=1&idle=0`,
   },
 ];
 

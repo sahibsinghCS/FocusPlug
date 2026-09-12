@@ -1,6 +1,16 @@
 import { landCoverage } from "./continents";
-import { dayAmount, dot, twilightBand, unitToLatLon, type Vec3 } from "./math";
+import { clamp, dayAmount, dot, smoothstep, twilightBand, unitToLatLon, type Vec3 } from "./math";
 import type { FlightModel } from "./model";
+
+function lightingWrap(intensity: number): number {
+  return smoothstep(-0.28, 0.38, intensity);
+}
+
+function duskAmount(intensity: number): number {
+  const rise = smoothstep(-0.2, -0.02, intensity);
+  const fall = 1 - smoothstep(0.02, 0.22, intensity);
+  return clamp(rise * fall, 0, 1);
+}
 
 interface DiskSample {
   x: number;
@@ -44,7 +54,9 @@ function shadePixel(
   const land = landCoverage(geo.lat, geo.lon);
   const intensity = dot(world, sun);
   const day = dayAmount(intensity);
+  const wrap = lightingWrap(intensity);
   const twilight = twilightBand(intensity);
+  const dusk = duskAmount(intensity);
 
   const oceanDay = [236, 214, 158] as const;
   const landDay = [86, 72, 42] as const;
@@ -61,11 +73,18 @@ function shadePixel(
   const nightG = mix(oceanNight[1], landNight[1], land);
   const nightB = mix(oceanNight[2], landNight[2], land);
 
-  let r = mix(nightR, dayR, day);
-  let g = mix(nightG, dayG, day);
-  let b = mix(nightB, dayB, day);
+  let r = mix(nightR, dayR, wrap);
+  let g = mix(nightG, dayG, wrap);
+  let b = mix(nightB, dayB, wrap);
 
-  const tw = twilight * 0.52;
+  const duskR = 196;
+  const duskG = 118;
+  const duskB = 72;
+  r = mix(r, duskR, dusk * 0.42);
+  g = mix(g, duskG, dusk * 0.42);
+  b = mix(b, duskB, dusk * 0.42);
+
+  const tw = twilight * 0.4;
   r = mix(r, twilightCyan[0], tw);
   g = mix(g, twilightCyan[1], tw);
   b = mix(b, twilightCyan[2], tw);

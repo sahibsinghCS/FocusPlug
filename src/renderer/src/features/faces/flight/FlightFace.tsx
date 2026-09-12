@@ -1,10 +1,12 @@
 import { useEffect, useRef, type JSX } from "react";
 import type { FaceProps } from "../types";
 import { drawFlightFace, type FaceVariant } from "./draw";
+import "./flight.css";
 import {
   formatClockHm,
   formatGs,
   formatKm,
+  formatZulu,
 } from "./math";
 import { buildFlightModel } from "./model";
 
@@ -53,6 +55,7 @@ export function FlightFace(props: FlightFaceViewProps): JSX.Element {
         height,
         model,
         variant: current.variant ?? "instrument",
+        chrome: "overlay",
       });
       canvas.dataset.phase = model.phase;
       canvas.dataset.progress = model.progress.toFixed(3);
@@ -96,29 +99,65 @@ export function FlightFace(props: FlightFaceViewProps): JSX.Element {
   }, []);
 
   const model = buildFlightModel(props, props.idleOverride);
+  const variant = props.variant ?? "instrument";
+  const remain = model.complete ? "0 km" : formatKm(model.remainKm);
+  const eta = model.complete ? "ARR" : formatClockHm(model.eta);
+  const gs = model.complete ? "0 km/h" : formatGs(model.gsKmh);
   const label = model.complete
     ? `Flight complete. Destination ${model.arr.name}.`
-    : `Flight ${model.dep.code} to ${model.arr.code}. ${formatKm(model.remainKm)} remaining. ETA ${formatClockHm(model.eta)}. ${formatGs(model.gsKmh)}. ${model.phase}.`;
+    : `Flight ${model.dep.code} to ${model.arr.code}. ${remain} remaining. ETA ${eta}. ${gs}. ${model.phase}.`;
 
   return (
     <div
-      className={props.className}
+      className={["fp-flight", props.className].filter(Boolean).join(" ")}
       data-face="flight"
-      data-variant={props.variant ?? "instrument"}
+      data-variant={variant}
       data-phase={model.phase}
-      style={{
-        position: "relative",
-        width: "100%",
-        height: "100%",
-        background: "#07080c",
-      }}
     >
-      <canvas
-        ref={canvasRef}
-        role="img"
-        aria-label={label}
-        style={{ display: "block", width: "100%", height: "100%" }}
-      />
+      {variant === "instrument" ? (
+        <div className="fp-flight-head">
+          <span>
+            FLIGHT
+            <strong>
+              {model.dep.code}–{model.arr.code}
+            </strong>
+          </span>
+          <span>
+            {formatZulu(model.now)} <em>{model.phase.toUpperCase()}</em>
+          </span>
+        </div>
+      ) : null}
+      {variant === "instrument" && model.complete ? (
+        <div className="fp-flight-plate">
+          <div>
+            <span>DESTINATION SETS</span>
+            <b>{model.arr.name.toUpperCase()}</b>
+          </div>
+        </div>
+      ) : null}
+      <canvas ref={canvasRef} role="img" aria-label={label} />
+      {variant === "instrument" ? (
+        <div className="fp-flight-strip">
+          <div>
+            <span>DEP/ARR</span>
+            <b>
+              {model.dep.code} → {model.arr.code}
+            </b>
+          </div>
+          <div>
+            <span>REMAIN</span>
+            <b>{remain}</b>
+          </div>
+          <div>
+            <span>ETA</span>
+            <b>{eta}</b>
+          </div>
+          <div>
+            <span>GS</span>
+            <b>{gs}</b>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
