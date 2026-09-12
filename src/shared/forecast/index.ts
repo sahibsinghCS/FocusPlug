@@ -13,6 +13,7 @@ export type {
   ForecastHook,
   ForecastPush,
   ForecastSnapshot,
+  ForecastTerm,
   ForecastWeightsFile,
 } from "./types";
 export { FNV1A_OFFSET_BASIS, FNV1A_PRIME, fnv1a32, processHash, titleHash } from "./hash";
@@ -30,13 +31,19 @@ export {
 } from "./labels";
 export type { DecisionFrame, DriftOnset, FrameLabel } from "./labels";
 export {
-  FORECAST_HIDDEN_DIM,
+  FORECAST_BASIS,
+  FORECAST_BASIS_SHA,
   FORECAST_INPUT_DIM,
   FORECAST_PARAM_COUNT,
+  FORECAST_TERMS,
+  FORECAST_TERM_COUNT,
+  FORECAST_TERM_KEYS,
   attributions,
+  expandBasis,
   forward,
   parseForecastWeights,
   sigmoid,
+  termName,
 } from "./model";
 export type { ForecastForward } from "./model";
 export {

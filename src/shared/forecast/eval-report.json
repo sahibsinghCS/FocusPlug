@@ -1,24 +1,35 @@
 {
   "version": "ff-1",
-  "createdAt": "2026-09-12T17:41:50.004Z",
+  "createdAt": "2026-09-12T18:04:42.751Z",
   "status": "trained",
   "gate": {
     "enforced": true,
     "metric": "lead-censored ROC-AUC (onset ≥ 20 s away vs calm)",
-    "marginRequired": 0.03,
-    "mlpLeadAuc20": 0.9248,
-    "baselineLeadAuc20": 0.7734,
-    "baselineFeature": "otherDwell30",
-    "margin": 0.1514,
-    "passed": true
+    "baseline": "fullLogistic18Strongest",
+    "baselineRationale": "the strongest 18-feature multivariate logistic regression — the model a judge means by 'did you try logistic regression?'. The shipped head must not lose to it.",
+    "marginRequired": 0,
+    "marginRequiredRationale": "zero by design: the paired session-clustered bootstrap over these 48 eval sessions puts the SE of a model-vs-model lead-AUC difference at ≈0.009, so no positive margin is measurable here. The bar is 'must not be beaten', and it fails the build the moment it is.",
+    "modelLeadAuc20": 0.9423,
+    "baselineLeadAuc20": 0.9355,
+    "baselineFit": "lbfgs-converged",
+    "margin": 0.0068,
+    "passed": true,
+    "context": {
+      "note": "the pre-bake-off gate: +0.03 over the best SINGLE-feature logistic. Reported so the two bars can be compared — the 18→12→1 MLP that shipped before this swap passed THIS one by +0.1514 while losing to the full logistic by −0.0077.",
+      "bestSingleFeature": "otherDwell30",
+      "bestSingleFeatureLeadAuc20": 0.7734,
+      "legacyMargin": 0.1689,
+      "legacyMarginRequired": 0.03,
+      "legacyPassed": true
+    }
   },
   "metrics": {
-    "rocAuc": 0.9614,
-    "prAuc": 0.6938,
+    "rocAuc": 0.9659,
+    "prAuc": 0.6813,
     "baseRate": 0.0275,
-    "aucLead20": 0.9248,
-    "aucLead10": 0.9512,
-    "ece": 0.0053,
+    "aucLead20": 0.9423,
+    "aucLead10": 0.9583,
+    "ece": 0.0066,
     "evalFrames": 85230,
     "evalSessions": 48
   },
@@ -26,103 +37,222 @@
     {
       "lo": 0,
       "hi": 0.1,
-      "count": 81571,
-      "meanPredicted": 0.005775,
-      "observedRate": 0.003898
+      "count": 81829,
+      "meanPredicted": 0.006556,
+      "observedRate": 0.004314
     },
     {
       "lo": 0.1,
       "hi": 0.2,
-      "count": 700,
-      "meanPredicted": 0.146193,
-      "observedRate": 0.237143
+      "count": 630,
+      "meanPredicted": 0.145961,
+      "observedRate": 0.301587
     },
     {
       "lo": 0.2,
       "hi": 0.3,
-      "count": 480,
-      "meanPredicted": 0.24703,
-      "observedRate": 0.385417
+      "count": 461,
+      "meanPredicted": 0.248136,
+      "observedRate": 0.498915
     },
     {
       "lo": 0.3,
       "hi": 0.4,
-      "count": 403,
-      "meanPredicted": 0.345182,
-      "observedRate": 0.459057
+      "count": 374,
+      "meanPredicted": 0.346828,
+      "observedRate": 0.52139
     },
     {
       "lo": 0.4,
       "hi": 0.5,
-      "count": 311,
-      "meanPredicted": 0.447931,
-      "observedRate": 0.588424
+      "count": 279,
+      "meanPredicted": 0.451217,
+      "observedRate": 0.523297
     },
     {
       "lo": 0.5,
       "hi": 0.6,
-      "count": 349,
-      "meanPredicted": 0.550256,
-      "observedRate": 0.616046
+      "count": 292,
+      "meanPredicted": 0.552446,
+      "observedRate": 0.554795
     },
     {
       "lo": 0.6,
       "hi": 0.7,
-      "count": 279,
-      "meanPredicted": 0.650956,
-      "observedRate": 0.648746
+      "count": 264,
+      "meanPredicted": 0.651517,
+      "observedRate": 0.647727
     },
     {
       "lo": 0.7,
       "hi": 0.8,
-      "count": 333,
-      "meanPredicted": 0.754485,
-      "observedRate": 0.735736
+      "count": 236,
+      "meanPredicted": 0.754196,
+      "observedRate": 0.745763
     },
     {
       "lo": 0.8,
       "hi": 0.9,
-      "count": 520,
-      "meanPredicted": 0.8555,
-      "observedRate": 0.805769
+      "count": 315,
+      "meanPredicted": 0.855169,
+      "observedRate": 0.822222
     },
     {
       "lo": 0.9,
       "hi": 1,
-      "count": 284,
-      "meanPredicted": 0.934209,
-      "observedRate": 0.855634
+      "count": 550,
+      "meanPredicted": 0.959922,
+      "observedRate": 0.832727
     }
   ],
   "operatingPoints": {
     "nudge": {
-      "threshold": 0.55,
-      "precision": 0.7448,
-      "recall": 0.509,
-      "fpr": 0.0049
+      "threshold": 0.45,
+      "precision": 0.7216,
+      "recall": 0.556,
+      "fpr": 0.0061
     },
     "prearm": {
       "threshold": 0.8,
-      "precision": 0.8234,
-      "recall": 0.2829,
-      "fpr": 0.0017
+      "precision": 0.8289,
+      "recall": 0.3064,
+      "fpr": 0.0018
     }
   },
   "alarms": {
-    "recallAt30": 0.5641,
-    "medianLeadSec": 15,
-    "p25LeadSec": 11,
-    "falsePrearmsPerHour": 0.3545,
-    "nudgesPerHour": 3.1901,
+    "rules": {
+      "prearm": "recallAt30 — a pre-arm was ACTIVE at onset (the reducer's own forecast_hit receipt) or fired within the prior 30 s. The strict product rule: the fuse was actually shortened.",
+      "nudge": "recallAt30Nudge — ANY nudge-or-higher alarm inside (onset − 30 s, onset]. The rule the five-family bake-off compared every contender on: the student got some warning."
+    },
+    "recallAt30": 0.5513,
+    "recallAt30Nudge": 0.8333,
+    "medianLeadSec": 18,
+    "p25LeadSec": 12,
+    "medianNudgeLeadSec": 18,
+    "falsePrearmsPerHour": 0.5908,
+    "nudgesPerHour": 3.4264,
     "drifts": 78,
-    "hits": 44,
-    "misses": 34,
+    "hits": 43,
+    "misses": 35,
+    "nudgeHits": 65,
+    "nudgeMisses": 13,
     "evalHours": 25.3908,
     "settings": {
-      "nudgeRisk": 0.55,
+      "nudgeRisk": 0.45,
       "prearmRisk": 0.8,
       "prearmFuseSec": 5,
       "baseFuseSec": 10
+    },
+    "operatingPointSelection": {
+      "rule": "max recall@30s (a forecast_nudge or forecast_prearm event inside (onset−30s, onset]) subject to research_churn frame FPR ≤ ceiling, nudges/h ≤ ceiling, false pre-arms/h ≤ ceiling",
+      "selectedOn": "3-fold cross-fitted TRAIN sessions — every session scored by a fold model that never saw it, each fold refitted at the selected λ and class weight and read on the SHIPPED Platt scale (the threshold is a cut on that scale). No eval row is read here; no fold model ships.",
+      "ceilings": {
+        "researchChurnFpr": 0.01,
+        "alarmLoadAllowance": 1.15,
+        "referenceNudgeRisk": 0.55,
+        "referenceNudgesPerHour": 2.3642,
+        "nudgesPerHourCeiling": 2.7188,
+        "falsePrearmsPerHour": 2
+      },
+      "searchSessions": 192,
+      "searchDrifts": 242,
+      "searchHours": 98.1314,
+      "selectedNudgeRisk": 0.45,
+      "selectedPrearmRisk": 0.8,
+      "shippedNudgeRisk": 0.45,
+      "matchesDefaultSettings": true,
+      "grid": [
+        {
+          "nudgeRisk": 0.3,
+          "prearmRisk": 0.8,
+          "recallAt30sNudge": 0.7438,
+          "recallAt30sPrearm": 0.5413,
+          "nudgesPerHour": 3.1386,
+          "falsePrearmsPerHour": 0.4789,
+          "researchChurnFprAtNudge": 0.000127,
+          "admissible": false
+        },
+        {
+          "nudgeRisk": 0.35,
+          "prearmRisk": 0.8,
+          "recallAt30sNudge": 0.7314,
+          "recallAt30sPrearm": 0.5413,
+          "nudgesPerHour": 2.9858,
+          "falsePrearmsPerHour": 0.4993,
+          "researchChurnFprAtNudge": 0.000109,
+          "admissible": false
+        },
+        {
+          "nudgeRisk": 0.4,
+          "prearmRisk": 0.8,
+          "recallAt30sNudge": 0.7066,
+          "recallAt30sPrearm": 0.5372,
+          "nudgesPerHour": 2.8227,
+          "falsePrearmsPerHour": 0.5095,
+          "researchChurnFprAtNudge": 0.000073,
+          "admissible": false
+        },
+        {
+          "nudgeRisk": 0.45,
+          "prearmRisk": 0.8,
+          "recallAt30sNudge": 0.686,
+          "recallAt30sPrearm": 0.5372,
+          "nudgesPerHour": 2.6597,
+          "falsePrearmsPerHour": 0.5197,
+          "researchChurnFprAtNudge": 0.000055,
+          "admissible": true
+        },
+        {
+          "nudgeRisk": 0.5,
+          "prearmRisk": 0.8,
+          "recallAt30sNudge": 0.6529,
+          "recallAt30sPrearm": 0.5372,
+          "nudgesPerHour": 2.4763,
+          "falsePrearmsPerHour": 0.5401,
+          "researchChurnFprAtNudge": 0.000055,
+          "admissible": true
+        },
+        {
+          "nudgeRisk": 0.55,
+          "prearmRisk": 0.8,
+          "recallAt30sNudge": 0.6446,
+          "recallAt30sPrearm": 0.5331,
+          "nudgesPerHour": 2.3642,
+          "falsePrearmsPerHour": 0.5503,
+          "researchChurnFprAtNudge": 0.000055,
+          "admissible": true
+        },
+        {
+          "nudgeRisk": 0.6,
+          "prearmRisk": 0.8,
+          "recallAt30sNudge": 0.5992,
+          "recallAt30sPrearm": 0.5331,
+          "nudgesPerHour": 2.0788,
+          "falsePrearmsPerHour": 0.5503,
+          "researchChurnFprAtNudge": 0.000036,
+          "admissible": true
+        },
+        {
+          "nudgeRisk": 0.65,
+          "prearmRisk": 0.8,
+          "recallAt30sNudge": 0.5702,
+          "recallAt30sPrearm": 0.5207,
+          "nudgesPerHour": 1.7222,
+          "falsePrearmsPerHour": 0.5605,
+          "researchChurnFprAtNudge": 0.000018,
+          "admissible": true
+        },
+        {
+          "nudgeRisk": 0.7,
+          "prearmRisk": 0.8,
+          "recallAt30sNudge": 0.5413,
+          "recallAt30sPrearm": 0.5165,
+          "nudgesPerHour": 1.1821,
+          "falsePrearmsPerHour": 0.5809,
+          "researchChurnFprAtNudge": 0,
+          "admissible": true
+        }
+      ]
     }
   },
   "baselines": {
@@ -144,15 +274,31 @@
       "feature": "otherDwell30",
       "auc": 0.7768,
       "leadAuc20": 0.7734,
-      "note": "gate baseline — feature chosen adversarially by held-out lead-censored AUC"
+      "note": "CONTEXT ONLY — the pre-bake-off gate baseline. One input; the shipped model beating it by a wide margin proves nothing, which is why the gate no longer uses it."
     },
     "fullLogistic18": {
       "auc": 0.958,
-      "leadAuc20": 0.9325
+      "leadAuc20": 0.9325,
+      "fit": "class-weighted full-batch GD (lib.trainLogistic, 250 epochs) — the historical baseline"
     },
-    "mlp": {
-      "auc": 0.9614,
-      "leadAuc20": 0.9248
+    "fullLogistic18Converged": {
+      "auc": 0.9577,
+      "leadAuc20": 0.9355,
+      "lambda": 0.0001,
+      "iters": 99,
+      "rows": 133502,
+      "fit": "same 18 features, L-BFGS to convergence on ALL train rows, importance-weighted to natural prevalence, at the λ train.ts selected on its train-internal val split (never on eval) — the honest ceiling of the plain-18 logistic, and given MORE data than the shipped model"
+    },
+    "fullLogistic18Strongest": {
+      "leadAuc20": 0.9355,
+      "fit": "lbfgs-converged",
+      "note": "GATE BASELINE — the strongest 18-feature multivariate logistic we can produce"
+    },
+    "shippedModel": {
+      "auc": 0.9659,
+      "leadAuc20": 0.9423,
+      "basis": "lr18+pairwise",
+      "paramCount": 190
     },
     "singleFeature": [
       {
@@ -247,26 +393,262 @@
       }
     ]
   },
+  "bakeOff": {
+    "description": "Five-model-family bake-off that chose the shipped Focus Forecast head. One fixed dataset (data/forecast/dataset.jsonl, 218,732 rows / 288 sessions, per-SESSION train/eval split), one fixed metric (lead-censored ROC-AUC at >=20 s), one shared escalation reducer. Non-gating: this table is published beside the CI gate so the claim is 'here is every family we tried and here is the noise floor', not 'here is a number that beats a one-input model'. Every contender script lives in scripts/forecast/candidates/; the scores below were re-derived from scratch by scripts/forecast/adjudicate.ts, whose weighted rank-sum estimator is asserted equal to lib.rocAuc at unit weights to <1e-12 for every model.",
+    "producedBy": "scripts/forecast/candidates/{lr-ceiling,mlp-tuned,temporal,trees,hybrid}.ts, adjudicated by scripts/forecast/adjudicate.ts",
+    "protocol": {
+      "dataset": "fixed; never rebuilt, resampled or re-split by any contender",
+      "training": "split=='train' rows only; every hyper-parameter, calibration and operating point chosen on train-internal validation",
+      "metric": "lead-censored ROC-AUC: positives are frames 20-30 s before a drift onset, negatives are calm frames whose nearest onset is >=20 s away or absent. Last-second detection scores 0.5 here.",
+      "alarms": "recallAt30sNudge = fraction of held-out drift onsets with a forecast_nudge or forecast_prearm event from the SHIPPED stepEscalation reducer inside (onset-30 s, onset], at the then-frozen 0.55/0.80 operating point — the one rule every contender was re-scored on",
+      "uncertainty": "paired session-clustered bootstrap, 2,000 draws over the 48 held-out sessions, identical resamples across models"
+    },
+    "evalSet": {
+      "sessions": 48,
+      "frames": 85230,
+      "baseRate": 0.0275,
+      "leadEligible20": 83748,
+      "leadEligible20Positives": 858,
+      "driftOnsets": 78,
+      "hours": 25.39
+    },
+    "contenders": [
+      {
+        "name": "lr18+pairwise",
+        "family": "GLM with an explicit pairwise-interaction basis",
+        "script": "scripts/forecast/candidates/lr-ceiling.ts",
+        "params": 190,
+        "sizeKb": 4,
+        "aucLead20": 0.942327,
+        "aucLead10": 0.958332,
+        "rocAuc": 0.965923,
+        "prAuc": 0.681343,
+        "ece": 0.0067,
+        "recallAt30sNudgeAt055": 0.7564,
+        "recallHits": "59/78",
+        "verdict": "SHIPPED",
+        "why": "Tied on the headline metric with every non-linear contender (no margin over it clears its own CI) and came within one drift of the loudest at matched alarm load, at 190 convex parameters with named, readable coefficients. Priority 4 (params/size/inference) decides a tie the first three priorities cannot break."
+      },
+      {
+        "name": "temporal (3-net ensemble)",
+        "family": "causal 1-D temporal CNN over the raw 1 Hz stream",
+        "script": "scripts/forecast/candidates/temporal.ts",
+        "params": 14803,
+        "sizeKb": 306,
+        "aucLead20": 0.948681,
+        "aucLead10": 0.963629,
+        "rocAuc": 0.970459,
+        "prAuc": 0.752304,
+        "ece": 0.0031,
+        "recallAt30sNudgeAt055": 0.8333,
+        "recallHits": "65/78",
+        "verdict": "runner-up",
+        "why": "Best point estimate on every ranking metric and the only genuinely new scientific claim in the field (its PURE-sequence net, zero hand-engineered features, scores 0.9340 — above the shipped MLP — so the raw stream carries signal the 18 aggregates destroy). But +0.0064 over the winner at p=0.24, for 61x the parameters, 78x the file and 330 us/tick. At an IDENTICAL alarm load of 3.31 nudges/h it catches 65/78 against the winner's 64/78: one drift, against a +-0.09 interval."
+      },
+      {
+        "name": "mlp-tuned (3 bagged 18-12-1 nets, collapsed to 18-36-1)",
+        "family": "tuned MLP",
+        "script": "scripts/forecast/candidates/mlp-tuned.ts",
+        "params": 721,
+        "sizeKb": 15,
+        "aucLead20": 0.946175,
+        "aucLead10": 0.9621,
+        "rocAuc": 0.968495,
+        "prAuc": 0.722669,
+        "ece": 0.0059,
+        "recallAt30sNudgeAt055": 0.7179,
+        "recallHits": "56/78",
+        "verdict": "not shipped",
+        "why": "The one statistically resolved nonlinear gain in the bake-off: +0.0113 over a properly converged plain logistic (CI [+0.0021,+0.0210]). But the identical +0.0075 is bought by staying linear and adding a named pairwise basis — the hidden layer is learning conjunctions 171 product terms express directly. Its engineering finding stands: the old shipped MLP was not too small, it was under-regularised (L2 1e-4 -> 3e-3 lifts CV lead-AUC 0.9220 -> 0.9313), and the 10%-of-train val split leaked augmented copies of its own validation sessions."
+      },
+      {
+        "name": "trees (147 depth-4 GBDT)",
+        "family": "histogram gradient-boosted decision trees",
+        "script": "scripts/forecast/candidates/trees.ts",
+        "params": 3811,
+        "sizeKb": 231,
+        "aucLead20": 0.943646,
+        "aucLead10": 0.962323,
+        "rocAuc": 0.970997,
+        "prAuc": 0.702608,
+        "ece": 0.002,
+        "recallAt30sNudgeAt055": 0.6923,
+        "recallHits": "54/78",
+        "verdict": "not shipped",
+        "why": "The classic strong tabular baseline, and it is a statistical tie with the winner (+0.0013, CI [-0.0169,+0.0207]). Best calibration in the field, worst alarm recall, and a 231 KB model file against 4 KB."
+      },
+      {
+        "name": "hybrid (GLM trunk + tanh residual, 25 features, 3 heads)",
+        "family": "additive net over an extended feature set",
+        "script": "scripts/forecast/candidates/hybrid.ts",
+        "params": 888,
+        "sizeKb": 18,
+        "aucLead20": 0.945794,
+        "aucLead10": 0.966203,
+        "rocAuc": 0.973033,
+        "prAuc": 0.743425,
+        "ece": 0.0046,
+        "recallAt30sNudgeAt055": 0.7308,
+        "recallHits": "57/78",
+        "verdict": "not shipped",
+        "why": "+0.0035 over the winner at p=0.41. Its real contribution is the ablation ladder, and it is the most actionable result in the bake-off: the SAME lib.trainLogistic routine goes 0.9325 -> 0.9408 purely from 7 extra features read off the existing TelemetryRing, while its architecture alone scored 0.9313 — BELOW the plain logistic. Features beat architecture. Three extras do all the work (deskSagSlope30 +0.0270, dwellShrink30v90 +0.0092, titleChurnAccel +0.0054); they are the top follow-up."
+      },
+      {
+        "name": "TinyMLP 18-12-1 (the incumbent)",
+        "family": "the head that shipped before this swap",
+        "script": "scripts/forecast/train.ts (pre-bake-off)",
+        "params": 241,
+        "sizeKb": 5,
+        "aucLead20": 0.924815,
+        "aucLead10": 0.951206,
+        "rocAuc": 0.961435,
+        "prAuc": 0.693789,
+        "ece": 0.0053,
+        "recallAt30sNudgeAt055": 0.7308,
+        "recallHits": "57/78",
+        "verdict": "replaced",
+        "why": "LAST on the headline metric. It loses to every linear variant on point estimate (-0.0076 vs eval.ts's own full logistic, -0.0100 vs a properly converged one, -0.0175 vs the shipped basis), though none of those deficits is statistically resolved either. The correct statement is not 'the MLP is worse' — it is 'the MLP has no measurable advantage over a logistic regression a judge would write in an afternoon', which is the whole reason the simpler, convex, readable model ships. It also FAILS the honest gate: 0.9248 - 0.9325 = -0.0077."
+      }
+    ],
+    "linearReference": [
+      {
+        "name": "full 18-feature logistic (eval.ts class-weighted GD)",
+        "params": 19,
+        "aucLead20": 0.932451,
+        "rocAuc": 0.958018,
+        "prAuc": 0.559561,
+        "note": "the literal answer to 'did you try logistic regression?'. It already beat the incumbent MLP, so the punchline does not depend on the pairwise expansion. eval.ts computes this fit and the converged one below on every run and anchors the gate to whichever is stronger."
+      },
+      {
+        "name": "full 18-feature logistic (L-BFGS to convergence, L2 tuned on train-internal val)",
+        "params": 19,
+        "aucLead20": 0.934864,
+        "rocAuc": 0.957443,
+        "prAuc": 0.533749,
+        "note": "the honest ceiling of the plain-18 basis: the historical GD fit was already within ~0.002 of it. eval.ts refits this on ALL train rows (the bake-off used the fit subset only) and gets 0.9355, which is what the shipped gate is measured against."
+      },
+      {
+        "name": "best SINGLE-feature logistic (otherDwell30)",
+        "params": 2,
+        "aucLead20": 0.7734,
+        "note": "the OLD gate baseline. A model with one input; beating it by +0.15 was never evidence of anything."
+      }
+    ],
+    "pairedBootstrap": {
+      "draws": 2000,
+      "clusteredBy": "eval session",
+      "note": "identical resamples across models, so differences are paired. Diffs are lead-censored AUC (>=20 s). pDiffLeZero is the bootstrap mass at or below zero — a one-sided p-value against 'no better than the reference'.",
+      "vsShippedBasis": [
+        {
+          "model": "trees(3811n)",
+          "diff": 0.001319,
+          "lo95": -0.016906,
+          "hi95": 0.020745,
+          "pDiffLeZero": 0.452
+        },
+        {
+          "model": "hybrid(888p)",
+          "diff": 0.003467,
+          "lo95": -0.016583,
+          "hi95": 0.027419,
+          "pDiffLeZero": 0.405
+        },
+        {
+          "model": "mlp-tuned(721p)",
+          "diff": 0.003848,
+          "lo95": -0.022744,
+          "hi95": 0.029862,
+          "pDiffLeZero": 0.375
+        },
+        {
+          "model": "temporal(14803p)",
+          "diff": 0.006354,
+          "lo95": -0.009698,
+          "hi95": 0.025573,
+          "pDiffLeZero": 0.243
+        },
+        {
+          "model": "shippedMLP(241p)",
+          "diff": -0.017513,
+          "lo95": -0.044075,
+          "hi95": 0.012259,
+          "pDiffLeZero": 0.882
+        }
+      ],
+      "vsFullLogistic18": [
+        {
+          "model": "lr18+pairwise(190p)",
+          "diff": 0.009876,
+          "lo95": -0.021182,
+          "hi95": 0.04197,
+          "pDiffLeZero": 0.259
+        },
+        {
+          "model": "mlp-tuned(721p)",
+          "diff": 0.013724,
+          "lo95": 0.003236,
+          "hi95": 0.025682,
+          "pDiffLeZero": 0.004
+        },
+        {
+          "model": "temporal(14803p)",
+          "diff": 0.016231,
+          "lo95": -0.001086,
+          "hi95": 0.038443,
+          "pDiffLeZero": 0.0335
+        },
+        {
+          "model": "trees(3811n)",
+          "diff": 0.011195,
+          "lo95": -0.011919,
+          "hi95": 0.041259,
+          "pDiffLeZero": 0.2
+        },
+        {
+          "model": "hybrid(888p)",
+          "diff": 0.013343,
+          "lo95": -0.005784,
+          "hi95": 0.039899,
+          "pDiffLeZero": 0.1035
+        },
+        {
+          "model": "shippedMLP(241p)",
+          "diff": -0.007636,
+          "lo95": -0.026453,
+          "hi95": 0.012313,
+          "pDiffLeZero": 0.7785
+        }
+      ]
+    },
+    "verdict": {
+      "decision": "ship the linear model: lr18+pairwise (190 params) replaces the 241-param TinyMLP as the Focus Forecast head",
+      "rule": "the honesty clause — no nonlinear model beats the strongest linear-family result by a margin this eval set can resolve, so the linear model ships",
+      "noiseFloor": "the paired SE of a model-vs-model lead-AUC difference here is ~0.009. Every margin on offer is 0.4-0.7 of one SE. Resolving a +0.006 gap would need roughly 7-8x the held-out sessions (~360 sessions, ~590 drifts).",
+      "whatDidNotSeparate": "Priority 2 (recall@30s at matched alarm load) differs by ONE drift out of 78 between the winner and the runner-up, against a 95% interval of roughly +-0.09. Priority 3 (ECE) spans 0.0020-0.0067 — every entry an order of magnitude inside anything the design treats as a budget.",
+      "openQuestion": "temporal's pure-sequence net sees zero hand-engineered features and still scores 0.9340, above the incumbent MLP's 0.9248. The raw 1 Hz stream carries signal the 18 window aggregates destroy. Unsettled, and worth settling on a real recorded corpus.",
+      "reporting": "that the neural net did not win is a stronger result than that it did, and it is the only version of the story that survives a hostile question."
+    }
+  },
   "perArchetype": {
     "away_drifter": {
       "sessions": 10,
       "frames": 17650,
       "baseRate": 0.051,
-      "falsePositiveRateAtNudge": 0.0057,
-      "falsePositiveRateAtPrearm": 0.0012,
-      "falsePrearmsPerHour": 0.3391,
+      "falsePositiveRateAtNudge": 0.0045,
+      "falsePositiveRateAtPrearm": 0.0005,
+      "falsePrearmsPerHour": 1.3566,
       "drifts": 30,
-      "hits": 23
+      "hits": 14
     },
     "burst_switcher": {
       "sessions": 9,
       "frames": 14097,
       "baseRate": 0.0511,
-      "falsePositiveRateAtNudge": 0.0112,
-      "falsePositiveRateAtPrearm": 0.004,
-      "falsePrearmsPerHour": 0.9626,
+      "falsePositiveRateAtNudge": 0.0134,
+      "falsePositiveRateAtPrearm": 0.0057,
+      "falsePrearmsPerHour": 0.722,
       "drifts": 24,
-      "hits": 14
+      "hits": 18
     },
     "grinder": {
       "sessions": 10,
@@ -282,7 +664,7 @@
       "sessions": 7,
       "frames": 13601,
       "baseRate": 0,
-      "falsePositiveRateAtNudge": 0.0001,
+      "falsePositiveRateAtNudge": 0,
       "falsePositiveRateAtPrearm": 0,
       "falsePrearmsPerHour": 0,
       "drifts": 0,
@@ -302,97 +684,97 @@
       "sessions": 9,
       "frames": 16115,
       "baseRate": 0.041,
-      "falsePositiveRateAtNudge": 0.0105,
-      "falsePositiveRateAtPrearm": 0.0044,
-      "falsePrearmsPerHour": 0.6365,
+      "falsePositiveRateAtNudge": 0.016,
+      "falsePositiveRateAtPrearm": 0.0041,
+      "falsePrearmsPerHour": 0.8486,
       "drifts": 22,
-      "hits": 7
+      "hits": 11
     }
   },
   "ablation": [
     {
-      "key": "switch15",
-      "leadAuc20Drop": 0.097
-    },
-    {
-      "key": "deskConfStd30",
-      "leadAuc20Drop": 0.0497
-    },
-    {
-      "key": "titleChurn60",
-      "leadAuc20Drop": 0.0405
-    },
-    {
-      "key": "deskConfMean30",
-      "leadAuc20Drop": 0.0271
+      "key": "fracOther60",
+      "leadAuc20Drop": 0.3548
     },
     {
       "key": "otherDwell30",
-      "leadAuc20Drop": 0.0219
+      "leadAuc20Drop": 0.1292
+    },
+    {
+      "key": "switch15",
+      "leadAuc20Drop": 0.1054
+    },
+    {
+      "key": "titleChurn60",
+      "leadAuc20Drop": 0.1023
     },
     {
       "key": "streak",
-      "leadAuc20Drop": 0.0179
+      "leadAuc20Drop": 0.0897
     },
     {
-      "key": "titleChurn30",
-      "leadAuc20Drop": 0.0095
+      "key": "deskConfStd30",
+      "leadAuc20Drop": 0.0785
     },
     {
-      "key": "fracOther60",
-      "leadAuc20Drop": 0.0077
-    },
-    {
-      "key": "sinceBlock",
-      "leadAuc20Drop": 0.0057
-    },
-    {
-      "key": "distinct60",
-      "leadAuc20Drop": 0.0054
-    },
-    {
-      "key": "priorDrifts",
-      "leadAuc20Drop": 0.0043
-    },
-    {
-      "key": "sessionMin",
-      "leadAuc20Drop": 0.0034
+      "key": "deskConfMean30",
+      "leadAuc20Drop": 0.0668
     },
     {
       "key": "switch60",
-      "leadAuc20Drop": 0.0021
+      "leadAuc20Drop": 0.0481
     },
     {
-      "key": "deskPresent30",
-      "leadAuc20Drop": 0.0013
+      "key": "titleChurn30",
+      "leadAuc20Drop": 0.0373
     },
     {
       "key": "fracAllow60",
-      "leadAuc20Drop": -0.001
+      "leadAuc20Drop": 0.0189
     },
     {
-      "key": "deskFlicker60",
-      "leadAuc20Drop": -0.0047
+      "key": "deskPresent30",
+      "leadAuc20Drop": 0.0139
     },
     {
-      "key": "dwellCur",
-      "leadAuc20Drop": -0.0048
+      "key": "priorDrifts",
+      "leadAuc20Drop": 0.0127
     },
     {
       "key": "switchAccel",
-      "leadAuc20Drop": -0.0146
+      "leadAuc20Drop": 0.01
+    },
+    {
+      "key": "distinct60",
+      "leadAuc20Drop": 0.01
+    },
+    {
+      "key": "sinceBlock",
+      "leadAuc20Drop": 0.0067
+    },
+    {
+      "key": "sessionMin",
+      "leadAuc20Drop": 0.0046
+    },
+    {
+      "key": "deskFlicker60",
+      "leadAuc20Drop": -0.0007
+    },
+    {
+      "key": "dwellCur",
+      "leadAuc20Drop": -0.0018
     }
   ],
   "thresholdParity": {
-    "nudge": 0.55,
+    "nudge": 0.45,
     "prearm": 0.8,
     "source": "DEFAULT_SETTINGS"
   },
-  "provenanceSha": "62fafb1bfc3bce8e3106727260eb2f58ec038bfc30c6d6786337a6270b8d5bfa",
+  "provenanceSha": "eaf9ee7d5fd5fd3bdd866ff46a37d34a2b2a6b08862962ef40afb2e395c31295",
   "provenance": {
     "manifest": {
       "version": 1,
-      "createdAt": "2026-09-12T17:41:50.004Z",
+      "createdAt": "2026-09-12T18:04:42.751Z",
       "seed": 42,
       "mode": "offline-fallback",
       "gitCommit": "712f10f",
@@ -442,29 +824,434 @@
     },
     "train": {
       "config": {
-        "epochs": 400,
-        "lr": 0.003,
-        "batch": 256,
         "seed": 42,
-        "l2": 0.0001,
-        "patience": 40,
+        "iters": 300,
         "valFraction": 0.1,
-        "posWeightPower": 0.5
+        "lambdaPath": [
+          1,
+          0.1,
+          0.01,
+          0.001,
+          0.0001,
+          0.00001,
+          0.000001
+        ],
+        "posWeightPowers": [
+          0,
+          0.5,
+          1
+        ],
+        "selectionMetric": "train-internal val lead-censored (≥20s) ROC-AUC"
       },
-      "arch": "18-12-1",
-      "paramCount": 241,
+      "arch": "GLM lr18+pairwise (18 features → 189 terms → 1 logit)",
+      "basisSha": "911f37f1",
+      "paramCount": 190,
+      "optimizer": "L-BFGS (m=10, Armijo backtracking), weighted BCE + L2, bias unpenalized",
       "rows": {
         "fit": 120200,
         "val": 13302,
         "fitPositives": 8400
       },
-      "classWeightPos": 3.648222,
-      "epochsRan": 61,
-      "bestEpoch": 20,
-      "bestValLoss": 0.07079,
-      "valRocAuc": 0.95802,
-      "valPrAuc": 0.812442,
-      "earlyStopMetric": "val importance-weighted BCE loss"
+      "selected": {
+        "lambda": 0.00001,
+        "posWeightPower": 1,
+        "valLeadAuc20": 0.958575,
+        "valRocAuc": 0.964884
+      },
+      "referenceLr18": {
+        "params": 19,
+        "lambda": 0.0001,
+        "posWeightPower": 1,
+        "valLeadAuc20": 0.929895,
+        "valRocAuc": 0.946663
+      },
+      "sweep": [
+        {
+          "lambda": 1,
+          "posPower": 0,
+          "valLeadAuc20": 0.882878,
+          "iters": 14
+        },
+        {
+          "lambda": 0.1,
+          "posPower": 0,
+          "valLeadAuc20": 0.899957,
+          "iters": 13
+        },
+        {
+          "lambda": 0.01,
+          "posPower": 0,
+          "valLeadAuc20": 0.913483,
+          "iters": 23
+        },
+        {
+          "lambda": 0.001,
+          "posPower": 0,
+          "valLeadAuc20": 0.914107,
+          "iters": 50
+        },
+        {
+          "lambda": 0.0001,
+          "posPower": 0,
+          "valLeadAuc20": 0.915429,
+          "iters": 81
+        },
+        {
+          "lambda": 0.00001,
+          "posPower": 0,
+          "valLeadAuc20": 0.915891,
+          "iters": 72
+        },
+        {
+          "lambda": 0.000001,
+          "posPower": 0,
+          "valLeadAuc20": 0.915886,
+          "iters": 93
+        },
+        {
+          "lambda": 1,
+          "posPower": 0.5,
+          "valLeadAuc20": 0.894919,
+          "iters": 12
+        },
+        {
+          "lambda": 0.1,
+          "posPower": 0.5,
+          "valLeadAuc20": 0.91194,
+          "iters": 18
+        },
+        {
+          "lambda": 0.01,
+          "posPower": 0.5,
+          "valLeadAuc20": 0.91794,
+          "iters": 33
+        },
+        {
+          "lambda": 0.001,
+          "posPower": 0.5,
+          "valLeadAuc20": 0.921354,
+          "iters": 59
+        },
+        {
+          "lambda": 0.0001,
+          "posPower": 0.5,
+          "valLeadAuc20": 0.92295,
+          "iters": 72
+        },
+        {
+          "lambda": 0.00001,
+          "posPower": 0.5,
+          "valLeadAuc20": 0.922951,
+          "iters": 76
+        },
+        {
+          "lambda": 0.000001,
+          "posPower": 0.5,
+          "valLeadAuc20": 0.922858,
+          "iters": 87
+        },
+        {
+          "lambda": 1,
+          "posPower": 1,
+          "valLeadAuc20": 0.903288,
+          "iters": 13
+        },
+        {
+          "lambda": 0.1,
+          "posPower": 1,
+          "valLeadAuc20": 0.916742,
+          "iters": 17
+        },
+        {
+          "lambda": 0.01,
+          "posPower": 1,
+          "valLeadAuc20": 0.923767,
+          "iters": 36
+        },
+        {
+          "lambda": 0.001,
+          "posPower": 1,
+          "valLeadAuc20": 0.929012,
+          "iters": 59
+        },
+        {
+          "lambda": 0.0001,
+          "posPower": 1,
+          "valLeadAuc20": 0.929895,
+          "iters": 62
+        },
+        {
+          "lambda": 0.00001,
+          "posPower": 1,
+          "valLeadAuc20": 0.929642,
+          "iters": 64
+        },
+        {
+          "lambda": 0.000001,
+          "posPower": 1,
+          "valLeadAuc20": 0.929494,
+          "iters": 57
+        },
+        {
+          "lambda": 1,
+          "posPower": 1,
+          "valLeadAuc20": 0.928229,
+          "iters": 21
+        },
+        {
+          "lambda": 0.1,
+          "posPower": 1,
+          "valLeadAuc20": 0.942881,
+          "iters": 37
+        },
+        {
+          "lambda": 0.01,
+          "posPower": 1,
+          "valLeadAuc20": 0.951547,
+          "iters": 80
+        },
+        {
+          "lambda": 0.001,
+          "posPower": 1,
+          "valLeadAuc20": 0.954744,
+          "iters": 221
+        },
+        {
+          "lambda": 0.0001,
+          "posPower": 1,
+          "valLeadAuc20": 0.957614,
+          "iters": 300
+        },
+        {
+          "lambda": 0.00001,
+          "posPower": 1,
+          "valLeadAuc20": 0.958575,
+          "iters": 300
+        },
+        {
+          "lambda": 0.000001,
+          "posPower": 1,
+          "valLeadAuc20": 0.958342,
+          "iters": 300
+        }
+      ],
+      "calibration": {
+        "a": 0.823592,
+        "b": -3.53982
+      },
+      "topCoefficients": [
+        {
+          "term": "deskConfMean30*deskConfStd30",
+          "standardizedWeight": -7.422006,
+          "shippedCoefficient": -126.378839
+        },
+        {
+          "term": "deskPresent30*deskConfStd30",
+          "standardizedWeight": 5.140706,
+          "shippedCoefficient": 78.355136
+        },
+        {
+          "term": "sinceBlock*deskConfMean30",
+          "standardizedWeight": 4.231031,
+          "shippedCoefficient": 50.959349
+        },
+        {
+          "term": "dwellCur*deskConfMean30",
+          "standardizedWeight": 4.194626,
+          "shippedCoefficient": 21.387877
+        },
+        {
+          "term": "deskConfMean30*deskFlicker60",
+          "standardizedWeight": -4.138274,
+          "shippedCoefficient": -26.954628
+        },
+        {
+          "term": "deskConfMean30*sessionMin",
+          "standardizedWeight": 3.636618,
+          "shippedCoefficient": 22.413288
+        },
+        {
+          "term": "switch60*streak",
+          "standardizedWeight": -2.522546,
+          "shippedCoefficient": -20.764434
+        },
+        {
+          "term": "switch60*titleChurn30",
+          "standardizedWeight": 2.456601,
+          "shippedCoefficient": 18.696326
+        },
+        {
+          "term": "otherDwell30*deskConfMean30",
+          "standardizedWeight": 2.437411,
+          "shippedCoefficient": 14.385649
+        },
+        {
+          "term": "fracAllow60*distinct60",
+          "standardizedWeight": 2.389092,
+          "shippedCoefficient": 18.389556
+        },
+        {
+          "term": "fracOther60*titleChurn60",
+          "standardizedWeight": 2.305135,
+          "shippedCoefficient": 26.391951
+        },
+        {
+          "term": "deskConfStd30",
+          "standardizedWeight": 2.2623,
+          "shippedCoefficient": 30.485442
+        },
+        {
+          "term": "deskConfMean30*priorDrifts",
+          "standardizedWeight": 2.240276,
+          "shippedCoefficient": 13.702567
+        },
+        {
+          "term": "deskConfMean30*titleChurn30",
+          "standardizedWeight": 2.136859,
+          "shippedCoefficient": 8.121979
+        },
+        {
+          "term": "titleChurn60^2",
+          "standardizedWeight": -2.095627,
+          "shippedCoefficient": -7.552436
+        },
+        {
+          "term": "distinct60*titleChurn30",
+          "standardizedWeight": -2.078077,
+          "shippedCoefficient": -13.301235
+        },
+        {
+          "term": "fracAllow60*deskConfStd30",
+          "standardizedWeight": 1.974696,
+          "shippedCoefficient": 24.609449
+        },
+        {
+          "term": "distinct60*titleChurn60",
+          "standardizedWeight": 1.955224,
+          "shippedCoefficient": 13.036179
+        },
+        {
+          "term": "fracAllow60*deskFlicker60",
+          "standardizedWeight": 1.847411,
+          "shippedCoefficient": 9.914538
+        },
+        {
+          "term": "deskPresent30",
+          "standardizedWeight": -1.843973,
+          "shippedCoefficient": -29.664199
+        }
+      ],
+      "operatingPoint": {
+        "rule": "max recall@30s (a forecast_nudge or forecast_prearm event inside (onset−30s, onset]) subject to research_churn frame FPR ≤ ceiling, nudges/h ≤ ceiling, false pre-arms/h ≤ ceiling",
+        "selectedOn": "3-fold cross-fitted TRAIN sessions — every session scored by a fold model that never saw it, each fold refitted at the selected λ and class weight and read on the SHIPPED Platt scale (the threshold is a cut on that scale). No eval row is read here; no fold model ships.",
+        "ceilings": {
+          "researchChurnFpr": 0.01,
+          "alarmLoadAllowance": 1.15,
+          "referenceNudgeRisk": 0.55,
+          "referenceNudgesPerHour": 2.3642,
+          "nudgesPerHourCeiling": 2.7188,
+          "falsePrearmsPerHour": 2
+        },
+        "searchSessions": 192,
+        "searchDrifts": 242,
+        "searchHours": 98.1314,
+        "selectedNudgeRisk": 0.45,
+        "selectedPrearmRisk": 0.8,
+        "shippedNudgeRisk": 0.45,
+        "matchesDefaultSettings": true,
+        "grid": [
+          {
+            "nudgeRisk": 0.3,
+            "prearmRisk": 0.8,
+            "recallAt30sNudge": 0.7438,
+            "recallAt30sPrearm": 0.5413,
+            "nudgesPerHour": 3.1386,
+            "falsePrearmsPerHour": 0.4789,
+            "researchChurnFprAtNudge": 0.000127,
+            "admissible": false
+          },
+          {
+            "nudgeRisk": 0.35,
+            "prearmRisk": 0.8,
+            "recallAt30sNudge": 0.7314,
+            "recallAt30sPrearm": 0.5413,
+            "nudgesPerHour": 2.9858,
+            "falsePrearmsPerHour": 0.4993,
+            "researchChurnFprAtNudge": 0.000109,
+            "admissible": false
+          },
+          {
+            "nudgeRisk": 0.4,
+            "prearmRisk": 0.8,
+            "recallAt30sNudge": 0.7066,
+            "recallAt30sPrearm": 0.5372,
+            "nudgesPerHour": 2.8227,
+            "falsePrearmsPerHour": 0.5095,
+            "researchChurnFprAtNudge": 0.000073,
+            "admissible": false
+          },
+          {
+            "nudgeRisk": 0.45,
+            "prearmRisk": 0.8,
+            "recallAt30sNudge": 0.686,
+            "recallAt30sPrearm": 0.5372,
+            "nudgesPerHour": 2.6597,
+            "falsePrearmsPerHour": 0.5197,
+            "researchChurnFprAtNudge": 0.000055,
+            "admissible": true
+          },
+          {
+            "nudgeRisk": 0.5,
+            "prearmRisk": 0.8,
+            "recallAt30sNudge": 0.6529,
+            "recallAt30sPrearm": 0.5372,
+            "nudgesPerHour": 2.4763,
+            "falsePrearmsPerHour": 0.5401,
+            "researchChurnFprAtNudge": 0.000055,
+            "admissible": true
+          },
+          {
+            "nudgeRisk": 0.55,
+            "prearmRisk": 0.8,
+            "recallAt30sNudge": 0.6446,
+            "recallAt30sPrearm": 0.5331,
+            "nudgesPerHour": 2.3642,
+            "falsePrearmsPerHour": 0.5503,
+            "researchChurnFprAtNudge": 0.000055,
+            "admissible": true
+          },
+          {
+            "nudgeRisk": 0.6,
+            "prearmRisk": 0.8,
+            "recallAt30sNudge": 0.5992,
+            "recallAt30sPrearm": 0.5331,
+            "nudgesPerHour": 2.0788,
+            "falsePrearmsPerHour": 0.5503,
+            "researchChurnFprAtNudge": 0.000036,
+            "admissible": true
+          },
+          {
+            "nudgeRisk": 0.65,
+            "prearmRisk": 0.8,
+            "recallAt30sNudge": 0.5702,
+            "recallAt30sPrearm": 0.5207,
+            "nudgesPerHour": 1.7222,
+            "falsePrearmsPerHour": 0.5605,
+            "researchChurnFprAtNudge": 0.000018,
+            "admissible": true
+          },
+          {
+            "nudgeRisk": 0.7,
+            "prearmRisk": 0.8,
+            "recallAt30sNudge": 0.5413,
+            "recallAt30sPrearm": 0.5165,
+            "nudgesPerHour": 1.1821,
+            "falsePrearmsPerHour": 0.5809,
+            "researchChurnFprAtNudge": 0,
+            "admissible": true
+          }
+        ]
+      }
     }
   }
 }

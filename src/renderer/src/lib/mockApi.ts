@@ -247,7 +247,7 @@ export function createMockApi(): FocusPlugApi {
   const forecastEventBus = createBus<ForecastEvent>();
 
   // The forecast side of the mock is the deterministic scripted replay —
-  // the same shared core (ring → features → TinyMLP → escalation) the main
+  // the same shared core (ring → features → GLM → escalation) the main
   // process runs, so browser dev/stills show real attributions and a real
   // receipt, not canned numbers. The replay drives the whole live-session
   // story: calm → flicking → nudge → pre-arm → Discord → 5 s fuse → kill.

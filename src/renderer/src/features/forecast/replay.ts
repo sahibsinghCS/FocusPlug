@@ -26,7 +26,7 @@ import weightsJson from "@shared/forecast/weights.json";
  * Deterministic scripted replay — the demo beat as data. A raw behavior
  * stream (focus pokes + desk states, second by second) is pushed through the
  * SAME shared core the Electron main process runs: TelemetryRing →
- * extractFeatures → TinyMLP forward → EMA → stepEscalation. Nothing here is
+ * extractFeatures → GLM forward → EMA → stepEscalation. Nothing here is
  * canned risk numbers; the model genuinely thinks on the scripted stream, so
  * the preview page and the mock console show real attributions, a real
  * calibration readout, and a real receipt. Same inputs ⇒ byte-identical

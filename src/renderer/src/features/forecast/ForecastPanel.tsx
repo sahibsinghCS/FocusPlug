@@ -1,5 +1,6 @@
 import type { JSX } from "react";
 import type { ForecastEvent, ForecastSnapshot } from "@shared/ipc";
+import { FORECAST_PARAM_COUNT } from "@shared/forecast";
 import { cn } from "../../lib/cn";
 import { Chip } from "../../components/ui";
 import { bandLabel, bandTone, type RiskPoint } from "./model";
@@ -53,7 +54,7 @@ export function ForecastPanel(props: ForecastPanelProps): JSX.Element {
         <p className="ml-auto font-mono text-[10px] uppercase tracking-[0.1em] text-fp-faint">
           {snapshot
             ? `v ${snapshot.modelVersion} · ${snapshot.paramCount} params · horizon ${snapshot.horizonSec} s`
-            : "TinyMLP 18→12→1 · on-device"}
+            : `${FORECAST_PARAM_COUNT}-param logistic · on-device`}
         </p>
       </div>
 

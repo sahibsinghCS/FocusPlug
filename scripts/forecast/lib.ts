@@ -670,10 +670,42 @@ export function logisticScore(model: LogisticModel, row: readonly number[], colu
 // ---------------------------------------------------------------------------
 
 /** Contract defaults (docs/FORECAST-CONTRACTS.md §3) — the parity target. */
-export const CONTRACT_NUDGE_RISK = 0.55;
+export const CONTRACT_NUDGE_RISK = 0.45;
 export const CONTRACT_PREARM_RISK = 0.8;
 export const CONTRACT_PREARM_FUSE_SEC = 5;
 export const CONTRACT_BASE_FUSE_SEC = 10;
+
+/**
+ * Alarm budget for the train-internal operating-point search in train.ts.
+ * These exist so recall can never be bought with volume — a candidate
+ * threshold is admissible only inside all three:
+ *
+ * - `CHURN_FPR_CEILING` — the brief's own constraint: the `research_churn`
+ *   archetype (heavy allowlist-internal switching, zero drifts) must not fire.
+ * - `ALARM_LOAD_ALLOWANCE` — the nudge rate may exceed the rate the SAME model
+ *   produces at the FROZEN 0.55 threshold on the SAME sessions by at most this
+ *   factor. It is deliberately a RATIO, not an absolute rate: the search runs
+ *   on cross-fitted train sessions whose risk scale is not identical to the
+ *   shipped model's, and a ratio measured against a reference on that same
+ *   scale cancels the difference, where an absolute "3.5 nudges/h" would not
+ *   transfer at all. 1.15 is the product call: at most ~15 % louder than what
+ *   already ships — a nudge roughly every 16 minutes instead of every 19.
+ * - `FALSE_PREARM_CEILING_PER_HOUR` — the design's stated budget
+ *   (docs/FORECAST-DESIGN.md §4.5: "< 2 false pre-arms/hour"). Absolute,
+ *   because the design states it as an absolute promise to the user.
+ */
+export const CHURN_FPR_CEILING = 0.01;
+export const ALARM_LOAD_ALLOWANCE = 1.15;
+export const FALSE_PREARM_CEILING_PER_HOUR = 2;
+
+/**
+ * The nudge threshold the product shipped BEFORE the bake-off (0.55). The
+ * alarm budget is pinned to what this costs, never to whatever
+ * `DEFAULT_SETTINGS` currently says — otherwise every re-run would measure
+ * itself against its own previous answer and ratchet the threshold downward
+ * one grid step at a time. Frozen: it is a historical fact, not a setting.
+ */
+export const ALARM_BUDGET_REFERENCE_NUDGE_RISK = 0.55;
 
 export interface ThresholdSource {
   nudge: number;

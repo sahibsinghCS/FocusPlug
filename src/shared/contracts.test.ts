@@ -82,7 +82,7 @@ describe("Phase 2 contracts", () => {
   it("defaults the five flat Focus Forecast settings keys", () => {
     expect(DEFAULT_SETTINGS.forecastEnabled).toBe(true);
     expect(DEFAULT_SETTINGS.forecastPrearmEnabled).toBe(true);
-    expect(DEFAULT_SETTINGS.forecastNudgeRisk).toBe(0.55);
+    expect(DEFAULT_SETTINGS.forecastNudgeRisk).toBe(0.45);
     expect(DEFAULT_SETTINGS.forecastPrearmRisk).toBe(0.8);
     expect(DEFAULT_SETTINGS.forecastPrearmFuseSec).toBe(5);
   });

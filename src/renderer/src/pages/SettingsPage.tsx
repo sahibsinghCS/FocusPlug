@@ -162,7 +162,7 @@ export function SettingsPage(): JSX.Element {
           <div>
             <p className="text-[13px] font-medium">Focus Forecast</p>
             <p className="mt-0.5 text-[12px] text-fp-mute">
-              241-param on-device MLP predicts drift 30 s out — nudges early, pre-arms the
+              190-param on-device logistic regression predicts drift 30 s out — nudges early, pre-arms the
               fuse. Off reproduces today&apos;s behavior exactly.
             </p>
           </div>

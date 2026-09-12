@@ -6,7 +6,12 @@ import type {
   FocusSnapshot,
   PolicyEvent,
 } from "../../shared/types.ts";
-import type { ForecastEvent, ForecastSnapshot } from "../../shared/forecast/index.ts";
+import {
+  FORECAST_INPUT_DIM,
+  FORECAST_PARAM_COUNT,
+  type ForecastEvent,
+  type ForecastSnapshot,
+} from "../../shared/forecast/index.ts";
 import { discordFocus, docsFocus, presentDesk } from "../session/harness.ts";
 import { codeFocus, switchProbeWeights } from "./fixtures.ts";
 import { createForecast, type Forecast } from "./index.ts";
@@ -182,15 +187,19 @@ describe("ForecastMonitor cadence", () => {
     expect(eventTypes(h)).toContain("forecast_prearm");
   });
 
-  it("snapshot shape: 18 features in key order, 12 hidden, provenance fields", () => {
+  it("snapshot shape: 18 features in key order, 18 term groups, provenance fields", () => {
     const h = makeMonitor();
     start(h);
     tickSeconds(h, 1);
     const snap = h.snapshots[0];
     expect(snap?.features.length).toBe(18);
     expect(snap?.features[0]?.key).toBe("switch15");
-    expect(snap?.hidden.length).toBe(12);
-    expect(snap?.paramCount).toBe(241);
+    // The GLM has no hidden layer: `hidden` is one tanh'd term-group
+    // activation per feature, so the strip stays a strip and the contract
+    // stays "a number[] of whatever length the architecture has".
+    expect(snap?.hidden.length).toBe(FORECAST_INPUT_DIM);
+    expect(snap?.paramCount).toBe(FORECAST_PARAM_COUNT);
+    expect(snap?.paramCount).toBe(190);
     expect(snap?.modelVersion).toBe("ff-1");
     expect(snap?.horizonSec).toBe(30);
     expect(snap?.baseFuseSec).toBe(10);

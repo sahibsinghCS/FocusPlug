@@ -23,7 +23,7 @@ import {
   topPositiveKeys,
   whyNowRows,
 } from "./model";
-import { featurePhrase, nudgeToastBody } from "./copy";
+import { FEATURE_SHORT_LABELS, featurePhrase, nudgeToastBody } from "./copy";
 import {
   buildTimelinePreview,
   classifySessionEvent,
@@ -53,12 +53,12 @@ function makeSnapshot(overrides: Partial<ForecastSnapshot> = {}): ForecastSnapsh
       value: index / 18,
       attribution: 0,
     })),
-    hidden: new Array<number>(12).fill(0.2),
+    hidden: new Array<number>(18).fill(0.2),
     prearmedAt: null,
     effectiveFuseSec: 10,
     baseFuseSec: 10,
     modelVersion: "ff-1",
-    paramCount: 241,
+    paramCount: 190,
     ...overrides,
   };
 }
@@ -87,7 +87,7 @@ describe("forecast sensor card", () => {
     expect(card.id).toBe("forecast");
     expect(card.title).toBe("Off");
     expect(card.tone).toBe("mute");
-    expect(card.meta).toContain("241-param");
+    expect(card.meta).toContain("190-param");
   });
 
   it("renders standby outside a session and warm-up before ready", () => {
@@ -172,8 +172,8 @@ describe("calibration + model card", () => {
 
   it("feeds the model card from the committed artifacts", () => {
     const card = modelCard();
-    expect(card.spec).toContain("TinyMLP 18→12→1");
-    expect(card.spec).toContain("241 params");
+    expect(card.spec).toContain("Logistic 18→189 terms→1");
+    expect(card.spec).toContain("190 params");
     expect(card.spec).toContain("v ff-1");
     expect(card.evalLine).toMatch(/held-out AUC 0\.\d{2}/);
     expect(card.dataLine).toContain("Adaption:");
@@ -306,10 +306,19 @@ describe("pre-arm plate + event copy", () => {
     expect(preview.reached.cause).toBe(true);
   });
 
-  it("tints hidden cells by |tanh| with sign", () => {
+  it("names and tints each term-group cell by |tanh| with sign", () => {
     const cells = hiddenCells([0.8, -0.4, 0]);
-    expect(cells[0]).toEqual({ value: 0.8, intensity: 0.8, positive: true });
+    // One cell per FEATURE now — the GLM has no anonymous hidden units.
+    expect(cells[0]).toEqual({
+      key: "switch15",
+      label: FEATURE_SHORT_LABELS.switch15,
+      value: 0.8,
+      intensity: 0.8,
+      positive: true,
+    });
+    expect(cells[1]?.key).toBe("switch60");
     expect(cells[1]?.positive).toBe(false);
+    expect(cells[2]?.intensity).toBe(0);
   });
 });
 
@@ -331,7 +340,7 @@ describe("scripted replay (real shared core)", () => {
       expect(frame.snapshot.features.map((feature) => feature.key)).toEqual([
         ...FORECAST_FEATURE_KEYS,
       ]);
-      expect(frame.snapshot.hidden).toHaveLength(12);
+      expect(frame.snapshot.hidden).toHaveLength(18);
       expect(frame.snapshot.risk).toBeGreaterThanOrEqual(0);
       expect(frame.snapshot.risk).toBeLessThanOrEqual(1);
       expect(frame.events.length === 0 || frame.snapshot.ready).toBe(true);

@@ -1,9 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
-  FORECAST_HIDDEN_DIM,
+  FORECAST_BASIS,
+  FORECAST_BASIS_SHA,
   FORECAST_INPUT_DIM,
   FORECAST_PARAM_COUNT,
+  FORECAST_TERMS,
+  FORECAST_TERM_COUNT,
+  FORECAST_TERM_KEYS,
   attributions,
+  expandBasis,
   forward,
   parseForecastWeights,
   sigmoid,
@@ -41,7 +46,50 @@ function corrupt(mutate: (weights: Record<string, unknown>) => void): unknown {
   return clone;
 }
 
-type Layer = { W: number[][]; b: number[] };
+describe("the canonical basis", () => {
+  it("is 18 linear terms then every i≤j product — 189 terms, 190 params", () => {
+    expect(FORECAST_TERM_COUNT).toBe(189);
+    expect(FORECAST_PARAM_COUNT).toBe(190);
+    expect(FORECAST_TERMS).toHaveLength(FORECAST_TERM_COUNT);
+    // The first 18 are the plain features, in FORECAST_FEATURE_KEYS order.
+    for (let i = 0; i < FORECAST_INPUT_DIM; i += 1) {
+      expect(FORECAST_TERMS[i]).toEqual({ i, j: null });
+      expect(FORECAST_TERM_KEYS[i]).toBe(FORECAST_FEATURE_KEYS[i]);
+    }
+    // The remaining 171 are products with i ≤ j, each pair exactly once.
+    const pairs = new Set<string>();
+    for (let k = FORECAST_INPUT_DIM; k < FORECAST_TERM_COUNT; k += 1) {
+      const term = FORECAST_TERMS[k];
+      expect(term).toBeDefined();
+      expect(term?.j).not.toBeNull();
+      expect(term?.i).toBeLessThanOrEqual(term?.j ?? -1);
+      pairs.add(`${term?.i}:${term?.j}`);
+    }
+    expect(pairs.size).toBe(171);
+    expect(new Set(FORECAST_TERM_KEYS).size).toBe(FORECAST_TERM_COUNT);
+  });
+
+  it("expands a row exactly as the term list describes", () => {
+    const x = Array.from({ length: FORECAST_INPUT_DIM }, (_, i) => (i + 1) / 20);
+    const out = new Float64Array(FORECAST_TERM_COUNT);
+    expandBasis(x, out);
+    for (let k = 0; k < FORECAST_TERM_COUNT; k += 1) {
+      const term = FORECAST_TERMS[k];
+      const expected =
+        term?.j === null || term?.j === undefined
+          ? (x[term?.i ?? 0] as number)
+          : (x[term.i] as number) * (x[term.j] as number);
+      expect(out[k]).toBeCloseTo(expected, 12);
+    }
+  });
+
+  it("checksums the basis so a reordering can never be served with old weights", () => {
+    expect(FORECAST_BASIS).toBe("lr18+pairwise");
+    expect(FORECAST_BASIS_SHA).toMatch(/^[0-9a-f]{8}$/);
+    // Fail-closed: the shipped artifact must carry exactly this checksum.
+    expect((weightsJson as unknown as { basisSha: string }).basisSha).toBe(FORECAST_BASIS_SHA);
+  });
+});
 
 describe("parseForecastWeights accepts", () => {
   it("the committed weights.json (the shipped artifact stays loadable)", () => {
@@ -49,6 +97,8 @@ describe("parseForecastWeights accepts", () => {
     expect(parsed).not.toBeNull();
     expect(parsed?.version).toBe("ff-1");
     expect(parsed?.paramCount).toBe(FORECAST_PARAM_COUNT);
+    expect(parsed?.basis).toBe(FORECAST_BASIS);
+    expect(parsed?.coefficients).toHaveLength(FORECAST_TERM_COUNT);
     expect(parsed?.featureKeys).toEqual([...FORECAST_FEATURE_KEYS]);
     // Trained artifacts carry the sha-256 of the provenance object embedded
     // in eval-report.json (the pre-training placeholder said "untrained-init").
@@ -56,18 +106,12 @@ describe("parseForecastWeights accepts", () => {
   });
 
   it("the golden fixture weights, as a defensive deep copy", () => {
-    const source = structuredClone(golden.modelForward.weights) as {
-      layers: [Layer, Layer];
-    };
+    const source = structuredClone(golden.modelForward.weights) as { coefficients: number[] };
     const parsed = parseForecastWeights(source);
     expect(parsed).not.toBeNull();
     const before = forward(parsed as ForecastWeightsFile, new Array(18).fill(0.5)).logit;
     // Mutating the source after parsing must not change the parsed model.
-    const firstRow = source.layers[0].W[0];
-    expect(firstRow).toBeDefined();
-    if (firstRow) {
-      firstRow[0] = 999;
-    }
+    source.coefficients[0] = 999;
     const after = forward(parsed as ForecastWeightsFile, new Array(18).fill(0.5)).logit;
     expect(after).toBe(before);
   });
@@ -77,7 +121,7 @@ describe("parseForecastWeights rejects every malformed shape", () => {
   const cases: Array<[string, unknown]> = [
     ["null", null],
     ["array", []],
-    ["number", 241],
+    ["number", 190],
     ["wrong version", corrupt((w) => { w.version = "ff-2"; })],
     ["missing version", corrupt((w) => { delete w.version; })],
     ["non-string createdAt", corrupt((w) => { w.createdAt = 123; })],
@@ -98,18 +142,25 @@ describe("parseForecastWeights rejects every malformed shape", () => {
     ["norm.mean non-finite", corrupt((w) => { (w.norm as { mean: number[] }).mean[4] = Number.POSITIVE_INFINITY; })],
     ["norm.scale zero", corrupt((w) => { (w.norm as { scale: number[] }).scale[0] = 0; })],
     ["norm.scale negative", corrupt((w) => { (w.norm as { scale: number[] }).scale[9] = -1; })],
-    ["layers not length 2", corrupt((w) => { (w.layers as unknown[]).pop(); })],
-    ["extra layer", corrupt((w) => { (w.layers as Layer[]).push({ W: [[1]], b: [1] }); })],
-    ["W1 missing a row", corrupt((w) => { (w.layers as Layer[])[0]?.W.pop(); })],
-    ["W1 row too short", corrupt((w) => { (w.layers as Layer[])[0]?.W[5]?.pop(); })],
-    ["W1 row too long", corrupt((w) => { (w.layers as Layer[])[0]?.W[5]?.push(0); })],
-    ["W1 entry NaN", corrupt((w) => { const row = (w.layers as Layer[])[0]?.W[2]; if (row) row[7] = Number.NaN; })],
-    ["W1 entry string", corrupt((w) => { const row = (w.layers as Layer[])[0]?.W[2]; if (row) (row as unknown[])[7] = "0.1"; })],
-    ["b1 too short", corrupt((w) => { (w.layers as Layer[])[0]?.b.pop(); })],
-    ["b1 non-finite", corrupt((w) => { const layer = (w.layers as Layer[])[0]; if (layer) layer.b[11] = Number.NEGATIVE_INFINITY; })],
-    ["W2 row too short", corrupt((w) => { (w.layers as Layer[])[1]?.W[0]?.pop(); })],
-    ["W2 as flat vector", corrupt((w) => { const layer = (w.layers as Layer[])[1]; if (layer) (layer as unknown as { W: unknown }).W = new Array(12).fill(0.1); })],
-    ["b2 too long", corrupt((w) => { (w.layers as Layer[])[1]?.b.push(0); })],
+    ["missing basis", corrupt((w) => { delete w.basis; })],
+    ["wrong basis name", corrupt((w) => { w.basis = "lr18"; })],
+    ["missing basisSha", corrupt((w) => { delete w.basisSha; })],
+    ["wrong basisSha (a reordered term list)", corrupt((w) => { w.basisSha = "deadbeef"; })],
+    ["missing coefficients", corrupt((w) => { delete w.coefficients; })],
+    ["coefficients too short", corrupt((w) => { (w.coefficients as number[]).pop(); })],
+    ["coefficients too long", corrupt((w) => { (w.coefficients as number[]).push(0); })],
+    ["coefficient NaN", corrupt((w) => { (w.coefficients as number[])[42] = Number.NaN; })],
+    ["coefficient Infinity", corrupt((w) => { (w.coefficients as number[])[7] = Number.POSITIVE_INFINITY; })],
+    ["coefficient as string", corrupt((w) => { (w.coefficients as unknown[])[3] = "0.1"; })],
+    ["coefficients as an object", corrupt((w) => { w.coefficients = { 0: 0.1 }; })],
+    ["missing intercept", corrupt((w) => { delete w.intercept; })],
+    ["non-finite intercept", corrupt((w) => { w.intercept = Number.NaN; })],
+    ["intercept as string", corrupt((w) => { w.intercept = "0.05"; })],
+    ["leftover MLP layers instead of a term list", corrupt((w) => {
+      delete w.coefficients;
+      delete w.intercept;
+      w.layers = [{ W: [[0]], b: [0] }, { W: [[0]], b: [0] }];
+    })],
     ["missing calibration", corrupt((w) => { delete w.calibration; })],
     ["calibration a NaN", corrupt((w) => { (w.calibration as { a: number }).a = Number.NaN; })],
     ["calibration b string", corrupt((w) => { (w.calibration as { b: unknown }).b = "0"; })],
@@ -118,8 +169,8 @@ describe("parseForecastWeights rejects every malformed shape", () => {
     ["threshold out of range", corrupt((w) => { (w.thresholds as { nudge: number }).nudge = 1.5; })],
     ["threshold negative", corrupt((w) => { (w.thresholds as { clear: number }).clear = -0.1; })],
     ["threshold non-finite", corrupt((w) => { (w.thresholds as { prearm: number }).prearm = Number.NaN; })],
-    ["wrong paramCount", corrupt((w) => { w.paramCount = 240; })],
-    ["paramCount as string", corrupt((w) => { w.paramCount = "241"; })],
+    ["wrong paramCount", corrupt((w) => { w.paramCount = 241; })],
+    ["paramCount as string", corrupt((w) => { w.paramCount = "190"; })],
     ["missing trainProvenanceSha", corrupt((w) => { delete w.trainProvenanceSha; })],
     ["numeric trainProvenanceSha", corrupt((w) => { w.trainProvenanceSha = 42; })],
   ];
@@ -135,12 +186,12 @@ describe("forward pass vs golden fixture", () => {
   const tolerance = golden.modelForward.tolerance;
 
   for (const forwardCase of golden.modelForward.cases) {
-    it(`reproduces logit/risk/hidden for "${forwardCase.name}" to ${tolerance}`, () => {
+    it(`reproduces logit/risk/term groups for "${forwardCase.name}" to ${tolerance}`, () => {
       const weights = goldenWeights();
       const result = forward(weights, forwardCase.encoded);
       expect(Math.abs(result.logit - forwardCase.expected.logit)).toBeLessThanOrEqual(tolerance);
       expect(Math.abs(result.rawRisk - forwardCase.expected.rawRisk)).toBeLessThanOrEqual(tolerance);
-      expect(result.hidden).toHaveLength(FORECAST_HIDDEN_DIM);
+      expect(result.hidden).toHaveLength(FORECAST_INPUT_DIM);
       result.hidden.forEach((h, j) => {
         expect(
           Math.abs(h - (forwardCase.expected.hidden[j] ?? Number.NaN)),
@@ -151,6 +202,18 @@ describe("forward pass vs golden fixture", () => {
       });
     });
   }
+
+  it("is exactly the dot product the term list describes", () => {
+    const weights = goldenWeights();
+    const encoded = Array.from({ length: FORECAST_INPUT_DIM }, (_, i) => ((i * 7) % 11) / 11);
+    const basis = new Float64Array(FORECAST_TERM_COUNT);
+    expandBasis(encoded, basis);
+    let expected = weights.intercept;
+    for (let k = 0; k < FORECAST_TERM_COUNT; k += 1) {
+      expected += (weights.coefficients[k] as number) * (basis[k] as number);
+    }
+    expect(Math.abs(forward(weights, encoded).logit - expected)).toBeLessThan(1e-12);
+  });
 
   it("throws on a wrong-length feature vector (callers try/catch)", () => {
     const weights = goldenWeights();
@@ -186,16 +249,25 @@ describe("occlusion attributions vs golden fixture", () => {
     );
   });
 
+  /**
+   * The GLM computes each occluded logit as a 19-term delta off the base
+   * logit instead of re-expanding all 189 terms. This pins the optimisation
+   * to the definition it claims to implement.
+   */
   it("every attribution equals risk(x) − risk(x with feature i at its norm mean)", () => {
-    const forwardCase = golden.modelForward.cases.find((c) => c.name === "mixed");
     const weights = goldenWeights();
-    const encoded = forwardCase?.encoded ?? [];
-    const base = forward(weights, encoded).rawRisk;
-    const got = attributions(weights, encoded);
-    for (let i = 0; i < FORECAST_INPUT_DIM; i += 1) {
-      const probe = [...encoded];
-      probe[i] = weights.norm.mean[i] ?? 0;
-      expect(got[i]).toBe(base - forward(weights, probe).rawRisk);
+    for (const forwardCase of golden.modelForward.cases) {
+      const encoded = forwardCase.encoded;
+      const base = forward(weights, encoded).rawRisk;
+      const got = attributions(weights, encoded);
+      for (let i = 0; i < FORECAST_INPUT_DIM; i += 1) {
+        const probe = [...encoded];
+        probe[i] = weights.norm.mean[i] ?? 0;
+        const naive = base - forward(weights, probe).rawRisk;
+        expect(Math.abs((got[i] as number) - naive), `attribution[${i}] @ ${forwardCase.name}`).toBeLessThan(
+          1e-12,
+        );
+      }
     }
   });
 

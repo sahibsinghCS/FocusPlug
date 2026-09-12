@@ -36,12 +36,13 @@ export interface ForecastSnapshot {
   band: ForecastBand;
   horizonSec: number;           // FORECAST_HORIZON_SEC
   features: ForecastFeatureView[]; // length 18, FORECAST_FEATURE_KEYS order
-  hidden: number[];             // length 12, tanh activations
+  hidden: number[];             // length 18 (FORECAST_INPUT_DIM), tanh of each feature's
+                                // summed basis-term contribution — the GLM's term-group strip
   prearmedAt: number | null;    // epoch ms, null unless pre-armed
   effectiveFuseSec: number;     // countdownSec policy sees this step (latched during a burn)
   baseFuseSec: number;          // settings.countdownSec
   modelVersion: string;         // FORECAST_MODEL_VERSION
-  paramCount: number;           // 241
+  paramCount: number;           // 190
 }
 
 export type ForecastEvent =
@@ -53,22 +54,37 @@ export type ForecastEvent =
 
 export type DriftType = "tab_out" | "walk_away";
 
+/**
+ * One basis term of the shipped GLM: `x_i` when `j` is null, `x_i · x_j`
+ * otherwise (`i === j` ⇒ the square). The canonical 189-term list lives in
+ * `model.ts` as `FORECAST_TERMS` and is built by the same code the trainer
+ * imports — basis skew between train and serve is impossible by construction.
+ */
+export interface ForecastTerm {
+  i: number;
+  j: number | null;
+}
+
 /** Shape of src/shared/forecast/weights.json. parseForecastWeights returns null on any violation. */
 export interface ForecastWeightsFile {
   version: string;              // "ff-1"
   createdAt: string;            // ISO
   seed: number;
   featureKeys: ForecastFeatureKey[];       // must deep-equal FORECAST_FEATURE_KEYS
-  norm: { mean: number[]; scale: number[] }; // length 18 each
-  layers: [
-    { W: number[][]; b: number[] },        // 12x18, 12
-    { W: number[][]; b: number[] },        // 1x12, 1
-  ];
+  norm: { mean: number[]; scale: number[] }; // length 18 each — train-split feature stats.
+                                // `mean` is the occlusion baseline the attributions use;
+                                // `scale` is published dispersion. The model's own
+                                // standardizer is folded into `coefficients`/`intercept`,
+                                // so the forward pass needs neither.
+  basis: string;                // FORECAST_BASIS — "lr18+pairwise"
+  basisSha: string;             // FORECAST_BASIS_SHA: fnv1a32 of the canonical term names
+  coefficients: number[];       // length 189, FORECAST_TERMS order (standardizer folded in)
+  intercept: number;            // bias, standardizer folded in
   calibration: { a: number; b: number };   // Platt, fit on validation
   horizonSec: number;           // 30
   thresholds: { nudge: number; prearm: number; clear: number }; // evaluated operating point;
                                 // eval.ts asserts nudge/prearm match DEFAULT_SETTINGS forecast keys
-  paramCount: number;           // 241
+  paramCount: number;           // 190 = 189 coefficients + intercept
   trainProvenanceSha: string;   // sha256 of embedded provenance in eval-report.json
 }
 

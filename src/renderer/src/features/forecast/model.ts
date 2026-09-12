@@ -4,7 +4,10 @@ import type {
   ForecastSnapshot,
 } from "@shared/ipc";
 import {
+  FORECAST_FEATURE_KEYS,
+  FORECAST_INPUT_DIM,
   FORECAST_PARAM_COUNT,
+  FORECAST_TERM_COUNT,
   FORECAST_WARMUP_SEC,
   parseForecastWeights,
   type ForecastFeatureKey,
@@ -123,7 +126,7 @@ export function forecastSensorCard(
   snap: ForecastSnapshot | null,
   ctx: ForecastCardCtx,
 ): SensorCardView {
-  const meta = `${FORECAST_PARAM_COUNT}-param MLP · on-device`;
+  const meta = `${FORECAST_PARAM_COUNT}-param logistic · on-device`;
   if (!ctx.enabled) {
     return {
       id: "forecast",
@@ -497,8 +500,11 @@ export interface ModelCardView {
 export function modelCard(): ModelCardView {
   const version = WEIGHTS?.version ?? "ff-?";
   const params = WEIGHTS?.paramCount ?? FORECAST_PARAM_COUNT;
+  const terms = WEIGHTS?.coefficients.length ?? FORECAST_TERM_COUNT;
   const sizeKb = Math.max(1, Math.round(JSON.stringify(weightsJson).length / 1024));
-  const spec = `TinyMLP 18→12→1 · ${params} params · ${sizeKb} KB · on-device · 1 Hz · v ${version}`;
+  const spec =
+    `Logistic ${FORECAST_INPUT_DIM}→${terms} terms→1 · ${params} params · ${sizeKb} KB · ` +
+    `on-device · 1 Hz · v ${version}`;
 
   const auc = digNumber(EVAL_REPORT, "metrics", "rocAuc");
   const lead20 = digNumber(EVAL_REPORT, "metrics", "aucLead20");
@@ -545,16 +551,28 @@ export function describeForecastEvent(event: ForecastEvent): string {
 }
 
 export interface HiddenCellView {
+  key: ForecastFeatureKey | null;
+  label: string;
   value: number;
   /** 0..1 |tanh| intensity for tinting. */
   intensity: number;
   positive: boolean;
 }
 
+/**
+ * The GLM's activation strip: one cell per feature, tinted by `tanh` of the
+ * summed contribution of every basis term containing that feature. Unlike the
+ * old MLP's opaque hidden units, each cell has a name.
+ */
 export function hiddenCells(hidden: readonly number[]): HiddenCellView[] {
-  return hidden.map((value) => ({
-    value,
-    intensity: Math.min(1, Math.abs(value)),
-    positive: value >= 0,
-  }));
+  return hidden.map((value, index) => {
+    const key = FORECAST_FEATURE_KEYS[index] ?? null;
+    return {
+      key,
+      label: key ? FEATURE_SHORT_LABELS[key] : `t${index}`,
+      value,
+      intensity: Math.min(1, Math.abs(value)),
+      positive: value >= 0,
+    };
+  });
 }

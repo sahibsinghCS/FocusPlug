@@ -258,8 +258,8 @@ function Preview(): JSX.Element {
 
         <p className="text-[11px] text-fp-faint">
           Scripted student-behavior stream → the shipped TelemetryRing, feature extractor,
-          241-param TinyMLP and escalation reducer — the exact code the Electron main process
-          runs. No network, no canned risk numbers.
+          190-param logistic head and escalation reducer — the exact code the Electron main
+          process runs. No network, no canned risk numbers.
         </p>
       </div>
 

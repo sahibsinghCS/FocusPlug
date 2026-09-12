@@ -13,8 +13,8 @@ import {
 /**
  * Watch-it-think: top-5 attribution drivers in plain language, the full
  * 18-feature occlusion strip, the printed logit → Platt → risk line, the
- * hidden-layer activations, the hit/miss/stood-down receipt, and the model
- * card fed from the committed weights + eval artifacts.
+ * per-feature term-group activations, the hit/miss/stood-down receipt, and the
+ * model card fed from the committed weights + eval artifacts.
  */
 export function InternalsPanel(props: {
   snapshot: ForecastSnapshot;
@@ -107,11 +107,11 @@ export function InternalsPanel(props: {
         <p className="mt-1 text-[10px] text-fp-faint">
           <span className="text-fp-red">■ pushes risk up</span>
           <span className="ml-3 text-fp-blue">■ holds risk down</span>
-          <span className="ml-3">occluded to training mean · 18 extra forward passes / s</span>
+          <span className="ml-3">occluded to training mean · exact 19-term delta per feature</span>
         </p>
       </div>
 
-      {/* Calibration readout + hidden activations — the network, visibly. */}
+      {/* Calibration readout + term-group activations — the model, visibly. */}
       <div className="grid gap-2 min-[700px]:grid-cols-[minmax(0,1fr)_auto]">
         <div className="rounded-md border border-fp-line bg-fp-elev/60 px-2.5 py-1.5">
           <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-fp-faint">
@@ -122,15 +122,18 @@ export function InternalsPanel(props: {
           </p>
         </div>
         <div className="rounded-md border border-fp-line bg-fp-elev/60 px-2.5 py-1.5">
-          <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-fp-faint">
-            Hidden units · tanh
+          <p
+            className="text-[9px] font-semibold uppercase tracking-[0.18em] text-fp-faint"
+            title="tanh of each feature's summed basis-term contribution. Product terms count toward both of their features, so these do not sum to the logit."
+          >
+            Term groups · tanh
           </p>
-          <div className="mt-1 flex gap-[3px]" aria-hidden="true">
+          <div className="mt-1 flex flex-wrap gap-[3px]" aria-hidden="true">
             {cells.map((cell, index) => (
               <span
-                key={index}
+                key={cell.key ?? index}
                 className="fp-forecast-hidden-cell h-4 w-4 rounded-[3px] border border-fp-line"
-                title={`h${index}: ${cell.value.toFixed(2)}`}
+                title={`${cell.label}: ${cell.value.toFixed(2)}`}
                 style={{
                   backgroundColor: cell.positive
                     ? `rgba(255, 45, 85, ${(0.08 + cell.intensity * 0.7).toFixed(2)})`

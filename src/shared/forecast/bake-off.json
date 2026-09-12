@@ -1,0 +1,170 @@
+{
+  "description": "Five-model-family bake-off that chose the shipped Focus Forecast head. One fixed dataset (data/forecast/dataset.jsonl, 218,732 rows / 288 sessions, per-SESSION train/eval split), one fixed metric (lead-censored ROC-AUC at >=20 s), one shared escalation reducer. Non-gating: this table is published beside the CI gate so the claim is 'here is every family we tried and here is the noise floor', not 'here is a number that beats a one-input model'. Every contender script lives in scripts/forecast/candidates/; the scores below were re-derived from scratch by scripts/forecast/adjudicate.ts, whose weighted rank-sum estimator is asserted equal to lib.rocAuc at unit weights to <1e-12 for every model.",
+  "producedBy": "scripts/forecast/candidates/{lr-ceiling,mlp-tuned,temporal,trees,hybrid}.ts, adjudicated by scripts/forecast/adjudicate.ts",
+  "protocol": {
+    "dataset": "fixed; never rebuilt, resampled or re-split by any contender",
+    "training": "split=='train' rows only; every hyper-parameter, calibration and operating point chosen on train-internal validation",
+    "metric": "lead-censored ROC-AUC: positives are frames 20-30 s before a drift onset, negatives are calm frames whose nearest onset is >=20 s away or absent. Last-second detection scores 0.5 here.",
+    "alarms": "recallAt30sNudge = fraction of held-out drift onsets with a forecast_nudge or forecast_prearm event from the SHIPPED stepEscalation reducer inside (onset-30 s, onset], at the then-frozen 0.55/0.80 operating point — the one rule every contender was re-scored on",
+    "uncertainty": "paired session-clustered bootstrap, 2,000 draws over the 48 held-out sessions, identical resamples across models"
+  },
+  "evalSet": {
+    "sessions": 48,
+    "frames": 85230,
+    "baseRate": 0.0275,
+    "leadEligible20": 83748,
+    "leadEligible20Positives": 858,
+    "driftOnsets": 78,
+    "hours": 25.39
+  },
+  "contenders": [
+    {
+      "name": "lr18+pairwise",
+      "family": "GLM with an explicit pairwise-interaction basis",
+      "script": "scripts/forecast/candidates/lr-ceiling.ts",
+      "params": 190,
+      "sizeKb": 4,
+      "aucLead20": 0.942327,
+      "aucLead10": 0.958332,
+      "rocAuc": 0.965923,
+      "prAuc": 0.681343,
+      "ece": 0.0067,
+      "recallAt30sNudgeAt055": 0.7564,
+      "recallHits": "59/78",
+      "verdict": "SHIPPED",
+      "why": "Tied on the headline metric with every non-linear contender (no margin over it clears its own CI) and came within one drift of the loudest at matched alarm load, at 190 convex parameters with named, readable coefficients. Priority 4 (params/size/inference) decides a tie the first three priorities cannot break."
+    },
+    {
+      "name": "temporal (3-net ensemble)",
+      "family": "causal 1-D temporal CNN over the raw 1 Hz stream",
+      "script": "scripts/forecast/candidates/temporal.ts",
+      "params": 14803,
+      "sizeKb": 306,
+      "aucLead20": 0.948681,
+      "aucLead10": 0.963629,
+      "rocAuc": 0.970459,
+      "prAuc": 0.752304,
+      "ece": 0.0031,
+      "recallAt30sNudgeAt055": 0.8333,
+      "recallHits": "65/78",
+      "verdict": "runner-up",
+      "why": "Best point estimate on every ranking metric and the only genuinely new scientific claim in the field (its PURE-sequence net, zero hand-engineered features, scores 0.9340 — above the shipped MLP — so the raw stream carries signal the 18 aggregates destroy). But +0.0064 over the winner at p=0.24, for 61x the parameters, 78x the file and 330 us/tick. At an IDENTICAL alarm load of 3.31 nudges/h it catches 65/78 against the winner's 64/78: one drift, against a +-0.09 interval."
+    },
+    {
+      "name": "mlp-tuned (3 bagged 18-12-1 nets, collapsed to 18-36-1)",
+      "family": "tuned MLP",
+      "script": "scripts/forecast/candidates/mlp-tuned.ts",
+      "params": 721,
+      "sizeKb": 15,
+      "aucLead20": 0.946175,
+      "aucLead10": 0.9621,
+      "rocAuc": 0.968495,
+      "prAuc": 0.722669,
+      "ece": 0.0059,
+      "recallAt30sNudgeAt055": 0.7179,
+      "recallHits": "56/78",
+      "verdict": "not shipped",
+      "why": "The one statistically resolved nonlinear gain in the bake-off: +0.0113 over a properly converged plain logistic (CI [+0.0021,+0.0210]). But the identical +0.0075 is bought by staying linear and adding a named pairwise basis — the hidden layer is learning conjunctions 171 product terms express directly. Its engineering finding stands: the old shipped MLP was not too small, it was under-regularised (L2 1e-4 -> 3e-3 lifts CV lead-AUC 0.9220 -> 0.9313), and the 10%-of-train val split leaked augmented copies of its own validation sessions."
+    },
+    {
+      "name": "trees (147 depth-4 GBDT)",
+      "family": "histogram gradient-boosted decision trees",
+      "script": "scripts/forecast/candidates/trees.ts",
+      "params": 3811,
+      "sizeKb": 231,
+      "aucLead20": 0.943646,
+      "aucLead10": 0.962323,
+      "rocAuc": 0.970997,
+      "prAuc": 0.702608,
+      "ece": 0.002,
+      "recallAt30sNudgeAt055": 0.6923,
+      "recallHits": "54/78",
+      "verdict": "not shipped",
+      "why": "The classic strong tabular baseline, and it is a statistical tie with the winner (+0.0013, CI [-0.0169,+0.0207]). Best calibration in the field, worst alarm recall, and a 231 KB model file against 4 KB."
+    },
+    {
+      "name": "hybrid (GLM trunk + tanh residual, 25 features, 3 heads)",
+      "family": "additive net over an extended feature set",
+      "script": "scripts/forecast/candidates/hybrid.ts",
+      "params": 888,
+      "sizeKb": 18,
+      "aucLead20": 0.945794,
+      "aucLead10": 0.966203,
+      "rocAuc": 0.973033,
+      "prAuc": 0.743425,
+      "ece": 0.0046,
+      "recallAt30sNudgeAt055": 0.7308,
+      "recallHits": "57/78",
+      "verdict": "not shipped",
+      "why": "+0.0035 over the winner at p=0.41. Its real contribution is the ablation ladder, and it is the most actionable result in the bake-off: the SAME lib.trainLogistic routine goes 0.9325 -> 0.9408 purely from 7 extra features read off the existing TelemetryRing, while its architecture alone scored 0.9313 — BELOW the plain logistic. Features beat architecture. Three extras do all the work (deskSagSlope30 +0.0270, dwellShrink30v90 +0.0092, titleChurnAccel +0.0054); they are the top follow-up."
+    },
+    {
+      "name": "TinyMLP 18-12-1 (the incumbent)",
+      "family": "the head that shipped before this swap",
+      "script": "scripts/forecast/train.ts (pre-bake-off)",
+      "params": 241,
+      "sizeKb": 5,
+      "aucLead20": 0.924815,
+      "aucLead10": 0.951206,
+      "rocAuc": 0.961435,
+      "prAuc": 0.693789,
+      "ece": 0.0053,
+      "recallAt30sNudgeAt055": 0.7308,
+      "recallHits": "57/78",
+      "verdict": "replaced",
+      "why": "LAST on the headline metric. It loses to every linear variant on point estimate (-0.0076 vs eval.ts's own full logistic, -0.0100 vs a properly converged one, -0.0175 vs the shipped basis), though none of those deficits is statistically resolved either. The correct statement is not 'the MLP is worse' — it is 'the MLP has no measurable advantage over a logistic regression a judge would write in an afternoon', which is the whole reason the simpler, convex, readable model ships. It also FAILS the honest gate: 0.9248 - 0.9325 = -0.0077."
+    }
+  ],
+  "linearReference": [
+    {
+      "name": "full 18-feature logistic (eval.ts class-weighted GD)",
+      "params": 19,
+      "aucLead20": 0.932451,
+      "rocAuc": 0.958018,
+      "prAuc": 0.559561,
+      "note": "the literal answer to 'did you try logistic regression?'. It already beat the incumbent MLP, so the punchline does not depend on the pairwise expansion. eval.ts computes this fit and the converged one below on every run and anchors the gate to whichever is stronger."
+    },
+    {
+      "name": "full 18-feature logistic (L-BFGS to convergence, L2 tuned on train-internal val)",
+      "params": 19,
+      "aucLead20": 0.934864,
+      "rocAuc": 0.957443,
+      "prAuc": 0.533749,
+      "note": "the honest ceiling of the plain-18 basis: the historical GD fit was already within ~0.002 of it. eval.ts refits this on ALL train rows (the bake-off used the fit subset only) and gets 0.9355, which is what the shipped gate is measured against."
+    },
+    {
+      "name": "best SINGLE-feature logistic (otherDwell30)",
+      "params": 2,
+      "aucLead20": 0.7734,
+      "note": "the OLD gate baseline. A model with one input; beating it by +0.15 was never evidence of anything."
+    }
+  ],
+  "pairedBootstrap": {
+    "draws": 2000,
+    "clusteredBy": "eval session",
+    "note": "identical resamples across models, so differences are paired. Diffs are lead-censored AUC (>=20 s). pDiffLeZero is the bootstrap mass at or below zero — a one-sided p-value against 'no better than the reference'.",
+    "vsShippedBasis": [
+      { "model": "trees(3811n)", "diff": 0.001319, "lo95": -0.016906, "hi95": 0.020745, "pDiffLeZero": 0.452 },
+      { "model": "hybrid(888p)", "diff": 0.003467, "lo95": -0.016583, "hi95": 0.027419, "pDiffLeZero": 0.405 },
+      { "model": "mlp-tuned(721p)", "diff": 0.003848, "lo95": -0.022744, "hi95": 0.029862, "pDiffLeZero": 0.375 },
+      { "model": "temporal(14803p)", "diff": 0.006354, "lo95": -0.009698, "hi95": 0.025573, "pDiffLeZero": 0.243 },
+      { "model": "shippedMLP(241p)", "diff": -0.017513, "lo95": -0.044075, "hi95": 0.012259, "pDiffLeZero": 0.882 }
+    ],
+    "vsFullLogistic18": [
+      { "model": "lr18+pairwise(190p)", "diff": 0.009876, "lo95": -0.021182, "hi95": 0.04197, "pDiffLeZero": 0.259 },
+      { "model": "mlp-tuned(721p)", "diff": 0.013724, "lo95": 0.003236, "hi95": 0.025682, "pDiffLeZero": 0.004 },
+      { "model": "temporal(14803p)", "diff": 0.016231, "lo95": -0.001086, "hi95": 0.038443, "pDiffLeZero": 0.0335 },
+      { "model": "trees(3811n)", "diff": 0.011195, "lo95": -0.011919, "hi95": 0.041259, "pDiffLeZero": 0.2 },
+      { "model": "hybrid(888p)", "diff": 0.013343, "lo95": -0.005784, "hi95": 0.039899, "pDiffLeZero": 0.1035 },
+      { "model": "shippedMLP(241p)", "diff": -0.007636, "lo95": -0.026453, "hi95": 0.012313, "pDiffLeZero": 0.7785 }
+    ]
+  },
+  "verdict": {
+    "decision": "ship the linear model: lr18+pairwise (190 params) replaces the 241-param TinyMLP as the Focus Forecast head",
+    "rule": "the honesty clause — no nonlinear model beats the strongest linear-family result by a margin this eval set can resolve, so the linear model ships",
+    "noiseFloor": "the paired SE of a model-vs-model lead-AUC difference here is ~0.009. Every margin on offer is 0.4-0.7 of one SE. Resolving a +0.006 gap would need roughly 7-8x the held-out sessions (~360 sessions, ~590 drifts).",
+    "whatDidNotSeparate": "Priority 2 (recall@30s at matched alarm load) differs by ONE drift out of 78 between the winner and the runner-up, against a 95% interval of roughly +-0.09. Priority 3 (ECE) spans 0.0020-0.0067 — every entry an order of magnitude inside anything the design treats as a budget.",
+    "openQuestion": "temporal's pure-sequence net sees zero hand-engineered features and still scores 0.9340, above the incumbent MLP's 0.9248. The raw 1 Hz stream carries signal the 18 window aggregates destroy. Unsettled, and worth settling on a real recorded corpus.",
+    "reporting": "that the neural net did not win is a stronger result than that it did, and it is the only version of the story that survives a hostile question."
+  }
+}
