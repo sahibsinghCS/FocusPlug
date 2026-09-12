@@ -65,9 +65,9 @@ export function SetupPage(props: { timer: SessionTimer }): JSX.Element {
       <section className="fp-rise" style={{ animationDelay: "60ms" }}>
         <div className="mb-2 flex items-baseline justify-between gap-4">
           <p className="fp-stencil">Watch it run out</p>
-          <p className="font-mono text-[11px] text-fp-faint tabular">previewing 25:00</p>
+          <p className="font-mono text-[11px] text-fp-faint tabular">live preview</p>
         </div>
-        <FacePicker value={timer.face} onPick={timer.setFace} />
+        <FacePicker value={timer.face} totalSec={timer.plan.focusMin * 60} onPick={timer.setFace} />
       </section>
 
       <div
@@ -158,7 +158,7 @@ export function SetupPage(props: { timer: SessionTimer }): JSX.Element {
           hint={
             breaks > 0
               ? "Hold the switch for a moment. The lock lifts on its own for every break."
-              : "Hold the switch for a moment. Nothing unlocks until the glass is empty."
+              : "Hold the switch for a moment. Nothing unlocks until the session is done."
           }
         />
       </div>

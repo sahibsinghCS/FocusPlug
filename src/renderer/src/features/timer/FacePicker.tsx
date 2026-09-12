@@ -4,7 +4,6 @@ import { FACES, type FaceId } from "./faces";
 
 const DEMO_MS = 9000;
 const DEMO_TICK_MS = 60;
-const DEMO_SESSION_SEC = 25 * 60;
 
 /**
  * One clock drives every preview, so the six faces run in lockstep and you are
@@ -28,14 +27,17 @@ function useDemoProgress(): number {
 
 export function FacePicker(props: {
   value: FaceId;
+  totalSec: number;
   onPick: (id: FaceId) => void;
 }): JSX.Element {
   const progress = useDemoProgress();
-  const remainingSec = Math.round((1 - progress) * DEMO_SESSION_SEC);
+  // Previews run on the session you have actually dialled in, so the flight
+  // tile shows your route and the readout counts down your length.
+  const remainingSec = Math.round((1 - progress) * props.totalSec);
 
   return (
     <div
-      className="grid grid-cols-3 gap-2 min-[760px]:grid-cols-6"
+      className="grid grid-cols-4 gap-2 min-[820px]:grid-cols-7"
       role="group"
       aria-label="Timer face"
     >
@@ -65,6 +67,7 @@ export function FacePicker(props: {
               <face.Face
                 progress={progress}
                 remainingSec={remainingSec}
+                totalSec={props.totalSec}
                 preview
                 className={face.ambient ? "h-full w-full" : "h-full w-auto"}
               />

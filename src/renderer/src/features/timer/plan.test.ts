@@ -81,6 +81,9 @@ describe("timer plan", () => {
     expect(formatSpan(45 * 60)).toBe("45m");
     expect(formatSpan(2 * 3600 + 50 * 60)).toBe("2h 50m");
     expect(formatSpan(3 * 3600)).toBe("3h");
+    // One second short of two hours must not render as "1h 60m".
+    expect(formatSpan(2 * 3600 - 1)).toBe("2h");
+    expect(formatSpan(3599)).toBe("1h");
     expect(formatReadout(1500)).toBe("25:00");
     expect(formatReadout(59)).toBe("00:59");
     expect(formatReadout(3840)).toBe("1:04:00");

@@ -2,7 +2,7 @@ import type { JSX, ReactNode } from "react";
 import { HoldSwitch } from "../features/timer/HoldSwitch";
 import { Ribbon } from "../features/timer/Ribbon";
 import { faceDef } from "../features/timer/faces";
-import { formatSpan, planFocusSec } from "../features/timer/plan";
+import { formatReadout, formatSpan, planFocusSec } from "../features/timer/plan";
 import { positionCaption } from "../features/timer/runtime";
 import type { SessionTimer } from "../features/timer/useSessionTimer";
 import { cn } from "../lib/cn";
@@ -41,18 +41,23 @@ export function LockPage(props: { timer: SessionTimer }): JSX.Element {
   const face = faceDef(timer.face);
   const progress = position?.segmentProgress ?? 0;
   const remainingSec = position?.remainingSec ?? 0;
+  const totalSec = position?.segment.seconds ?? timer.plan.focusMin * 60;
   const multiRound = timer.segments.length > 1;
+  // Faces carry their own palette, so a break — which inverts the room — drops
+  // back to the plain readout rather than dragging a night globe onto bone.
+  const showFace = !onBreak;
 
   return (
     <div
       data-phase={phase}
       className="relative flex h-full min-h-0 flex-col overflow-hidden bg-[var(--ground)] text-[color:var(--phase)]"
     >
-      {face.ambient ? (
+      {showFace && face.ambient ? (
         <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
           <face.Face
             progress={progress}
             remainingSec={remainingSec}
+            totalSec={totalSec}
             className="h-full w-full"
           />
         </div>
@@ -82,13 +87,17 @@ export function LockPage(props: { timer: SessionTimer }): JSX.Element {
             "fp-stencil fp-lock-in",
             // The field face lights the middle of the room, so its text has to
             // sit at full strength to stay legible on top of it.
-            face.ambient ? "text-[color:var(--phase)]" : "fp-lock-dim",
+            showFace && face.ambient ? "text-[color:var(--phase)]" : "fp-lock-dim",
           )}
         >
           {positionCaption(position, timer.status)}
         </p>
 
-        {face.ambient ? null : (
+        {!showFace ? (
+          <p className="fp-readout fp-lock-readout fp-lock-in mt-3" style={{ animationDelay: "60ms" }}>
+            {formatReadout(remainingSec)}
+          </p>
+        ) : face.ambient ? null : (
           <div
             className="fp-lock-face fp-lock-in mt-4 flex w-full items-center justify-center"
             style={{ animationDelay: "60ms" }}
@@ -96,6 +105,7 @@ export function LockPage(props: { timer: SessionTimer }): JSX.Element {
             <face.Face
               progress={progress}
               remainingSec={remainingSec}
+              totalSec={totalSec}
               className="h-full w-auto max-w-full"
             />
           </div>
@@ -108,7 +118,7 @@ export function LockPage(props: { timer: SessionTimer }): JSX.Element {
         <p
           className={cn(
             "fp-lock-in mt-6 max-w-[46ch] text-center text-[14px] leading-6",
-            face.ambient ? "text-[color:var(--phase)]" : "fp-lock-dim",
+            showFace && face.ambient ? "text-[color:var(--phase)]" : "fp-lock-dim",
           )}
           style={{ animationDelay: "120ms" }}
         >

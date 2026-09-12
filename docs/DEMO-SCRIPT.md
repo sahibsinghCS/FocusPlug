@@ -13,7 +13,7 @@ Do **not** say: streak, gentle reminder, nudge, productivity coach, tutor. Never
 3. `npm run dev` (or packaged build). Confirm the UI is live IPC, not a stuck mock — the sensor line in lock mode must name your real window once a round is running.
 4. **Settings:** Countdown **10s**, Strict mode **on**, Desk AI webcam **on**, desk threshold default (~60%).
 5. **Allowlist** includes Chrome / Google Docs. **Blocklist** includes Discord.
-6. On the **Session** panel pick the **Hourglass** face, open **Rounds and breaks** and choose **Sprint** (15/3) so a break fits the film, hold the switch into lock mode, and sit in frame until the sensor line reads **At desk** with a real confidence (not 0%). Sensors read **Standby** until a round is running. Hold **End** to come back out before you record.
+6. On the **Session** panel leave the **Flight** face selected, set the length to 15 minutes so the film fits, hold the switch into lock mode, and sit in frame until the sensor line reads **At desk** with a real confidence (not 0%). Sensors read **Standby** until a round is running. Hold **End** to come back out before you record.
 7. Close extra windows. Hide this script. Have a second take ready with **Demo Kill**.
 
 If Discord cannot launch, skip to the Demo Kill beat after the overlay preview (`Settings` → **Preview kill overlay**) and say you are showing the fuse + instant kill path. Still open **Log** for two seconds so the timeline is on film.
@@ -25,8 +25,8 @@ The Log page **90s path** panel is a cheat sheet of this script (same product la
 | Time | Beat | On screen | Voice (tight) |
 | --- | --- | --- | --- |
 | 0:00–0:15 | Problem | Session panel, nothing locked, Docs visible in the background | “Students fake-study with Discord open. A pomodoro counts the minutes and then dings. It doesn’t close the distraction, and it has no idea you left the chair.” |
-| 0:15–0:35 | Setup | On **Session**, click along the six faces — they all preview live — then drag the length dial and watch the “done by” time follow. Show **Blocklist** (Discord), **Settings** (webcam on, strict on), back to **Session** | “Pick how you want to watch it run out. Set the length — free by ten. Allowlist the assignment, blocklist Discord and the games. Desk AI runs on-device — frames never leave this PC.” |
-| 0:35–0:50 | Arm | Sit in frame. **Hold the switch.** Lock mode takes the screen: the hourglass starts draining, sensor line **On task** | “Hold it — and that’s the commitment. The glass is running. Chrome on the assignment, I’m at the desk. Off the clock it only observes; a live round can kill.” |
+| 0:15–0:35 | Setup | On **Session**, click along the seven faces — they all preview live — then drag the length dial and watch the route and the “done by” time follow. Show **Blocklist** (Discord), **Settings** (webcam on, strict on), back to **Session** | “Pick how you want to watch it run out. Mine is a flight — set fifty minutes and that is Dubai to Doha, landing when I am done. Free by ten. Allowlist the assignment, blocklist Discord and the games. Desk AI runs on-device — frames never leave this PC.” |
+| 0:35–0:50 | Arm | Sit in frame. **Hold the switch.** Lock mode takes the screen: the aircraft leaves, sensor line **On task** | “Hold it — and that’s the commitment. Wheels up. Chrome on the assignment, I’m at the desk. Off the clock it only observes; a live round can kill.” |
 | 0:50–1:20 | Distracted | Alt-tab to Discord. Opaque overlay: **Killing blocked apps in** `10…`. HUD chips still show Window / Desk AI / Decision | “I tabbed to Discord. That’s Distracted. Ten-second fuse. If I go back to Docs, this cancels. I’m not going back.” |
 | 1:20–1:40 | Kill + log | Overlay hits 0; Discord quits. Hold **End**, open **Log**: causal chain Window → Distracted → **Countdown** → **Kill** (and **Plug off** if a fun outlet was armed) | “Discord is gone. The log is the proof — sensor, Decision, fuse, then kill. Same labels as the overlay.” |
 | 1:40–1:55 | Unlock | Alt-tab to Docs, stay in frame. Overlay gone. Decision **On task** | “Back on Docs, still at the desk — unlocked. Strict mode needs both.” |
@@ -50,18 +50,18 @@ Those are mock-IPC renders of the real UI — good enough for the README, but **
 | File | When to grab | Judge should read |
 | --- | --- | --- |
 | `01-session-panel.png` | Panel before you lock | The commitment is legible: six live faces, the length, the hour you are free |
-| `02-lock-hourglass.png` | Session running, Docs focused, at desk | Enforcement is armed; AI says present |
+| `02-lock-flight.png` | Session running, Docs focused, at desk | Enforcement is armed; AI says present |
 | `03-kill-overlay.png` | Overlay at ~8s, Discord focused | Consequence is unmistakable, and it names what dies |
-| `04-break-released.png` | First break | The lock lifts on its own — the room inverts, black on bone |
+| `04-lock-hourglass.png` | Same session, hourglass face | The face is a choice, not the product |
 | `05-session-log.png` | After kill + unlock | Causal timeline: `countdown` → `kill` → `unlock` (and `plug_off` / `plug_on` if armed). Kind/status filters |
 
-![Session panel — six faces, live](screenshots/01-session-panel.png)
+![Session panel — seven faces, live](screenshots/01-session-panel.png)
 
-![Lock mode — the hourglass running, sensors awake](screenshots/02-lock-hourglass.png)
+![Lock mode — your session as a real flight](screenshots/02-lock-flight.png)
 
 ![Kill overlay — Discord fuse](screenshots/03-kill-overlay.png)
 
-![Break — the room inverts, lock released](screenshots/04-break-released.png)
+![Lock mode — the same session as an hourglass](screenshots/04-lock-hourglass.png)
 
 ![Session log — countdown, kill, unlock](screenshots/05-session-log.png)
 

@@ -35,15 +35,9 @@ const ROUNDED_PLAN = { shape: "sprint", focusMin: 15, breakMin: 3, rounds: 6 };
 /** `lock` throws the hold switch; `skip` then advances into the break. */
 const SHOTS = [
   { file: "01-session-panel.png", path: "/#/?scene=live" },
-  { file: "02-lock-hourglass.png", path: "/#/?scene=live", lock: true },
+  { file: "02-lock-flight.png", path: "/#/?scene=live", lock: true },
   { file: "03-kill-overlay.png", path: "/#/?scene=distracted&countdown=8&freeze=1" },
-  {
-    file: "04-break-released.png",
-    path: "/#/?scene=live",
-    plan: ROUNDED_PLAN,
-    lock: true,
-    skip: 1,
-  },
+  { file: "04-lock-hourglass.png", path: "/#/?scene=live", face: "hourglass", lock: true },
   { file: "05-session-log.png", path: "/#/log?scene=golden" },
 ];
 
@@ -105,12 +99,19 @@ try {
     // A fresh page per scene: the app reads the scene once at mount, so a
     // hash-only change on a live page keeps the previous scene.
     const page = await browser.newPage();
-    await page.evaluateOnNewDocument((plan) => {
-      window.localStorage.clear();
-      if (plan) {
-        window.localStorage.setItem("focusplug.plan.v1", JSON.stringify(plan));
-      }
-    }, shot.plan ?? null);
+    await page.evaluateOnNewDocument(
+      (plan, face) => {
+        window.localStorage.clear();
+        if (plan) {
+          window.localStorage.setItem("focusplug.plan.v1", JSON.stringify(plan));
+        }
+        if (face) {
+          window.localStorage.setItem("focusplug.face.v1", face);
+        }
+      },
+      shot.plan ?? null,
+      shot.face ?? null,
+    );
     await page.goto(`${BASE}${shot.path}`, { waitUntil: "networkidle0", timeout: 30_000 });
     await page.waitForSelector("#root", { timeout: 15_000 });
     await wait(700);

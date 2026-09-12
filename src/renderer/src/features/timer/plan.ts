@@ -189,9 +189,11 @@ export function breakCount(plan: TimerPlan): number {
 
 /** "2h 50m" / "45m" — never "0h 45m". */
 export function formatSpan(totalSec: number): string {
-  const safe = Math.max(0, Math.round(totalSec));
-  const hours = Math.floor(safe / 3600);
-  const minutes = Math.round((safe % 3600) / 60);
+  // Round to whole minutes first: rounding the remainder separately turns
+  // 7,199 seconds into "1h 60m".
+  const totalMinutes = Math.round(Math.max(0, totalSec) / 60);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
   if (hours === 0) {
     return `${minutes}m`;
   }
