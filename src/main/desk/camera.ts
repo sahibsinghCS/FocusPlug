@@ -19,15 +19,25 @@ const CAMERA_HTML = `<!DOCTYPE html>
       const canvas = document.getElementById("c");
       const ctx = canvas.getContext("2d");
       let stream = null;
-      window.focusplugStartCam = async () => {
+      window.focusplugStartCam = async (deviceId) => {
+        if (stream) {
+          stream.getTracks().forEach((track) => track.stop());
+          stream = null;
+        }
+        const size = { width: { ideal: 640 }, height: { ideal: 480 } };
         stream = await navigator.mediaDevices.getUserMedia({
           audio: false,
-          video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" },
+          video: deviceId ? { ...size, deviceId: { exact: deviceId } } : { ...size, facingMode: "user" },
         });
         video.srcObject = stream;
         await video.play();
-        return true;
+        const track = stream.getVideoTracks()[0];
+        return track ? track.label : "";
       };
+      window.focusplugListCams = async () =>
+        (await navigator.mediaDevices.enumerateDevices())
+          .filter((device) => device.kind === "videoinput")
+          .map((device) => ({ deviceId: device.deviceId, label: device.label }));
       window.focusplugGrabFrame = () => {
         if (!video || video.readyState < 2 || video.videoWidth < 2) return null;
         canvas.width = video.videoWidth;
@@ -50,6 +60,41 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
+}
+
+export interface CameraInput {
+  deviceId: string;
+  label: string;
+}
+
+/**
+ * Virtual cameras stream a placeholder when nothing feeds them — DroidCam with
+ * no phone connected is a black frame — and presence then reads `uncertain`
+ * forever. They often enumerate before the built-in webcam.
+ */
+const VIRTUAL_CAMERA =
+  /droidcam|\bobs\b|virtual|manycam|xsplit|snap camera|nvidia broadcast|mmhmm|camo|epoccam|iriun/i;
+
+/**
+ * Which camera to reopen on, or null to keep the one already open.
+ * `preferred` (FOCUSPLUG_CAMERA) is a label substring and always wins; otherwise
+ * a virtual default is swapped for the first real camera, if there is one.
+ */
+export function pickCameraDeviceId(
+  inputs: readonly CameraInput[],
+  openedLabel: string,
+  preferred?: string,
+): string | null {
+  const wanted = preferred?.trim().toLowerCase();
+  if (wanted) {
+    const match = inputs.find((input) => input.label.toLowerCase().includes(wanted));
+    return match && match.label !== openedLabel ? match.deviceId : null;
+  }
+  if (!VIRTUAL_CAMERA.test(openedLabel)) {
+    return null;
+  }
+  const real = inputs.find((input) => input.label.length > 0 && !VIRTUAL_CAMERA.test(input.label));
+  return real ? real.deviceId : null;
 }
 
 export class NullFrameSource implements FrameSource {
@@ -149,7 +194,7 @@ class ElectronCameraSource implements FrameSource {
     this.window = win;
     try {
       await win.loadFile(this.writePage());
-      await win.webContents.executeJavaScript("window.focusplugStartCam()");
+      await this.openCamera(win);
     } catch (error) {
       // Without this the caller retries and every attempt leaks a hidden
       // window and its renderer process.
@@ -165,6 +210,27 @@ class ElectronCameraSource implements FrameSource {
       }
       await delay(200);
     }
+  }
+
+  /**
+   * Open the default camera, then switch if it is a virtual one. Camera labels
+   * are only exposed once a stream has been granted, so this cannot be decided
+   * before the first open.
+   */
+  private async openCamera(win: Electron.BrowserWindow): Promise<void> {
+    let label = (await win.webContents.executeJavaScript(
+      "window.focusplugStartCam(null)",
+    )) as string;
+    const inputs = (await win.webContents.executeJavaScript(
+      "window.focusplugListCams()",
+    )) as CameraInput[];
+    const pick = pickCameraDeviceId(inputs, label, process.env["FOCUSPLUG_CAMERA"]);
+    if (pick !== null) {
+      label = (await win.webContents.executeJavaScript(
+        `window.focusplugStartCam(${JSON.stringify(pick)})`,
+      )) as string;
+    }
+    console.info(`Desk camera: ${label || "unnamed device"}`);
   }
 
   async stop(): Promise<void> {

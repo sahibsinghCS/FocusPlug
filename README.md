@@ -4,6 +4,30 @@
 
 > Every other focus timer asks you to keep the promise. This one keeps it for you. Never kills the study PC.
 
+## Try it on your computer
+
+FocusPlug is a Windows desktop app. There is no installer yet — you run it from source, which takes about five minutes.
+
+**You need:** Windows 10 or 11, [Git](https://git-scm.com/download/win), [Node.js 22.12 or newer](https://nodejs.org/), and a webcam if you want Desk AI.
+
+1. **Download and install.** In a terminal:
+   ```bash
+   git clone https://github.com/sahibsinghCS/FocusPlug.git
+   cd FocusPlug
+   npm install
+   ```
+2. **Start it.**
+   ```bash
+   npm run dev
+   ```
+   The FocusPlug window opens. Nothing is enforced until you start a session.
+3. **Let it use the camera.** Windows Settings → Privacy & security → Camera → turn on *Let desktop apps access your camera*, and open the laptop's camera shutter — a covered camera reads *Uncertain* forever. Frames never leave your machine. FocusPlug skips virtual cameras (DroidCam, OBS) for your real webcam; to force one, start it with `FOCUSPLUG_CAMERA=<part of the camera name>`. No webcam? In FocusPlug's Settings turn off *Desk AI webcam* and *Strict mode*.
+4. **Check your lists.** *Allowlist* is what you study in (Chrome, Docs, VS Code). *Blocklist* is what gets cut (Discord, Steam, games). Sensible defaults are already filled in.
+5. **Start a session.** On *Session*, pick a face and a length, then press and **hold** *Hold to lock*. Now open something on your blocklist: FocusPlug jumps back in front ("Discord can wait. Just 49 minutes left — keep going.") with a 10-second countdown before it closes the app. Switch back to an allowlisted app before zero and it cancels. Hold *Hold to end* to stop early.
+6. **See a nudge without getting distracted.** *Settings* → *When you drift* → **Test phone nudge**, then click into any other window. Five seconds later FocusPlug pulls itself to the front with your timer.
+7. **Optional — the trained desk model.** *Settings* → *Desk model* → **Custom** swaps BlazeFace for the trained presence model plus the phone / looking-away head. It reads about once a second on a CPU, and phone detection is experimental: [docs/CUSTOM-MODEL.md](docs/CUSTOM-MODEL.md).
+8. **Optional — a smart plug.** Add a Kasa or Tapo plug by IP on *Plugs*. With *Lamp on* (the default) it switches on when you drift. Setup: [docs/SMART-PLUGS.md](docs/SMART-PLUGS.md).
+
 Homework is open. Discord is where the session actually happens. Students know the pattern: a Docs tab for the screenshot, a game or chat client for the hours. Ordinary focus apps lose that fight because all they do is count. They cannot see that you tabbed to Discord. They cannot see that you left the chair. After a week the ding is just another notification to dismiss.
 
 FocusPlug keeps the timer and adds the part that was missing: consequences.
