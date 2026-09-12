@@ -55,7 +55,11 @@ export function FlightFace(props: FlightFaceViewProps): JSX.Element {
         canvas.width = width;
         canvas.height = height;
       }
-      const model = buildFlightModel(current.clock, current.idleOverride);
+      const clock =
+        current.clock.paused || current.clock.reducedMotion
+          ? current.clock
+          : { ...current.clock, now: Date.now() };
+      const model = buildFlightModel(clock, current.idleOverride);
       drawFlightFace({
         ctx,
         width,

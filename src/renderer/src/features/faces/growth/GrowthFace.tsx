@@ -2,7 +2,7 @@ import { useMemo, type JSX } from "react";
 import { cn } from "../../../lib/cn";
 import "./growth.css";
 import { poseGrowth, resolveKillCount, resolveProgress } from "./pose";
-import { buildDrawModel } from "./svg";
+import { buildDrawModel, leafPath } from "./svg";
 import { generateGrowthTree } from "./tree";
 import { GROWTH_FACE_TITLE, GROWTH_VIEWBOX, type GrowthFaceProps } from "./types";
 
@@ -27,6 +27,7 @@ export function GrowthFace(props: GrowthFaceProps): JSX.Element {
   const { palette } = model;
   const wiltPct = Math.round(posed.view.wilt * 100);
   const grownPct = Math.round(posed.view.progress * 100);
+  const view = zoomedGrowthViewBox(progress);
   const label = posed.view.killCount > 0
     ? `${GROWTH_FACE_TITLE} bonsai, ${grownPct}% grown, wilted after ${posed.view.killCount} kills`
     : `${GROWTH_FACE_TITLE} bonsai, ${grownPct}% grown`;
@@ -46,12 +47,30 @@ export function GrowthFace(props: GrowthFaceProps): JSX.Element {
         aria-label={label}
         width={width}
         height={height}
-        viewBox={`${GROWTH_VIEWBOX.minX} ${GROWTH_VIEWBOX.minY} ${GROWTH_VIEWBOX.width} ${GROWTH_VIEWBOX.height}`}
+        viewBox={`${view.minX} ${view.minY} ${view.width} ${view.height}`}
         preserveAspectRatio="xMidYMax meet"
       >
         <title>{label}</title>
         <ellipse cx="0" cy="40" rx="70" ry="12" fill={palette.potShadow} opacity="0.55" />
         <path d={model.pot.d} fill={palette.pot} />
+        <path d={model.pot.rim} fill={palette.potRim} />
+        <path d={model.soil.rim} fill={palette.soilRim} />
+        <path d={model.soil.mound} fill={palette.soil} />
+
+        {posed.branches.reduce((sum, branch) => sum + branch.reveal * branch.length, 0) <
+        tree.totalLength * 0.18 ? (
+          <g className="fp-growth-sapling" aria-hidden="true">
+            <path
+              d="M 0 2 Q 6 -36 2 -88"
+              fill="none"
+              stroke={palette.bark}
+              strokeWidth="4.2"
+              strokeLinecap="round"
+            />
+            <path d={leafPath({ x: 8, y: -52 }, -2.2, 28)} fill={palette.greenA} />
+            <path d={leafPath({ x: -6, y: -70 }, -0.85, 24)} fill={palette.greenB} />
+          </g>
+        ) : null}
 
         {model.woods.map((wood) => (
           <path
@@ -75,10 +94,6 @@ export function GrowthFace(props: GrowthFaceProps): JSX.Element {
             strokeLinejoin="round"
           />
         ))}
-
-        <path d={model.pot.rim} fill={palette.potRim} />
-        <path d={model.soil.rim} fill={palette.soilRim} />
-        <path d={model.soil.mound} fill={palette.soil} />
 
         {model.leaves.map((leaf) => (
           <path key={leaf.id} d={leaf.d} fill={leaf.fill} />
@@ -106,4 +121,29 @@ export function GrowthFace(props: GrowthFaceProps): JSX.Element {
       </svg>
     </div>
   );
+}
+
+/** Tight on the pot at plant-in; opens to the full canopy as the session grows. */
+function zoomedGrowthViewBox(progress: number): {
+  minX: number;
+  minY: number;
+  width: number;
+  height: number;
+} {
+  const t = Math.min(1, Math.max(0, progress) / 0.42);
+  const ease = t * t * (3 - 2 * t);
+  return {
+    minX: roundView(lerp(-118, GROWTH_VIEWBOX.minX, ease)),
+    minY: roundView(lerp(-150, GROWTH_VIEWBOX.minY, ease)),
+    width: roundView(lerp(236, GROWTH_VIEWBOX.width, ease)),
+    height: roundView(lerp(236, GROWTH_VIEWBOX.height, ease)),
+  };
+}
+
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
+
+function roundView(value: number): number {
+  return Math.round(value * 100) / 100;
 }

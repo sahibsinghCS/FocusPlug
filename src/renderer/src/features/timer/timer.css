@@ -143,6 +143,27 @@
   padding: 16px 8% 28px;
 }
 
+.fp-lock-stage .fp-growth svg {
+  transform-origin: 50% 88%;
+  animation: fp-growth-sway 3.6s ease-in-out infinite;
+}
+
+@keyframes fp-growth-sway {
+  0%,
+  100% {
+    transform: rotate(-2.2deg);
+  }
+  50% {
+    transform: rotate(2.2deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fp-lock-stage .fp-growth svg {
+    animation: none;
+  }
+}
+
 .fp-lock-dim {
   color: color-mix(in srgb, var(--phase) 62%, transparent);
 }

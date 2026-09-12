@@ -41,8 +41,8 @@ export function RecordFace(props: FaceProps): JSX.Element {
 
   useFaceCanvas(
     canvasRef,
-    (ctx, w, h) => {
-      paintRecord(ctx, w, h, props, cacheRef);
+    (ctx, w, h, clockMs) => {
+      paintRecord(ctx, w, h, props, cacheRef, clockMs);
     },
     [
       props.progress,
@@ -69,6 +69,7 @@ function paintRecord(
   h: number,
   props: FaceProps,
   cacheRef: { current: TraceCache | null },
+  clockMs: number,
 ): void {
   ctx.clearRect(0, 0, w, h);
   const min = Math.min(w, h);
@@ -100,7 +101,9 @@ function paintRecord(
 
   const points = cacheRef.current?.points ?? [];
   const last = points[points.length - 1];
-  const viewRot = 0.42 - (last?.theta ?? theta);
+  const idle = props.freeze || props.paused ? 0 : clockMs / 1600;
+  const viewRot = 0.42 - (last?.theta ?? theta) + idle * 0.12;
+  const stylusWobble = props.freeze || props.paused ? 0 : Math.sin(clockMs / 70) * 1.8;
 
   drawRoom(ctx, w, h);
   drawBench(ctx, w, h, drum);
@@ -110,7 +113,16 @@ function paintRecord(
   drawHelixClipped(ctx, drum, points, r0, r1, viewRot, true);
   drawRims(ctx, drum);
   drawUpright(ctx, drum, 1);
-  drawStylus(ctx, drum, points, r0, r1, viewRot, props.phase === "ended" || props.progress >= 0.999);
+  drawStylus(
+    ctx,
+    drum,
+    points,
+    r0,
+    r1,
+    viewRot,
+    props.phase === "ended" || props.progress >= 0.999,
+    stylusWobble,
+  );
   drawPlaque(ctx, w, h, props);
 }
 
@@ -328,13 +340,14 @@ function drawStylus(
   r1: number,
   viewRot: number,
   lifted: boolean,
+  wobble: number,
 ): void {
   const last = points[points.length - 1];
   const z = last ? zFromRadius(last.radius, r0, r1) : 0.55;
   const tip = paperPoint(drum, (last?.theta ?? 0) + viewRot, z);
   const pivotX = drum.cx + drum.rx + 92;
   const pivotY = drum.top + drum.hh * 0.28;
-  const endY = lifted ? tip.y - 14 : tip.y + 1;
+  const endY = lifted ? tip.y - 14 : tip.y + 1 + wobble;
 
   ctx.beginPath();
   ctx.moveTo(pivotX, pivotY);

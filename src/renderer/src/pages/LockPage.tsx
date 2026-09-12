@@ -1,4 +1,4 @@
-import { useRef, type JSX, type ReactNode } from "react";
+import { useEffect, useRef, useState, type JSX, type ReactNode } from "react";
 import { normalizeFaceId } from "@shared/faces";
 import { FaceErrorBoundary, buildLockFaceProps, faceComponent } from "../features/faces";
 import { useHostSize } from "../features/faces/useHostSize";
@@ -163,12 +163,35 @@ export function LockPage(props: { timer: SessionTimer }): JSX.Element {
   );
 }
 
+/** Wall clock for faces that paint from `now`, independent of pause. */
+function useLiveFaceNow(): Date {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    let frame = 0;
+    let running = true;
+    const tick = (): void => {
+      if (!running) {
+        return;
+      }
+      setNow(new Date());
+      frame = window.requestAnimationFrame(tick);
+    };
+    frame = window.requestAnimationFrame(tick);
+    return () => {
+      running = false;
+      window.cancelAnimationFrame(frame);
+    };
+  }, []);
+  return now;
+}
+
 function LockFaceStage(props: { timer: SessionTimer }): JSX.Element {
   const app = useAppState();
   const stageRef = useRef<HTMLDivElement | null>(null);
   const size = useHostSize(stageRef, LOCK_FACE_FALLBACK);
   const faceId = normalizeFaceId(app.settings.faceId);
   const Face = faceComponent(faceId);
+  const now = useLiveFaceNow();
   const face = buildLockFaceProps({
     status: props.timer.status,
     position: props.timer.position,
@@ -176,7 +199,7 @@ function LockFaceStage(props: { timer: SessionTimer }): JSX.Element {
     remainingSec: props.timer.remainingSec,
     planFocusMin: props.timer.plan.focusMin,
     log: app.log,
-    now: new Date(),
+    now,
     width: size.width,
     height: size.height,
   });
@@ -187,6 +210,7 @@ function LockFaceStage(props: { timer: SessionTimer }): JSX.Element {
       className="fp-lock-stage fp-lock-in relative min-h-0 w-full flex-1"
       style={{ animationDelay: "60ms" }}
       data-face={faceId}
+      data-face-paused={face.paused ? "1" : "0"}
     >
       <FaceErrorBoundary faceId={faceId}>
         <Face {...face} />
