@@ -11,6 +11,7 @@ export const FACE_IDS = [
   "line",
   "orbit",
   "growth",
+  "flask",
 ] as const;
 
 export type FaceId = (typeof FACE_IDS)[number];
@@ -44,6 +45,7 @@ export const FACE_READY: Readonly<Record<FaceId, boolean>> = {
   line: true,
   orbit: true,
   growth: true,
+  flask: true,
 };
 
 export const FACE_CATALOG: readonly FaceMeta[] = [
@@ -126,6 +128,14 @@ export const FACE_CATALOG: readonly FaceMeta[] = [
     stream: "agent/faces-growth",
     file: "src/renderer/src/features/faces/GrowthFace.tsx",
     readiness: FACE_READY.growth ? "ready" : "pending",
+  },
+  {
+    id: "flask",
+    title: "Flask",
+    blurb: "Glass water vessel. Remaining time is the water; you can see it leak.",
+    stream: "agent/faces-flask",
+    file: "src/renderer/src/features/faces/FlaskFace.tsx",
+    readiness: FACE_READY.flask ? "ready" : "pending",
   },
 ];
 

@@ -14,7 +14,7 @@ import {
 } from "./faces";
 
 describe("faces catalog", () => {
-  it("owns the ten live FaceIds and refuses retired names", () => {
+  it("owns the eleven live FaceIds and refuses retired names", () => {
     expect([...FACE_IDS]).toEqual([
       "flight",
       "hourglass",
@@ -26,6 +26,7 @@ describe("faces catalog", () => {
       "line",
       "orbit",
       "growth",
+      "flask",
     ]);
     expect([...RETIRED_FACE_IDS]).toEqual(["column", "grid", "eclipse", "field"]);
     for (const id of RETIRED_FACE_IDS) {
@@ -38,7 +39,10 @@ describe("faces catalog", () => {
   it("defaults to flight once the instrument is marked ready", () => {
     expect(FACE_READY.flight).toBe(true);
     expect(FACE_READY.growth).toBe(true);
+    expect(FACE_READY.flask).toBe(true);
     expect(faceMeta("growth").readiness).toBe("ready");
+    expect(faceMeta("flask").readiness).toBe("ready");
+    expect(faceMeta("flask").file).toContain("FlaskFace.tsx");
     expect(DEFAULT_FACE_ID).toBe("flight");
     expect(resolveDefaultFaceId({ ...FACE_READY, flight: false })).toBe("readout");
     expect(DEFAULT_ESTIMATE_MINUTES).toBe(50);

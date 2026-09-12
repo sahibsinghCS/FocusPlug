@@ -596,7 +596,10 @@ describe("session face settings", () => {
     expect(h.controller.getSettings().faceId).toBe("flight");
     expect(h.controller.setSettings({ faceId: "hourglass" }).faceId).toBe("hourglass");
     expect(h.store.loadSettings().faceId).toBe("hourglass");
+    expect(h.controller.setSettings({ faceId: "flask" }).faceId).toBe("flask");
+    expect(h.store.loadSettings().faceId).toBe("flask");
     expect(() => h.controller.setSettings({ faceId: "eclipse" })).toThrow(/faceId/);
+    expect(() => h.controller.setSettings({ faceId: "column" })).toThrow(/faceId/);
   });
 });
 
