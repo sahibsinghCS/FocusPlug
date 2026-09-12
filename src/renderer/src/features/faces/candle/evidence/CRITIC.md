@@ -26,4 +26,4 @@ Stills compared: `after-start-004-1280x800.png`, `after-mid-050-1280x800.png`, `
 
 **Haven / AGPL:** original FocusPlug face. No Haven source or assets.
 
-**Checks:** `npm test` (322) and `npm run typecheck` pass. `faceId: "candle"` persists on the settings blob. Retired `field` still rejects.
+**Checks:** `npm test` (327 after Garden rebase onto `9b752ea`) and `npm run typecheck` pass. `faceId: "candle"` persists on the settings blob. Retired `field` still rejects. Flask, Hourglass, and Garden stay ready.
