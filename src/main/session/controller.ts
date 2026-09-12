@@ -13,6 +13,7 @@ import {
   type WindowMonitor,
 } from "../../shared/ipc.ts";
 import { enabledFunPlugIds, PolicyEngine, type PolicyEngineInput } from "../../shared/policy/index.ts";
+import { AdaptiveFuse } from "./adaptiveFuse.ts";
 import type {
   AppEntry,
   DeskModelId,
@@ -46,10 +47,15 @@ export interface SessionStore {
   saveSettings(settings: AppSettings): void;
   appendSessionLog(event: SessionEvent): void;
   loadSessionLog(): SessionEvent[];
+  /** Optional: stores that cannot persist the adaptive model just relearn. */
+  loadAdaptiveModel?(): unknown;
+  saveAdaptiveModel?(value: unknown): void;
 }
 
 export interface SessionControllerOptions {
   windowMonitor: WindowMonitor;
+  /** Injectable so the adaptive fuse's exploration is deterministic in tests. */
+  adaptiveRandom?: () => number;
   deskMonitor: DeskMonitor;
   killer: ProcessKiller;
   /** Defaults to settings.plugs + Kasa/HTTP/mock hosts. */
@@ -206,6 +212,7 @@ export class SessionController {
   private lastLoggedDecision: SessionState["decision"] | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
   private queue: Promise<void> = Promise.resolve();
+  private readonly adaptive: AdaptiveFuse;
 
   constructor(options: SessionControllerOptions) {
     this.windowMonitor = options.windowMonitor;
@@ -225,6 +232,10 @@ export class SessionController {
     this.policyFactory = options.policyFactory ?? (() => new PolicyEngine());
     this.now = options.now ?? Date.now;
     this.tickIntervalMs = options.tickIntervalMs ?? DEFAULT_SESSION_TICK_MS;
+    this.adaptive = new AdaptiveFuse({
+      store: options.store,
+      random: options.adaptiveRandom,
+    });
     this.policy = this.policyFactory();
     this.syncDeskEnabled(this.loadSettings().webcamEnabled);
   }
@@ -236,6 +247,7 @@ export class SessionController {
     const gen = ++this.generation;
     this.sessionActive = true;
     this.policy = this.policyFactory();
+    this.adaptive.startSession(this.now());
     this.clearFuse();
     this.lastLoggedDecision = null;
     this.state = {
@@ -253,6 +265,7 @@ export class SessionController {
         return;
       }
       this.focus = snap;
+      this.adaptive.noteFocus(snap);
       this.push.focusSnapshot({ ...snap });
       this.enqueueEvaluate();
     });
@@ -292,6 +305,8 @@ export class SessionController {
       }
     }
     this.policy = this.policyFactory();
+    // Stopping mid-countdown is not the user recovering — discard, never learn.
+    this.adaptive.stopSession();
     this.state = {
       ...cloneState(DEFAULT_SESSION_STATE),
       focus: this.focus,
@@ -525,19 +540,29 @@ export class SessionController {
 
   private async applyPolicyEvent(event: PolicyEvent): Promise<void> {
     switch (event.type) {
-      case "start_countdown":
-        this.countdownStartedAt = this.now();
+      case "start_countdown": {
+        const armedAt = this.now();
+        this.countdownStartedAt = armedAt;
         this.countdownDurationSec = event.seconds;
+        const choice = this.adaptive.armed(event.seconds, armedAt);
         this.appendLog(
           "countdown",
           `start_countdown · ${event.reason} · ${event.seconds}s`,
         );
+        if (choice !== null) {
+          this.appendLog("adapt", choice.reason);
+        }
         return;
+      }
       case "cancel_countdown":
+        // They fixed it inside the fuse. This is the positive label, and the
+        // gap since arming is the only thing that says *how long* they need.
+        this.adaptive.recovered(this.now());
         this.clearFuse();
         this.appendLog("countdown", "cancel_countdown");
         return;
       case "kill": {
+        this.adaptive.killed();
         this.clearFuse();
         const matchers = expandKillTargets(event.targets, this.store.loadBlocklist());
         const result = await this.runKill(matchers);
@@ -649,7 +674,12 @@ export class SessionController {
       sessionActive,
       focus,
       desk,
-      countdownSec: resolved.countdownSec,
+      // The adaptive fuse decides how long they get. It falls back to the
+      // Settings value whenever it has nothing to say, so a cold install and
+      // an idle tick both behave exactly as they did before.
+      countdownSec: sessionActive
+        ? this.adaptive.fuseFor({ focus, desk }, resolved.countdownSec, ts)
+        : resolved.countdownSec,
       deskThreshold: resolved.deskThreshold,
       strictMode: resolved.strictMode,
       enabledPlugIds: funPlugIds,
