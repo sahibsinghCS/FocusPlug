@@ -31,6 +31,7 @@
     "probe:window:live": "node --experimental-strip-types src/main/window/probe.ts --live",
     "probe:golden": "tsx --tsconfig tsconfig.node.json src/main/session/probe.ts",
     "test:desk": "tsx --tsconfig tsconfig.node.json src/main/desk/gauntlet.ts",
+    "gauntlet:adapt": "tsx --tsconfig tsconfig.node.json src/shared/adapt/gauntlet.ts",
     "preview:renderer": "vite --config scripts/renderer-preview.vite.ts",
     "stills:readme": "node scripts/readme-stills.mjs"
   },
