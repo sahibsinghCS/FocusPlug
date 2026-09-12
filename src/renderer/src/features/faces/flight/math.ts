@@ -5,6 +5,11 @@ export const DESCENT_START = 0.88;
 export const CONTRAIL_WINDOW_SEC = 90;
 export const TWILIGHT_LO = -0.045;
 export const TWILIGHT_HI = 0.07;
+/** Slow continuous orbit — one revolution every ~2 minutes. */
+export const ORBIT_RAD_PER_SEC = 0.052;
+export const MIN_ROUTE_ZOOM = 2.45;
+export const MAX_ROUTE_ZOOM = 15;
+export const COMPLETE_MIN_ZOOM = 1.8;
 
 export type Vec3 = readonly [number, number, number];
 
@@ -247,10 +252,45 @@ export function flightPhase(progress: number, complete: boolean): FlightPhase {
 }
 
 export function phaseScale(phase: FlightPhase): number {
-  if (phase === "climb") return 1.08;
-  if (phase === "descent") return 0.93;
-  if (phase === "complete") return 0.66;
+  if (phase === "climb") return 1.04;
+  if (phase === "descent") return 0.98;
+  if (phase === "complete") return 0.9;
   return 1;
+}
+
+/**
+ * Track the hop tightly so landforms read large. Short hops (DUB–EDI)
+ * zoom hard; ocean crossings stay closer than a full-hemisphere sticker.
+ */
+export function routeCameraZoom(totalKm: number, complete: boolean): number {
+  if (!Number.isFinite(totalKm)) {
+    throw new Error("routeCameraZoom requires a finite distance");
+  }
+  const viewKm = Math.max(Math.abs(totalKm) * 1.7, 480);
+  const raw = clamp((2 * EARTH_RADIUS_KM) / viewKm, MIN_ROUTE_ZOOM, MAX_ROUTE_ZOOM);
+  if (complete) {
+    return clamp(raw * 0.58, COMPLETE_MIN_ZOOM, 5.2);
+  }
+  return raw;
+}
+
+/** Clock-derived orbit, or an explicit stills angle. */
+export function orbitAngleRad(
+  nowMs: number,
+  idleOverride: number | undefined,
+  frozen: boolean,
+): number {
+  if (idleOverride !== undefined) {
+    if (!Number.isFinite(idleOverride)) {
+      throw new Error("orbitAngleRad idle override must be finite");
+    }
+    return idleOverride;
+  }
+  if (frozen) return 0;
+  if (!Number.isFinite(nowMs)) {
+    throw new Error("orbitAngleRad requires a finite timestamp");
+  }
+  return (nowMs / 1000) * ORBIT_RAD_PER_SEC;
 }
 
 export function contrailWidthScale(phase: FlightPhase): number {

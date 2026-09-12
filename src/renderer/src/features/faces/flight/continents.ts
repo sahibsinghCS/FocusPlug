@@ -65,11 +65,17 @@ const RINGS: Ring[][] = [
     { lon: -73, lat: 76 },
   ],
   [
-    { lon: -10, lat: 36 },
-    { lon: -9, lat: 44 },
-    { lon: -5, lat: 48 },
-    { lon: -6, lat: 58 },
-    { lon: 5, lat: 62 },
+    { lon: -9.3, lat: 36.8 },
+    { lon: -9.5, lat: 38.7 },
+    { lon: -8.9, lat: 42.0 },
+    { lon: -7.0, lat: 43.5 },
+    { lon: -4.8, lat: 48.4 },
+    { lon: -1.6, lat: 49.7 },
+    { lon: 1.8, lat: 51.0 },
+    { lon: 3.6, lat: 51.5 },
+    { lon: 6.0, lat: 53.4 },
+    { lon: 8.5, lat: 56.5 },
+    { lon: 5.0, lat: 62.0 },
     { lon: 12, lat: 66 },
     { lon: 25, lat: 71 },
     { lon: 32, lat: 70 },
@@ -79,18 +85,64 @@ const RINGS: Ring[][] = [
     { lon: 16, lat: 39 },
     { lon: 10, lat: 44 },
     { lon: 3, lat: 43 },
-    { lon: -2, lat: 36 },
-    { lon: -10, lat: 36 },
+    { lon: -2, lat: 36.8 },
+    { lon: -9.3, lat: 36.8 },
   ],
+  // Ireland — separate from Britain so the Irish Sea stays water
   [
-    { lon: -10.8, lat: 51.2 },
-    { lon: -8.2, lat: 55.3 },
-    { lon: -6.2, lat: 58.7 },
-    { lon: -1.1, lat: 60.8 },
-    { lon: 1.9, lat: 52.8 },
-    { lon: 1.6, lat: 50.7 },
-    { lon: -5.7, lat: 49.9 },
-    { lon: -10.8, lat: 51.2 },
+    { lon: -10.48, lat: 51.9 },
+    { lon: -10.2, lat: 52.15 },
+    { lon: -10.05, lat: 53.15 },
+    { lon: -9.95, lat: 53.8 },
+    { lon: -9.55, lat: 54.3 },
+    { lon: -8.67, lat: 54.3 },
+    { lon: -8.18, lat: 54.62 },
+    { lon: -7.31, lat: 55.23 },
+    { lon: -6.95, lat: 55.2 },
+    { lon: -6.03, lat: 55.06 },
+    { lon: -5.47, lat: 54.49 },
+    { lon: -5.88, lat: 54.21 },
+    { lon: -6.27, lat: 53.58 },
+    { lon: -6.07, lat: 53.2 },
+    { lon: -6.36, lat: 52.17 },
+    { lon: -6.95, lat: 52.09 },
+    { lon: -7.6, lat: 51.9 },
+    { lon: -8.4, lat: 51.68 },
+    { lon: -9.5, lat: 51.45 },
+    { lon: -10.2, lat: 51.57 },
+    { lon: -10.48, lat: 51.9 },
+  ],
+  // Great Britain
+  [
+    { lon: -5.7, lat: 50.05 },
+    { lon: -5.54, lat: 50.34 },
+    { lon: -5.15, lat: 51.68 },
+    { lon: -5.3, lat: 51.87 },
+    { lon: -4.78, lat: 52.8 },
+    { lon: -4.5, lat: 53.35 },
+    { lon: -4.85, lat: 53.42 },
+    { lon: -4.3, lat: 54.85 },
+    { lon: -4.78, lat: 55.25 },
+    { lon: -5.6, lat: 55.3 },
+    { lon: -6.23, lat: 56.72 },
+    { lon: -6.25, lat: 57.6 },
+    { lon: -5.1, lat: 58.6 },
+    { lon: -4.2, lat: 58.63 },
+    { lon: -3.05, lat: 58.63 },
+    { lon: -2.0, lat: 57.7 },
+    { lon: -1.78, lat: 57.15 },
+    { lon: -1.4, lat: 54.85 },
+    { lon: -0.75, lat: 54.15 },
+    { lon: 0.2, lat: 53.6 },
+    { lon: 1.75, lat: 52.73 },
+    { lon: 1.45, lat: 51.1 },
+    { lon: 1.3, lat: 51.05 },
+    { lon: 0.5, lat: 50.7 },
+    { lon: -1.0, lat: 50.58 },
+    { lon: -2.0, lat: 50.52 },
+    { lon: -3.5, lat: 50.2 },
+    { lon: -4.7, lat: 50.15 },
+    { lon: -5.7, lat: 50.05 },
   ],
   [
     { lon: -17, lat: 21 },
@@ -269,7 +321,7 @@ function sampleMask(x: number, y: number): number {
   return MASK[yi * COLS + xi] ?? 0;
 }
 
-export function landCoverage(lat: number, lon: number): number {
+function gridCoverage(lat: number, lon: number): number {
   const fx = (lon + 180) / CELL - 0.5;
   const fy = (90 - lat) / CELL - 0.5;
   const x0 = Math.floor(fx);
@@ -281,4 +333,37 @@ export function landCoverage(lat: number, lon: number): number {
   const v01 = sampleMask(x0, y0 + 1);
   const v11 = sampleMask(x0 + 1, y0 + 1);
   return v00 * (1 - tx) * (1 - ty) + v10 * tx * (1 - ty) + v01 * (1 - tx) * ty + v11 * tx * ty;
+}
+
+function landFromRings(lat: number, lon: number): number {
+  if (lat < -62) return 1;
+  for (const ring of RINGS) {
+    if (pointInRing(lon, lat, ring)) return 1;
+  }
+  return 0;
+}
+
+const BI_BOX = { lon0: -12.2, lon1: 2.6, lat0: 49.2, lat1: 59.4 };
+
+function inBritishIsles(lat: number, lon: number): boolean {
+  return lon >= BI_BOX.lon0 && lon <= BI_BOX.lon1 && lat >= BI_BOX.lat0 && lat <= BI_BOX.lat1;
+}
+
+/**
+ * Land coverage 0..1. `coast` uses live polygons so a zoomed DUB–EDI hop
+ * keeps the Irish Sea open and coasts sharp. Never a lat/lon graticule.
+ */
+export function landCoverage(lat: number, lon: number, mode: "grid" | "coast" = "grid"): number {
+  if (mode === "coast" || inBritishIsles(lat, lon)) {
+    const here = landFromRings(lat, lon);
+    const d = 0.07;
+    const edge =
+      (landFromRings(lat, lon + d) +
+        landFromRings(lat, lon - d) +
+        landFromRings(lat + d, lon) +
+        landFromRings(lat - d, lon)) /
+      4;
+    return here * 0.72 + edge * 0.28;
+  }
+  return gridCoverage(lat, lon);
 }

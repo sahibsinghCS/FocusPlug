@@ -1,3 +1,17 @@
+import {
+  DEFAULT_FLIGHT_ARR,
+  DEFAULT_FLIGHT_DEP,
+  FLIGHT_AIRPORTS,
+  FLIGHT_AIRPORT_LIST,
+  normalizeFlightIata,
+  requireAirport,
+  searchFlightAirports,
+  type FlightAirport,
+} from "@shared/flightRoute";
+
+export type { FlightAirport };
+export type Airport = FlightAirport;
+
 export interface GeoPoint {
   lat: number;
   lon: number;
@@ -14,54 +28,12 @@ export interface FaceSettings {
   arrLon?: number;
 }
 
-export interface Airport {
-  code: string;
-  name: string;
-  lat: number;
-  lon: number;
-}
+export const AIRPORTS = FLIGHT_AIRPORTS;
+export const AIRPORT_LIST = FLIGHT_AIRPORT_LIST;
+export const DEFAULT_DEP = requireAirport(DEFAULT_FLIGHT_DEP);
+export const DEFAULT_ARR = requireAirport(DEFAULT_FLIGHT_ARR);
 
-export const AIRPORTS: Record<string, Airport> = {
-  JFK: { code: "JFK", name: "New York", lat: 40.6413, lon: -73.7781 },
-  LGA: { code: "LGA", name: "New York", lat: 40.7769, lon: -73.874 },
-  EWR: { code: "EWR", name: "Newark", lat: 40.6895, lon: -74.1745 },
-  NYC: { code: "NYC", name: "New York", lat: 40.7128, lon: -74.006 },
-  LHR: { code: "LHR", name: "London", lat: 51.47, lon: -0.4543 },
-  LGW: { code: "LGW", name: "London", lat: 51.1537, lon: -0.1821 },
-  LON: { code: "LON", name: "London", lat: 51.5074, lon: -0.1278 },
-  BOS: { code: "BOS", name: "Boston", lat: 42.3656, lon: -71.0096 },
-  ORD: { code: "ORD", name: "Chicago", lat: 41.9742, lon: -87.9073 },
-  LAX: { code: "LAX", name: "Los Angeles", lat: 33.9416, lon: -118.4085 },
-  SFO: { code: "SFO", name: "San Francisco", lat: 37.6213, lon: -122.379 },
-  SEA: { code: "SEA", name: "Seattle", lat: 47.4502, lon: -122.3088 },
-  MIA: { code: "MIA", name: "Miami", lat: 25.7959, lon: -80.287 },
-  CDG: { code: "CDG", name: "Paris", lat: 49.0097, lon: 2.5479 },
-  AMS: { code: "AMS", name: "Amsterdam", lat: 52.3105, lon: 4.7683 },
-  FRA: { code: "FRA", name: "Frankfurt", lat: 50.0379, lon: 8.5622 },
-  MAD: { code: "MAD", name: "Madrid", lat: 40.4983, lon: -3.5676 },
-  FCO: { code: "FCO", name: "Rome", lat: 41.8003, lon: 12.2389 },
-  DXB: { code: "DXB", name: "Dubai", lat: 25.2532, lon: 55.3657 },
-  DEL: { code: "DEL", name: "Delhi", lat: 28.5562, lon: 77.1 },
-  NRT: { code: "NRT", name: "Tokyo", lat: 35.772, lon: 140.3929 },
-  HND: { code: "HND", name: "Tokyo", lat: 35.5494, lon: 139.7798 },
-  ICN: { code: "ICN", name: "Seoul", lat: 37.4602, lon: 126.4407 },
-  PEK: { code: "PEK", name: "Beijing", lat: 40.0799, lon: 116.6031 },
-  PVG: { code: "PVG", name: "Shanghai", lat: 31.1443, lon: 121.8083 },
-  HKG: { code: "HKG", name: "Hong Kong", lat: 22.308, lon: 113.9185 },
-  SIN: { code: "SIN", name: "Singapore", lat: 1.3644, lon: 103.9915 },
-  SYD: { code: "SYD", name: "Sydney", lat: -33.9399, lon: 151.1753 },
-};
-
-function requireAirport(code: keyof typeof AIRPORTS): Airport {
-  const found = AIRPORTS[code];
-  if (!found) {
-    throw new Error(`Missing airport preset ${code}`);
-  }
-  return found;
-}
-
-export const DEFAULT_DEP = requireAirport("JFK");
-export const DEFAULT_ARR = requireAirport("LHR");
+export { searchFlightAirports as searchAirports };
 
 function lookup(code: string | undefined): Airport | null {
   if (!code) return null;
@@ -104,20 +76,25 @@ export function resolveRoute(settings: FaceSettings | undefined): {
   dep: Airport;
   arr: Airport;
 } {
+  const depCode = settings?.dep ? normalizeFlightIata(settings.dep, DEFAULT_DEP.code) : undefined;
+  const arrCode = settings?.arr ? normalizeFlightIata(settings.arr, DEFAULT_ARR.code) : undefined;
   const dep = resolveEndpoint(
-    settings?.dep,
+    depCode ?? settings?.dep,
     settings?.depName,
     settings?.depLat,
     settings?.depLon,
     DEFAULT_DEP,
   );
   const arr = resolveEndpoint(
-    settings?.arr,
+    arrCode ?? settings?.arr,
     settings?.arrName,
     settings?.arrLat,
     settings?.arrLon,
     DEFAULT_ARR,
   );
+  if (dep.code === arr.code && dep.lat === arr.lat && dep.lon === arr.lon) {
+    return { dep, arr: dep.code === DEFAULT_ARR.code ? DEFAULT_DEP : DEFAULT_ARR };
+  }
   return { dep, arr };
 }
 

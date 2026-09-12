@@ -9,37 +9,51 @@ const PREFIX = process.argv[3] ?? "after";
 const DAY = "2026-09-12T16:00:00.000Z";
 const NIGHT = "2026-09-12T02:00:00.000Z";
 
-const HOURS = 420;
+const HOP = "dep=DUB&arr=EDI";
+const LONG = "dep=JFK&arr=LHR";
+const SIT = 50;
 
 const SCENES = [
   {
     name: "sticker-cruise-16z",
     prefix: "before",
-    path: `/face.html?variant=sticker&progress=0.46&estimateMinutes=${HOURS}&now=${DAY}&freeze=1&idle=0.35`,
+    path: `/face.html?variant=sticker&${HOP}&progress=0.46&estimateMinutes=${SIT}&now=${DAY}&freeze=1&idle=0.35`,
   },
   {
-    name: "cruise-16z",
-    path: `/face.html?progress=0.46&estimateMinutes=${HOURS}&now=${DAY}&freeze=1&idle=0.35`,
+    name: "dub-edi-cruise-16z-orbit-a",
+    path: `/face.html?${HOP}&progress=0.46&estimateMinutes=${SIT}&now=${DAY}&freeze=1&idle=0.35`,
   },
   {
-    name: "cruise-02z",
-    path: `/face.html?progress=0.46&estimateMinutes=${HOURS}&now=${NIGHT}&freeze=1&idle=0.55`,
+    name: "dub-edi-cruise-16z-orbit-b",
+    path: `/face.html?${HOP}&progress=0.46&estimateMinutes=${SIT}&now=${DAY}&freeze=1&idle=1.55`,
   },
   {
-    name: "climb-16z",
-    path: `/face.html?progress=0.04&estimateMinutes=${HOURS}&now=${DAY}&freeze=1&idle=0.15`,
+    name: "dub-edi-cruise-02z",
+    path: `/face.html?${HOP}&progress=0.46&estimateMinutes=${SIT}&now=${NIGHT}&freeze=1&idle=0.85`,
   },
   {
-    name: "descent-16z",
-    path: `/face.html?progress=0.93&estimateMinutes=${HOURS}&now=${DAY}&freeze=1&idle=0.2`,
+    name: "dub-edi-climb-16z",
+    path: `/face.html?${HOP}&progress=0.04&estimateMinutes=${SIT}&now=${DAY}&freeze=1&idle=0.2`,
   },
   {
-    name: "complete-16z",
-    path: `/face.html?remaining=0&estimateMinutes=${HOURS}&now=${DAY}&complete=1&freeze=1&idle=0`,
+    name: "dub-edi-descent-16z",
+    path: `/face.html?${HOP}&progress=0.93&estimateMinutes=${SIT}&now=${DAY}&freeze=1&idle=0.5`,
+  },
+  {
+    name: "dub-edi-complete-16z",
+    path: `/face.html?${HOP}&remaining=0&estimateMinutes=${SIT}&now=${DAY}&complete=1&freeze=1&idle=0`,
+  },
+  {
+    name: "dub-edi-picker-16z",
+    path: `/face.html?${HOP}&progress=0.46&estimateMinutes=${SIT}&now=${DAY}&freeze=1&idle=0.35&picker=dep`,
+  },
+  {
+    name: "jfk-lhr-cruise-16z",
+    path: `/face.html?${LONG}&progress=0.46&estimateMinutes=420&now=${DAY}&freeze=1&idle=0.6`,
   },
   {
     name: "host-cruise-16z",
-    path: `/#/?scene=live&face=flight&progress=0.46&estimateMinutes=${HOURS}&now=${DAY}&freeze=1`,
+    path: `/#/?scene=live&face=flight&${HOP}&progress=0.46&estimateMinutes=${SIT}&now=${DAY}&freeze=1`,
   },
 ];
 
@@ -65,7 +79,7 @@ try {
       timeout: 20_000,
     });
     await page.evaluate(() => document.fonts.ready);
-    await new Promise((resolveWait) => setTimeout(resolveWait, 800));
+    await new Promise((resolveWait) => setTimeout(resolveWait, 900));
     const tag = scene.prefix ?? PREFIX;
     const file = resolve(OUT, `${tag}-${scene.name}-1280x800.png`);
     await page.screenshot({ path: file, type: "png" });

@@ -45,23 +45,29 @@ function mix(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
 
+function terrainGrain(lat: number, lon: number): number {
+  return 0.5 + 0.5 * Math.sin(lat * 7.13 + lon * 5.17) * Math.cos(lat * 3.71 - lon * 4.03);
+}
+
 function shadePixel(
   world: Vec3,
   viewZ: number,
   sun: Vec3,
+  landMode: "grid" | "coast",
 ): [number, number, number, number] {
   const geo = unitToLatLon(world);
-  const land = landCoverage(geo.lat, geo.lon);
+  const land = landCoverage(geo.lat, geo.lon, landMode);
   const intensity = dot(world, sun);
   const day = dayAmount(intensity);
   const wrap = lightingWrap(intensity);
   const twilight = twilightBand(intensity);
   const dusk = duskAmount(intensity);
 
-  const oceanDay = [236, 214, 158] as const;
-  const landDay = [86, 72, 42] as const;
+  const grain = terrainGrain(geo.lat, geo.lon);
+  const oceanDay = [214, 196, 148] as const;
+  const landDay = [78 + grain * 22, 92 + grain * 18, 48 + grain * 8] as const;
   const oceanNight = [5, 8, 20] as const;
-  const landNight = [16, 22, 44] as const;
+  const landNight = [14, 24, 40] as const;
   const twilightCyan = [92, 226, 236] as const;
   const atm = [110, 196, 220] as const;
 
@@ -133,13 +139,26 @@ export function rasterGlobe(model: FlightModel, size: number): ImageData {
   const up = model.cameraUp;
   const fwd = model.cameraForward;
   const sun = model.sun;
+  const zoom = Math.max(1, model.cameraZoom);
+  const landMode: "grid" | "coast" = zoom >= 2.5 ? "coast" : "grid";
 
   for (const s of samples) {
-    const wx = s.vx * right[0] + s.vy * up[0] + s.vz * fwd[0];
-    const wy = s.vx * right[1] + s.vy * up[1] + s.vz * fwd[1];
-    const wz = s.vx * right[2] + s.vy * up[2] + s.vz * fwd[2];
-    const [r, g, b, a] = shadePixel([wx, wy, wz], s.vz, sun);
+    const vx = s.vx / zoom;
+    const vy = s.vy / zoom;
+    const rr = vx * vx + vy * vy;
     const i = (s.y * size + s.x) * 4;
+    if (rr > 1) {
+      data[i] = 6;
+      data[i + 1] = 8;
+      data[i + 2] = 14;
+      data[i + 3] = 255;
+      continue;
+    }
+    const vz = Math.sqrt(Math.max(0, 1 - rr));
+    const wx = vx * right[0] + vy * up[0] + vz * fwd[0];
+    const wy = vx * right[1] + vy * up[1] + vz * fwd[1];
+    const wz = vx * right[2] + vy * up[2] + vz * fwd[2];
+    const [r, g, b, a] = shadePixel([wx, wy, wz], vz, sun, landMode);
     data[i] = r;
     data[i + 1] = g;
     data[i + 2] = b;

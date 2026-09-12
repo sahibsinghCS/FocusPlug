@@ -10,6 +10,7 @@ import {
   formatZulu,
 } from "./math";
 import { buildFlightModel } from "./model";
+import { FlightRoutePicker } from "./RoutePicker";
 
 export interface FlightFaceViewProps {
   clock: FlightClock;
@@ -18,6 +19,8 @@ export interface FlightFaceViewProps {
   idleOverride?: number;
   className?: string;
   compact?: boolean;
+  onRouteChange?: (next: { dep: string; arr: string }) => void;
+  routePickerOpen?: "dep" | "arr" | null;
 }
 
 function readSize(el: HTMLCanvasElement): { width: number; height: number } {
@@ -64,6 +67,9 @@ export function FlightFace(props: FlightFaceViewProps): JSX.Element {
       canvas.dataset.phase = model.phase;
       canvas.dataset.progress = model.progress.toFixed(3);
       canvas.dataset.complete = model.complete ? "1" : "0";
+      canvas.dataset.dep = model.dep.code;
+      canvas.dataset.arr = model.arr.code;
+      canvas.dataset.zoom = model.cameraZoom.toFixed(2);
     };
 
     const loop = (): void => {
@@ -120,6 +126,8 @@ export function FlightFace(props: FlightFaceViewProps): JSX.Element {
       data-variant={variant}
       data-phase={model.phase}
       data-layout={props.compact ? "host" : "stage"}
+      data-dep={model.dep.code}
+      data-arr={model.arr.code}
     >
       {variant === "instrument" ? (
         <div className="fp-flight-head">
@@ -145,6 +153,15 @@ export function FlightFace(props: FlightFaceViewProps): JSX.Element {
         </div>
       ) : null}
       <canvas ref={canvasRef} role="img" aria-label={label} />
+      {variant === "instrument" ? (
+        <FlightRoutePicker
+          dep={model.dep.code}
+          arr={model.arr.code}
+          layout="face"
+          forceOpen={props.routePickerOpen ?? null}
+          onChange={props.onRouteChange}
+        />
+      ) : null}
       {variant === "instrument" ? (
         <div className="fp-flight-strip">
           <div>

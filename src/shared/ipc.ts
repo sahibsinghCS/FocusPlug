@@ -73,6 +73,10 @@ export interface AppSettings {
   deskModelId: DeskModelId;
   /** Immersive session face. Default is flight. */
   faceId: FaceId;
+  /** Flight face origin IATA. Default DUB. */
+  flightDep: string;
+  /** Flight face arrival IATA. Default EDI. */
+  flightArr: string;
   plugs: PlugDevice[];
 }
 

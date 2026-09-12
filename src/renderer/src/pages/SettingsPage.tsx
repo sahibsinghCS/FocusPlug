@@ -16,6 +16,7 @@ import {
   useSaveState,
 } from "../features/config";
 import { FacePicker } from "../features/faces";
+import { FlightRoutePicker } from "../features/faces/flight/RoutePicker";
 import { useAppState } from "../state/AppState";
 
 export function SettingsPage(): JSX.Element {
@@ -188,6 +189,24 @@ export function SettingsPage(): JSX.Element {
             Face set to {settings.faceId}
           </p>
         ) : null}
+      </section>
+
+      <section className="fp-card space-y-3 p-4">
+        <div>
+          <p className="fp-section-label">Flight route</p>
+          <p className="mt-1 text-[12px] text-fp-mute">
+            Origin and arrival for the Flight face. Default is Dublin to Edinburgh.
+            Both ends are user-choosable and persist on the same settings blob.
+          </p>
+        </div>
+        <FlightRoutePicker
+          dep={settings.flightDep}
+          arr={settings.flightArr}
+          layout="settings"
+          onChange={(next) => {
+            void app.patchSettings({ flightDep: next.dep, flightArr: next.arr });
+          }}
+        />
       </section>
 
       <section className="fp-card space-y-3 p-4" aria-busy={modelSave.saving}>

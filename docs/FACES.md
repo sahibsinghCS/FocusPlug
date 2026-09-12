@@ -4,7 +4,7 @@ Immersive timer **faces** replace a blank session hero. They are atmosphere / pr
 
 Selected face persists as `AppSettings.faceId` on the existing settings blob (`Store.loadSettings` / `saveSettings`). No second store.
 
-Default: **`flight`**. `FACE_READY.flight` is true — `FlightFace.tsx` is the UTC terminator instrument.
+Default: **`flight`**. `FACE_READY.flight` is true — `FlightFace.tsx` is the UTC terminator instrument. Route persists as `AppSettings.flightDep` / `flightArr` (default DUB→EDI).
 
 ## Contract
 

@@ -151,3 +151,153 @@
   letter-spacing: 0.18em;
   color: #8b97a8;
 }
+
+.fp-flight-route {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.fp-flight-route.is-face {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 98px;
+  z-index: 3;
+  justify-content: center;
+  pointer-events: auto;
+}
+
+.fp-flight.is-compact .fp-flight-route.is-face {
+  bottom: 78px;
+}
+
+.fp-flight-route.is-settings {
+  margin-top: 4px;
+}
+
+.fp-flight-route-arrow {
+  padding-top: 28px;
+  color: #8b97a8;
+  font-size: 16px;
+}
+
+.fp-flight-airport {
+  position: relative;
+  min-width: 0;
+  flex: 1;
+}
+
+.fp-flight-airport-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #8b97a8;
+}
+
+.fp-flight-airport-btn {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1px solid rgba(170, 190, 220, 0.16);
+  background: rgba(7, 8, 12, 0.82);
+  color: #eef2f8;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.fp-flight-airport-btn b {
+  font-size: 18px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+}
+
+.fp-flight-airport-btn span {
+  color: #8b97a8;
+  font-size: 12px;
+}
+
+.fp-flight-airport-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.fp-flight-airport.is-open .fp-flight-airport-btn {
+  border-color: rgba(212, 255, 58, 0.45);
+}
+
+.fp-flight-airport-pop {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 6px);
+  z-index: 5;
+  max-height: 220px;
+  overflow: hidden;
+  border: 1px solid rgba(170, 190, 220, 0.18);
+  background: #0b0d12;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+}
+
+.fp-flight-route.is-settings .fp-flight-airport-pop {
+  bottom: auto;
+  top: calc(100% + 6px);
+}
+
+.fp-flight-airport-pop input {
+  width: 100%;
+  height: 32px;
+  padding: 0 10px;
+  border: 0;
+  border-bottom: 1px solid rgba(170, 190, 220, 0.12);
+  background: transparent;
+  color: #eef2f8;
+  font: inherit;
+  font-size: 12px;
+}
+
+.fp-flight-airport-pop ul {
+  margin: 0;
+  max-height: 180px;
+  padding: 4px 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.fp-flight-airport-pop li.is-empty {
+  padding: 10px;
+  color: #8b97a8;
+  font-size: 12px;
+}
+
+.fp-flight-airport-pop button {
+  display: flex;
+  width: 100%;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 0;
+  background: transparent;
+  color: #eef2f8;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.fp-flight-airport-pop button:hover {
+  background: rgba(212, 255, 58, 0.08);
+}
+
+.fp-flight-airport-pop button b {
+  width: 36px;
+  font-weight: 400;
+}
+
+.fp-flight-airport-pop button span {
+  color: #8b97a8;
+}

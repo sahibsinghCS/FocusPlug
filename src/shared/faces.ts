@@ -56,8 +56,8 @@ export const FACE_CATALOG: readonly FaceMeta[] = [
   {
     id: "flight",
     title: "Flight",
-    blurb: "Terminator / ETA instrument — destination clock.",
-    stream: "agent/faces-flight",
+    blurb: "Zoomed globe, choosable route, terminator instrument.",
+    stream: "agent/faces-flight-v2",
     file: "src/renderer/src/features/faces/FlightFace.tsx",
     readiness: FACE_READY.flight ? "ready" : "pending",
   },

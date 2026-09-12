@@ -465,8 +465,12 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
   return <AppStateContext.Provider value={value}>{props.children}</AppStateContext.Provider>;
 }
 
+export function useOptionalAppState(): AppStateValue | null {
+  return useContext(AppStateContext);
+}
+
 export function useAppState(): AppStateValue {
-  const value = useContext(AppStateContext);
+  const value = useOptionalAppState();
   if (!value) {
     throw new Error("useAppState must be used within AppStateProvider");
   }
