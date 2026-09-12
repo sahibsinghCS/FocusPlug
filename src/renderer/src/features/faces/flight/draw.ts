@@ -392,12 +392,12 @@ function drawBankScale(
 
   ctx.rotate(degToRad(bank));
   ctx.fillStyle = "#eef2f8";
-  ctx.strokeStyle = "rgba(7,8,12,0.55)";
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = "rgba(7,8,12,0.7)";
+  ctx.lineWidth = 1.2;
   ctx.beginPath();
-  ctx.moveTo(0, -radius - 4);
-  ctx.lineTo(-8, -radius + 12);
-  ctx.lineTo(8, -radius + 12);
+  ctx.moveTo(0, -radius - 6);
+  ctx.lineTo(-10, -radius + 14);
+  ctx.lineTo(10, -radius + 14);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
@@ -625,32 +625,65 @@ function drawWake(
   const px = -uy;
   const py = ux;
   const widthScale = contrailWidthScale(model.phase);
-  const tail = model.phase === "climb" ? 128 : model.phase === "descent" ? 108 : 96;
-  const curve = degToRad(model.bank) * 18;
+  const tail = model.phase === "climb" ? 148 : model.phase === "descent" ? 124 : 118;
+  const curve = degToRad(model.bank) * 26;
+  const steps = 12;
+  const left: Array<{ x: number; y: number }> = [];
+  const right: Array<{ x: number; y: number }> = [];
+  const core: Array<{ x: number; y: number }> = [];
+  for (let i = 0; i <= steps; i += 1) {
+    const t = i / steps;
+    const life = 1 - t;
+    const x = here.x + ux * tail * t + px * curve * t * t;
+    const y = here.y + uy * tail * t + py * curve * t * t;
+    const half = (1.4 + life * 9.5) * Math.max(0.62, widthScale);
+    left.push({ x: x + px * half, y: y + py * half });
+    right.push({ x: x - px * half, y: y - py * half });
+    core.push({ x, y });
+  }
   ctx.save();
-  ctx.lineCap = "round";
   ctx.lineJoin = "round";
-  const steps = 9;
-  for (let i = 0; i < steps; i += 1) {
-    const t0 = i / steps;
-    const t1 = (i + 1) / steps;
-    const life0 = 1 - t0;
-    const life1 = 1 - t1;
-    const x0 = here.x + ux * tail * t0 + px * curve * t0 * t0;
-    const y0 = here.y + uy * tail * t0 + py * curve * t0 * t0;
-    const x1 = here.x + ux * tail * t1 + px * curve * t1 * t1;
-    const y1 = here.y + uy * tail * t1 + py * curve * t1 * t1;
-    ctx.strokeStyle = `rgba(8, 10, 16, ${(0.18 + life0 * 0.34).toFixed(3)})`;
-    ctx.lineWidth = (3.2 + life0 * 11) * Math.max(0.5, widthScale);
-    ctx.beginPath();
-    ctx.moveTo(x0, y0);
-    ctx.lineTo(x1, y1);
-    ctx.stroke();
-    ctx.strokeStyle = `rgba(236, 246, 255, ${(0.16 + life0 * 0.7 * Math.max(0.55, widthScale)).toFixed(3)})`;
-    ctx.lineWidth = (1.1 + life1 * 5.4) * Math.max(0.5, widthScale);
-    ctx.beginPath();
-    ctx.moveTo(x0, y0);
-    ctx.lineTo(x1, y1);
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  const firstLeft = left[0];
+  if (!firstLeft) {
+    ctx.restore();
+    return;
+  }
+  ctx.moveTo(firstLeft.x, firstLeft.y);
+  for (const p of left) ctx.lineTo(p.x, p.y);
+  for (let i = right.length - 1; i >= 0; i -= 1) {
+    const p = right[i];
+    if (p) ctx.lineTo(p.x, p.y);
+  }
+  ctx.closePath();
+  const fade = ctx.createLinearGradient(
+    here.x,
+    here.y,
+    here.x + ux * tail,
+    here.y + uy * tail,
+  );
+  fade.addColorStop(0, "rgba(12, 10, 8, 0.72)");
+  fade.addColorStop(0.45, "rgba(12, 10, 8, 0.32)");
+  fade.addColorStop(1, "rgba(12, 10, 8, 0)");
+  ctx.fillStyle = fade;
+  ctx.fill();
+
+  ctx.beginPath();
+  const firstCore = core[0];
+  if (firstCore) {
+    ctx.moveTo(firstCore.x, firstCore.y);
+    for (const p of core) ctx.lineTo(p.x, p.y);
+    const coreFade = ctx.createLinearGradient(
+      here.x,
+      here.y,
+      here.x + ux * tail,
+      here.y + uy * tail,
+    );
+    coreFade.addColorStop(0, `rgba(236, 246, 255, ${0.92 * Math.max(0.55, widthScale)})`);
+    coreFade.addColorStop(1, "rgba(236, 246, 255, 0)");
+    ctx.strokeStyle = coreFade;
+    ctx.lineWidth = 3.2 * Math.max(0.55, widthScale);
     ctx.stroke();
   }
   ctx.restore();

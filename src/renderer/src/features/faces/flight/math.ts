@@ -316,6 +316,13 @@ export function formatInt(value: number): string {
   return String(Math.round(Math.max(0, value)));
 }
 
+export function formatGrouped(value: number): string {
+  if (!Number.isFinite(value)) {
+    throw new Error("formatGrouped requires a finite value");
+  }
+  return Math.round(Math.max(0, value)).toLocaleString("en-US");
+}
+
 export function formatBank(bank: number): string {
   if (!Number.isFinite(bank)) {
     throw new Error("formatBank requires a finite value");
@@ -359,7 +366,7 @@ export function wingAttitude(bank: number, span: number): WingAttitude {
   const limited = clamp(bank, -MAX_BANK_DEG, MAX_BANK_DEG);
   const rad = degToRad(limited);
   const signed = limited === 0 ? 0 : limited > 0 ? 1 : -1;
-  const drop = Math.sin(rad) * span * 0.98 + signed * Math.min(12, span * 0.38);
+  const drop = Math.sin(rad) * span * 1.2 + signed * Math.min(16, span * 0.52);
   return {
     leftY: -drop,
     rightY: drop,

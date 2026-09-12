@@ -5,8 +5,8 @@ import "./flight.css";
 import {
   formatBank,
   formatClockHm,
+  formatGrouped,
   formatHdg,
-  formatInt,
   formatZulu,
 } from "./math";
 import { buildFlightModel } from "./model";
@@ -101,9 +101,9 @@ export function FlightFace(props: FlightFaceViewProps): JSX.Element {
 
   const model = buildFlightModel(props, props.idleOverride);
   const variant = props.variant ?? "instrument";
-  const remain = model.complete ? "0" : formatInt(model.remainKm);
+  const remain = model.complete ? "0" : formatGrouped(model.remainKm);
   const eta = model.complete ? "ARR" : formatClockHm(model.eta);
-  const gs = model.complete ? "0" : formatInt(model.gsKmh);
+  const gs = model.complete ? "0" : formatGrouped(model.gsKmh);
   const label = model.complete
     ? `Flight complete. Destination ${model.arr.name}.`
     : `Flight ${model.dep.code} to ${model.arr.code}. ${remain} km remaining. ETA ${eta}. ${gs} kph. ${model.phase}.`;
@@ -148,16 +148,22 @@ export function FlightFace(props: FlightFaceViewProps): JSX.Element {
             </b>
           </div>
           <div>
-            <span>REMAIN KM</span>
-            <b>{remain}</b>
+            <span>REMAIN</span>
+            <b>
+              {remain}
+              <small>km</small>
+            </b>
           </div>
           <div>
             <span>ETA</span>
             <b>{eta}</b>
           </div>
           <div>
-            <span>GS KPH</span>
-            <b>{gs}</b>
+            <span>GS</span>
+            <b>
+              {gs}
+              <small>kph</small>
+            </b>
           </div>
         </div>
       ) : null}

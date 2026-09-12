@@ -7,8 +7,8 @@ import {
   flightProgress,
   formatBank,
   formatClockHm,
+  formatGrouped,
   formatHdg,
-  formatInt,
   formatZulu,
   greatCirclePoint,
   groundSpeedKmh,
@@ -121,7 +121,8 @@ describe("progress, phases, honest strip math", () => {
     expect(formatBank(-4.4)).toBe("4°L");
     expect(formatBank(0.2)).toBe("LVL");
     expect(formatHdg(72.9)).toBe("073");
-    expect(formatInt(791.4)).toBe("791");
+    expect(formatGrouped(791.4)).toBe("791");
+    expect(formatGrouped(2992.2)).toBe("2,992");
   });
 
   it("rolls wing tips vertically so bank is a silhouette, not extra yaw", () => {
