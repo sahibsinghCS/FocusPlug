@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_SETTINGS } from "./defaults";
 import { DEFAULT_FACE_ID, FACE_IDS, isFaceId, normalizeFaceId } from "./faces";
+import { DEFAULT_FLIGHT_ARR, DEFAULT_FLIGHT_DEP } from "./flightRoute";
 import {
   IPC_INVOKE,
   PLUG_DRIVER_NOT_IMPLEMENTED,
@@ -84,6 +85,13 @@ describe("Phase 2 contracts", () => {
     expect(isFaceId("candle")).toBe(true);
     expect(isFaceId("eclipse")).toBe(false);
     expect(isFaceId("field")).toBe(false);
+  });
+
+  it("defaults the Flight route to DUB→EDI on the same settings blob", () => {
+    expect(DEFAULT_SETTINGS.flightDep).toBe(DEFAULT_FLIGHT_DEP);
+    expect(DEFAULT_SETTINGS.flightArr).toBe(DEFAULT_FLIGHT_ARR);
+    expect(DEFAULT_FLIGHT_DEP).toBe("DUB");
+    expect(DEFAULT_FLIGHT_ARR).toBe("EDI");
   });
 
   it("accepts existing RGB desk frames on DeskModel.infer", async () => {

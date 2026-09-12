@@ -11,12 +11,11 @@ import {
   haversineKm,
   initialBearingDeg,
   latLonToUnit,
-  normalize,
+  orbitAngleRad,
   orthonormalBasis,
   remainingKm,
   rotateAround,
-  scale,
-  add,
+  routeCameraZoom,
   subsolar,
   sunDir,
   type FlightPhase,
@@ -55,6 +54,8 @@ export interface FlightModel {
   cameraForward: Vec3;
   cameraRight: Vec3;
   cameraUp: Vec3;
+  cameraZoom: number;
+  orbit: number;
 }
 
 export function resolveNow(clock: FlightClock): number {
@@ -95,20 +96,12 @@ export function buildFlightModel(clock: FlightClock, idleOverride?: number): Fli
   const planeUnit = latLonToUnit(plane.lat, plane.lon);
   const destUnit = latLonToUnit(arr.lat, arr.lon);
   const lookRoot = complete ? destUnit : planeUnit;
-  const basis = orthonormalBasis(lookRoot);
-  const idle =
-    idleOverride ??
-    (clock.reducedMotion || clock.paused || complete ? 0 : (now / 1000) * 0.0036);
-  const wander = rotateAround(basis.right, lookRoot, idle);
-  const lift = complete ? 0.04 : 0.08;
-  const nightBias = scale(sunVec, complete ? -0.08 : -0.32);
-  const cameraForward = normalize(
-    add(
-      lookRoot,
-      add(add(scale(wander, complete ? 0.05 : 0.14), scale(basis.up, lift)), nightBias),
-    ),
-  );
-  const cam = orthonormalBasis(cameraForward);
+  const frozen = Boolean(clock.reducedMotion || clock.paused);
+  const orbit = orbitAngleRad(now, idleOverride, frozen || complete);
+  const zoom = routeCameraZoom(totalKm, complete);
+  const base = orthonormalBasis(lookRoot);
+  const cameraRight = rotateAround(base.right, lookRoot, orbit);
+  const cameraUp = rotateAround(base.up, lookRoot, orbit);
 
   return {
     now,
@@ -133,9 +126,11 @@ export function buildFlightModel(clock: FlightClock, idleOverride?: number): Fli
     sunLon: sun.lon,
     sun: sunVec,
     contrail: seedContrail(dep, arr, progress, remaining, estimateMinutes),
-    cameraForward: cam.forward,
-    cameraRight: cam.right,
-    cameraUp: cam.up,
+    cameraForward: lookRoot,
+    cameraRight,
+    cameraUp,
+    cameraZoom: zoom,
+    orbit,
   };
 }
 
@@ -177,10 +172,11 @@ export function projectWorld(
     world[0] * model.cameraForward[0] +
     world[1] * model.cameraForward[1] +
     world[2] * model.cameraForward[2];
+  const zoom = model.cameraZoom;
   return {
-    x: cx + lx * radius,
-    y: cy - ly * radius,
+    x: cx + lx * radius * zoom,
+    y: cy - ly * radius * zoom,
     z: lz,
-    visible: lz > -0.015,
+    visible: lz > 0.02 && lx * lx + ly * ly < (1 / zoom) * (1 / zoom) * 1.15,
   };
 }

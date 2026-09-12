@@ -65,11 +65,18 @@ const RINGS: Ring[][] = [
     { lon: -73, lat: 76 },
   ],
   [
-    { lon: -10, lat: 36 },
-    { lon: -9, lat: 44 },
-    { lon: -5, lat: 48 },
-    { lon: -6, lat: 58 },
-    { lon: 5, lat: 62 },
+    { lon: -9.3, lat: 36.8 },
+    { lon: -9.5, lat: 38.7 },
+    { lon: -8.9, lat: 42.0 },
+    { lon: -7.0, lat: 43.5 },
+    { lon: -4.8, lat: 48.4 },
+    { lon: -1.6, lat: 49.4 },
+    { lon: 1.6, lat: 50.85 },
+    { lon: 2.4, lat: 51.08 },
+    { lon: 3.6, lat: 51.35 },
+    { lon: 6.0, lat: 53.4 },
+    { lon: 8.5, lat: 56.5 },
+    { lon: 5.0, lat: 62.0 },
     { lon: 12, lat: 66 },
     { lon: 25, lat: 71 },
     { lon: 32, lat: 70 },
@@ -79,18 +86,112 @@ const RINGS: Ring[][] = [
     { lon: 16, lat: 39 },
     { lon: 10, lat: 44 },
     { lon: 3, lat: 43 },
-    { lon: -2, lat: 36 },
-    { lon: -10, lat: 36 },
+    { lon: -2, lat: 36.8 },
+    { lon: -9.3, lat: 36.8 },
   ],
+  // Ireland — diamond + west bays so Dublin/Shannon/Malin read
   [
-    { lon: -10.8, lat: 51.2 },
-    { lon: -8.2, lat: 55.3 },
-    { lon: -6.2, lat: 58.7 },
-    { lon: -1.1, lat: 60.8 },
-    { lon: 1.9, lat: 52.8 },
-    { lon: 1.6, lat: 50.7 },
-    { lon: -5.7, lat: 49.9 },
-    { lon: -10.8, lat: 51.2 },
+    { lon: -9.9, lat: 51.45 },
+    { lon: -10.48, lat: 51.57 },
+    { lon: -10.25, lat: 51.9 },
+    { lon: -10.48, lat: 52.14 },
+    { lon: -9.92, lat: 52.14 },
+    { lon: -9.5, lat: 52.55 },
+    { lon: -9.85, lat: 53.12 },
+    { lon: -10.2, lat: 53.48 },
+    { lon: -10.32, lat: 53.88 },
+    { lon: -10.14, lat: 54.3 },
+    { lon: -9.55, lat: 54.3 },
+    { lon: -8.67, lat: 54.27 },
+    { lon: -8.18, lat: 54.64 },
+    { lon: -7.37, lat: 55.38 },
+    { lon: -6.95, lat: 55.2 },
+    { lon: -6.22, lat: 55.2 },
+    { lon: -5.78, lat: 55.05 },
+    { lon: -5.47, lat: 54.48 },
+    { lon: -5.9, lat: 54.2 },
+    { lon: -6.06, lat: 54.0 },
+    { lon: -6.28, lat: 53.55 },
+    { lon: -6.06, lat: 53.27 },
+    { lon: -6.04, lat: 52.97 },
+    { lon: -6.36, lat: 52.17 },
+    { lon: -6.95, lat: 52.08 },
+    { lon: -7.62, lat: 51.9 },
+    { lon: -8.28, lat: 51.78 },
+    { lon: -8.9, lat: 51.54 },
+    { lon: -9.9, lat: 51.45 },
+  ],
+  // Great Britain — Cornwall, Wales waist, Clyde, Moray, Wash, Kent
+  [
+    { lon: -5.7, lat: 50.05 },
+    { lon: -5.54, lat: 50.34 },
+    { lon: -5.08, lat: 50.55 },
+    { lon: -4.7, lat: 50.35 },
+    { lon: -4.2, lat: 51.22 },
+    { lon: -3.6, lat: 51.22 },
+    { lon: -4.15, lat: 51.55 },
+    { lon: -5.32, lat: 51.66 },
+    { lon: -5.3, lat: 51.88 },
+    { lon: -4.7, lat: 52.22 },
+    { lon: -4.08, lat: 52.42 },
+    { lon: -4.78, lat: 52.8 },
+    { lon: -4.28, lat: 53.14 },
+    { lon: -4.66, lat: 53.32 },
+    { lon: -3.83, lat: 53.34 },
+    { lon: -3.12, lat: 53.42 },
+    { lon: -3.05, lat: 53.85 },
+    { lon: -2.96, lat: 54.08 },
+    { lon: -3.6, lat: 54.5 },
+    { lon: -3.35, lat: 54.88 },
+    { lon: -4.85, lat: 54.64 },
+    { lon: -5.05, lat: 54.96 },
+    { lon: -4.7, lat: 55.42 },
+    { lon: -5.73, lat: 55.29 },
+    { lon: -5.82, lat: 55.72 },
+    { lon: -6.23, lat: 56.72 },
+    { lon: -6.48, lat: 57.35 },
+    { lon: -5.0, lat: 58.62 },
+    { lon: -4.18, lat: 58.62 },
+    { lon: -3.05, lat: 58.64 },
+    { lon: -3.1, lat: 58.44 },
+    { lon: -3.85, lat: 57.7 },
+    { lon: -3.2, lat: 57.72 },
+    { lon: -1.98, lat: 57.7 },
+    { lon: -1.78, lat: 57.5 },
+    { lon: -2.08, lat: 57.14 },
+    { lon: -2.45, lat: 56.7 },
+    { lon: -2.85, lat: 56.46 },
+    { lon: -3.38, lat: 56.02 },
+    { lon: -2.72, lat: 56.06 },
+    { lon: -2.0, lat: 55.77 },
+    { lon: -1.42, lat: 55.0 },
+    { lon: -0.62, lat: 54.49 },
+    { lon: -0.08, lat: 54.12 },
+    { lon: 0.12, lat: 53.58 },
+    { lon: 0.18, lat: 53.0 },
+    { lon: 0.42, lat: 52.82 },
+    { lon: 1.75, lat: 52.76 },
+    { lon: 1.76, lat: 52.48 },
+    { lon: 1.32, lat: 51.46 },
+    { lon: 1.45, lat: 51.38 },
+    { lon: 1.38, lat: 51.12 },
+    { lon: 0.96, lat: 50.91 },
+    { lon: 0.22, lat: 50.73 },
+    { lon: -0.78, lat: 50.72 },
+    { lon: -1.35, lat: 50.57 },
+    { lon: -2.45, lat: 50.51 },
+    { lon: -3.64, lat: 50.22 },
+    { lon: -4.16, lat: 50.3 },
+    { lon: -5.2, lat: 49.96 },
+    { lon: -5.7, lat: 50.05 },
+  ],
+  // Isle of Man — keeps the Irish Sea from reading as one puddle
+  [
+    { lon: -4.78, lat: 54.04 },
+    { lon: -4.66, lat: 54.42 },
+    { lon: -4.31, lat: 54.4 },
+    { lon: -4.31, lat: 54.05 },
+    { lon: -4.78, lat: 54.04 },
   ],
   [
     { lon: -17, lat: 21 },
@@ -269,7 +370,7 @@ function sampleMask(x: number, y: number): number {
   return MASK[yi * COLS + xi] ?? 0;
 }
 
-export function landCoverage(lat: number, lon: number): number {
+function gridCoverage(lat: number, lon: number): number {
   const fx = (lon + 180) / CELL - 0.5;
   const fy = (90 - lat) / CELL - 0.5;
   const x0 = Math.floor(fx);
@@ -281,4 +382,41 @@ export function landCoverage(lat: number, lon: number): number {
   const v01 = sampleMask(x0, y0 + 1);
   const v11 = sampleMask(x0 + 1, y0 + 1);
   return v00 * (1 - tx) * (1 - ty) + v10 * tx * (1 - ty) + v01 * (1 - tx) * ty + v11 * tx * ty;
+}
+
+function landFromRings(lat: number, lon: number): number {
+  if (lat < -62) return 1;
+  for (const ring of RINGS) {
+    if (pointInRing(lon, lat, ring)) return 1;
+  }
+  return 0;
+}
+
+const BI_BOX = { lon0: -12.2, lon1: 2.6, lat0: 49.2, lat1: 59.4 };
+
+function inBritishIsles(lat: number, lon: number): boolean {
+  return lon >= BI_BOX.lon0 && lon <= BI_BOX.lon1 && lat >= BI_BOX.lat0 && lat <= BI_BOX.lat1;
+}
+
+export function coastRings(): ReadonlyArray<ReadonlyArray<Ring>> {
+  return RINGS;
+}
+
+/**
+ * Land coverage 0..1. `coast` uses live polygons so a zoomed DUB–EDI hop
+ * keeps the Irish Sea open and coasts sharp. Never a lat/lon graticule.
+ */
+export function landCoverage(lat: number, lon: number, mode: "grid" | "coast" = "grid"): number {
+  if (mode === "coast" || inBritishIsles(lat, lon)) {
+    const here = landFromRings(lat, lon);
+    const d = inBritishIsles(lat, lon) ? 0.012 : 0.03;
+    const edge =
+      (landFromRings(lat, lon + d) +
+        landFromRings(lat, lon - d) +
+        landFromRings(lat + d, lon) +
+        landFromRings(lat - d, lon)) /
+      4;
+    return here * 0.9 + edge * 0.1;
+  }
+  return gridCoverage(lat, lon);
 }

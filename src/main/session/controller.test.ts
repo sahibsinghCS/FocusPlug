@@ -604,6 +604,18 @@ describe("session face settings", () => {
     expect(() => h.controller.setSettings({ faceId: "column" })).toThrow(/faceId/);
     expect(() => h.controller.setSettings({ faceId: "field" })).toThrow(/faceId/);
   });
+
+  it("persists Flight origin and destination on the same settings blob", () => {
+    const h = makeHarness();
+    expect(h.controller.getSettings().flightDep).toBe("DUB");
+    expect(h.controller.getSettings().flightArr).toBe("EDI");
+    const next = h.controller.setSettings({ flightDep: "jfk", flightArr: "lhr" });
+    expect(next.flightDep).toBe("JFK");
+    expect(next.flightArr).toBe("LHR");
+    expect(h.store.loadSettings().flightDep).toBe("JFK");
+    expect(h.store.loadSettings().flightArr).toBe("LHR");
+    expect(() => h.controller.setSettings({ flightDep: "XXX" })).toThrow(/flightDep/);
+  });
 });
 
 describe("Phase 2 desk model and plug settings", () => {

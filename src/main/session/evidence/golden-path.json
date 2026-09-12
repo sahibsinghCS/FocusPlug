@@ -10,6 +10,8 @@
     "webcamEnabled": true,
     "deskModelId": "blazeface",
     "faceId": "flight",
+    "flightDep": "DUB",
+    "flightArr": "EDI",
     "plugs": [
       {
         "id": "console-lamp",

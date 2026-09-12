@@ -11,6 +11,7 @@ export interface FlightPreviewQuery {
   settings: FaceSettings;
   freeze: boolean;
   estimateMinutes?: number;
+  picker: "dep" | "arr" | null;
 }
 
 function readNumber(raw: string | null): number | undefined {
@@ -55,9 +56,12 @@ export function parseFlightPreview(search: string, hash = ""): FlightPreviewQuer
   const elapsedMs = complete
     ? estimateMinutes * 60_000
     : Math.max(0, estimateMinutes * 60_000 - remainingSec * 1000);
+  const pickerRaw = q.get("picker");
+  const picker: "dep" | "arr" | null =
+    pickerRaw === "arr" || pickerRaw === "dep" ? pickerRaw : pickerRaw === "1" ? "dep" : null;
   const settings: FaceSettings = {
-    dep: q.get("dep") ?? "JFK",
-    arr: q.get("arr") ?? "LHR",
+    dep: q.get("dep") ?? undefined,
+    arr: q.get("arr") ?? undefined,
     depName: q.get("depName") ?? undefined,
     arrName: q.get("arrName") ?? undefined,
     depLat: readNumber(q.get("depLat")),
@@ -73,6 +77,7 @@ export function parseFlightPreview(search: string, hash = ""): FlightPreviewQuer
     reducedMotion: q.get("reducedMotion") === "1",
     settings,
     freeze,
+    picker,
     estimateMinutes: q.get("estimateMinutes") ? estimateMinutes : undefined,
     face: {
       progress: complete ? 1 : Math.min(1, Math.max(0, elapsedMs / (estimateMinutes * 60_000))),

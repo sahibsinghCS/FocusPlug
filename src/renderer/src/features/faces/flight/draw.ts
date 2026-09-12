@@ -1,6 +1,10 @@
 import { CITY_LIGHTS } from "./cities";
+import { coastRings } from "./continents";
 import { rasterGlobe, rasterStickerGlobe } from "./globe";
 import {
+  chartLandFade,
+  chartRangeKm,
+  clamp,
   contrailWidthScale,
   dayAmount,
   degToRad,
@@ -34,9 +38,14 @@ function globeKey(model: FlightModel, size: number, variant: FaceVariant): strin
   if (variant === "sticker") return `sticker:${size}`;
   return [
     size.toFixed(0),
+    model.cameraZoom.toFixed(2),
+    model.orbit.toFixed(3),
     model.cameraForward[0].toFixed(3),
     model.cameraForward[1].toFixed(3),
     model.cameraForward[2].toFixed(3),
+    model.cameraRight[0].toFixed(3),
+    model.cameraRight[1].toFixed(3),
+    model.cameraRight[2].toFixed(3),
     model.sunLat.toFixed(2),
     model.sunLon.toFixed(2),
   ].join("|");
@@ -103,23 +112,11 @@ function drawBezel(
   ctx.lineWidth = 5;
   ctx.stroke();
 
-  ctx.strokeStyle = "rgba(212,255,58,0.22)";
-  ctx.lineWidth = 1.4;
+  ctx.strokeStyle = "rgba(212,255,58,0.16)";
+  ctx.lineWidth = 1.2;
   ctx.beginPath();
   ctx.arc(cx, cy, outer - 3, 0, Math.PI * 2);
   ctx.stroke();
-
-  for (let i = 0; i < 72; i += 1) {
-    const a = (i / 72) * Math.PI * 2;
-    const major = i % 6 === 0;
-    const r0 = outer - (major ? 14 : 8);
-    ctx.strokeStyle = major ? "rgba(238,242,248,0.55)" : "rgba(170,190,220,0.22)";
-    ctx.lineWidth = major ? 2 : 1;
-    ctx.beginPath();
-    ctx.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0);
-    ctx.lineTo(cx + Math.cos(a) * (outer - 4), cy + Math.sin(a) * (outer - 4));
-    ctx.stroke();
-  }
   ctx.restore();
 }
 
@@ -157,8 +154,9 @@ function drawRoute(ctx: CanvasRenderingContext2D, model: FlightModel, cx: number
   ctx.save();
   ctx.beginPath();
   let started = false;
-  for (let i = 0; i <= 72; i += 1) {
-    const t = i / 72;
+  const steps = model.cameraZoom > 6 ? 120 : 72;
+  for (let i = 0; i <= steps; i += 1) {
+    const t = i / steps;
     const p = greatCirclePoint(model.dep.lat, model.dep.lon, model.arr.lat, model.arr.lon, t);
     const pr = projectWorld(latLonToUnit(p.lat, p.lon), model, cx, cy, radius);
     if (!pr.visible) {
@@ -179,16 +177,65 @@ function drawRoute(ctx: CanvasRenderingContext2D, model: FlightModel, cx: number
   ctx.restore();
 
   for (const end of [
-    { lat: model.dep.lat, lon: model.dep.lon },
-    { lat: model.arr.lat, lon: model.arr.lon },
+    { lat: model.dep.lat, lon: model.dep.lon, code: model.dep.code },
+    { lat: model.arr.lat, lon: model.arr.lon, code: model.arr.code },
   ]) {
     const pr = projectWorld(latLonToUnit(end.lat, end.lon), model, cx, cy, radius);
     if (!pr.visible) continue;
     ctx.beginPath();
-    ctx.arc(pr.x, pr.y, 2.4, 0, Math.PI * 2);
-    ctx.fillStyle = "rgba(238,242,248,0.8)";
+    ctx.arc(pr.x, pr.y, 3.1, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(238,242,248,0.88)";
     ctx.fill();
+    ctx.font = "11px 'IBM Plex Mono', ui-monospace, monospace";
+    ctx.fillStyle = "rgba(238,242,248,0.82)";
+    ctx.textAlign = "left";
+    ctx.fillText(end.code, pr.x + 7, pr.y - 6);
   }
+}
+
+function drawCoasts(
+  ctx: CanvasRenderingContext2D,
+  model: FlightModel,
+  cx: number,
+  cy: number,
+  radius: number,
+): void {
+  ctx.save();
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+  const width = clamp(1.35 + model.cameraZoom * 0.18, 1.4, 2.8);
+  const rangeKm = chartRangeKm(model.totalKm);
+  const look = model.cameraForward;
+  for (const ring of coastRings()) {
+    if (ring.length < 3) continue;
+    let started = false;
+    ctx.beginPath();
+    for (const node of ring) {
+      const world = latLonToUnit(node.lat, node.lon);
+      if (chartLandFade(world, look, rangeKm) < 0.18) {
+        started = false;
+        continue;
+      }
+      const pr = projectWorld(world, model, cx, cy, radius);
+      if (!pr.visible) {
+        started = false;
+        continue;
+      }
+      if (!started) {
+        ctx.moveTo(pr.x, pr.y);
+        started = true;
+      } else {
+        ctx.lineTo(pr.x, pr.y);
+      }
+    }
+    ctx.strokeStyle = "rgba(10, 18, 12, 0.78)";
+    ctx.lineWidth = width;
+    ctx.stroke();
+    ctx.strokeStyle = "rgba(240, 228, 176, 0.22)";
+    ctx.lineWidth = Math.max(0.8, width * 0.4);
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 function drawCityLights(ctx: CanvasRenderingContext2D, model: FlightModel, cx: number, cy: number, radius: number): void {
@@ -203,12 +250,13 @@ function drawCityLights(ctx: CanvasRenderingContext2D, model: FlightModel, cx: n
     const alpha = night * city.weight * Math.min(1, pr.z * 1.4);
     const x = Math.round(pr.x);
     const y = Math.round(pr.y);
+    const glow = model.cameraZoom > 5 ? 4.4 : 2.8;
     ctx.fillStyle = `rgba(255, 168, 72, ${(alpha * 0.62).toFixed(3)})`;
     ctx.beginPath();
-    ctx.arc(x + 0.5, y + 0.5, 2.8, 0, Math.PI * 2);
+    ctx.arc(x + 0.5, y + 0.5, glow, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = `rgba(255, 226, 170, ${Math.min(1, alpha * 1.25).toFixed(3)})`;
-    ctx.fillRect(x, y, 1, 1);
+    ctx.fillRect(x, y, model.cameraZoom > 5 ? 2 : 1, model.cameraZoom > 5 ? 2 : 1);
   }
   ctx.restore();
 }
@@ -273,16 +321,17 @@ function drawAircraft(
   if (!here.visible) return;
   const heading = screenHeading(model, cx, cy, radius);
   const pitch = degToRad(phasePitchDeg(model.phase));
-  const wings = wingAttitude(model.bank, 30);
-  const s = (model.phase === "climb" ? 1.28 : model.phase === "descent" ? 0.92 : 1) * 1.95;
+  const wings = wingAttitude(model.bank, 34);
+  const phaseBoost = model.phase === "climb" ? 1.22 : model.phase === "descent" ? 0.94 : 1;
+  const s = phaseBoost * 1.72 * clamp(radius / 240, 0.52, 1.12);
 
   ctx.save();
-  ctx.translate(here.x + 9 + wings.drop * 0.15, here.y + 11);
+  ctx.translate(here.x + 8 + wings.drop * 0.12, here.y + 10);
   ctx.rotate(heading);
-  ctx.scale(s, s * 0.72);
-  ctx.fillStyle = "rgba(0,0,0,0.42)";
+  ctx.scale(s, s * 0.78);
+  ctx.fillStyle = "rgba(0,0,0,0.4)";
   ctx.beginPath();
-  ctx.ellipse(0, 2, 20, 7, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, 3, 18, 6, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 
@@ -292,70 +341,71 @@ function drawAircraft(
   ctx.rotate(pitch);
   ctx.scale(s, s);
 
-  ctx.strokeStyle = "rgba(6, 8, 14, 0.55)";
-  ctx.lineWidth = 7.2;
-  ctx.lineCap = "round";
+  ctx.fillStyle = "#e8edf4";
   ctx.beginPath();
   ctx.moveTo(-wings.leftSpan, wings.leftY);
-  ctx.lineTo(wings.rightSpan, wings.rightY);
-  ctx.stroke();
-
-  ctx.fillStyle = "#f4f7fc";
-  ctx.beginPath();
-  ctx.moveTo(-wings.leftSpan, wings.leftY - 1.4);
-  ctx.lineTo(-2.4, -1.8);
-  ctx.lineTo(-2.0, 3.6);
-  ctx.lineTo(-wings.leftSpan + 1.6, wings.leftY + 4.6);
+  ctx.lineTo(-3.2, -2.2);
+  ctx.lineTo(-2.4, 4.2);
+  ctx.lineTo(-wings.leftSpan + 2.4, wings.leftY + 5.2);
   ctx.closePath();
   ctx.fill();
   ctx.beginPath();
-  ctx.moveTo(wings.rightSpan, wings.rightY - 1.4);
-  ctx.lineTo(2.4, -1.8);
-  ctx.lineTo(2.0, 3.6);
-  ctx.lineTo(wings.rightSpan - 1.6, wings.rightY + 4.6);
+  ctx.moveTo(wings.rightSpan, wings.rightY);
+  ctx.lineTo(3.2, -2.2);
+  ctx.lineTo(2.4, 4.2);
+  ctx.lineTo(wings.rightSpan - 2.4, wings.rightY + 5.2);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = "#f7f9fc";
+  ctx.beginPath();
+  ctx.moveTo(0, -22);
+  ctx.bezierCurveTo(3.4, -14, 3.6, 6, 2.6, 17);
+  ctx.lineTo(-2.6, 17);
+  ctx.bezierCurveTo(-3.6, 6, -3.4, -14, 0, -22);
+  ctx.fill();
+
+  ctx.fillStyle = "#c5ccd6";
+  ctx.beginPath();
+  ctx.ellipse(-11, wings.leftY + 2.2, 2.4, 1.3, 0, 0, Math.PI * 2);
+  ctx.ellipse(11, wings.rightY + 2.2, 2.4, 1.3, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "#f7f9fc";
+  ctx.beginPath();
+  ctx.moveTo(-1.4, 10);
+  ctx.lineTo(-8.2, 13.2 + wings.drop * 0.1);
+  ctx.lineTo(-7.2, 17.4 + wings.drop * 0.1);
+  ctx.lineTo(-1.1, 15.6);
+  ctx.closePath();
+  ctx.moveTo(1.4, 10);
+  ctx.lineTo(8.2, 13.2 - wings.drop * 0.1);
+  ctx.lineTo(7.2, 17.4 - wings.drop * 0.1);
+  ctx.lineTo(1.1, 15.6);
   ctx.closePath();
   ctx.fill();
 
   ctx.beginPath();
-  ctx.moveTo(0, -21);
-  ctx.bezierCurveTo(2.8, -14, 3.1, 8, 2.0, 16);
-  ctx.lineTo(-2.0, 16);
-  ctx.bezierCurveTo(-3.1, 8, -2.8, -14, 0, -21);
-  ctx.fill();
-
-  ctx.beginPath();
-  ctx.moveTo(-1.2, 11);
-  ctx.lineTo(-7.2, 12.2 + wings.drop * 0.12);
-  ctx.lineTo(-6.4, 16.4 + wings.drop * 0.12);
-  ctx.lineTo(-1.0, 15.2);
-  ctx.closePath();
-  ctx.moveTo(1.2, 11);
-  ctx.lineTo(7.2, 12.2 - wings.drop * 0.12);
-  ctx.lineTo(6.4, 16.4 - wings.drop * 0.12);
-  ctx.lineTo(1.0, 15.2);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.beginPath();
-  ctx.moveTo(0.2, 8);
-  ctx.lineTo(2.4 + wings.drop * 0.08, 4);
-  ctx.lineTo(1.4, 16);
-  ctx.lineTo(-1.2, 15.4);
+  ctx.moveTo(-1.4, 8);
+  ctx.lineTo(0, 4);
+  ctx.lineTo(1.4, 8);
+  ctx.lineTo(1.2, 16);
+  ctx.lineTo(-1.2, 16);
   ctx.closePath();
   ctx.fill();
 
   ctx.fillStyle = "#d4ff3a";
   ctx.beginPath();
-  ctx.arc(-wings.leftSpan + 1.2, wings.leftY + 1.4, 1.7, 0, Math.PI * 2);
+  ctx.arc(-wings.leftSpan + 1.6, wings.leftY + 1.6, 1.8, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = "#ff2d55";
   ctx.beginPath();
-  ctx.arc(wings.rightSpan - 1.2, wings.rightY + 1.4, 1.7, 0, Math.PI * 2);
+  ctx.arc(wings.rightSpan - 1.6, wings.rightY + 1.6, 1.8, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.fillStyle = "rgba(122,162,255,0.7)";
+  ctx.fillStyle = "rgba(90, 140, 220, 0.75)";
   ctx.beginPath();
-  ctx.ellipse(0, -9, 1.15, 4.2, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, -10, 1.2, 4.6, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 }
@@ -553,7 +603,7 @@ export function drawFlightFace(input: DrawFlightInput): void {
   fillPanel(ctx, width, height);
   drawScrews(ctx, width, height);
 
-  const radius = Math.min(width, height) * 0.36 * phaseScale(model.phase);
+  const radius = Math.min(width, height) * 0.38 * phaseScale(model.phase);
   const cx = width * 0.5;
   const cy = height * 0.455;
 
@@ -568,7 +618,9 @@ export function drawFlightFace(input: DrawFlightInput): void {
 
   drawBezel(ctx, cx, cy, radius);
   drawBankScale(ctx, cx, cy, radius, model.bank);
-  const rasterSize = Math.max(288, Math.min(512, Math.round(radius * 1.7)));
+  const rasterSize = model.paused || model.reducedMotion
+    ? Math.max(480, Math.min(720, Math.round(radius * 2.1)))
+    : Math.max(256, Math.min(384, Math.round(radius * 1.25)));
   const globe = globeLayer(model, rasterSize, "instrument");
 
   ctx.save();
@@ -578,6 +630,7 @@ export function drawFlightFace(input: DrawFlightInput): void {
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
   ctx.drawImage(globe, cx - radius, cy - radius, radius * 2, radius * 2);
+  drawCoasts(ctx, model, cx, cy, radius);
   drawCityLights(ctx, model, cx, cy, radius);
   drawRoute(ctx, model, cx, cy, radius);
   drawContrail(ctx, model, cx, cy, radius);

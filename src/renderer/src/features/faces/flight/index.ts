@@ -5,3 +5,4 @@ export type { FlightClock } from "./clock";
 export { buildFlightModel } from "./model";
 export { drawFlightFace } from "./draw";
 export { parseFlightPreview } from "./preview";
+export { FlightRoutePicker } from "./RoutePicker";

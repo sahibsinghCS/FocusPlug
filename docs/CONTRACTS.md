@@ -113,6 +113,7 @@ Persisted by `Store.loadSettings` / `saveSettings` — one settings blob, not a 
 - `countdownSec`, `deskThreshold`, `strictMode`, `webcamEnabled` (Phase 1)
 - `deskModelId`: `"stub" | "blazeface" | "custom"` (default `"blazeface"` so a later factory wiring keeps today’s Desk AI)
 - `faceId`: immersive session face (`flight` | `hourglass` | `readout` | `descent` | `movement` | `record` | `circuit` | `line` | `orbit` | `growth` | `flask` | `garden` | `candle`). Default `flight`. Union lives in `src/shared/faces.ts` — not in the frozen Types block. Retired: Column / Grid / Eclipse / Field. Do not revive Eclipse or Field; Garden is the sunrise face; Candle is the melting-wax face.
+- `flightDep` / `flightArr`: curated IATA codes for the Flight face origin and arrival. Default `DUB` → `EDI`. Same settings blob — not a second store.
 - `plugs`: `PlugDevice[]` (default `[]`)
 
 `isStudyPc` is the literal `false`. Persistence MUST drop any device that is not explicitly `isStudyPc: false`. Never persist a study-PC plug.
