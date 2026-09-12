@@ -9,8 +9,10 @@ import {
   windowPrimary,
 } from "../lib/format";
 import { enabledPlugViews, type PlugView } from "../lib/plugsUi";
+import { formatLeadSec, overlayLeadSec } from "../features/forecast/model";
 import { overlayAction, overlayConsequenceLines } from "../features/session/model";
 import { useOverlayFocus } from "../features/session/useOverlayFocus";
+import { useOptionalAppState } from "../state/AppState";
 import "../features/session/session.css";
 
 interface CountdownOverlayProps {
@@ -21,6 +23,11 @@ interface CountdownOverlayProps {
   plugs?: readonly PlugView[];
   /** Local preview (no live fuse in main): the only action is a benign close. */
   preview: boolean;
+  /**
+   * Forecast receipt: seconds of warning before this fuse. Omit to derive it
+   * from the app-state forecast ledger; null suppresses the line.
+   */
+  forecastLeadSec?: number | null;
   onDemoKill: () => void;
   onDismiss: () => void;
 }
@@ -58,6 +65,16 @@ export function CountdownOverlay(props: CountdownOverlayProps): JSX.Element {
   const armed = enabledPlugViews(plugs);
   const consequence = overlayConsequenceLines(plugs);
   const action = overlayAction(props.preview);
+
+  // The receipt: prop wins; otherwise read the forecast ledger when rendered
+  // inside the provider. A preview fuse never claims a forecast call.
+  const app = useOptionalAppState();
+  const leadSec =
+    props.forecastLeadSec !== undefined
+      ? props.forecastLeadSec
+      : props.preview || !app
+        ? null
+        : overlayLeadSec(app.forecastEvents, Date.now());
 
   return (
     <div
@@ -121,6 +138,12 @@ export function CountdownOverlay(props: CountdownOverlayProps): JSX.Element {
         <p className="mt-1 max-w-xl text-center text-[20px] font-medium text-zinc-100">
           {props.reason}
         </p>
+
+        {leadSec !== null ? (
+          <p className="mt-2 rounded-md border border-fp-amber/45 bg-fp-amber/10 px-3 py-1 text-center font-mono text-[13px] text-fp-amber">
+            ✔ Forecast pre-armed {formatLeadSec(leadSec)} s before this fuse
+          </p>
+        ) : null}
 
         <div
           id="fp-overlay-consequence"

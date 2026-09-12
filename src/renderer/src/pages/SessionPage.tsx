@@ -1,5 +1,6 @@
 import { useEffect, useState, type JSX } from "react";
 import type { FaceId } from "@shared/faces";
+import type { ForecastEvent } from "@shared/ipc";
 import { ErrorBanner, PageFrame } from "../components/page";
 import {
   FaceHost,
@@ -8,6 +9,9 @@ import {
   readProgressOverride,
   selectedFaceId,
 } from "../features/faces";
+import { ForecastPanel } from "../features/forecast/ForecastPanel";
+import { NudgeToast } from "../features/forecast/NudgeToast";
+import { forecastSensorCard, prearmPlate } from "../features/forecast/model";
 import { ArmedLists } from "../features/session/ArmedLists";
 import { DecisionHero } from "../features/session/DecisionHero";
 import { EventTimeline } from "../features/session/EventTimeline";
@@ -58,12 +62,30 @@ export function SessionPage(): JSX.Element {
     countdownSec: app.countdown?.seconds ?? 0,
     fuseSec: app.settings.countdownSec,
   });
+  // Live process name for grey-app copy — only when focus matched no list.
+  const greyApp =
+    app.state.focus && !app.state.focus.matchedAllow && !app.state.focus.matchedBlock
+      ? app.state.focus.processName
+      : undefined;
   const sensors = [
     windowSensor(app.state.focus, app.lists),
     deskSensor(app.state.desk, app.settings.deskModelId),
+    forecastSensorCard(app.forecast, {
+      enabled: app.settings.forecastEnabled,
+      sessionActive: app.state.sessionActive,
+      greyApp,
+    }),
     plugsSensor(app.plugs),
   ];
   const preview = buildTimelinePreview(app.log);
+  const plate = app.settings.forecastEnabled ? prearmPlate(app.forecast) : null;
+  const latestNudge =
+    app.settings.forecastEnabled && app.state.sessionActive
+      ? (app.forecastEvents.find(
+          (event): event is Extract<ForecastEvent, { type: "forecast_nudge" }> =>
+            event.type === "forecast_nudge",
+        ) ?? null)
+      : null;
   const killNote = demoKillNote(app);
   const faceId = previewFace ?? selectedFaceId(app.settings.faceId);
   const built = buildFaceProps({
@@ -102,7 +124,7 @@ export function SessionPage(): JSX.Element {
         }}
       />
 
-      <div className="grid min-h-0 gap-3 min-[960px]:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.85fr)]">
+      <div className="grid shrink-0 gap-3 min-[960px]:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.85fr)]">
         <DecisionHero
           decision={app.state.decision}
           detail={app.state.detail}
@@ -112,7 +134,7 @@ export function SessionPage(): JSX.Element {
           compact
         />
         <div className="flex min-w-0 flex-col gap-3">
-          <SessionClock clock={clock} />
+          <SessionClock clock={clock} prearm={plate} />
           <SessionActions
             sessionActive={app.state.sessionActive}
             onStart={() => {
@@ -130,6 +152,20 @@ export function SessionPage(): JSX.Element {
       </div>
 
       <div className="shrink-0">
+        <ForecastPanel
+          snapshot={app.forecast}
+          events={app.forecastEvents}
+          history={app.forecastHistory}
+          enabled={app.settings.forecastEnabled}
+          prearmEnabled={app.settings.forecastPrearmEnabled}
+          sessionActive={app.state.sessionActive}
+          nudgeRisk={app.settings.forecastNudgeRisk}
+          prearmRisk={app.settings.forecastPrearmRisk}
+          greyApp={greyApp}
+        />
+      </div>
+
+      <div className="shrink-0">
         <SensorRail sensors={sensors} />
       </div>
 
@@ -137,9 +173,13 @@ export function SessionPage(): JSX.Element {
         <ArmedLists allowlist={app.lists.allowlist} blocklist={app.lists.blocklist} />
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col">
+      {/* The forecast instrument made the page taller than one viewport:
+          keep the timeline readable and let #fp-main scroll the overflow. */}
+      <div className="flex min-h-[180px] flex-1 flex-col">
         <EventTimeline preview={preview} />
       </div>
+
+      <NudgeToast event={latestNudge} snapshot={app.forecast} greyApp={greyApp} />
     </PageFrame>
   );
 }

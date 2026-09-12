@@ -4,14 +4,31 @@ import { cn } from "../../lib/cn";
 import { toneCard } from "../../lib/tone";
 import type { SensorCardView } from "./model";
 
+/** Short header names per card id — the rail subtitle follows the card list. */
+const RAIL_NAMES: Record<SensorCardView["id"], string> = {
+  window: "Foreground",
+  desk: "Desk AI",
+  forecast: "Forecast",
+  plugs: "Plugs",
+};
+
 export function SensorRail(props: { sensors: readonly SensorCardView[] }): JSX.Element {
   return (
     <section aria-label="Live sensors">
       <div className="mb-2 flex items-baseline justify-between">
         <p className="fp-section-label">Live sensors</p>
-        <p className="text-[11px] text-fp-faint">Foreground · Desk AI · Plugs</p>
+        <p className="text-[11px] text-fp-faint">
+          {props.sensors.map((sensor) => RAIL_NAMES[sensor.id]).join(" · ")}
+        </p>
       </div>
-      <div className="grid grid-cols-1 gap-3 min-[900px]:grid-cols-3">
+      <div
+        className={cn(
+          "grid grid-cols-1 gap-3",
+          props.sensors.length >= 4
+            ? "min-[720px]:grid-cols-2 min-[1100px]:grid-cols-4"
+            : "min-[900px]:grid-cols-3",
+        )}
+      >
         {props.sensors.map((sensor) => (
           <SensorCard key={sensor.id} sensor={sensor} />
         ))}

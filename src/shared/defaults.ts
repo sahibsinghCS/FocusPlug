@@ -112,6 +112,11 @@ export const DEFAULT_SETTINGS: AppSettings = {
   deskModelId: "blazeface",
   faceId: DEFAULT_FACE_ID,
   plugs: [],
+  forecastEnabled: true,
+  forecastPrearmEnabled: true,
+  forecastNudgeRisk: 0.55,
+  forecastPrearmRisk: 0.8,
+  forecastPrearmFuseSec: 5,
 };
 
 export const DEFAULT_SESSION_STATE: SessionState = {

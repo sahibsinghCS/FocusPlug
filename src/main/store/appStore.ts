@@ -127,6 +127,21 @@ export function normalizeSettings(raw: Partial<AppSettings> | null | undefined):
   const thresholdRaw = isFiniteNumber(raw?.deskThreshold)
     ? raw.deskThreshold
     : DEFAULT_SETTINGS.deskThreshold;
+  const nudgeRiskRaw = isFiniteNumber(raw?.forecastNudgeRisk)
+    ? raw.forecastNudgeRisk
+    : DEFAULT_SETTINGS.forecastNudgeRisk;
+  const prearmRiskRaw = isFiniteNumber(raw?.forecastPrearmRisk)
+    ? raw.forecastPrearmRisk
+    : DEFAULT_SETTINGS.forecastPrearmRisk;
+  const prearmFuseRaw = isFiniteNumber(raw?.forecastPrearmFuseSec)
+    ? raw.forecastPrearmFuseSec
+    : DEFAULT_SETTINGS.forecastPrearmFuseSec;
+  const forecastNudgeRisk = Math.min(0.9, Math.max(0.05, nudgeRiskRaw));
+  // Pre-arm must sit meaningfully above the nudge threshold or the bands collapse.
+  const forecastPrearmRisk = Math.max(
+    Math.min(0.95, Math.max(0.1, prearmRiskRaw)),
+    forecastNudgeRisk + 0.05,
+  );
   return {
     countdownSec: Math.min(600, Math.max(0, Math.round(countdownRaw))),
     deskThreshold: Math.min(1, Math.max(0, thresholdRaw)),
@@ -138,6 +153,17 @@ export function normalizeSettings(raw: Partial<AppSettings> | null | undefined):
     deskModelId: isDeskModelId(raw?.deskModelId) ? raw.deskModelId : DEFAULT_SETTINGS.deskModelId,
     faceId: isFaceId(raw?.faceId) ? raw.faceId : DEFAULT_SETTINGS.faceId,
     plugs: normalizePlugs(raw?.plugs),
+    forecastEnabled:
+      typeof raw?.forecastEnabled === "boolean"
+        ? raw.forecastEnabled
+        : DEFAULT_SETTINGS.forecastEnabled,
+    forecastPrearmEnabled:
+      typeof raw?.forecastPrearmEnabled === "boolean"
+        ? raw.forecastPrearmEnabled
+        : DEFAULT_SETTINGS.forecastPrearmEnabled,
+    forecastNudgeRisk,
+    forecastPrearmRisk,
+    forecastPrearmFuseSec: Math.min(600, Math.max(3, Math.round(prearmFuseRaw))),
   };
 }
 

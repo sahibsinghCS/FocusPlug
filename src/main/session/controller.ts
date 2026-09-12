@@ -1,5 +1,6 @@
 import { DEFAULT_SESSION_STATE } from "../../shared/defaults.ts";
 import { isFaceId } from "../../shared/faces.ts";
+import type { ForecastHook } from "../../shared/forecast/index.ts";
 import {
   PLUG_DRIVER_NOT_IMPLEMENTED,
   type AppLists,
@@ -66,6 +67,12 @@ export interface SessionControllerOptions {
   now?: () => number;
   /** Policy/countdown loop interval. `0` disables the timer (tests drive `flush`). */
   tickIntervalMs?: number;
+  /**
+   * Focus Forecast advisory seam. Called once per evaluateOnce on the
+   * active-session path; a non-null return overrides the countdownSec policy
+   * sees this step (never anything else). Absent ⇒ today's behavior exactly.
+   */
+  forecast?: ForecastHook;
 }
 
 function cloneState(state: SessionState): SessionState {
@@ -160,6 +167,42 @@ function requirePatch(value: unknown): Partial<AppSettings> {
     }
     patch.plugs = record.plugs.map((item, index) => requirePlugDevice(item, `plugs[${index}]`));
   }
+  if ("forecastEnabled" in record) {
+    if (typeof record.forecastEnabled !== "boolean") {
+      throw new Error("forecastEnabled must be a boolean");
+    }
+    patch.forecastEnabled = record.forecastEnabled;
+  }
+  if ("forecastPrearmEnabled" in record) {
+    if (typeof record.forecastPrearmEnabled !== "boolean") {
+      throw new Error("forecastPrearmEnabled must be a boolean");
+    }
+    patch.forecastPrearmEnabled = record.forecastPrearmEnabled;
+  }
+  if ("forecastNudgeRisk" in record) {
+    if (typeof record.forecastNudgeRisk !== "number" || !Number.isFinite(record.forecastNudgeRisk)) {
+      throw new Error("forecastNudgeRisk must be a finite number");
+    }
+    patch.forecastNudgeRisk = record.forecastNudgeRisk;
+  }
+  if ("forecastPrearmRisk" in record) {
+    if (
+      typeof record.forecastPrearmRisk !== "number" ||
+      !Number.isFinite(record.forecastPrearmRisk)
+    ) {
+      throw new Error("forecastPrearmRisk must be a finite number");
+    }
+    patch.forecastPrearmRisk = record.forecastPrearmRisk;
+  }
+  if ("forecastPrearmFuseSec" in record) {
+    if (
+      typeof record.forecastPrearmFuseSec !== "number" ||
+      !Number.isFinite(record.forecastPrearmFuseSec)
+    ) {
+      throw new Error("forecastPrearmFuseSec must be a finite number");
+    }
+    patch.forecastPrearmFuseSec = record.forecastPrearmFuseSec;
+  }
   return patch;
 }
 
@@ -203,6 +246,7 @@ export class SessionController {
   private readonly policyFactory: () => PolicyEngineSeam;
   private readonly now: () => number;
   private readonly tickIntervalMs: number;
+  private readonly forecast: ForecastHook | null;
 
   private policy: PolicyEngineSeam;
   private generation = 0;
@@ -236,6 +280,7 @@ export class SessionController {
     this.policyFactory = options.policyFactory ?? (() => new PolicyEngine());
     this.now = options.now ?? Date.now;
     this.tickIntervalMs = options.tickIntervalMs ?? DEFAULT_SESSION_TICK_MS;
+    this.forecast = options.forecast ?? null;
     this.policy = this.policyFactory();
     this.syncDeskEnabled(this.loadSettings().webcamEnabled);
   }
@@ -529,12 +574,18 @@ export class SessionController {
     }
     const gen = this.generation;
     const settings = this.loadSettings();
+    // Focus Forecast advisory seam: a non-null return is the countdownSec
+    // policy sees this step (shortened while pre-armed, frozen while a fuse
+    // burns); null is byte-for-byte today's behavior. The hook never throws.
+    const countdownOverrideSec =
+      this.forecast?.beforeStep(this.now(), settings.countdownSec) ?? null;
     // The engine checks fuse expiry against the live countdownSec, so a
-    // mid-fuse settings change must retime the displayed countdown to match.
+    // mid-fuse settings change must retime the displayed countdown to match —
+    // using the overridden value whenever the forecast has one in force.
     if (this.countdownStartedAt !== null) {
-      this.countdownDurationSec = settings.countdownSec;
+      this.countdownDurationSec = countdownOverrideSec ?? settings.countdownSec;
     }
-    const input = this.buildPolicyInput(true, settings);
+    const input = this.buildPolicyInput(true, settings, countdownOverrideSec);
     const events = this.withDemoRecovery(this.policy.step(input), input);
     if (this.generation !== gen || !this.sessionActive) {
       return;
@@ -703,7 +754,11 @@ export class SessionController {
     }
   }
 
-  private buildPolicyInput(sessionActive: boolean, settings?: AppSettings): PolicyEngineInput {
+  private buildPolicyInput(
+    sessionActive: boolean,
+    settings?: AppSettings,
+    countdownOverrideSec: number | null = null,
+  ): PolicyEngineInput {
     const resolved = settings ?? this.loadSettings();
     const ts = this.now();
     const focus =
@@ -714,7 +769,7 @@ export class SessionController {
       sessionActive,
       focus,
       desk,
-      countdownSec: resolved.countdownSec,
+      countdownSec: countdownOverrideSec ?? resolved.countdownSec,
       deskThreshold: resolved.deskThreshold,
       strictMode: resolved.strictMode,
       enabledPlugIds: funPlugIds,

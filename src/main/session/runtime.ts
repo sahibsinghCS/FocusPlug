@@ -1,5 +1,15 @@
+import { join } from "node:path";
+import type { ForecastPush } from "../../shared/forecast/index.ts";
 import { PolicyEngine } from "../../shared/policy/index.ts";
+import type { SessionEvent } from "../../shared/types.ts";
 import { createDeskMonitor } from "../desk/index.ts";
+import {
+  createForecast,
+  createForecastRecorder,
+  silentForecastPush,
+  withForecast,
+  type Forecast,
+} from "../forecast/index.ts";
 import { createProcessKiller } from "../kill/index.ts";
 import { createPlugController, SettingsPlugStore, type PlugController } from "../plugs/index.ts";
 import { createAppStore } from "../store/appStore.ts";
@@ -10,6 +20,8 @@ import type { SessionPush } from "./push.ts";
 export interface SessionRuntimeOptions {
   userDataDir: string;
   push: SessionPush;
+  /** Forecast fan-out (FORECAST_SNAPSHOT / FORECAST_EVENT). Defaults silent. */
+  forecastPush?: ForecastPush;
   /** Shared JSON store. Pass the same instance used by PlugController. */
   store?: SessionControllerOptions["store"];
   /** Shared PlugController. Defaults to settings.plugs + Kasa/HTTP/mock hosts. */
@@ -28,11 +40,18 @@ function createStoreBackedPlugs(
   });
 }
 
+interface BuiltSessionRuntime {
+  session: SessionController;
+  forecast: Forecast;
+}
+
 /**
  * Production wiring: shared JSON store, platform window reader, desk AI,
- * blocklist killer, and the frozen PlugController (Kasa/HTTP/mock).
+ * blocklist killer, the frozen PlugController (Kasa/HTTP/mock), and the
+ * Focus Forecast observer — its tap wraps the push (SessionPush itself is
+ * unchanged) and its hook rides SessionControllerOptions.forecast.
  */
-export function createSessionRuntime(options: SessionRuntimeOptions): SessionController {
+function buildSessionRuntime(options: SessionRuntimeOptions): BuiltSessionRuntime {
   const store = options.store ?? createAppStore(options.userDataDir);
   const settings = store.loadSettings();
   const windowMonitor = new FocusWindowMonitor({
@@ -49,31 +68,57 @@ export function createSessionRuntime(options: SessionRuntimeOptions): SessionCon
       store.loadAllowlist().flatMap((entry) => (entry.enabled ? entry.match : [])),
   });
   const plugs = options.plugs ?? createStoreBackedPlugs(store, options.now);
+  const now = options.now ?? Date.now;
+  const forecast = createForecast({
+    loadSettings: () => store.loadSettings(),
+    appendLog: (detail) => {
+      const event: SessionEvent = { ts: now(), kind: "forecast", detail };
+      try {
+        store.appendSessionLog(event);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error("Failed to persist forecast log:", message);
+      }
+      options.push.sessionEvent({ ...event });
+    },
+    push: options.forecastPush ?? silentForecastPush(),
+    recorder: createForecastRecorder({
+      dir: join(options.userDataDir, "forecast-sessions"),
+    }),
+  });
   const controllerOptions: SessionControllerOptions = {
     windowMonitor,
     deskMonitor,
     killer,
     plugs,
     store,
-    push: options.push,
+    push: withForecast(options.push, forecast.monitor),
     policyFactory: () => new PolicyEngine(),
     now: options.now,
     tickIntervalMs: options.tickIntervalMs,
+    forecast: forecast.hook,
   };
-  return new SessionController(controllerOptions);
+  return { session: new SessionController(controllerOptions), forecast };
+}
+
+export function createSessionRuntime(options: SessionRuntimeOptions): SessionController {
+  return buildSessionRuntime(options).session;
 }
 
 export interface FocusPlugRuntime {
   session: SessionController;
   plugs: PlugController;
+  forecast: Forecast;
 }
 
-/** Production pair: one store, one PlugController shared with session. */
+/** Production trio: one store, one PlugController, one Forecast per session. */
 export function createFocusPlugRuntime(options: SessionRuntimeOptions): FocusPlugRuntime {
   const store = options.store ?? createAppStore(options.userDataDir);
   const plugs = options.plugs ?? createStoreBackedPlugs(store, options.now);
+  const built = buildSessionRuntime({ ...options, store, plugs });
   return {
-    session: createSessionRuntime({ ...options, store, plugs }),
+    session: built.session,
     plugs,
+    forecast: built.forecast,
   };
 }

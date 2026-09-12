@@ -3,6 +3,7 @@ import { DEFAULT_SETTINGS } from "./defaults";
 import { DEFAULT_FACE_ID, FACE_IDS, isFaceId, normalizeFaceId } from "./faces";
 import {
   IPC_INVOKE,
+  IPC_PUSH,
   PLUG_DRIVER_NOT_IMPLEMENTED,
   type DeskModelFactory,
   type PlugController,
@@ -70,6 +71,20 @@ describe("Phase 2 contracts", () => {
   it("defaults deskModelId to blazeface and plugs to empty", () => {
     expect(DEFAULT_SETTINGS.deskModelId).toBe("blazeface");
     expect(DEFAULT_SETTINGS.plugs).toEqual([]);
+  });
+
+  it("freezes Focus Forecast IPC channel names", () => {
+    expect(IPC_INVOKE.FORECAST_GET_STATE).toBe("focusplug:forecast:getState");
+    expect(IPC_PUSH.FORECAST_SNAPSHOT).toBe("focusplug:forecast:snapshot");
+    expect(IPC_PUSH.FORECAST_EVENT).toBe("focusplug:forecast:event");
+  });
+
+  it("defaults the five flat Focus Forecast settings keys", () => {
+    expect(DEFAULT_SETTINGS.forecastEnabled).toBe(true);
+    expect(DEFAULT_SETTINGS.forecastPrearmEnabled).toBe(true);
+    expect(DEFAULT_SETTINGS.forecastNudgeRisk).toBe(0.55);
+    expect(DEFAULT_SETTINGS.forecastPrearmRisk).toBe(0.8);
+    expect(DEFAULT_SETTINGS.forecastPrearmFuseSec).toBe(5);
   });
 
   it("defaults faceId to flight once the instrument is ready", () => {

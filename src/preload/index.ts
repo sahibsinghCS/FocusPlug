@@ -8,6 +8,8 @@ import {
   type DeskSnapshot,
   type FocusPlugApi,
   type FocusSnapshot,
+  type ForecastEvent,
+  type ForecastSnapshot,
   type PlugDevice,
   type PolicyEvent,
   type SessionEvent,
@@ -48,6 +50,7 @@ const api: FocusPlugApi = {
     ipcRenderer.invoke(IPC_INVOKE.PLUGS_REMOVE, deviceId),
   plugsTest: (deviceId: string) => ipcRenderer.invoke(IPC_INVOKE.PLUGS_TEST, deviceId),
   demoKill: () => ipcRenderer.invoke(IPC_INVOKE.DEMO_KILL),
+  forecastGetState: () => ipcRenderer.invoke(IPC_INVOKE.FORECAST_GET_STATE),
   onSessionState: (cb: (state: SessionState) => void) =>
     subscribe(IPC_PUSH.SESSION_STATE, cb),
   onPolicyEvent: (cb: (event: PolicyEvent) => void) =>
@@ -58,6 +61,10 @@ const api: FocusPlugApi = {
     subscribe(IPC_PUSH.DESK_SNAPSHOT, cb),
   onSessionEvent: (cb: (event: SessionEvent) => void) =>
     subscribe(IPC_PUSH.SESSION_EVENT, cb),
+  onForecastSnapshot: (cb: (snap: ForecastSnapshot) => void) =>
+    subscribe(IPC_PUSH.FORECAST_SNAPSHOT, cb),
+  onForecastEvent: (cb: (event: ForecastEvent) => void) =>
+    subscribe(IPC_PUSH.FORECAST_EVENT, cb),
 };
 
 contextBridge.exposeInMainWorld("focusplug", api);

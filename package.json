@@ -35,7 +35,14 @@
     "gauntlet:flask": "node src/renderer/src/features/faces/flask/stills.mjs",
     "gauntlet:garden": "node src/renderer/src/features/faces/garden/stills.mjs",
     "test:candle": "vitest run src/renderer/src/features/faces/candle src/shared/faces.test.ts src/renderer/src/features/faces/registry.test.ts",
-    "gauntlet:candle": "node src/renderer/src/features/faces/candle/stills.mjs"
+    "gauntlet:candle": "node src/renderer/src/features/faces/candle/stills.mjs",
+    "forecast:simulate": "tsx --tsconfig tsconfig.node.json scripts/forecast/simulate.ts",
+    "forecast:data": "tsx --tsconfig tsconfig.node.json scripts/forecast/build-dataset.ts",
+    "forecast:train": "tsx --tsconfig tsconfig.node.json scripts/forecast/train.ts",
+    "forecast:eval": "tsx --tsconfig tsconfig.node.json scripts/forecast/eval.ts",
+    "forecast:pipeline": "npm run forecast:simulate && npm run forecast:data && npm run forecast:train && npm run forecast:eval",
+    "test:forecast": "vitest run src/shared/forecast src/main/forecast src/renderer/src/features/forecast",
+    "forecast:preview": "vite --config scripts/forecast-preview.vite.ts"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",

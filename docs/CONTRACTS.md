@@ -148,3 +148,31 @@ Block: Discord, steam, EpicGamesLauncher, common game exes
 
 ## UI must always show
 Window status · Desk AI status · Decision · Countdown overlay · Start/Stop · Demo Kill
+
+## Focus Forecast (Phase 4)
+Additive only. `src/shared/types.ts` receives ZERO changes (byte-locked against the Types fence above). New shared types live in `src/shared/forecast/types.ts` and are re-exported from `src/shared/ipc.ts` (`ForecastSnapshot`, `ForecastEvent`, `ForecastBand`). Full frozen appendix: `docs/FORECAST-CONTRACTS.md`; design: `docs/FORECAST-DESIGN.md`.
+
+### IPC (Phase 4 additions)
+Invoke:
+
+- `focusplug:forecast:getState` → `ForecastSnapshot | null` (null when no session is active or the forecast is off)
+
+Push:
+
+- `focusplug:forecast:snapshot` → `ForecastSnapshot` (1 Hz + band changes)
+- `focusplug:forecast:event` → `ForecastEvent`
+
+`FocusPlugApi` gains `forecastGetState()`, `onForecastSnapshot(cb)`, `onForecastEvent(cb)`. There is no forecast settings invoke — settings flow through the existing `focusplug:settings:set` patch.
+
+### Settings (Phase 4 additions to `AppSettings`)
+Five flat keys (house `requirePatch`/`normalizeSettings` style — no nested block):
+
+| key | type | default | `normalizeSettings` clamp |
+|---|---|---|---|
+| `forecastEnabled` | boolean | `true` | boolean else default |
+| `forecastPrearmEnabled` | boolean | `true` | boolean else default |
+| `forecastNudgeRisk` | number | `0.55` | finite → clamp [0.05, 0.90] else default |
+| `forecastPrearmRisk` | number | `0.80` | finite → clamp [0.10, 0.95] else default; then raised to ≥ `forecastNudgeRisk` + 0.05 |
+| `forecastPrearmFuseSec` | number | `5` | finite → `Math.round`, clamp [3, 600] else default (runtime additionally caps at `countdownSec`) |
+
+`forecastEnabled: false` (or any load/inference failure) reproduces today's behavior event-for-event. The forecast's only authority over enforcement is `PolicyInput.countdownSec`, bounded to `[3, countdownSec]`, never lengthened. `src/shared/policy/**` and `SessionPush` (`src/main/session/push.ts`) stay untouched.

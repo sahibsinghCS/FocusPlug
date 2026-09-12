@@ -28,7 +28,7 @@ export interface SessionClockView {
 }
 
 export interface SensorCardView {
-  id: "window" | "desk" | "plugs";
+  id: "window" | "desk" | "forecast" | "plugs";
   label: string;
   title: string;
   body: string;
@@ -361,6 +361,9 @@ export function classifySessionEvent(event: SessionEvent): TimelineStage {
   if (kind === "session" && /stopped|observe only/.test(detail)) {
     return "recovery";
   }
+  if (kind === "forecast") {
+    return "cause";
+  }
   if (kind === "decision") {
     if (detail.includes("on_task")) {
       return "recovery";
@@ -391,6 +394,7 @@ const PREVIEW_KINDS = new Set([
   "unlock",
   "plug_off",
   "plug_on",
+  "forecast",
 ]);
 
 export function isEnforcementEvent(event: SessionEvent): boolean {

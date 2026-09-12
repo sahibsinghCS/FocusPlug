@@ -13,6 +13,8 @@ import type {
   AppLists,
   AppSettings,
   DeskModelId,
+  ForecastEvent,
+  ForecastSnapshot,
   KillResult,
   PlugDevice,
   PlugProtocol,
@@ -55,6 +57,12 @@ interface AppStateValue {
   settings: AppSettings;
   plugs: PlugView[];
   log: SessionEvent[];
+  /** Latest forecast snapshot (1 Hz while a session runs; null before the first). */
+  forecast: ForecastSnapshot | null;
+  /** Recent forecast events, newest first (capped ring). */
+  forecastEvents: ForecastEvent[];
+  /** Smoothed-risk history for the sparkline, oldest first (capped ring). */
+  forecastHistory: { ts: number; risk: number }[];
   /** Session start latched outside the capped log (null when no session runs). */
   sessionStartedAt: number | null;
   error: string | null;
@@ -110,6 +118,9 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [plugSnapshots, setPlugSnapshots] = useState<Record<string, PlugSnapshot>>({});
   const [log, setLog] = useState<SessionEvent[]>([]);
+  const [forecast, setForecast] = useState<ForecastSnapshot | null>(null);
+  const [forecastEvents, setForecastEvents] = useState<ForecastEvent[]>([]);
+  const [forecastHistory, setForecastHistory] = useState<{ ts: number; risk: number }[]>([]);
   const [sessionStartedAt, setSessionStartedAt] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [killResult, setKillResult] = useState<KillResult | null>(null);
@@ -156,13 +167,15 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
 
     void (async () => {
       try {
-        const [nextState, nextLists, nextSettings, nextLog, listedPlugs] = await Promise.all([
-          api.sessionGetState(),
-          api.listsGet(),
-          api.settingsGet(),
-          api.logGet(),
-          api.plugsList(),
-        ]);
+        const [nextState, nextLists, nextSettings, nextLog, listedPlugs, nextForecast] =
+          await Promise.all([
+            api.sessionGetState(),
+            api.listsGet(),
+            api.settingsGet(),
+            api.logGet(),
+            api.plugsList(),
+            api.forecastGetState(),
+          ]);
         if (cancelled) {
           return;
         }
@@ -173,6 +186,7 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
           plugs: listedPlugs,
         });
         setLog(nextLog);
+        setForecast(nextForecast);
         setReady(true);
       } catch (caught) {
         if (!cancelled) {
@@ -191,6 +205,20 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
     });
     const unsubLog = api.onSessionEvent((event) => {
       setLog((current) => [event, ...current].slice(0, 400));
+    });
+    const unsubForecast = api.onForecastSnapshot((snap) => {
+      setForecast(snap);
+      setForecastHistory((current) => {
+        const last = current[current.length - 1];
+        if (last && snap.ts <= last.ts) {
+          // Forced (sub-second) recomputes update the needle, not the trail.
+          return [...current.slice(0, -1), { ts: snap.ts, risk: snap.risk }];
+        }
+        return [...current, { ts: snap.ts, risk: snap.risk }].slice(-180);
+      });
+    });
+    const unsubForecastEvent = api.onForecastEvent((event) => {
+      setForecastEvents((current) => [event, ...current].slice(0, 60));
     });
     const unsubPolicy = api.onPolicyEvent((event: PolicyEvent) => {
       if (event.type === "start_countdown") {
@@ -228,6 +256,8 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
       unsubFocus();
       unsubDesk();
       unsubLog();
+      unsubForecast();
+      unsubForecastEvent();
       unsubPolicy();
       clearLocalTimer();
     };
@@ -268,6 +298,11 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
 
   const startSession = useCallback(async (): Promise<void> => {
     await run(async () => {
+      // A fresh session means a fresh forecast ledger — the monitor's ring
+      // resets too, so stale receipts must not survive into the new run.
+      setForecast(null);
+      setForecastEvents([]);
+      setForecastHistory([]);
       setState(await api.sessionStart());
     }, "Failed to start session");
   }, [api, run]);
@@ -449,6 +484,9 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
       settings,
       plugs,
       log,
+      forecast,
+      forecastEvents,
+      forecastHistory,
       sessionStartedAt,
       error,
       killResult,
@@ -475,6 +513,9 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
       demoKill,
       dismissPreview,
       error,
+      forecast,
+      forecastEvents,
+      forecastHistory,
       killResult,
       lists,
       log,
@@ -507,4 +548,12 @@ export function useAppState(): AppStateValue {
     throw new Error("useAppState must be used within AppStateProvider");
   }
   return value;
+}
+
+/**
+ * Optional variant for components that also render outside the provider
+ * (CountdownOverlay in the forecast preview page): null instead of throwing.
+ */
+export function useOptionalAppState(): AppStateValue | null {
+  return useContext(AppStateContext);
 }

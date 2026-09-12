@@ -157,6 +157,115 @@ export function SettingsPage(): JSX.Element {
         </div>
       </section>
 
+      <section className="fp-card space-y-4 p-4">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-[13px] font-medium">Focus Forecast</p>
+            <p className="mt-0.5 text-[12px] text-fp-mute">
+              241-param on-device MLP predicts drift 30 s out — nudges early, pre-arms the
+              fuse. Off reproduces today&apos;s behavior exactly.
+            </p>
+          </div>
+          <Toggle
+            checked={settings.forecastEnabled}
+            onChange={(next) => {
+              void app.patchSettings({ forecastEnabled: next });
+            }}
+            label="Focus Forecast"
+          />
+        </div>
+
+        <div className="flex items-center justify-between gap-4 border-t border-fp-line pt-4">
+          <div>
+            <p className="text-[13px] font-medium">Pre-arm shortens the fuse</p>
+            <p className="mt-0.5 text-[12px] text-fp-mute">
+              Sustained high risk arms the shorter fuse below (never under 3 s, never longer
+              than the countdown). Off is nudge-only — zero enforcement change.
+            </p>
+          </div>
+          <Toggle
+            checked={settings.forecastPrearmEnabled}
+            onChange={(next) => {
+              void app.patchSettings({ forecastPrearmEnabled: next });
+            }}
+            label="Pre-arm shortens the fuse"
+            disabled={!settings.forecastEnabled}
+          />
+        </div>
+
+        <Field
+          label="Nudge threshold"
+          hint="Smoothed risk that triggers the heads-up toast (3 sustained seconds)."
+        >
+          <div className="flex items-center gap-3">
+            <input
+              type="range"
+              min={0.05}
+              max={0.9}
+              step={0.01}
+              aria-label="Nudge risk threshold"
+              value={settings.forecastNudgeRisk}
+              disabled={!settings.forecastEnabled}
+              onChange={(event) => {
+                void app.patchSettings({ forecastNudgeRisk: Number(event.target.value) });
+              }}
+              className="h-1 flex-1 accent-fp-amber disabled:opacity-40"
+            />
+            <span className="w-12 font-mono text-[13px] tabular">
+              {Math.round(settings.forecastNudgeRisk * 100)}%
+            </span>
+          </div>
+        </Field>
+
+        <Field
+          label="Pre-arm threshold"
+          hint="Smoothed risk that pre-arms the fuse (2 sustained seconds). Kept at least 5 points above the nudge threshold."
+        >
+          <div className="flex items-center gap-3">
+            <input
+              type="range"
+              min={0.1}
+              max={0.95}
+              step={0.01}
+              aria-label="Pre-arm risk threshold"
+              value={settings.forecastPrearmRisk}
+              disabled={!settings.forecastEnabled || !settings.forecastPrearmEnabled}
+              onChange={(event) => {
+                void app.patchSettings({ forecastPrearmRisk: Number(event.target.value) });
+              }}
+              className="h-1 flex-1 accent-fp-red disabled:opacity-40"
+            />
+            <span className="w-12 font-mono text-[13px] tabular">
+              {Math.round(settings.forecastPrearmRisk * 100)}%
+            </span>
+          </div>
+        </Field>
+
+        <Field
+          label="Pre-armed fuse"
+          hint="Countdown length while pre-armed. A fuse already burning never changes duration."
+        >
+          <div className="flex items-center gap-3">
+            <input
+              type="range"
+              min={3}
+              max={30}
+              step={1}
+              aria-label="Pre-armed fuse seconds"
+              value={settings.forecastPrearmFuseSec}
+              disabled={!settings.forecastEnabled || !settings.forecastPrearmEnabled}
+              onChange={(event) => {
+                void app.patchSettings({ forecastPrearmFuseSec: Number(event.target.value) });
+              }}
+              className="h-1 flex-1 accent-fp-red disabled:opacity-40"
+            />
+            <span className="w-12 font-mono text-[13px] tabular">
+              {settings.forecastPrearmFuseSec}s
+            </span>
+          </div>
+        </Field>
+      </section>
+
       <section className="fp-card space-y-3 p-4" aria-busy={faceSave.saving}>
         <div className="flex items-start justify-between gap-3">
           <div>

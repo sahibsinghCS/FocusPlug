@@ -27,7 +27,12 @@
         "enabled": true,
         "isStudyPc": false
       }
-    ]
+    ],
+    "forecastEnabled": true,
+    "forecastPrearmEnabled": true,
+    "forecastNudgeRisk": 0.55,
+    "forecastPrearmRisk": 0.8,
+    "forecastPrearmFuseSec": 5
   },
   "policyEventTypes": [
     "status",

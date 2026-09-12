@@ -1,0 +1,470 @@
+{
+  "version": "ff-1",
+  "createdAt": "2026-09-12T17:41:50.004Z",
+  "status": "trained",
+  "gate": {
+    "enforced": true,
+    "metric": "lead-censored ROC-AUC (onset ≥ 20 s away vs calm)",
+    "marginRequired": 0.03,
+    "mlpLeadAuc20": 0.9248,
+    "baselineLeadAuc20": 0.7734,
+    "baselineFeature": "otherDwell30",
+    "margin": 0.1514,
+    "passed": true
+  },
+  "metrics": {
+    "rocAuc": 0.9614,
+    "prAuc": 0.6938,
+    "baseRate": 0.0275,
+    "aucLead20": 0.9248,
+    "aucLead10": 0.9512,
+    "ece": 0.0053,
+    "evalFrames": 85230,
+    "evalSessions": 48
+  },
+  "reliability": [
+    {
+      "lo": 0,
+      "hi": 0.1,
+      "count": 81571,
+      "meanPredicted": 0.005775,
+      "observedRate": 0.003898
+    },
+    {
+      "lo": 0.1,
+      "hi": 0.2,
+      "count": 700,
+      "meanPredicted": 0.146193,
+      "observedRate": 0.237143
+    },
+    {
+      "lo": 0.2,
+      "hi": 0.3,
+      "count": 480,
+      "meanPredicted": 0.24703,
+      "observedRate": 0.385417
+    },
+    {
+      "lo": 0.3,
+      "hi": 0.4,
+      "count": 403,
+      "meanPredicted": 0.345182,
+      "observedRate": 0.459057
+    },
+    {
+      "lo": 0.4,
+      "hi": 0.5,
+      "count": 311,
+      "meanPredicted": 0.447931,
+      "observedRate": 0.588424
+    },
+    {
+      "lo": 0.5,
+      "hi": 0.6,
+      "count": 349,
+      "meanPredicted": 0.550256,
+      "observedRate": 0.616046
+    },
+    {
+      "lo": 0.6,
+      "hi": 0.7,
+      "count": 279,
+      "meanPredicted": 0.650956,
+      "observedRate": 0.648746
+    },
+    {
+      "lo": 0.7,
+      "hi": 0.8,
+      "count": 333,
+      "meanPredicted": 0.754485,
+      "observedRate": 0.735736
+    },
+    {
+      "lo": 0.8,
+      "hi": 0.9,
+      "count": 520,
+      "meanPredicted": 0.8555,
+      "observedRate": 0.805769
+    },
+    {
+      "lo": 0.9,
+      "hi": 1,
+      "count": 284,
+      "meanPredicted": 0.934209,
+      "observedRate": 0.855634
+    }
+  ],
+  "operatingPoints": {
+    "nudge": {
+      "threshold": 0.55,
+      "precision": 0.7448,
+      "recall": 0.509,
+      "fpr": 0.0049
+    },
+    "prearm": {
+      "threshold": 0.8,
+      "precision": 0.8234,
+      "recall": 0.2829,
+      "fpr": 0.0017
+    }
+  },
+  "alarms": {
+    "recallAt30": 0.5641,
+    "medianLeadSec": 15,
+    "p25LeadSec": 11,
+    "falsePrearmsPerHour": 0.3545,
+    "nudgesPerHour": 3.1901,
+    "drifts": 78,
+    "hits": 44,
+    "misses": 34,
+    "evalHours": 25.3908,
+    "settings": {
+      "nudgeRisk": 0.55,
+      "prearmRisk": 0.8,
+      "prearmFuseSec": 5,
+      "baseFuseSec": 10
+    }
+  },
+  "baselines": {
+    "baseRate": {
+      "auc": 0.5,
+      "leadAuc20": 0.5,
+      "note": "predict the prevalence everywhere"
+    },
+    "ifElseHeuristic": {
+      "auc": 0.7495,
+      "leadAuc20": 0.7198,
+      "note": "3-rule strawman: fast switching OR grey dwell OR low desk presence"
+    },
+    "greyDwellHeuristic": {
+      "auc": 0.7768,
+      "leadAuc20": 0.7734
+    },
+    "bestSingleFeatureLogistic": {
+      "feature": "otherDwell30",
+      "auc": 0.7768,
+      "leadAuc20": 0.7734,
+      "note": "gate baseline — feature chosen adversarially by held-out lead-censored AUC"
+    },
+    "fullLogistic18": {
+      "auc": 0.958,
+      "leadAuc20": 0.9325
+    },
+    "mlp": {
+      "auc": 0.9614,
+      "leadAuc20": 0.9248
+    },
+    "singleFeature": [
+      {
+        "key": "switch15",
+        "auc": 0.6958,
+        "leadAuc20": 0.6892
+      },
+      {
+        "key": "switch60",
+        "auc": 0.7052,
+        "leadAuc20": 0.6816
+      },
+      {
+        "key": "switchAccel",
+        "auc": 0.6382,
+        "leadAuc20": 0.6537
+      },
+      {
+        "key": "dwellCur",
+        "auc": 0.7239,
+        "leadAuc20": 0.7225
+      },
+      {
+        "key": "fracAllow60",
+        "auc": 0.7613,
+        "leadAuc20": 0.753
+      },
+      {
+        "key": "fracOther60",
+        "auc": 0.7662,
+        "leadAuc20": 0.7583
+      },
+      {
+        "key": "otherDwell30",
+        "auc": 0.7768,
+        "leadAuc20": 0.7734
+      },
+      {
+        "key": "distinct60",
+        "auc": 0.7243,
+        "leadAuc20": 0.7038
+      },
+      {
+        "key": "sinceBlock",
+        "auc": 0.468,
+        "leadAuc20": 0.4686
+      },
+      {
+        "key": "streak",
+        "auc": 0.7531,
+        "leadAuc20": 0.7529
+      },
+      {
+        "key": "deskPresent30",
+        "auc": 0.6601,
+        "leadAuc20": 0.635
+      },
+      {
+        "key": "deskConfMean30",
+        "auc": 0.6829,
+        "leadAuc20": 0.6603
+      },
+      {
+        "key": "deskConfStd30",
+        "auc": 0.6489,
+        "leadAuc20": 0.6163
+      },
+      {
+        "key": "deskFlicker60",
+        "auc": 0.6351,
+        "leadAuc20": 0.605
+      },
+      {
+        "key": "sessionMin",
+        "auc": 0.5476,
+        "leadAuc20": 0.5432
+      },
+      {
+        "key": "priorDrifts",
+        "auc": 0.6267,
+        "leadAuc20": 0.6267
+      },
+      {
+        "key": "titleChurn30",
+        "auc": 0.6693,
+        "leadAuc20": 0.6451
+      },
+      {
+        "key": "titleChurn60",
+        "auc": 0.6542,
+        "leadAuc20": 0.638
+      }
+    ]
+  },
+  "perArchetype": {
+    "away_drifter": {
+      "sessions": 10,
+      "frames": 17650,
+      "baseRate": 0.051,
+      "falsePositiveRateAtNudge": 0.0057,
+      "falsePositiveRateAtPrearm": 0.0012,
+      "falsePrearmsPerHour": 0.3391,
+      "drifts": 30,
+      "hits": 23
+    },
+    "burst_switcher": {
+      "sessions": 9,
+      "frames": 14097,
+      "baseRate": 0.0511,
+      "falsePositiveRateAtNudge": 0.0112,
+      "falsePositiveRateAtPrearm": 0.004,
+      "falsePrearmsPerHour": 0.9626,
+      "drifts": 24,
+      "hits": 14
+    },
+    "grinder": {
+      "sessions": 10,
+      "frames": 18309,
+      "baseRate": 0,
+      "falsePositiveRateAtNudge": 0,
+      "falsePositiveRateAtPrearm": 0,
+      "falsePrearmsPerHour": 0,
+      "drifts": 0,
+      "hits": 0
+    },
+    "research_churn": {
+      "sessions": 7,
+      "frames": 13601,
+      "baseRate": 0,
+      "falsePositiveRateAtNudge": 0.0001,
+      "falsePositiveRateAtPrearm": 0,
+      "falsePrearmsPerHour": 0,
+      "drifts": 0,
+      "hits": 0
+    },
+    "steady_then_snap": {
+      "sessions": 3,
+      "frames": 5458,
+      "baseRate": 0.011,
+      "falsePositiveRateAtNudge": 0,
+      "falsePositiveRateAtPrearm": 0,
+      "falsePrearmsPerHour": 0,
+      "drifts": 2,
+      "hits": 0
+    },
+    "wanderer": {
+      "sessions": 9,
+      "frames": 16115,
+      "baseRate": 0.041,
+      "falsePositiveRateAtNudge": 0.0105,
+      "falsePositiveRateAtPrearm": 0.0044,
+      "falsePrearmsPerHour": 0.6365,
+      "drifts": 22,
+      "hits": 7
+    }
+  },
+  "ablation": [
+    {
+      "key": "switch15",
+      "leadAuc20Drop": 0.097
+    },
+    {
+      "key": "deskConfStd30",
+      "leadAuc20Drop": 0.0497
+    },
+    {
+      "key": "titleChurn60",
+      "leadAuc20Drop": 0.0405
+    },
+    {
+      "key": "deskConfMean30",
+      "leadAuc20Drop": 0.0271
+    },
+    {
+      "key": "otherDwell30",
+      "leadAuc20Drop": 0.0219
+    },
+    {
+      "key": "streak",
+      "leadAuc20Drop": 0.0179
+    },
+    {
+      "key": "titleChurn30",
+      "leadAuc20Drop": 0.0095
+    },
+    {
+      "key": "fracOther60",
+      "leadAuc20Drop": 0.0077
+    },
+    {
+      "key": "sinceBlock",
+      "leadAuc20Drop": 0.0057
+    },
+    {
+      "key": "distinct60",
+      "leadAuc20Drop": 0.0054
+    },
+    {
+      "key": "priorDrifts",
+      "leadAuc20Drop": 0.0043
+    },
+    {
+      "key": "sessionMin",
+      "leadAuc20Drop": 0.0034
+    },
+    {
+      "key": "switch60",
+      "leadAuc20Drop": 0.0021
+    },
+    {
+      "key": "deskPresent30",
+      "leadAuc20Drop": 0.0013
+    },
+    {
+      "key": "fracAllow60",
+      "leadAuc20Drop": -0.001
+    },
+    {
+      "key": "deskFlicker60",
+      "leadAuc20Drop": -0.0047
+    },
+    {
+      "key": "dwellCur",
+      "leadAuc20Drop": -0.0048
+    },
+    {
+      "key": "switchAccel",
+      "leadAuc20Drop": -0.0146
+    }
+  ],
+  "thresholdParity": {
+    "nudge": 0.55,
+    "prearm": 0.8,
+    "source": "DEFAULT_SETTINGS"
+  },
+  "provenanceSha": "62fafb1bfc3bce8e3106727260eb2f58ec038bfc30c6d6786337a6270b8d5bfa",
+  "provenance": {
+    "manifest": {
+      "version": 1,
+      "createdAt": "2026-09-12T17:41:50.004Z",
+      "seed": 42,
+      "mode": "offline-fallback",
+      "gitCommit": "712f10f",
+      "counts": {
+        "sessions": {
+          "synthetic": 240,
+          "augmented:local": 48
+        },
+        "sessionsByArchetype": {
+          "grinder": 56,
+          "wanderer": 61,
+          "burst_switcher": 53,
+          "away_drifter": 43,
+          "research_churn": 42,
+          "steady_then_snap": 33
+        },
+        "rows": {
+          "train": 133502,
+          "eval": 85230,
+          "total": 218732
+        },
+        "rowsBySource": {
+          "synthetic": 190738,
+          "augmented:local": 27994
+        },
+        "positives": {
+          "train": 9360,
+          "eval": 2340
+        },
+        "excludedFrames": 29423,
+        "rawFrames": 536375
+      },
+      "adaption": {
+        "attempted": true,
+        "ok": false,
+        "httpStatus": 403,
+        "error": "POST /datasets HTTP 403: {\"statusCode\":403,\"error\":\"Forbidden\",\"message\":\"Invalid token. Please sign in\"}",
+        "datasetId": null,
+        "augmentedDatasetId": null,
+        "mergedRows": 0,
+        "droppedRows": 0
+      },
+      "downsample": {
+        "nearDriftKeepSec": 120,
+        "calmKeepProb": 0.25
+      }
+    },
+    "train": {
+      "config": {
+        "epochs": 400,
+        "lr": 0.003,
+        "batch": 256,
+        "seed": 42,
+        "l2": 0.0001,
+        "patience": 40,
+        "valFraction": 0.1,
+        "posWeightPower": 0.5
+      },
+      "arch": "18-12-1",
+      "paramCount": 241,
+      "rows": {
+        "fit": 120200,
+        "val": 13302,
+        "fitPositives": 8400
+      },
+      "classWeightPos": 3.648222,
+      "epochsRan": 61,
+      "bestEpoch": 20,
+      "bestValLoss": 0.07079,
+      "valRocAuc": 0.95802,
+      "valPrAuc": 0.812442,
+      "earlyStopMetric": "val importance-weighted BCE loss"
+    }
+  }
+}

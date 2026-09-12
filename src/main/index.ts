@@ -9,8 +9,14 @@ import {
   type DeskModelId,
   type PlugDevice,
 } from "@shared/ipc";
+import type { ForecastPush } from "@shared/forecast/types";
 import { assertControllable, type PlugController } from "./plugs";
-import { createFocusPlugRuntime, type SessionController, type SessionPush } from "./session";
+import {
+  createFocusPlugRuntime,
+  type FocusPlugRuntime,
+  type SessionController,
+  type SessionPush,
+} from "./session";
 
 let session: SessionController | null = null;
 let mainWindow: BrowserWindow | null = null;
@@ -37,7 +43,18 @@ function createElectronPush(): SessionPush {
   };
 }
 
-function registerIpc(controller: SessionController, plugs: PlugController): void {
+function createForecastElectronPush(): ForecastPush {
+  return {
+    snapshot: (snap) => broadcast(IPC_PUSH.FORECAST_SNAPSHOT, snap),
+    event: (event) => broadcast(IPC_PUSH.FORECAST_EVENT, event),
+  };
+}
+
+function registerIpc(
+  controller: SessionController,
+  plugs: PlugController,
+  forecast: FocusPlugRuntime["forecast"],
+): void {
   ipcMain.handle(IPC_INVOKE.SESSION_START, async () => controller.start());
   ipcMain.handle(IPC_INVOKE.SESSION_STOP, async () => controller.stop());
   ipcMain.handle(IPC_INVOKE.SESSION_GET_STATE, () => controller.getState());
@@ -78,6 +95,7 @@ function registerIpc(controller: SessionController, plugs: PlugController): void
     return snap;
   });
   ipcMain.handle(IPC_INVOKE.DEMO_KILL, async () => controller.demoKill());
+  ipcMain.handle(IPC_INVOKE.FORECAST_GET_STATE, () => forecast.getSnapshot());
 }
 
 function createWindow(): void {
@@ -154,9 +172,10 @@ if (!app.requestSingleInstanceLock()) {
       const runtime = createFocusPlugRuntime({
         userDataDir: app.getPath("userData"),
         push: createElectronPush(),
+        forecastPush: createForecastElectronPush(),
       });
       session = runtime.session;
-      registerIpc(runtime.session, runtime.plugs);
+      registerIpc(runtime.session, runtime.plugs, runtime.forecast);
 
       app.on("browser-window-created", (_event, window) => {
         optimizer.watchWindowShortcuts(window);
