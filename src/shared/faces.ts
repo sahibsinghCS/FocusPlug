@@ -13,6 +13,7 @@ export const FACE_IDS = [
   "growth",
   "flask",
   "garden",
+  "candle",
 ] as const;
 
 export type FaceId = (typeof FACE_IDS)[number];
@@ -48,6 +49,7 @@ export const FACE_READY: Readonly<Record<FaceId, boolean>> = {
   growth: true,
   flask: true,
   garden: true,
+  candle: true,
 };
 
 export const FACE_CATALOG: readonly FaceMeta[] = [
@@ -146,6 +148,14 @@ export const FACE_CATALOG: readonly FaceMeta[] = [
     stream: "agent/faces-garden",
     file: "src/renderer/src/features/faces/GardenFace.tsx",
     readiness: FACE_READY.garden ? "ready" : "pending",
+  },
+  {
+    id: "candle",
+    title: "Candle",
+    blurb: "Melting beeswax timer. Elapsed burns the pillar down.",
+    stream: "agent/faces-candle",
+    file: "src/renderer/src/features/faces/CandleFace.tsx",
+    readiness: FACE_READY.candle ? "ready" : "pending",
   },
 ];
 

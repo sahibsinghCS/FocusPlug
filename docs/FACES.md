@@ -50,6 +50,7 @@ Replace the listed file. Do not fork `FaceHost` or invent a second picker.
 | `growth` | `agent/faces-growth` | `src/renderer/src/features/faces/GrowthFace.tsx` | ready — bonsai + wilt stakes |
 | `flask` | `agent/faces-flask` | `src/renderer/src/features/faces/FlaskFace.tsx` | ready — glass vessel + visible leak |
 | `garden` | `agent/faces-garden` | `src/renderer/src/features/faces/GardenFace.tsx` | ready — sunrise garden (replaces retired Eclipse) |
+| `candle` | `agent/faces-candle` | `src/renderer/src/features/faces/CandleFace.tsx` | ready — melting beeswax timer |
 
 Shared (foundation only, unless a merge needs a one-line registry hook):
 
@@ -64,7 +65,7 @@ Registry already maps every `FaceId`. A landing stream swaps the component body 
 
 ## Retired — do not build
 
-**Column / Grid / Eclipse / Field** are retired. They are not `FaceId`s. Persistence maps those strings back to the default face. Do not add them to the catalog, picker, or stubs. Garden (`garden`) is the colorful sunrise face — do not revive `eclipse`.
+**Column / Grid / Eclipse / Field** are retired. They are not `FaceId`s. Persistence maps those strings back to the default face. Do not add them to the catalog, picker, or stubs. Garden (`garden`) is the colorful sunrise face — do not revive `eclipse`. Candle (`candle`) is the melting-wax face — do not revive `field`.
 
 ## Preview stills
 
@@ -85,4 +86,7 @@ npx vite --config scripts/renderer-preview.vite.ts
 # #/?scene=live&face=garden&progress=0&session=gauntlet-garden-01&freeze=1
 # #/?scene=live&face=garden&progress=0.48&session=gauntlet-garden-01&freeze=1
 # #/?scene=live&face=garden&progress=1&session=gauntlet-garden-01&freeze=1
+# #/?scene=live&face=candle&progress=0.04&freeze=1
+# #/?scene=live&face=candle&progress=0.5&freeze=1
+# #/?scene=live&face=candle&progress=0.92&freeze=1
 ```

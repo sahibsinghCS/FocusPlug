@@ -78,10 +78,12 @@ describe("Phase 2 contracts", () => {
     expect(isFaceId("hourglass")).toBe(true);
     expect(isFaceId("column")).toBe(false);
     expect(normalizeFaceId("eclipse")).toBe("flight");
-    expect(FACE_IDS).toHaveLength(12);
+    expect(FACE_IDS).toHaveLength(13);
     expect(isFaceId("flask")).toBe(true);
     expect(isFaceId("garden")).toBe(true);
+    expect(isFaceId("candle")).toBe(true);
     expect(isFaceId("eclipse")).toBe(false);
+    expect(isFaceId("field")).toBe(false);
   });
 
   it("accepts existing RGB desk frames on DeskModel.infer", async () => {

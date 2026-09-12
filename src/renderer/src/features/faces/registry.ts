@@ -1,5 +1,6 @@
 import type { FaceId } from "@shared/faces";
 import { FACE_READY, normalizeFaceId } from "@shared/faces";
+import { CandleFace } from "./CandleFace";
 import { CircuitFace } from "./CircuitFace";
 import { DescentFace } from "./DescentFace";
 import { FlaskFace } from "./FlaskFace";
@@ -27,6 +28,7 @@ export const FACE_COMPONENTS: Readonly<Record<FaceId, FaceComponent>> = {
   growth: GrowthFace,
   flask: FlaskFace,
   garden: GardenFace,
+  candle: CandleFace,
 };
 
 export function faceComponent(id: unknown): FaceComponent {

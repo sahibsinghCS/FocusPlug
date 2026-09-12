@@ -70,7 +70,9 @@ describe("face props", () => {
     expect(countKills(log)).toBe(2);
     expect(selectedFaceId("hourglass")).toBe("hourglass");
     expect(selectedFaceId("flask")).toBe("flask");
+    expect(selectedFaceId("candle")).toBe("candle");
     expect(selectedFaceId("column")).toBe("flight");
+    expect(selectedFaceId("field")).toBe("flight");
     const props = buildFaceProps({
       sessionActive: true,
       decision: "ON_TASK",

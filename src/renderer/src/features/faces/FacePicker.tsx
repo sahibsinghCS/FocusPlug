@@ -60,7 +60,7 @@ export function FacePicker(props: {
       role="radiogroup"
       aria-label="Session face"
       onKeyDown={onKeyDown}
-      className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5"
+      className="grid gap-2 sm:grid-cols-2 xl:grid-cols-6"
     >
       {faces.map((face) => {
         const selected = props.value === face.id;

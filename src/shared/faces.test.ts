@@ -14,7 +14,7 @@ import {
 } from "./faces";
 
 describe("faces catalog", () => {
-  it("owns the twelve live FaceIds and refuses retired names", () => {
+  it("owns the thirteen live FaceIds and refuses retired names", () => {
     expect([...FACE_IDS]).toEqual([
       "flight",
       "hourglass",
@@ -28,6 +28,7 @@ describe("faces catalog", () => {
       "growth",
       "flask",
       "garden",
+      "candle",
     ]);
     expect([...RETIRED_FACE_IDS]).toEqual(["column", "grid", "eclipse", "field"]);
     for (const id of RETIRED_FACE_IDS) {
@@ -42,11 +43,15 @@ describe("faces catalog", () => {
     expect(FACE_READY.growth).toBe(true);
     expect(FACE_READY.flask).toBe(true);
     expect(FACE_READY.garden).toBe(true);
+    expect(FACE_READY.candle).toBe(true);
     expect(faceMeta("growth").readiness).toBe("ready");
     expect(faceMeta("flask").readiness).toBe("ready");
     expect(faceMeta("flask").file).toContain("FlaskFace.tsx");
     expect(faceMeta("garden").readiness).toBe("ready");
     expect(faceMeta("garden").stream).toBe("agent/faces-garden");
+    expect(faceMeta("candle").readiness).toBe("ready");
+    expect(faceMeta("candle").file).toContain("CandleFace.tsx");
+    expect(faceMeta("candle").stream).toBe("agent/faces-candle");
     expect(DEFAULT_FACE_ID).toBe("flight");
     expect(resolveDefaultFaceId({ ...FACE_READY, flight: false })).toBe("readout");
     expect(DEFAULT_ESTIMATE_MINUTES).toBe(50);
