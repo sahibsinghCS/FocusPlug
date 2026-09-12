@@ -15,3 +15,4 @@
 - **model-seam** merged to `main` (PR #13). Critic WIN. `DeskModel.infer(frame)` factory (stub / blazeface / custom).
 - **session-plugs** merged to `main` (PR #11). Critic WIN. Consumes frozen `deviceIds` / `PlugSnapshot[]` from policy; Demo Kill cuts enabled plugs; study-PC never commanded.
 - **Phase 3 frontend complete.** Session command center (#18), config UX (#19), logs timeline (#20), and denser shell (#21) are unified into one enforcement console: shared page chrome, status tokens, matching nav titles, and the same empty/error language. Kill overlay + Demo Kill + plug consequence stay intact. No new product features.
+- **faces cheap-wow pack** on `cursor/faces-cheap-30ea` (PR #28). Descent + Orbit + Circuit export `FaceProps` + `FACE_REGISTRY` for foundation. Critic WIN vs a plain bar at 1280×800. Circuit reads as the session fuse plate.
