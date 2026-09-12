@@ -2,14 +2,17 @@ import type { ComponentType } from "react";
 import { CircuitFace } from "./circuit";
 import { DescentFace } from "./descent";
 import { OrbitFace } from "./orbit";
-import type { FaceId, FaceMeta, FaceProps } from "./types";
-import { FACE_IDS } from "./types";
+import { VISUAL_FACE_IDS, type VisualFaceId, type VisualFaceProps } from "./visual";
 
-export interface FaceModule extends FaceMeta {
-  Component: ComponentType<FaceProps>;
+export interface VisualFaceModule {
+  id: VisualFaceId;
+  title: string;
+  tagline: string;
+  Component: ComponentType<VisualFaceProps>;
 }
 
-export const FACE_CATALOG: Record<FaceId, FaceModule> = {
+/** Cheap-wow paint catalog. Foundation registry still owns FaceId → host component. */
+export const FACE_CATALOG: Record<VisualFaceId, VisualFaceModule> = {
   descent: {
     id: "descent",
     title: "Descent",
@@ -30,14 +33,13 @@ export const FACE_CATALOG: Record<FaceId, FaceModule> = {
   },
 };
 
-/** Foundation can iterate this map without importing each face. */
 export const FACE_REGISTRY = FACE_CATALOG;
 
-export function listFaces(): FaceModule[] {
-  return FACE_IDS.map((id) => FACE_CATALOG[id]);
+export function listFaces(): VisualFaceModule[] {
+  return VISUAL_FACE_IDS.map((id) => FACE_CATALOG[id]);
 }
 
-export function getFace(id: FaceId): FaceModule {
+export function getFace(id: VisualFaceId): VisualFaceModule {
   const face = FACE_CATALOG[id];
   if (!face) {
     throw new Error(`Unknown face: ${id}`);

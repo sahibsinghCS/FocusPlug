@@ -3,21 +3,20 @@ export interface CircuitPoint {
   y: number;
 }
 
-/** Hand-authored fuse-plate vertices — only 90° and 45° segments. */
+/** Hand-authored fuse-plate vertices — only 90° and 45° segments. Landscape for FaceHost. */
 export const CIRCUIT_POINTS: readonly CircuitPoint[] = [
-  { x: 170, y: 330 },
-  { x: 270, y: 330 },
-  { x: 310, y: 290 },
-  { x: 390, y: 290 },
-  { x: 570, y: 290 },
-  { x: 610, y: 330 },
-  { x: 780, y: 330 },
-  { x: 780, y: 200 },
-  { x: 820, y: 160 },
-  { x: 880, y: 160 },
+  { x: 168, y: 208 },
+  { x: 300, y: 208 },
+  { x: 340, y: 168 },
+  { x: 500, y: 168 },
+  { x: 760, y: 168 },
+  { x: 800, y: 208 },
+  { x: 980, y: 208 },
+  { x: 1020, y: 168 },
+  { x: 1148, y: 168 },
 ];
 
-export const CIRCUIT_VIEW = { width: 960, height: 640 } as const;
+export const CIRCUIT_VIEW = { width: 1280, height: 380 } as const;
 
 export function polylineLength(points: readonly CircuitPoint[]): number {
   if (points.length < 2) {
@@ -59,8 +58,8 @@ export function pathFromPoints(points: readonly CircuitPoint[]): string {
 export const CIRCUIT_D = pathFromPoints(CIRCUIT_POINTS);
 export const CIRCUIT_LENGTH = polylineLength(CIRCUIT_POINTS);
 
-export const CIRCUIT_START = CIRCUIT_POINTS[0] ?? { x: 170, y: 330 };
-export const CIRCUIT_END = CIRCUIT_POINTS[CIRCUIT_POINTS.length - 1] ?? { x: 880, y: 160 };
+export const CIRCUIT_START = CIRCUIT_POINTS[0] ?? { x: 168, y: 208 };
+export const CIRCUIT_END = CIRCUIT_POINTS[CIRCUIT_POINTS.length - 1] ?? { x: 1148, y: 168 };
 
 export function assertRightOr45(points: readonly CircuitPoint[]): boolean {
   for (let i = 1; i < points.length; i += 1) {

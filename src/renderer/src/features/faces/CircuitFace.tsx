@@ -1,19 +1,9 @@
 import type { JSX } from "react";
-import { PendingFace } from "./PendingFace";
+import { CircuitFace as CircuitVisual } from "./circuit/CircuitFace";
 import type { FaceProps } from "./types";
+import { toVisualFaceProps } from "./visual";
 
-/** Owned by agent/faces-circuit. Foundation ships the empty slot only. */
+/** Session fuse plate. Foundation host calls this; paint lives in `./circuit`. */
 export function CircuitFace(props: FaceProps): JSX.Element {
-  return (
-    <PendingFace
-      {...props}
-      id="circuit"
-      silhouette={
-        <svg viewBox="0 0 120 48" className="h-10 w-28" fill="none">
-          <rect x="8" y="10" width="104" height="28" rx="14" stroke="currentColor" strokeWidth="1.5" />
-          <circle cx="30" cy="24" r="3" fill="currentColor" />
-        </svg>
-      }
-    />
-  );
+  return <CircuitVisual {...toVisualFaceProps(props)} />;
 }

@@ -9,3 +9,5 @@ export { buildFaceProps, selectedFaceId } from "./props";
 export { faceComponent } from "./registry";
 export { readFaceOverride, readProgressOverride, parseFaceParam } from "./urlFace";
 export type { FaceEvent, FaceProps } from "./types";
+export { toVisualFaceProps } from "./visual";
+export type { VisualFaceProps, VisualPhase } from "./visual";

@@ -3,7 +3,7 @@ import { CircuitFace } from "../circuit";
 import { DescentFace } from "../descent";
 import { OrbitFace } from "../orbit";
 import { FACE_CATALOG } from "../register";
-import type { FaceId, FaceProps } from "../types";
+import type { VisualFaceId, VisualFaceProps } from "../visual";
 import { parsePreview } from "./parsePreview";
 import { PlainBar } from "./PlainBar";
 import "./preview.css";
@@ -23,7 +23,7 @@ function usePreviewQuery() {
   return parsePreview(hash);
 }
 
-function faceProps(query: ReturnType<typeof parsePreview>, size: FaceProps["size"]): FaceProps {
+function faceProps(query: ReturnType<typeof parsePreview>, size: VisualFaceProps["size"]): VisualFaceProps {
   return {
     progress: query.progress,
     phase: query.phase,
@@ -34,7 +34,7 @@ function faceProps(query: ReturnType<typeof parsePreview>, size: FaceProps["size
   };
 }
 
-function FaceById(props: { id: FaceId; face: FaceProps }): JSX.Element {
+function FaceById(props: { id: VisualFaceId; face: VisualFaceProps }): JSX.Element {
   if (props.id === "descent") return <DescentFace {...props.face} />;
   if (props.id === "orbit") return <OrbitFace {...props.face} />;
   return <CircuitFace {...props.face} />;
@@ -44,8 +44,8 @@ export function FacesPreview(): JSX.Element {
   const query = usePreviewQuery();
   const title = query.kind === "bar" ? "Plain bar" : FACE_CATALOG[query.kind].title;
 
-  const soloSize = useMemo(() => ({ width: 1120, height: 680 }), []);
-  const splitSize = useMemo(() => ({ width: 720, height: 640 }), []);
+  const soloSize = useMemo(() => ({ width: 1224, height: 364 }), []);
+  const splitSize = useMemo(() => ({ width: 720, height: 214 }), []);
 
   return (
     <div className="fp-faces-stage" data-preview-kind={query.kind} data-preview-vs={query.vs ? "1" : "0"}>
@@ -57,10 +57,10 @@ export function FacesPreview(): JSX.Element {
       </header>
       <main className="fp-faces-canvas">
         {query.kind === "bar" ? (
-          <PlainBar progress={query.progress} width={1120} height={680} />
+          <PlainBar progress={query.progress} width={1224} height={364} />
         ) : query.vs ? (
           <div className="fp-faces-split">
-            <PlainBar progress={query.progress} width={400} height={640} />
+            <PlainBar progress={query.progress} width={400} height={214} />
             <FaceById id={query.kind} face={faceProps(query, splitSize)} />
           </div>
         ) : (

@@ -1,6 +1,6 @@
 import type { CSSProperties, JSX } from "react";
 import { clampKillCount, clampProgress, resolveFaceBox } from "../clamp";
-import type { FaceProps } from "../types";
+import type { VisualFaceProps } from "../visual";
 import {
   ALIGN_ANGLE,
   bodyAngle,
@@ -12,20 +12,20 @@ import {
 import "./orbit.css";
 
 const BODIES = orbitBodies();
-const VW = 640;
-const VH = 640;
+const VW = 1280;
+const VH = 380;
 
-export function OrbitFace(props: FaceProps): JSX.Element {
+export function OrbitFace(props: VisualFaceProps): JSX.Element {
   const box = resolveFaceBox(props.size);
   const progress = clampProgress(props.progress);
   const kills = clampKillCount(props.killCount);
   const locked = progress >= 0.995;
-  const cx = VW / 2;
-  const cy = VH / 2 + 18;
-  const outer = 214;
-  const inner = 78;
+  const cx = 640;
+  const cy = 198;
+  const outer = 148;
+  const inner = 48;
   const radii = ringRadii(BODIES.length, inner, outer);
-  const tick = polar(cx, cy, outer + 22, ALIGN_ANGLE);
+  const tick = polar(cx, cy, outer + 18, ALIGN_ANGLE);
 
   const style = {
     width: box.width,
@@ -40,6 +40,7 @@ export function OrbitFace(props: FaceProps): JSX.Element {
       role="img"
       aria-label={`Orbit ${Math.round(progress * 100)} percent. ${locked ? "Bodies aligned." : "Bodies converging."}`}
       data-face="orbit"
+      data-face-status="ready"
       data-phase={props.phase}
       data-locked={locked ? "1" : "0"}
     >
@@ -48,11 +49,11 @@ export function OrbitFace(props: FaceProps): JSX.Element {
         viewBox={`0 0 ${VW} ${VH}`}
         width={box.width}
         height={box.height}
-        preserveAspectRatio="xMidYMid meet"
+        preserveAspectRatio="xMidYMid slice"
         aria-hidden="true"
       >
         <defs>
-          <radialGradient id="fp-orbit-void" cx="50%" cy="48%" r="62%">
+          <radialGradient id="fp-orbit-void" cx="50%" cy="52%" r="58%">
             <stop offset="0" stopColor="#181c2a" />
             <stop offset="0.55" stopColor="#0a0c12" />
             <stop offset="1" stopColor="#05060a" />
@@ -68,27 +69,43 @@ export function OrbitFace(props: FaceProps): JSX.Element {
 
         <rect width={VW} height={VH} fill="url(#fp-orbit-void)" />
 
-        <circle cx={cx} cy={cy} r={outer + 28} fill="none" stroke="rgba(170,190,220,0.16)" strokeWidth="10" />
+        <circle cx={cx} cy={cy} r={outer + 22} fill="none" stroke="rgba(170,190,220,0.16)" strokeWidth="8" />
         <circle
           cx={cx}
           cy={cy}
-          r={outer + 28}
+          r={outer + 22}
           fill="none"
           stroke={locked ? "#d4ff3a" : "#7aa2ff"}
-          strokeWidth="10"
+          strokeWidth="8"
           strokeLinecap="round"
-          strokeDasharray={`${(outer + 28) * Math.PI * 2}`}
-          strokeDashoffset={`${(outer + 28) * Math.PI * 2 * (1 - progress)}`}
+          strokeDasharray={`${(outer + 22) * Math.PI * 2}`}
+          strokeDashoffset={`${(outer + 22) * Math.PI * 2 * (1 - progress)}`}
           transform={`rotate(-90 ${cx} ${cy})`}
         />
 
-        <line x1={cx} y1={cy - outer - 36} x2={cx} y2={cy + outer + 8} stroke={locked ? "rgba(212,255,58,0.2)" : "rgba(238,242,248,0.08)"} strokeWidth="2" strokeDasharray="4 10" />
-        <rect x={cx - 22} y={cy - outer - 48} width="44" height="20" rx="4" fill={locked ? "#d4ff3a" : "#161a24"} stroke={locked ? "#d4ff3a" : "rgba(238,242,248,0.45)"} />
-        <text x={cx} y={cy - outer - 34} textAnchor="middle" className="fp-orbit-locktag" fill={locked ? "#07080c" : "#eef2f8"}>
+        <line
+          x1={cx}
+          y1={cy - outer - 28}
+          x2={cx}
+          y2={cy + outer + 6}
+          stroke={locked ? "rgba(212,255,58,0.2)" : "rgba(238,242,248,0.08)"}
+          strokeWidth="2"
+          strokeDasharray="4 10"
+        />
+        <rect
+          x={cx - 22}
+          y={cy - outer - 40}
+          width="44"
+          height="18"
+          rx="4"
+          fill={locked ? "#d4ff3a" : "#161a24"}
+          stroke={locked ? "#d4ff3a" : "rgba(238,242,248,0.45)"}
+        />
+        <text x={cx} y={cy - outer - 27} textAnchor="middle" className="fp-orbit-locktag" fill={locked ? "#07080c" : "#eef2f8"}>
           LOCK
         </text>
         <polygon
-          points={`${tick.x},${tick.y - 7} ${tick.x - 6},${tick.y + 4} ${tick.x + 6},${tick.y + 4}`}
+          points={`${tick.x},${tick.y - 6} ${tick.x - 5},${tick.y + 4} ${tick.x + 5},${tick.y + 4}`}
           fill={locked ? "#d4ff3a" : "#eef2f8"}
         />
 
@@ -96,8 +113,8 @@ export function OrbitFace(props: FaceProps): JSX.Element {
           const ghost = polar(cx, cy, radius, ALIGN_ANGLE);
           return (
             <g key={`ring-${i}`}>
-              <circle cx={cx} cy={cy} r={radius} fill="none" stroke="rgba(170,190,220,0.26)" strokeWidth="1.4" />
-              <circle cx={ghost.x} cy={ghost.y} r={4} fill={locked ? "#d4ff3a" : "rgba(212,255,58,0.45)"} />
+              <circle cx={cx} cy={cy} r={radius} fill="none" stroke="rgba(170,190,220,0.26)" strokeWidth="1.3" />
+              <circle cx={ghost.x} cy={ghost.y} r={3.4} fill={locked ? "#d4ff3a" : "rgba(212,255,58,0.45)"} />
             </g>
           );
         })}
@@ -113,7 +130,7 @@ export function OrbitFace(props: FaceProps): JSX.Element {
                 d={trailPath(cx, cy, radius, angle, sweep)}
                 fill="none"
                 stroke={body.hue}
-                strokeWidth="5"
+                strokeWidth="4.5"
                 strokeLinecap="round"
                 opacity={locked ? 0.18 : 0.28}
               />
@@ -121,30 +138,31 @@ export function OrbitFace(props: FaceProps): JSX.Element {
                 d={trailPath(cx, cy, radius, angle, sweep * 0.42)}
                 fill="none"
                 stroke={body.hue}
-                strokeWidth="3.2"
+                strokeWidth="3"
                 strokeLinecap="round"
                 opacity={locked ? 0.35 : 0.7}
               />
-              <circle cx={pos.x} cy={pos.y} r={locked ? 12 : 10} fill={body.glow} filter="url(#fp-orbit-glow)" />
-              <circle cx={pos.x} cy={pos.y} r={locked ? 7 : 6} fill={body.hue} stroke="#07080c" strokeWidth="1.1" />
+              <circle cx={pos.x} cy={pos.y} r={locked ? 11 : 9} fill={body.glow} filter="url(#fp-orbit-glow)" />
+              <circle cx={pos.x} cy={pos.y} r={locked ? 6.5 : 5.5} fill={body.hue} stroke="#07080c" strokeWidth="1.1" />
             </g>
           );
         })}
 
-        <text x={28} y={36} className="fp-orbit-kicker" fill="rgba(155,166,184,0.85)">
+        <text x={36} y={42} className="fp-orbit-kicker" fill="rgba(155,166,184,0.85)">
           CONJUNCTION
         </text>
-        <text x={28} y={66} className="fp-orbit-title" fill="#eef2f8">
+        <text x={36} y={76} className="fp-orbit-title" fill="#eef2f8">
           {locked ? "LOCK" : "ALIGN"}
         </text>
-        <text x={VW - 28} y={36} textAnchor="end" className="fp-orbit-kicker" fill="rgba(155,166,184,0.85)">
+        <text x={36} y={VH - 28} className="fp-orbit-kicker" fill={kills > 0 ? "rgba(255,45,85,0.75)" : "rgba(155,166,184,0.6)"}>
+          {kills > 0 ? `${kills} KILL${kills === 1 ? "" : "S"}` : "MEET AT 12 O'CLOCK"}
+        </text>
+
+        <text x={VW - 36} y={42} textAnchor="end" className="fp-orbit-kicker" fill="rgba(155,166,184,0.85)">
           {BODIES.length} BODIES · {BODIES.map((b) => b.turns).join(" / ")} TURNS
         </text>
-        <text x={VW - 28} y={66} textAnchor="end" className="fp-orbit-readout" fill={locked ? "#d4ff3a" : "#eef2f8"}>
+        <text x={VW - 36} y={76} textAnchor="end" className="fp-orbit-readout" fill={locked ? "#d4ff3a" : "#eef2f8"}>
           {Math.round(progress * 100)}%
-        </text>
-        <text x={28} y={VH - 22} className="fp-orbit-kicker" fill={kills > 0 ? "rgba(255,45,85,0.75)" : "rgba(155,166,184,0.6)"}>
-          {kills > 0 ? `${kills} KILL${kills === 1 ? "" : "S"}` : "MEET AT 12 O'CLOCK"}
         </text>
       </svg>
     </div>

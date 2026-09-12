@@ -1,4 +1,4 @@
-import type { FacePhase } from "./types";
+import type { VisualPhase } from "./visual";
 
 export function clampProgress(progress: number): number {
   if (!Number.isFinite(progress)) {
@@ -40,7 +40,7 @@ export function prefersReducedMotion(): boolean {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-export function phaseAccent(phase: FacePhase): "calm" | "hot" | "done" {
+export function phaseAccent(phase: VisualPhase): "calm" | "hot" | "done" {
   if (phase === "fuse" || phase === "kill") return "hot";
   if (phase === "complete") return "done";
   return "calm";

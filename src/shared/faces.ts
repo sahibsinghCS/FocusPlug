@@ -40,12 +40,12 @@ export const FACE_READY: Readonly<Record<FaceId, boolean>> = {
   flight: false,
   hourglass: true,
   readout: true,
-  descent: false,
+  descent: true,
   movement: false,
   record: false,
-  circuit: false,
+  circuit: true,
   line: false,
-  orbit: false,
+  orbit: true,
   growth: false,
 };
 
@@ -77,7 +77,7 @@ export const FACE_CATALOG: readonly FaceMeta[] = [
   {
     id: "descent",
     title: "Descent",
-    blurb: "Altitude bleed — time as falling floors.",
+    blurb: "Deep-sea timer. Progress sinks sunlight → abyssal.",
     stream: "agent/faces-descent",
     file: "src/renderer/src/features/faces/DescentFace.tsx",
     readiness: FACE_READY.descent ? "ready" : "pending",
@@ -101,7 +101,7 @@ export const FACE_CATALOG: readonly FaceMeta[] = [
   {
     id: "circuit",
     title: "Circuit",
-    blurb: "Closed track. Laps are blocks, not rings.",
+    blurb: "Session fuse plate. Current charges the kill rail.",
     stream: "agent/faces-circuit",
     file: "src/renderer/src/features/faces/CircuitFace.tsx",
     readiness: FACE_READY.circuit ? "ready" : "pending",
@@ -117,7 +117,7 @@ export const FACE_CATALOG: readonly FaceMeta[] = [
   {
     id: "orbit",
     title: "Orbit",
-    blurb: "Body around a well. Period is the block.",
+    blurb: "Five bodies, integer turns. Alignment is the lock.",
     stream: "agent/faces-orbit",
     file: "src/renderer/src/features/faces/OrbitFace.tsx",
     readiness: FACE_READY.orbit ? "ready" : "pending",

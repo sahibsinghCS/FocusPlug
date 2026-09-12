@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FACE_READY } from "@shared/faces";
 import { clampProgress, resolveFaceBox } from "./clamp";
 import { assertRightOr45, CIRCUIT_LENGTH, CIRCUIT_POINTS, dashOffset } from "./circuit/path";
 import { bioAmount, depthMeters, formatDepth, zoneAt } from "./descent/zones";
@@ -6,7 +7,8 @@ import { FAR_SILT, MID_MOTES, NEAR_BIO } from "./descent/particles";
 import { anglesAlign, bodyAngle, ORBIT_TURNS, orbitBodies, solveStartAngles } from "./orbit/math";
 import { parsePreview } from "./preview/parsePreview";
 import { FACE_REGISTRY, listFaces } from "./register";
-import { FACE_IDS } from "./types";
+import { faceComponent, faceIsReady } from "./registry";
+import { toVisualFaceProps, VISUAL_FACE_IDS, visualPhaseFromFace } from "./visual";
 
 describe("FaceProps helpers", () => {
   it("clamps progress and resolves size", () => {
@@ -19,11 +21,45 @@ describe("FaceProps helpers", () => {
 });
 
 describe("register", () => {
-  it("exports descent, orbit, and circuit for foundation", () => {
-    expect(listFaces().map((face) => face.id)).toEqual([...FACE_IDS]);
+  it("exports descent, orbit, and circuit paint for the host map", () => {
+    expect(listFaces().map((face) => face.id)).toEqual([...VISUAL_FACE_IDS]);
     expect(FACE_REGISTRY.descent.Component).toBeTypeOf("function");
     expect(FACE_REGISTRY.orbit.Component).toBeTypeOf("function");
     expect(FACE_REGISTRY.circuit.Component).toBeTypeOf("function");
+    expect(FACE_READY.descent).toBe(true);
+    expect(FACE_READY.orbit).toBe(true);
+    expect(FACE_READY.circuit).toBe(true);
+    expect(faceIsReady("descent")).toBe(true);
+    expect(faceIsReady("orbit")).toBe(true);
+    expect(faceIsReady("circuit")).toBe(true);
+    expect(faceComponent("descent").name).toBe("DescentFace");
+    expect(faceComponent("orbit").name).toBe("OrbitFace");
+    expect(faceComponent("circuit").name).toBe("CircuitFace");
+  });
+});
+
+describe("visual adapter", () => {
+  it("maps frozen FaceProps onto paint props without Date.now", () => {
+    expect(visualPhaseFromFace("idle", 1)).toBe("idle");
+    expect(visualPhaseFromFace("break", 0.4)).toBe("fuse");
+    expect(visualPhaseFromFace("focus", 0.4)).toBe("focus");
+    expect(visualPhaseFromFace("focus", 1)).toBe("complete");
+    const painted = toVisualFaceProps({
+      progress: 0.62,
+      phase: "focus",
+      elapsedMs: 1860_000,
+      remainingMs: 1140_000,
+      sessionId: "sess-1",
+      events: [{ ts: 1, kind: "kill" }],
+      killCount: 1,
+      now: new Date(1_700_000_420_000),
+      width: 960,
+      height: 300,
+    });
+    expect(painted.now).toBe(1_700_000_420_000);
+    expect(painted.size).toEqual({ width: 960, height: 300 });
+    expect(painted.phase).toBe("focus");
+    expect(painted.killCount).toBe(1);
   });
 });
 

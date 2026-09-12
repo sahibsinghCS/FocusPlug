@@ -1,21 +1,21 @@
 import type { CSSProperties, JSX } from "react";
 import { clampKillCount, clampProgress, phaseSine, resolveFaceBox } from "../clamp";
-import type { FaceProps } from "../types";
+import type { VisualFaceProps } from "../visual";
 import { bioAmount, DESCENT_ZONES, depthMeters, formatDepth, zoneAt } from "./zones";
 import { FAR_SILT, MID_MOTES, NEAR_BIO } from "./particles";
 import "./descent.css";
 
-const VW = 960;
-const VH = 640;
+const VW = 1280;
+const VH = 380;
 
-export function DescentFace(props: FaceProps): JSX.Element {
+export function DescentFace(props: VisualFaceProps): JSX.Element {
   const box = resolveFaceBox(props.size);
   const progress = clampProgress(props.progress);
   const kills = clampKillCount(props.killCount);
   const zone = zoneAt(progress);
   const depth = depthMeters(progress);
   const bio = bioAmount(progress);
-  const gaugeY = 36 + progress * (VH - 72);
+  const gaugeY = 28 + progress * (VH - 56);
   const label = `${zone.name} · ${formatDepth(depth)}`;
 
   const style = {
@@ -31,6 +31,7 @@ export function DescentFace(props: FaceProps): JSX.Element {
       role="img"
       aria-label={`Descent ${Math.round(progress * 100)} percent. ${label}`}
       data-face="descent"
+      data-face-status="ready"
       data-phase={props.phase}
       data-zone={zone.id}
     >
@@ -39,7 +40,7 @@ export function DescentFace(props: FaceProps): JSX.Element {
         viewBox={`0 0 ${VW} ${VH}`}
         width={box.width}
         height={box.height}
-        preserveAspectRatio="xMidYMid meet"
+        preserveAspectRatio="xMidYMid slice"
         aria-hidden="true"
       >
         <defs>
@@ -50,11 +51,11 @@ export function DescentFace(props: FaceProps): JSX.Element {
             ])}
           </linearGradient>
           <linearGradient id="fp-descent-shaft" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0" stopColor="#000" stopOpacity="0.42" />
-            <stop offset="0.42" stopColor="#000" stopOpacity="0" />
-            <stop offset="1" stopColor="#000" stopOpacity="0.48" />
+            <stop offset="0" stopColor="#000" stopOpacity="0.38" />
+            <stop offset="0.38" stopColor="#000" stopOpacity="0" />
+            <stop offset="1" stopColor="#000" stopOpacity="0.44" />
           </linearGradient>
-          <radialGradient id="fp-descent-sun" cx="50%" cy="0%" r="48%">
+          <radialGradient id="fp-descent-sun" cx="50%" cy="0%" r="42%">
             <stop offset="0" stopColor="#f4fffb" stopOpacity="0.7" />
             <stop offset="0.4" stopColor="#7ee0d0" stopOpacity="0.18" />
             <stop offset="1" stopColor="#7ee0d0" stopOpacity="0" />
@@ -73,10 +74,10 @@ export function DescentFace(props: FaceProps): JSX.Element {
 
         <rect width={VW} height={VH} fill="url(#fp-descent-water)" />
         <rect width={VW} height={VH} fill="url(#fp-descent-sun)" />
-        {[0.18, 0.32, 0.5, 0.68].map((x) => (
+        {[0.22, 0.38, 0.54, 0.7].map((x) => (
           <polygon
             key={x}
-            points={`${VW * x},0 ${VW * x - 10},0 ${VW * x - 28},210 ${VW * x + 8},210`}
+            points={`${VW * x},0 ${VW * x - 14},0 ${VW * x - 36},150 ${VW * x + 10},150`}
             fill="rgba(232,255,248,0.07)"
           />
         ))}
@@ -92,38 +93,36 @@ export function DescentFace(props: FaceProps): JSX.Element {
                 x2={VW}
                 y1={y}
                 y2={y}
-                stroke={active ? "rgba(200,244,234,0.38)" : "rgba(170,190,220,0.16)"}
+                stroke={active ? "rgba(200,244,234,0.4)" : "rgba(170,190,220,0.16)"}
                 strokeWidth={active ? 1.6 : 1}
               />
-              <text x={16} y={y + 22} className="fp-descent-zone" fill={active ? "#f4fffb" : "rgba(238,242,248,0.55)"}>
+              <text x={18} y={y + 20} className="fp-descent-zone" fill={active ? "#f4fffb" : "rgba(238,242,248,0.55)"}>
                 {z.name.toUpperCase()}
               </text>
               <text
-                x={16}
-                y={y + 38}
+                x={18}
+                y={y + 36}
                 className="fp-descent-zone-meta"
                 fill={active ? "rgba(200,244,234,0.78)" : "rgba(155,166,184,0.5)"}
               >
-                {z.depthStartM.toLocaleString("en-US")}–{z.depthEndM.toLocaleString("en-US")} m
-              </text>
-              <text
-                x={16}
-                y={y + 52}
-                className="fp-descent-zone-meta"
-                fill={active ? "rgba(200,244,234,0.55)" : "rgba(155,166,184,0.38)"}
-              >
-                {z.layer}
+                {z.depthStartM.toLocaleString("en-US")}–{z.depthEndM.toLocaleString("en-US")} m · {z.layer}
               </text>
             </g>
           );
         })}
 
         {Array.from({ length: 13 }, (_, i) => {
-          const y = 36 + (i / 12) * (VH - 72);
+          const y = 28 + (i / 12) * (VH - 56);
           return (
-            <g key={`tick-${i}`}>
-              <line x1={VW - 18} x2={VW - 8} y1={y} y2={y} stroke="rgba(232,255,248,0.22)" strokeWidth="1" />
-            </g>
+            <line
+              key={`tick-${i}`}
+              x1={VW - 18}
+              x2={VW - 8}
+              y1={y}
+              y2={y}
+              stroke="rgba(232,255,248,0.22)"
+              strokeWidth="1"
+            />
           );
         })}
 
@@ -152,14 +151,23 @@ export function DescentFace(props: FaceProps): JSX.Element {
 
         <g filter="url(#fp-descent-gauge)">
           <line x1={0} x2={VW} y1={gaugeY} y2={gaugeY} stroke="#e8fff8" strokeWidth="2" />
-          <rect x={VW / 2 - 34} y={gaugeY - 9} width={68} height={18} rx={9} fill="#071412" stroke="#c8ffe6" strokeWidth="1.6" />
+          <rect
+            x={VW / 2 - 34}
+            y={gaugeY - 9}
+            width={68}
+            height={18}
+            rx={9}
+            fill="#071412"
+            stroke="#c8ffe6"
+            strokeWidth="1.6"
+          />
           <circle cx={VW / 2} cy={gaugeY} r={4} fill="#c8ffe6" />
         </g>
 
-        <text x={VW - 22} y={gaugeY - 14} textAnchor="end" className="fp-descent-readout" fill="#e8fff8">
+        <text x={VW - 22} y={gaugeY - 12} textAnchor="end" className="fp-descent-readout" fill="#e8fff8">
           {formatDepth(depth)}
         </text>
-        <text x={VW - 22} y={gaugeY + 26} textAnchor="end" className="fp-descent-readout-sub" fill="rgba(200,244,234,0.75)">
+        <text x={VW - 22} y={gaugeY + 22} textAnchor="end" className="fp-descent-readout-sub" fill="rgba(200,244,234,0.75)">
           {zone.name} · {Math.round(progress * 100)}%
           {kills > 0 ? ` · ${kills} kill${kills === 1 ? "" : "s"}` : ""}
         </text>
@@ -185,7 +193,7 @@ function SpeckLayer(props: {
           <circle
             key={`${speck.seed}-${i}`}
             cx={14 + speck.x * (VW - 28)}
-            cy={20 + speck.y * (VH - 40)}
+            cy={16 + speck.y * (VH - 32)}
             r={speck.r}
             fill={props.fill}
             opacity={opacity}
