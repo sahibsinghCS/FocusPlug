@@ -3,7 +3,7 @@ import { useOptionalAppState } from "../../state/AppState";
 import { toFlightClock } from "./flight/clock";
 import { FlightFace as FlightInstrument } from "./flight/FlightFace";
 import { parseFlightPreview } from "./flight/preview";
-import { resolveFlightRoutePicker } from "./flight/routePicker";
+import { resolveFlightRoutePicker } from "./flight/routePickerVisibility";
 import { isFaceThumb } from "./thumb";
 import type { FaceProps } from "./types";
 

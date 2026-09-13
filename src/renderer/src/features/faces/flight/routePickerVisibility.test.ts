@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveFlightRoutePicker } from "./routePicker";
+import { resolveFlightRoutePicker } from "./routePickerVisibility";
 
 describe("resolveFlightRoutePicker", () => {
   it("defaults off so lock and catalog previews stay clear of Origin/Arrival boxes", () => {
