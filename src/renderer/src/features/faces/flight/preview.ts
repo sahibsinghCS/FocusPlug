@@ -2,6 +2,7 @@ import type { FacePhase } from "@shared/faces";
 import type { FaceProps } from "../types";
 import type { FaceSettings } from "./airports";
 import type { FaceVariant } from "./draw";
+import { parseFlightMapView, type FlightMapView } from "./mapView";
 
 export interface FlightPreviewQuery {
   face: FaceProps;
@@ -12,6 +13,7 @@ export interface FlightPreviewQuery {
   freeze: boolean;
   estimateMinutes?: number;
   picker: "dep" | "arr" | null;
+  mapView: FlightMapView;
 }
 
 function readNumber(raw: string | null): number | undefined {
@@ -71,6 +73,7 @@ export function parseFlightPreview(search: string, hash = ""): FlightPreviewQuer
   };
   const variant: FaceVariant = q.get("variant") === "sticker" ? "sticker" : "instrument";
   const freeze = q.get("freeze") !== null || q.get("paused") === "1";
+  const mapView = parseFlightMapView(q.get("map"));
   return {
     variant,
     idleOverride: readNumber(q.get("idle")),
@@ -78,6 +81,7 @@ export function parseFlightPreview(search: string, hash = ""): FlightPreviewQuer
     settings,
     freeze,
     picker,
+    mapView,
     estimateMinutes: q.get("estimateMinutes") ? estimateMinutes : undefined,
     face: {
       progress: complete ? 1 : Math.min(1, Math.max(0, elapsedMs / (estimateMinutes * 60_000))),

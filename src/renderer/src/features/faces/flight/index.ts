@@ -7,3 +7,6 @@ export { drawFlightFace } from "./draw";
 export { parseFlightPreview } from "./preview";
 export { FlightRoutePicker } from "./RoutePicker";
 export { resolveFlightRoutePicker } from "./routePickerVisibility";
+export { parseFlightMapView } from "./mapView";
+export type { FlightMapView } from "./mapView";
+export { formatRemainHms } from "./remain";
