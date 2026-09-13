@@ -129,6 +129,32 @@
   height: 100%;
 }
 
+/*
+ * Break-room faces stay night instruments — candle, globe, bonsai were
+ * drawn as dark objects. Rather than invert their palettes (a second
+ * product) or leave a raw dark rectangle on bone, the stage becomes a
+ * mounted plate: a paper mat around a rounded night window. The contrast
+ * is the object, not a leftover canvas.
+ */
+[data-phase="break"] .fp-lock-stage {
+  margin-inline: clamp(16px, 6vw, 72px);
+  padding: 11px;
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.38), rgba(255, 255, 255, 0) 42%),
+    color-mix(in srgb, var(--ground) 72%, #d5d1c6);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--phase) 10%, transparent),
+    0 1px 0 rgba(255, 255, 255, 0.7) inset;
+}
+
+[data-phase="break"] .fp-lock-stage > * {
+  overflow: hidden;
+  border-radius: 12px;
+  background: #0a0a0b;
+  box-shadow: 0 18px 36px rgba(19, 19, 21, 0.2);
+}
+
 .fp-lock-stage .fp-readout {
   justify-content: center;
   padding: 28px 28px 24px;
@@ -182,6 +208,45 @@
   background: color-mix(in srgb, var(--phase) 9%, transparent);
   border-color: color-mix(in srgb, var(--phase) 38%, transparent);
   color: var(--phase);
+}
+
+/*
+ * Footer controls must beat Tailwind `border` / UA dark-scheme defaults.
+ * Tokens are always `--phase` on `--ground`, so bone-on-black and
+ * black-on-bone stay equally readable.
+ */
+.fp-lock-bar {
+  color: var(--phase);
+}
+
+.fp-lock-bar .fp-lock-btn {
+  border: 1px solid color-mix(in srgb, var(--phase) 28%, transparent);
+  color: color-mix(in srgb, var(--phase) 88%, transparent);
+  background: color-mix(in srgb, var(--phase) 5%, transparent);
+}
+
+.fp-lock-bar .fp-lock-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--phase) 10%, transparent);
+  border-color: color-mix(in srgb, var(--phase) 46%, transparent);
+  color: var(--phase);
+}
+
+[data-phase="break"] .fp-lock-bar .fp-lock-btn {
+  border-color: color-mix(in srgb, var(--phase) 44%, transparent);
+  color: var(--phase);
+  background: color-mix(in srgb, var(--phase) 7%, var(--ground));
+}
+
+[data-phase="break"] .fp-lock-bar .fp-lock-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--phase) 13%, var(--ground));
+  border-color: color-mix(in srgb, var(--phase) 62%, transparent);
+}
+
+[data-phase="break"] .fp-lock-bar [data-tip]::after {
+  border-color: color-mix(in srgb, var(--phase) 16%, transparent);
+  background: var(--ground);
+  color: var(--phase);
+  box-shadow: 0 12px 28px rgba(19, 19, 21, 0.12);
 }
 
 .fp-lock-fill {
