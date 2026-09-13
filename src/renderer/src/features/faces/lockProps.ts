@@ -1,7 +1,7 @@
 import type { FacePhase } from "@shared/faces";
 import type { SessionEvent } from "@shared/ipc";
 import type { RunPosition, RunStatus } from "../timer/runtime";
-import { countKills, toFaceEvents } from "./props";
+import { countKills, faceSessionId, toFaceEvents } from "./props";
 import type { FaceProps } from "./types";
 
 export interface BuildLockFacePropsInput {
@@ -11,9 +11,22 @@ export interface BuildLockFacePropsInput {
   remainingSec: number;
   planFocusMin: number;
   log: readonly SessionEvent[];
+  /** Wall-clock from `useSessionTimer.start()`. Older persisted events stay out. */
+  startedAtMs: number | null;
   now: Date;
   width: number;
   height: number;
+}
+
+/** Only events at or after this session's start. Earlier kills belong to last time. */
+export function sessionLogSince(
+  log: readonly SessionEvent[],
+  startedAtMs: number | null,
+): SessionEvent[] {
+  if (startedAtMs === null) {
+    return [];
+  }
+  return log.filter((event) => event.ts >= startedAtMs);
 }
 
 /**
@@ -41,14 +54,14 @@ export function buildLockFaceProps(input: BuildLockFacePropsInput): FaceProps {
   const progress = input.position?.segmentProgress ?? 0;
   const remainingMs = Math.max(0, (input.position?.remainingSec ?? input.remainingSec) * 1000);
   const elapsedMs = Math.max(0, progress * segmentSec * 1000);
-  const events = toFaceEvents(input.log);
+  const events = toFaceEvents(sessionLogSince(input.log, input.startedAtMs));
   return {
     progress,
     phase,
     elapsedMs,
     remainingMs,
     estimateMinutes,
-    sessionId: "lock",
+    sessionId: faceSessionId(input.startedAtMs, input.startedAtMs !== null),
     events,
     killCount: countKills(events),
     now: input.now,
