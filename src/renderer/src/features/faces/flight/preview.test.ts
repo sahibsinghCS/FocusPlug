@@ -15,6 +15,12 @@ describe("flight preview query", () => {
     expect(parsed.estimateMinutes).toBe(80);
     expect(parsed.settings.dep).toBeUndefined();
     expect(parsed.picker).toBeNull();
+    expect(parsed.mapView).toBe("close");
+  });
+
+  it("selects the whole-map view when asked", () => {
+    const parsed = parseFlightPreview("map=route&progress=0.46&freeze=1");
+    expect(parsed.mapView).toBe("route");
   });
 
   it("reads an explicit route and an open picker without inventing JFK", () => {

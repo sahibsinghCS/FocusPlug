@@ -1,6 +1,6 @@
 /**
  * Face-level Origin/Arrival boxes belong on settings-style surfaces.
- * Lock keeps the globe clear by never passing showRoutePicker: true.
+ * Lock keeps the map clear by never passing showRoutePicker: true.
  * sessionId is not a lock signal — live lock uses faceSessionId (`sess-<ms>`).
  */
 export function resolveFlightRoutePicker(input: {

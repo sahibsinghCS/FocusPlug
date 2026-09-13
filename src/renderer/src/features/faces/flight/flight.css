@@ -6,28 +6,10 @@
   position: relative;
   width: 100%;
   height: 100%;
-  background: #07080c;
-  color: #eef2f8;
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
   overflow: hidden;
-}
-
-.fp-flight.is-compact .fp-flight-head {
-  padding-top: 42px;
-  font-size: 11px;
-}
-
-.fp-flight.is-compact .fp-flight-strip {
-  padding: 8px 6px 10px;
-}
-
-.fp-flight.is-compact .fp-flight-strip b {
-  margin-top: 4px;
-  font-size: 18px;
-}
-
-.fp-flight.is-compact .fp-flight-plate b {
-  font-size: 22px;
+  background: #0b0d0c;
+  color: #f4f4f2;
+  font-family: Geist, "Segoe UI Variable", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
 }
 
 .fp-flight canvas {
@@ -36,120 +18,255 @@
   height: 100%;
 }
 
-.fp-flight-head,
+.fp-flight-status,
+.fp-flight-hero,
+.fp-flight-progress,
 .fp-flight-strip,
+.fp-flight-views,
 .fp-flight-plate {
   position: absolute;
   left: 0;
   right: 0;
-  pointer-events: none;
   z-index: 2;
+  pointer-events: none;
 }
 
-.fp-flight-head {
+.fp-flight-plane {
+  position: absolute;
+  top: 8%;
+  left: 50%;
+  z-index: 2;
+  width: clamp(68px, 9vw, 104px);
+  height: clamp(68px, 9vw, 104px);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.fp-flight-status {
+  top: 27%;
+  text-align: center;
+  font-family: Archivo, "Segoe UI Variable Display", sans-serif;
+  font-stretch: 84%;
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(244, 244, 242, 0.62);
+}
+
+.fp-flight-hero {
+  top: 33%;
+  text-align: center;
+}
+
+.fp-flight-remain {
+  margin: 0;
+  font-family: Archivo, "Segoe UI Variable Display", sans-serif;
+  font-variant-numeric: tabular-nums;
+  font-weight: 560;
+  font-stretch: 112%;
+  letter-spacing: -0.045em;
+  line-height: 0.88;
+  font-size: clamp(52px, 11vw, 120px);
+  color: #f7f7f4;
+  text-shadow: 0 8px 28px rgba(8, 12, 8, 0.35);
+}
+
+.fp-flight-remain-label {
+  display: block;
+  margin-top: 14px;
+  font-family: Archivo, "Segoe UI Variable Display", sans-serif;
+  font-stretch: 84%;
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(244, 244, 242, 0.5);
+}
+
+.fp-flight-progress {
+  bottom: 132px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 0 28px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: rgba(244, 244, 242, 0.72);
+}
+
+.fp-flight-progress b {
+  font-weight: 600;
+}
+
+.fp-flight-rail {
+  position: relative;
+  height: 2px;
+  background: rgba(244, 244, 242, 0.18);
+}
+
+.fp-flight-rail > i {
+  position: absolute;
   top: 0;
+  bottom: 0;
+  left: 0;
+  background: #f4f4f2;
+}
+
+.fp-flight-rail > em {
+  position: absolute;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  margin-top: -3.5px;
+  border-radius: 50%;
+  background: #f4f4f2;
+}
+
+.fp-flight-pct {
+  position: absolute;
+  left: 50%;
+  top: -18px;
+  transform: translateX(-50%);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: rgba(244, 244, 242, 0.45);
+}
+
+.fp-flight-strip {
+  bottom: 56px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  padding: 0 12px;
+}
+
+.fp-flight-strip div {
+  text-align: center;
+}
+
+.fp-flight-strip span {
+  display: block;
+  font-family: Archivo, "Segoe UI Variable Display", sans-serif;
+  font-stretch: 84%;
+  font-weight: 600;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(244, 244, 242, 0.42);
+}
+
+.fp-flight-strip b {
+  display: block;
+  margin-top: 8px;
+  font-family: Archivo, "Segoe UI Variable Display", sans-serif;
+  font-variant-numeric: tabular-nums;
+  font-weight: 560;
+  font-stretch: 108%;
+  font-size: 20px;
+  letter-spacing: -0.02em;
+  color: #f4f4f2;
+}
+
+.fp-flight-strip small {
+  margin-left: 4px;
+  font-size: 12px;
+  letter-spacing: 0;
+  color: rgba(244, 244, 242, 0.45);
+}
+
+.fp-flight-views {
+  bottom: 12px;
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  padding: 18px 28px 0;
-  font-size: 13px;
-  letter-spacing: 0.04em;
-  color: #8b97a8;
+  justify-content: center;
+  gap: 8px;
+  pointer-events: none;
 }
 
-.fp-flight-head strong {
-  color: #eef2f8;
-  font-weight: 400;
-  margin-left: 12px;
+.fp-flight-views button {
+  pointer-events: auto;
+  min-height: 32px;
+  padding: 0 16px;
+  border: 1px solid rgba(244, 244, 242, 0.18);
+  border-radius: 999px;
+  background: rgba(10, 10, 12, 0.55);
+  color: rgba(244, 244, 242, 0.78);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
 }
 
-.fp-flight-head em {
-  color: #d4ff3a;
-  font-style: normal;
-}
-
-.fp-flight-meta {
-  margin-left: 14px;
-  letter-spacing: 0.06em;
-}
-
-.fp-flight-bank {
-  margin-left: 14px;
-  color: #d4ff3a;
+.fp-flight-views button.is-on {
+  background: #f4f4f2;
+  color: #111214;
+  border-color: #f4f4f2;
 }
 
 .fp-flight-plate {
-  top: 64px;
+  top: 18px;
   display: flex;
-  flex-direction: column;
-  align-items: center;
+  justify-content: center;
 }
 
 .fp-flight-plate > div {
-  min-width: 380px;
-  padding: 12px 28px 16px;
-  border: 1px solid rgba(212, 255, 58, 0.28);
-  background: rgba(7, 8, 12, 0.78);
+  min-width: 280px;
+  padding: 12px 24px 14px;
+  border: 1px solid rgba(244, 244, 242, 0.16);
+  background: rgba(10, 10, 12, 0.62);
   text-align: center;
 }
 
 .fp-flight-plate span {
   display: block;
   font-size: 11px;
-  letter-spacing: 0.12em;
-  color: #8b97a8;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(244, 244, 242, 0.5);
 }
 
 .fp-flight-plate b {
   display: block;
   margin-top: 6px;
-  font-size: 32px;
-  font-weight: 400;
-  letter-spacing: 0.08em;
+  font-size: 28px;
+  font-weight: 560;
+  letter-spacing: 0.04em;
 }
 
-.fp-flight-strip {
-  bottom: 0;
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0;
-  border-top: 1px solid rgba(212, 255, 58, 0.2);
-  background: rgba(7, 8, 12, 0.92);
-  padding: 14px 8px 18px;
+.fp-flight.is-compact .fp-flight-remain {
+  font-size: clamp(32px, 8vw, 52px);
 }
 
-.fp-flight-strip div {
-  padding: 0 24px;
-  border-left: 1px solid rgba(170, 190, 220, 0.1);
+.fp-flight.is-compact .fp-flight-plane {
+  top: 6%;
+  width: 56px;
+  height: 56px;
 }
 
-.fp-flight-strip div:first-child {
-  border-left: 0;
+.fp-flight.is-compact .fp-flight-status {
+  top: 24%;
 }
 
-.fp-flight-strip span {
-  display: block;
+.fp-flight.is-compact .fp-flight-hero {
+  top: 30%;
+}
+
+.fp-flight.is-compact .fp-flight-progress {
+  bottom: 96px;
+  padding: 0 14px;
+}
+
+.fp-flight.is-compact .fp-flight-strip {
+  bottom: 42px;
+}
+
+.fp-flight.is-compact .fp-flight-strip b {
+  font-size: 15px;
+}
+
+.fp-flight.is-compact .fp-flight-views button {
+  min-height: 28px;
+  padding: 0 12px;
   font-size: 11px;
-  letter-spacing: 0.08em;
-  color: #8b97a8;
-}
-
-.fp-flight-strip b {
-  display: block;
-  margin-top: 8px;
-  font-size: 26px;
-  font-weight: 400;
-  color: #eef2f8;
-  letter-spacing: 0.02em;
-}
-
-.fp-flight-strip small {
-  display: block;
-  margin-left: 0;
-  margin-top: 4px;
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  color: #8b97a8;
 }
 
 .fp-flight-route {
@@ -162,14 +279,14 @@
   position: absolute;
   left: 16px;
   right: 16px;
-  bottom: 98px;
+  bottom: 168px;
   z-index: 3;
   justify-content: center;
   pointer-events: auto;
 }
 
 .fp-flight.is-compact .fp-flight-route.is-face {
-  bottom: 62px;
+  bottom: 118px;
   left: 8px;
   right: 8px;
   gap: 6px;
@@ -247,7 +364,7 @@
 }
 
 .fp-flight-airport.is-open .fp-flight-airport-btn {
-  border-color: rgba(212, 255, 58, 0.45);
+  border-color: rgba(244, 244, 242, 0.45);
 }
 
 .fp-flight-airport-pop {
@@ -308,7 +425,7 @@
 }
 
 .fp-flight-airport-pop button:hover {
-  background: rgba(212, 255, 58, 0.08);
+  background: rgba(244, 244, 242, 0.08);
 }
 
 .fp-flight-airport-pop button b {

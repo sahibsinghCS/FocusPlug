@@ -15,6 +15,7 @@ function stillsExtras(): {
   settings: ReturnType<typeof parseFlightPreview>["settings"];
   freeze: boolean;
   picker: "dep" | "arr" | null;
+  mapView: ReturnType<typeof parseFlightPreview>["mapView"];
 } {
   if (typeof window === "undefined") {
     return {
@@ -23,12 +24,13 @@ function stillsExtras(): {
       settings: {},
       freeze: false,
       picker: null,
+      mapView: "close",
     };
   }
   return parseFlightPreview(window.location.search, window.location.hash);
 }
 
-/** Flight slot — real UTC terminator instrument. FaceHost owns the face picker. */
+/** Flight slot — cheap low-poly map + session remaining clock. FaceHost owns the face picker. */
 export function FlightFace(props: FaceProps): JSX.Element {
   const extras = stillsExtras();
   const app = useOptionalAppState();
@@ -65,6 +67,7 @@ export function FlightFace(props: FaceProps): JSX.Element {
       <FlightInstrument
         clock={clock}
         variant={thumb ? "sticker" : extras.variant}
+        mapView={extras.mapView}
         idleOverride={extras.idleOverride}
         compact={compact}
         showRoutePicker={showRoutePicker}
