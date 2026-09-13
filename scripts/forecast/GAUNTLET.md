@@ -335,8 +335,8 @@ different questions and are printed side by side):
 | base-18 | 18 | 189 | 0.8866 | — |
 | the 3 round 8 nominated | 21 | 252 | 0.8994 | +0.0129 |
 | the 5 the additive audit kept | 23 | 299 | 0.8941 | +0.0076 |
-| **their union — 6, SHIPPED** | **24** | **324** | **0.9039** | **+0.0173** [−0.0008, +0.0359] p 0.033 |
-| all 13 | 31 | 527 | 0.9049 | +0.0183 |
+| **their union — 6, SHIPPED** | **24** | **324** | **0.9039** | **+0.0173** [−0.0032, +0.0367] p 0.037 |
+| all 13 | 31 | 527 | 0.9049 | +0.0183 [−0.0024, +0.0401] p 0.044 |
 
 The two passes disagree, and the disagreement is the finding:
 **`titleChurnAccel` pays nothing additively (−0.0001 added back to the kept
@@ -346,7 +346,9 @@ interactions, skip the hidden layer" conclusion showing up one level down, in
 feature selection. The union of the two passes is what ships; all-13 buys
 +0.0011 more for 203 extra terms, which is not a trade.
 
-Cost of dropping each shipped feature from the union, on the pairwise basis:
+Cost of dropping each shipped feature from the union, on the pairwise basis
+(`npm run forecast:features:confirm` with `--out feature-confirm-loo.json` and
+one `u6-<key>=` set per feature — the six leave-one-out sets):
 
 | feature | Δ if dropped |
 | --- | --- |
@@ -386,9 +388,11 @@ by occlusion, which is why its ordering and this one differ.
 
 ### Shipped numbers — 48-session eval split, before → after
 
-`auc_before` is the committed artifact at the previous commit; `auc_after` is
-today's. Both heads scored on the SAME rows and the SAME 2 000 resamples by
-`npm run forecast:features:abtest`.
+`auc_before` is the committed artifact at `40f93b7` (the commit that shipped
+`lr18+pairwise`); `auc_after` is today's. Both heads scored on the SAME rows and
+the SAME 2 000 resamples by `npm run forecast:features:abtest`, which reads the
+baseline straight out of git and pins that ref so the comparison keeps meaning
+something after this round is itself committed.
 
 | Metric | before (lr18+pairwise, 190p) | after (lr24+pairwise, 325p) |
 | --- | --- | --- |
@@ -462,10 +466,20 @@ The operating point was re-derived on 3-fold cross-fitted train sessions as
 always and came back **unchanged at nudge 0.45 / pre-arm 0.80**, so the
 `DEFAULT_SETTINGS` parity assertion still holds untouched.
 
+**Cost.** 324 terms instead of 189 makes `forecast:train` ~5 min 10 s instead
+of ~3 min (`forecast:data` 18 s, `forecast:eval` 13 s), so the full pipeline is
+about 7 min against the 10-min budget. Inference is 324 multiply-adds a tick on
+a 1 Hz loop and `weights.json` is ~7 KB — neither is measurable next to the
+14 803-parameter / 306 KB / 330 µs-per-tick contender round 8 turned down.
+Determinism is unchanged and re-verified: two back-to-back `forecast:train`
+runs on the same dataset produce a byte-identical `weights.json`
+(sha-256 `69541cb2…`), and two `forecast:eval` runs a byte-identical
+`eval-report.json` (`42e14d3c…`).
+
 ## Adaption Labs round (live, 2026-09-12)
 
 `npm run forecast:data -- --adaption` against
-`https://api.prod.adaptionlabs.ai/api/v1` with the session `API_KEY`:
+`https://api.prod.adaptionlabs.ai/api/v1` with no `ADAPTION_API_KEY` set:
 
 ```
 WARN adaption unavailable (POST /datasets HTTP 403: {"statusCode":403,

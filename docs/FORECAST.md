@@ -379,8 +379,8 @@ tail.
 ## Adaption Labs integration + provenance honesty
 
 `scripts/forecast/adaption.ts` (base
-`https://api.prod.adaptionlabs.ai/api/v1`, key from `ADAPTION_API_KEY` then
-`API_KEY`): `POST /datasets` (column_mapping {prompt, completion}) →
+`https://api.prod.adaptionlabs.ai/api/v1`, key from `ADAPTION_API_KEY` and
+nothing else): `POST /datasets` (column_mapping {prompt, completion}) →
 presigned PUT + `POST /datasets/upload/complete` → poll
 `GET /datasets/{id}/status` → `POST /datasets/{id}/augment` → poll →
 `GET /datasets/{id}/download?fileFormat=jsonl`. Only the TRAIN-split seed is

@@ -36,8 +36,11 @@ export interface AdaptionOutcome {
   rows: AdaptionRow[];
 }
 
+/** ADAPTION_API_KEY only. Never fall back to a generic key such as API_KEY:
+ * that variable belongs to whatever shell runs this, and sending it to a third
+ * party would leak an unrelated credential. */
 export function adaptionApiKey(): string | null {
-  return process.env.ADAPTION_API_KEY || process.env.API_KEY || null;
+  return process.env.ADAPTION_API_KEY || null;
 }
 
 interface ApiResponse {
@@ -154,7 +157,7 @@ export async function runAdaptionAugment(
 ): Promise<AdaptionOutcome> {
   const key = adaptionApiKey();
   if (!key) {
-    return fail("no ADAPTION_API_KEY / API_KEY in environment", null);
+    return fail("no ADAPTION_API_KEY in environment", null);
   }
   try {
     // 1. Register the dataset (deferred adaption — we only want augmentation).

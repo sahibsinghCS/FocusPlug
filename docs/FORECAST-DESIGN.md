@@ -201,7 +201,7 @@ Archetypes (CLI-weighted; defaults):
 Levers: `--sessions --seed`, per-archetype weights, hazard scale, dwell jitter, desk-noise σ, grey vocabulary size, sensor-dropout probability, webcam-off spans. Default: 240 sessions ≈ 536 k raw frames ≈ 133 k train frames — ~3 min to train at 190 params (the λ path over a 189-column design, plus 3 cross-fit folds for the operating point).
 
 ### 4.3 Adaption Labs (sponsor) + offline fallback + provenance
-`adaption.ts` reads `ADAPTION_API_KEY` (fallback `API_KEY`); base `https://api.prod.adaptionlabs.ai/api/v1`, `Authorization: Bearer`. Row mapping: `prompt` = compact deterministic JSON of the frame's `raw` stats + context; `completion` = `"DRIFT" | "STAY"`.
+`adaption.ts` reads `ADAPTION_API_KEY` only — never a generic `API_KEY`, which would leak an unrelated credential to a third party; base `https://api.prod.adaptionlabs.ai/api/v1`, `Authorization: Bearer`. Row mapping: `prompt` = compact deterministic JSON of the frame's `raw` stats + context; `completion` = `"DRIFT" | "STAY"`.
 1. `POST /datasets` (or `upload/initiate` + `complete` for the large file) with `column_mapping {prompt, completion}` — registers the canonical **train split only**; eval rows are never uploaded (held-out purity).
 2. `POST /datasets/{id}/augment` — minority-class expansion biased to `DRIFT` rows; returned rows re-enter as `source:"augmented:adaption"`.
 3. `POST /datasets/{id}/invent` — cold-start archetype variety; tagged `invented:adaption`, capped at 10 % of train, never in eval.
