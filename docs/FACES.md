@@ -4,7 +4,7 @@ Immersive timer **faces** replace a blank session hero. They are atmosphere / pr
 
 Selected face persists as `AppSettings.faceId` on the existing settings blob (`Store.loadSettings` / `saveSettings`). No second store.
 
-Default: **`flight`**. `FACE_READY.flight` is true — `FlightFace.tsx` is the UTC terminator instrument. Route persists as `AppSettings.flightDep` / `flightArr` (default DUB→EDI).
+Default: **`flight`**. `FACE_READY.flight` is true — `FlightFace.tsx` is the cheap low-poly map + session remaining clock. Route persists as `AppSettings.flightDep` / `flightArr` (default DUB→EDI).
 
 ## Contract
 
@@ -38,7 +38,7 @@ Replace the listed file. Do not fork `FaceHost` or invent a second picker.
 
 | Face | Stream | File | This foundation |
 | --- | --- | --- | --- |
-| `flight` | `agent/faces-flight` | `src/renderer/src/features/faces/FlightFace.tsx` | ready — terminator / ETA instrument |
+| `flight` | `agent/faces-flight` | `src/renderer/src/features/faces/FlightFace.tsx` | ready — low-poly map + session clock |
 | `hourglass` | `agent/faces-hourglass-v2` | `src/renderer/src/features/faces/HourglassFace.tsx` | ready — curved glass, sand transfer |
 | `readout` | `agent/faces-foundation` | `src/renderer/src/features/faces/ReadoutFace.tsx` | ready — honest digits |
 | `movement` | `agent/faces-mid` | `src/renderer/src/features/faces/MovementFace.tsx` | ready — exposed calibre |

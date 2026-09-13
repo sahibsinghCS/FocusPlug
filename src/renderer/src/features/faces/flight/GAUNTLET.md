@@ -1,40 +1,31 @@
-# Flight face v2 gauntlet
+# Flight face — simple map gauntlet
 
-Bar: at **1280×800**, a fresh harsh critic does a blind before/after of the Flight face and **selects the new still**. WIN only if AFTER reads as a **real flight instrument** — zoomed in on the hop, globe actually rotating, no lat/lon grid, origin and arrival user-choosable.
-
-BEFORE evidence is the Timmy-hated plate (tiny DUB→EDI sticker on a gridded globe). AFTER must beat that.
+Bar: at **1280×800**, a fresh harsh critic does a blind before/after of the Flight face and **selects the new still**. WIN only if AFTER is the simple in-flight plate Timmy asked for — low-poly terrain, centered plane, huge session remaining clock, cheap draw — and beats the laggy globe.
 
 ## Owns
 
 - `src/renderer/src/features/faces/FlightFace.tsx` (FaceHost registry slot)
 - `src/renderer/src/features/faces/flight/**`
-- `FACE_READY.flight` in `src/shared/faces.ts`
-- `AppSettings.flightDep` / `flightArr` on the existing settings blob
-- `src/renderer/face.html` / `src/renderer/src/face-main.tsx` (stills harness that mounts the registry `FlightFace`)
+- Settings route picker stays on Settings. Lock never shows Origin/Arrival boxes.
 
-Does **not** fork FaceHost or FacePicker. Session already maps `faceId: "flight"` through `FACE_COMPONENTS`.
+Does **not** fork FaceHost or FacePicker. Does **not** touch `src/main`, `src/shared/types.ts`, `docs/CONTRACTS.md`.
 
 ## Must read without zoom
 
-1. **User-choosable route** — Settings + session IATA pickers. Persist `flightDep` / `flightArr`. Default DUB→EDI. Both ends changeable.
-2. **Tight camera** — track the arc so landforms and the plane read large. Short hops still feel alive.
-3. **Continuous orbit** — globe/camera rotates during a sit; plane stays near center.
-4. **No lat/lon grid** — coasts and land shading only.
-5. **Terminator from real UTC** — day = warm pale gold, night = deep indigo, thin cyan twilight.
-6. **City lights** only on the night side.
-7. **Banked aircraft** into the great-circle heading change, clamp ±25°.
-8. **Decaying contrail** (~90s), taper width/alpha; thinner at cruise.
-9. **Monospace strip**: dep/arr, km remaining, ETA clock, ground speed from `estimateMinutes` / `remaining`.
-10. **Climb / cruise / descent** (first 8% / last 12%); complete pulls back and sets the destination name.
+1. **Session remaining** — the big clock is the sit they chose (`remainingMs` / session remaining), not a fake 10h flight.
+2. **Close map** — low-poly / flat geometric terrain + river, centered plane silhouette, IN FLIGHT + phase.
+3. **Whole-map toggle** — zoomed-out route so you can see how far you have gone.
+4. **Bottom strip** — progress, distance left, ground speed (plausible, **< 1000 kph**), studied, arrives.
+5. **Butter-smooth** — canvas 2D, cached terrain, no per-pixel globe / terminator / city lights.
 
 ## Linux / CI
 
 ```bash
-npm test -- src/renderer/src/features/faces src/shared/flightRoute.test.ts src/main/session/controller.test.ts
-npm run typecheck
+npm test -- src/renderer/src/features/faces/flight src/shared/flightRoute.test.ts
+npx tsc --noEmit -p tsconfig.web.json
 ```
 
-Stills (browser preview, frozen UTC):
+Stills:
 
 ```bash
 npx vite --config scripts/renderer-preview.vite.ts
@@ -43,10 +34,8 @@ node scripts/flight-stills.mjs
 
 ## Hard fail
 
-- Critic prefers the tiny-hop / gridded sticker
-- Route is hardcoded; user cannot change origin or arrival
-- Framing is still a global disc with a postage-stamp hop
-- Globe is a static map sticker (no orbit between paired stills)
-- Lat/lon graticule is visible
-- Terminator ignores UTC or is a hard cartoon split
-- Strip numbers are decorative
+- Critic prefers the laggy globe / bezel instrument
+- Remaining clock is a decorative 10h hop instead of the session
+- No way to switch close vs whole-map
+- Ground speed ≥ 1000 kph
+- Lock shows Origin/Arrival picker boxes
