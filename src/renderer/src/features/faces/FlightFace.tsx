@@ -3,6 +3,7 @@ import { useOptionalAppState } from "../../state/AppState";
 import { toFlightClock } from "./flight/clock";
 import { FlightFace as FlightInstrument } from "./flight/FlightFace";
 import { parseFlightPreview } from "./flight/preview";
+import { resolveFlightRoutePicker } from "./flight/routePicker";
 import type { FaceProps } from "./types";
 
 function stillsExtras(): {
@@ -48,6 +49,12 @@ export function FlightFace(props: FaceProps): JSX.Element {
   });
   const thumb = props.height > 0 && props.height < 140;
   const compact = props.height > 0 && props.height < 400;
+  // Lock never gets Origin/Arrival boxes. Settings already has its own picker.
+  // Stills may opt in with ?picker=dep|arr.
+  const showRoutePicker = resolveFlightRoutePicker({
+    showRoutePicker: extras.picker !== null,
+    sessionId: props.sessionId,
+  });
   return (
     <div
       className="fp-flight-slot"
@@ -60,9 +67,10 @@ export function FlightFace(props: FaceProps): JSX.Element {
         variant={thumb ? "sticker" : extras.variant}
         idleOverride={extras.idleOverride}
         compact={compact}
-        routePickerOpen={thumb ? null : extras.picker}
+        showRoutePicker={showRoutePicker}
+        routePickerOpen={showRoutePicker && !thumb ? extras.picker : null}
         onRouteChange={
-          app
+          showRoutePicker && app
             ? (next) => {
                 void app.patchSettings({ flightDep: next.dep, flightArr: next.arr });
               }
