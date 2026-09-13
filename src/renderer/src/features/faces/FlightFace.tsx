@@ -50,11 +50,10 @@ export function FlightFace(props: FaceProps): JSX.Element {
   });
   const thumb = isFaceThumb(props.height);
   const compact = props.height > 0 && props.height < 400;
-  // Lock never gets Origin/Arrival boxes. Settings already has its own picker.
-  // Stills may opt in with ?picker=dep|arr.
+  // Lock never opts in (showRoutePicker stays false). Settings has its own
+  // picker. Stills may opt in with ?picker=dep|arr.
   const showRoutePicker = resolveFlightRoutePicker({
     showRoutePicker: extras.picker !== null,
-    sessionId: props.sessionId,
   });
   return (
     <div
