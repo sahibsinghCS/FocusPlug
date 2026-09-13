@@ -54,6 +54,13 @@ export function buildLockFaceProps(input: BuildLockFacePropsInput): FaceProps {
   const progress = input.position?.segmentProgress ?? 0;
   const remainingMs = Math.max(0, (input.position?.remainingSec ?? input.remainingSec) * 1000);
   const elapsedMs = Math.max(0, progress * segmentSec * 1000);
+  const sessionElapsedMs = Math.max(0, input.elapsedSec) * 1000;
+  const sessionRemainingMs = Math.max(0, input.remainingSec) * 1000;
+  const sessionTotalMs = sessionElapsedMs + sessionRemainingMs;
+  const sessionProgress =
+    input.position?.planProgress ??
+    (sessionTotalMs > 0 ? sessionElapsedMs / sessionTotalMs : 0);
+  const sessionEstimateMinutes = Math.max(1, sessionTotalMs / 60_000);
   const events = toFaceEvents(sessionLogSince(input.log, input.startedAtMs));
   return {
     progress,
@@ -61,6 +68,10 @@ export function buildLockFaceProps(input: BuildLockFacePropsInput): FaceProps {
     elapsedMs,
     remainingMs,
     estimateMinutes,
+    sessionProgress,
+    sessionElapsedMs,
+    sessionRemainingMs,
+    sessionEstimateMinutes,
     sessionId: faceSessionId(input.startedAtMs, input.startedAtMs !== null),
     events,
     killCount: countKills(events),

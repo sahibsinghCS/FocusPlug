@@ -10,6 +10,8 @@ export const ORBIT_RAD_PER_SEC = 0.052;
 export const MIN_ROUTE_ZOOM = 2.15;
 export const MAX_ROUTE_ZOOM = 6.15;
 export const COMPLETE_MIN_ZOOM = 1.6;
+/** Typical jet cruise ceiling. A 5-min DUB–EDI hop otherwise reads ~4,032 kph. */
+export const MAX_CRUISE_KMH = 900;
 
 export type Vec3 = readonly [number, number, number];
 
@@ -329,7 +331,8 @@ export function groundSpeedKmh(remainKm: number, remainingSec: number): number {
     throw new Error("groundSpeedKmh requires finite inputs");
   }
   if (remainingSec <= 0.5) return 0;
-  return remainKm / (remainingSec / 3600);
+  const raw = remainKm / (remainingSec / 3600);
+  return Math.min(MAX_CRUISE_KMH, Math.max(0, raw));
 }
 
 export function etaMs(now: number, remainingSec: number): number {
