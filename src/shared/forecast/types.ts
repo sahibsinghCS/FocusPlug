@@ -50,8 +50,9 @@ export interface ForecastSnapshot {
   band: ForecastBand;
   horizonSec: number;           // FORECAST_HORIZON_SEC
   features: ForecastFeatureView[]; // one per FORECAST_FEATURE_KEYS entry, in that order
-  hidden: number[];             // length FORECAST_INPUT_DIM, tanh of each feature's
-                                // summed basis-term contribution — the GLM's term-group strip
+  hidden: number[];             // the head's hidden activations, whatever length the shipped
+                                // head has (FORECAST_HIDDEN_DIM): tanh pre-activations of the
+                                // collapsed 24→36→1 net. Anonymous units, and the UI says so.
   prearmedAt: number | null;    // epoch ms, null unless pre-armed
   effectiveFuseSec: number;     // countdownSec policy sees this step (latched during a burn)
   baseFuseSec: number;          // settings.countdownSec
@@ -69,14 +70,15 @@ export type ForecastEvent =
 export type DriftType = "tab_out" | "walk_away";
 
 /**
- * One basis term of the shipped GLM: `x_i` when `j` is null, `x_i · x_j`
- * otherwise (`i === j` ⇒ the square). The canonical term list lives in
- * `model.ts` as `FORECAST_TERMS` and is built by the same code the trainer
- * imports — basis skew between train and serve is impossible by construction.
+ * One dense layer of the shipped head, row-major. `weights` is
+ * `outDim × inDim`; `bias` is `outDim`. The shapes are DERIVED from
+ * `FORECAST_FEATURE_KEYS` and `FORECAST_HIDDEN_DIM` in `model.ts`, and a
+ * weights file whose layer shapes disagree fails `parseForecastWeights`
+ * closed rather than being served against a basis it was not fitted on.
  */
-export interface ForecastTerm {
-  i: number;
-  j: number | null;
+export interface ForecastLayer {
+  weights: number[];
+  bias: number[];
 }
 
 /** Shape of src/shared/forecast/weights.json. parseForecastWeights returns null on any violation. */
@@ -88,18 +90,21 @@ export interface ForecastWeightsFile {
   norm: { mean: number[]; scale: number[] }; // one entry per feature — train-split stats.
                                 // `mean` is the occlusion baseline the attributions use;
                                 // `scale` is published dispersion. The model's own
-                                // standardizer is folded into `coefficients`/`intercept`,
+                                // z-score standardizer is FOLDED into the hidden layer,
                                 // so the forward pass needs neither.
-  basis: string;                // FORECAST_BASIS — `lr{FORECAST_INPUT_DIM}+pairwise`
-  basisSha: string;             // FORECAST_BASIS_SHA: fnv1a32 of the canonical term names
-  coefficients: number[];       // length FORECAST_TERM_COUNT, FORECAST_TERMS order
-                                // (standardizer folded in)
-  intercept: number;            // bias, standardizer folded in
-  calibration: { a: number; b: number };   // Platt, fit on validation
+  basis: string;                // FORECAST_BASIS — `mlp{FORECAST_INPUT_DIM}-{FORECAST_HIDDEN_DIM}-1`
+  basisSha: string;             // FORECAST_BASIS_SHA: fnv1a32 of arch + activation + feature keys
+  layers: {
+    hidden: ForecastLayer;      // weights FORECAST_HIDDEN_DIM × FORECAST_INPUT_DIM (row-major),
+                                // bias FORECAST_HIDDEN_DIM — tanh; standardizer folded in
+    output: ForecastLayer;      // weights 1 × FORECAST_HIDDEN_DIM, bias 1 — linear logit;
+                                // the bagged blend's affine mix is folded in
+  };
+  calibration: { a: number; b: number };   // Platt, fit on held-out calibration sessions
   horizonSec: number;           // 30
   thresholds: { nudge: number; prearm: number; clear: number }; // evaluated operating point;
                                 // eval.ts asserts nudge/prearm match DEFAULT_SETTINGS forecast keys
-  paramCount: number;           // FORECAST_PARAM_COUNT = coefficients + intercept
+  paramCount: number;           // FORECAST_PARAM_COUNT = every float in `layers`
   trainProvenanceSha: string;   // sha256 of embedded provenance in eval-report.json
 }
 

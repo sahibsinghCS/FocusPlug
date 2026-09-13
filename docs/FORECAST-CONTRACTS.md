@@ -57,8 +57,9 @@ export interface ForecastSnapshot {
   band: ForecastBand;
   horizonSec: number;           // FORECAST_HORIZON_SEC
   features: ForecastFeatureView[]; // one per FORECAST_FEATURE_KEYS entry, in that order
-  hidden: number[];             // length FORECAST_INPUT_DIM, tanh of each feature's
-                                // summed basis-term contribution — the GLM's term-group strip
+  hidden: number[];             // the head's hidden activations, whatever length the shipped
+                                // head has (FORECAST_HIDDEN_DIM): tanh pre-activations of the
+                                // collapsed 24→36→1 net. Anonymous units, and the UI says so.
   prearmedAt: number | null;    // epoch ms, null unless pre-armed
   effectiveFuseSec: number;     // countdownSec policy sees this step (latched during a burn)
   baseFuseSec: number;          // settings.countdownSec
@@ -76,14 +77,15 @@ export type ForecastEvent =
 export type DriftType = "tab_out" | "walk_away";
 
 /**
- * One basis term of the shipped GLM: `x_i` when `j` is null, `x_i · x_j`
- * otherwise (`i === j` ⇒ the square). The canonical term list lives in
- * `model.ts` as `FORECAST_TERMS` and is built by the same code the trainer
- * imports — basis skew between train and serve is impossible by construction.
+ * One dense layer of the shipped head, row-major. `weights` is
+ * `outDim × inDim`; `bias` is `outDim`. The shapes are DERIVED from
+ * `FORECAST_FEATURE_KEYS` and `FORECAST_HIDDEN_DIM` in `model.ts`, and a
+ * weights file whose layer shapes disagree fails `parseForecastWeights`
+ * closed rather than being served against a basis it was not fitted on.
  */
-export interface ForecastTerm {
-  i: number;
-  j: number | null;
+export interface ForecastLayer {
+  weights: number[];
+  bias: number[];
 }
 
 /** Shape of src/shared/forecast/weights.json. parseForecastWeights returns null on any violation. */
@@ -95,18 +97,21 @@ export interface ForecastWeightsFile {
   norm: { mean: number[]; scale: number[] }; // one entry per feature — train-split stats.
                                 // `mean` is the occlusion baseline the attributions use;
                                 // `scale` is published dispersion. The model's own
-                                // standardizer is folded into `coefficients`/`intercept`,
+                                // z-score standardizer is FOLDED into the hidden layer,
                                 // so the forward pass needs neither.
-  basis: string;                // FORECAST_BASIS — `lr{FORECAST_INPUT_DIM}+pairwise`
-  basisSha: string;             // FORECAST_BASIS_SHA: fnv1a32 of the canonical term names
-  coefficients: number[];       // length FORECAST_TERM_COUNT, FORECAST_TERMS order
-                                // (standardizer folded in)
-  intercept: number;            // bias, standardizer folded in
-  calibration: { a: number; b: number };   // Platt, fit on validation
+  basis: string;                // FORECAST_BASIS — `mlp{FORECAST_INPUT_DIM}-{FORECAST_HIDDEN_DIM}-1`
+  basisSha: string;             // FORECAST_BASIS_SHA: fnv1a32 of arch + activation + feature keys
+  layers: {
+    hidden: ForecastLayer;      // weights FORECAST_HIDDEN_DIM × FORECAST_INPUT_DIM (row-major),
+                                // bias FORECAST_HIDDEN_DIM — tanh; standardizer folded in
+    output: ForecastLayer;      // weights 1 × FORECAST_HIDDEN_DIM, bias 1 — linear logit;
+                                // the bagged blend's affine mix is folded in
+  };
+  calibration: { a: number; b: number };   // Platt, fit on held-out calibration sessions
   horizonSec: number;           // 30
   thresholds: { nudge: number; prearm: number; clear: number }; // evaluated operating point;
                                 // eval.ts asserts nudge/prearm match DEFAULT_SETTINGS forecast keys
-  paramCount: number;           // FORECAST_PARAM_COUNT = coefficients + intercept
+  paramCount: number;           // FORECAST_PARAM_COUNT = every float in `layers`
   trainProvenanceSha: string;   // sha256 of embedded provenance in eval-report.json
 }
 
@@ -204,11 +209,11 @@ onForecastEvent(cb: (event: ForecastEvent) => void): () => void;
 |---|---|---|---|
 | `forecastEnabled` | boolean | `true` | boolean else default |
 | `forecastPrearmEnabled` | boolean | `true` | boolean else default |
-| `forecastNudgeRisk` | number | `0.45` | finite → clamp [0.05, 0.90] else default |
-| `forecastPrearmRisk` | number | `0.80` | finite → clamp [0.10, 0.95] else default; then raised to ≥ forecastNudgeRisk + 0.05 |
+| `forecastNudgeRisk` | number | `0.50` | finite → clamp [0.05, 0.90] else default |
+| `forecastPrearmRisk` | number | `0.65` | finite → clamp [0.10, 0.95] else default; then raised to ≥ forecastNudgeRisk + 0.05 |
 | `forecastPrearmFuseSec` | number | `5` | finite → Math.round, clamp [3, 600] else default (runtime additionally caps at settings.countdownSec) |
 
-`DEFAULT_SETTINGS` in `src/shared/defaults.ts` gains all five. `requirePatch` in `src/main/session/controller.ts` gains matching finite-number/boolean validations in the existing style. `eval.ts` asserts `weights.thresholds.nudge === DEFAULT_SETTINGS.forecastNudgeRisk && weights.thresholds.prearm === DEFAULT_SETTINGS.forecastPrearmRisk` (operating-point parity). **Amended after the bake-off:** `forecastNudgeRisk` moved `0.55 → 0.45`. The value is no longer a design guess — `train.ts` re-selects it on 3-fold cross-fitted TRAIN sessions (192 sessions, 242 onsets) as the recall-maximising threshold inside a fixed alarm budget, prints a WARN when `DEFAULT_SETTINGS` disagrees with its pick, and records the whole search grid in the provenance embedded in `eval-report.json`.
+`DEFAULT_SETTINGS` in `src/shared/defaults.ts` gains all five. `requirePatch` in `src/main/session/controller.ts` gains matching finite-number/boolean validations in the existing style. `eval.ts` asserts `weights.thresholds.nudge === DEFAULT_SETTINGS.forecastNudgeRisk && weights.thresholds.prearm === DEFAULT_SETTINGS.forecastPrearmRisk` (operating-point parity). **Amended after the bake-off (round 8):** `forecastNudgeRisk` moved `0.55 → 0.45`. **Amended again after the model swap (round 11):** `forecastNudgeRisk` `0.45 → 0.50` and `forecastPrearmRisk` `0.80 → 0.65`. Neither value is a design guess — `train.ts` re-selects BOTH on 3-fold cross-fitted TRAIN sessions (192 sessions, 242 onsets) in two stages, each against the budget that governs it (nudge line: recall@30 s under an alarm-load ratio ceiling; pre-arm line: pre-arm recall@30 s under the < 2 false pre-arms/hour budget and a floor on the nudge line's recall). It prints a WARN when `DEFAULT_SETTINGS` disagrees with its pick, and records the whole search grid in the provenance embedded in `eval-report.json`. The pre-arm axis had to move: 0.80 was a cut on the previous GLM's risk scale, and the MLP that ships now scores 0.3358 pre-arm recall there against 0.5748 at its own re-derived line.
 
 ## 4. Dataset JSONL schema — `data/forecast/dataset.jsonl` (one object per 1 Hz frame)
 
@@ -227,34 +232,51 @@ Recorder output (`<userData>/forecast-sessions/<sessionId>.jsonl`, `FOCUSPLUG_FO
 ## 5. npm scripts — `package.json` (exact)
 
 ```json
-"forecast:simulate": "tsx --tsconfig tsconfig.node.json scripts/forecast/simulate.ts",
-"forecast:data":     "tsx --tsconfig tsconfig.node.json scripts/forecast/build-dataset.ts",
-"forecast:train":    "tsx --tsconfig tsconfig.node.json scripts/forecast/train.ts",
-"forecast:eval":     "tsx --tsconfig tsconfig.node.json scripts/forecast/eval.ts",
-"forecast:pipeline": "npm run forecast:simulate && npm run forecast:data && npm run forecast:train && npm run forecast:eval",
+"forecast:simulate":         "tsx --tsconfig tsconfig.node.json scripts/forecast/simulate.ts",
+"forecast:data":             "tsx --tsconfig tsconfig.node.json scripts/forecast/build-dataset.ts",
+"forecast:evalset":          "tsx --tsconfig tsconfig.node.json scripts/forecast/build-evalset.ts",
+"forecast:train":            "tsx --tsconfig tsconfig.node.json scripts/forecast/train.ts",
+"forecast:eval":             "node --max-old-space-size=8192 --import tsx scripts/forecast/eval.ts",
+"forecast:pipeline":         "npm run forecast:simulate && npm run forecast:data && npm run forecast:evalset && npm  ...",
+"forecast:holdout:bakeoff":  "node --max-old-space-size=12288 --import tsx scripts/forecast/holdout-bakeoff.ts",
+"forecast:bakeoff:publish":  "tsx --tsconfig tsconfig.node.json scripts/forecast/bakeoff-publish.ts",
 "forecast:features":         "tsx --tsconfig tsconfig.node.json scripts/forecast/feature-mine.ts",
-"forecast:features:confirm": "tsx ... scripts/forecast/feature-confirm.ts --sets \"...\"",
 "forecast:features:abtest":  "tsx --tsconfig tsconfig.node.json scripts/forecast/feature-abtest.ts",
 "forecast:fixtures":         "tsx --tsconfig tsconfig.node.json scripts/forecast/make-fixtures.ts",
-"test:forecast":     "vitest run src/shared/forecast src/main/forecast src/renderer/src/features/forecast",
-"forecast:preview":  "vite --config scripts/forecast-preview.vite.ts"
+"test:forecast":             "vitest run src/shared/forecast src/main/forecast src/renderer/src/features/forecast",
+"forecast:preview":          "vite --config scripts/forecast-preview.vite.ts",
+"forecast:features:confirm": "tsx ... scripts/forecast/feature-confirm.ts --sets \"...\"",
+"forecast:eval:holdout": "npm run forecast:eval",   // alias, kept so round-10 commands still run
+"forecast:power":        "npm run forecast:evalset && npm run forecast:eval"
 ```
-Flags: `forecast:data -- --adaption` (sponsor path, auto-fallback on non-2xx, exit 0); `forecast:eval -- --gate=off` (bypasses the gate and stamps `"gate":{"enforced":false}` into eval-report.json). **Amended after the bake-off:** the gate baseline is the FULL multivariate logistic on the SAME feature basis the shipped head sees (strongest of a class-weighted GD fit and an L-BFGS-converged one), required margin 0 — so growing `FORECAST_FEATURE_KEYS` raises the bar as well as the model — not the old "+0.03 over the best single-feature logistic", which is still printed as context. See docs/FORECAST.md § Stage 4.
+Flags: `forecast:data -- --adaption` (sponsor path, auto-fallback on non-2xx, exit 0); `forecast:eval -- --gate=off` (bypasses the gate and stamps `"gate":{"enforced":false}` into eval-report.json); `forecast:eval -- --split-eval` (scores the old 48-session eval SPLIT instead of the 900-session corpus — kept because the gate's teeth are verified on a deliberately tiny toy corpus, which has no hold-out namespace).
+
+**Amended after the bake-off (round 8):** the gate baseline is the FULL multivariate logistic on the SAME feature basis the shipped head sees (strongest of a class-weighted GD fit and an L-BFGS-converged one), required margin 0 — so growing `FORECAST_FEATURE_KEYS` raises the bar as well as the model — not the old "+0.03 over the best single-feature logistic", which is still printed as context. **Amended round 11:** `forecast:pipeline` now builds and scores the 900-session evaluation corpus end to end (`forecast:evalset` is a pipeline stage, not a side experiment), and the committed `eval-report.json` is its output. The gate margin ships with a measured bootstrap CI. See docs/FORECAST.md § Stage 4.
 
 ## 6. Definitive file list
 
-**Amended after the bake-off** (see `scripts/forecast/GAUNTLET.md` round 8): the shipped head is a
-190-parameter GLM, not the 241-parameter TinyMLP. Three files join the list —
+**Amended after the bake-off** (see `scripts/forecast/GAUNTLET.md` round 8): the shipped head was a
+190-parameter GLM, not the 241-parameter TinyMLP. Three files joined the list —
 `src/shared/forecast/bake-off.json` (committed non-gating bake-off table with paired
 session-clustered CIs, embedded verbatim into `eval-report.json`), `scripts/forecast/linear.ts`
 (L-BFGS + weighted-L2 logistic + robust Platt, shared by train.ts and eval.ts), and
 `scripts/forecast/candidates/` (the five contender scripts, kept as the bake-off record).
-`src/shared/forecast/model.ts` additionally exports `FORECAST_TERMS` / `FORECAST_TERM_KEYS` /
-`expandBasis`, which the trainer imports — the basis is shared between train and serve exactly the
-way `extractFeatures` is.
 
-NEW — shared (pure; purity test forbids fs/path/electron/window/document):
-`src/shared/forecast/types.ts` · `hash.ts` · `ring.ts` + `ring.test.ts` · `features.ts` + `features.test.ts` · `labels.ts` + `labels.test.ts` · `model.ts` + `model.test.ts` · `escalate.ts` + `escalate.test.ts` · `purity.test.ts` · `index.ts` · `weights.json` (committed artifact) · `eval-report.json` (committed artifact, embeds provenance) · `fixtures/golden.json`
+**Amended again after the model swap** (round 11): the shipped head is a **937-parameter tanh MLP
+`mlp24-36-1`**. Five more files join — `src/shared/forecast/bake-off-power.json` (the 17-model
+re-run of that contest on the 900-session corpus, also embedded verbatim),
+`scripts/forecast/mlp.ts` (forward/backward + Adam + gradient check, promoted verbatim from the
+winning contender exactly as `linear.ts` was), `scripts/forecast/pairwise.ts` (the round-8 GLM
+basis, moved OUT of the shared core when it stopped shipping — nothing under `src/` imports it),
+`scripts/forecast/holdout-namespace.ts` + `build-evalset.ts` (the evaluation corpus and its three
+contamination barriers), and `scripts/forecast/bakeoff-publish.ts`.
+`src/shared/forecast/model.ts` no longer exports `FORECAST_TERMS` / `expandBasis`; it exports
+`FORECAST_HIDDEN_DIM` / `FORECAST_ENSEMBLE_MEMBERS` / `FORECAST_FORWARD_MACS` instead, all derived
+from `FORECAST_FEATURE_KEYS` and the member count — the architecture is shared between train and
+serve exactly the way `extractFeatures` is, and `FORECAST_BASIS_SHA` now checksums width +
+activation + feature order so a change to any of the three fails closed.
+
+`src/shared/forecast/types.ts` · `hash.ts` · `ring.ts` + `ring.test.ts` · `features.ts` + `features.test.ts` · `labels.ts` + `labels.test.ts` · `model.ts` + `model.test.ts` · `escalate.ts` + `escalate.test.ts` · `purity.test.ts` · `index.ts` · `weights.json` (committed artifact) · `eval-report.json` (committed artifact, embeds provenance) · `bake-off.json` + `bake-off-power.json` (committed non-gating artifacts) · `fixtures/golden.json`
 
 NEW — main: `src/main/forecast/monitor.ts` + `monitor.test.ts` · `tap.ts` + `tap.test.ts` · `recorder.ts` + `recorder.test.ts` · `integration.test.ts` · `index.ts`
 

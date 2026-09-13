@@ -7,6 +7,7 @@ import type {
   PolicyEvent,
 } from "../../shared/types.ts";
 import {
+  FORECAST_HIDDEN_DIM,
   FORECAST_INPUT_DIM,
   FORECAST_PARAM_COUNT,
   type ForecastEvent,
@@ -187,17 +188,17 @@ describe("ForecastMonitor cadence", () => {
     expect(eventTypes(h)).toContain("forecast_prearm");
   });
 
-  it("snapshot shape: every feature in key order, one term group each, provenance fields", () => {
+  it("snapshot shape: every feature in key order, one cell per hidden unit, provenance fields", () => {
     const h = makeMonitor();
     start(h);
     tickSeconds(h, 1);
     const snap = h.snapshots[0];
     expect(snap?.features.length).toBe(FORECAST_INPUT_DIM);
     expect(snap?.features[0]?.key).toBe("switch15");
-    // The GLM has no hidden layer: `hidden` is one tanh'd term-group
-    // activation per feature, so the strip stays a strip and the contract
-    // stays "a number[] of whatever length the architecture has".
-    expect(snap?.hidden.length).toBe(FORECAST_INPUT_DIM);
+    // `hidden` is the shipped head's actual hidden layer — the contract is
+    // "a number[] of whatever length the architecture has", and the UI reads
+    // its length rather than assuming one cell per feature.
+    expect(snap?.hidden.length).toBe(FORECAST_HIDDEN_DIM);
     expect(snap?.paramCount).toBe(FORECAST_PARAM_COUNT);
     expect(snap?.modelVersion).toBe("ff-1");
     expect(snap?.horizonSec).toBe(30);

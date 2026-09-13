@@ -10,7 +10,7 @@ import type { DeskSnapshot, FocusSnapshot } from "@shared/ipc";
  * them, and `stepPolicy` decides. Change a beat here and the risk curve moves
  * because the model re-reads it — there is no place to put a fake number.
  *
- * The arc, second by second (80 s at 1x):
+ * The arc, second by second (94 s at 1x):
  *   writing in Docs → tab flicking + grey loiter → NUDGE → comply, risk
  *   decays → harder flicking + desk fidget → PRE-ARM (fuse 10 s → 5 s) →
  *   Discord → 5 s fuse → kill → back to Docs → unlock.
@@ -19,7 +19,7 @@ import type { DeskSnapshot, FocusSnapshot } from "@shared/ipc";
 /** Fixed epoch so Mode 1 frames are byte-identical on every run. */
 export const DEMO_EPOCH = Date.UTC(2026, 8, 13, 20, 0, 0);
 
-export const DEMO_DURATION_SEC = 80;
+export const DEMO_DURATION_SEC = 94;
 
 /** Scripted beats, in seconds since session start. */
 export const DEMO_BEATS = {
@@ -32,9 +32,9 @@ export const DEMO_BEATS = {
   /** Flicking resumes, faster, with a fidgety desk signal. */
   ramp2: 50,
   /** Discord takes focus — the policy violation. */
-  discord: 66,
+  discord: 83,
   /** Back on the assignment after the kill. */
-  recover: 73,
+  recover: 89,
 } as const;
 
 interface AppDef {
@@ -107,14 +107,15 @@ function flickCycle(t: number, from: number, heat: 0 | 1): Poke[] {
     if (phase === 4) return [poke(SPOTIFY, 240)];
     return [poke(REDDIT, 80, `r/all ${t} — reddit`)];
   }
-  // Sustained: the document never comes back, two pokes a second.
+  // Sustained: the document really never comes back, two pokes a second, and
+  // the grey apps hold focus for whole seconds at a time. This is the ramp
+  // that has to EARN a pre-arm, so it carries the full signature — title
+  // churn, grey dwell, and no allowlist anchor to decay back toward.
   if (phase === 0) return [poke(YOUTUBE, 0, `mix ${t} — YouTube`), poke(REDDIT, 480, `r/all ${t} — reddit`)];
   if (phase === 1) return [poke(SPOTIFY, 40)];
   if (phase === 2) return [poke(YOUTUBE, 0, `queue ${t} — YouTube`)];
-  // A token return to the document — enough that the needle is reading a
-  // pattern, not a hard "left the allowlist" switch.
-  if (phase === 3) return [poke(DOCS, 0, "Unit 4 essay (441 words) — Google Docs"), poke(EXPLORER, 560)];
-  if (phase === 4) return [poke(REDDIT, 60, `r/${t} — reddit`)];
+  if (phase === 3) return [poke(EXPLORER, 0), poke(SPOTIFY, 560)];
+  if (phase === 4) return [poke(REDDIT, 60, `r/${t} — reddit`), poke(EXPLORER, 620)];
   return [poke(SPOTIFY, 0), poke(YOUTUBE, 600, `mix ${t}c — YouTube`)];
 }
 
@@ -163,11 +164,23 @@ export function scriptDesk(t: number, ts: number): DeskSnapshot {
       webcamEnabled: true,
     };
   }
+  // Restless AND sagging: the confidence trend slides across the ramp instead
+  // of wobbling around a fixed level, because a steady downward slope is what
+  // `deskSagSlope30` / `deskConfDrop120` were added to read (GAUNTLET round 9)
+  // — the student is physically disengaging before the tab-out happens.
+  // Fixed 22 s slide, deliberately NOT normalized by the distance to the
+  // drift: the sag is a property of the student, not of when the script
+  // happens to schedule Discord, so moving that beat must not reshape it.
+  const into = (t - DEMO_BEATS.ramp2) / 22;
+  // Floored above the 0.6 desk threshold: this beat is a TAB-OUT story, so the
+  // student stays present and `deskPresent30` must not collapse. The signal
+  // that moves is the TREND, which is exactly what the round-9 features read.
+  const level = 0.86 - 0.18 * Math.min(1, Math.max(0, into));
   return {
     ts,
     label: "at_desk",
     // A sub-threshold dip every 5th second reads as a presence flicker.
-    confidence: t % 5 === 4 ? 0.55 : 0.74 + 0.08 * Math.sin(t * 2.1),
+    confidence: t % 5 === 4 ? 0.48 : level + 0.06 * Math.sin(t * 2.1),
     webcamEnabled: true,
   };
 }

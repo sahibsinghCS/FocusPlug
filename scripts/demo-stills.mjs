@@ -43,11 +43,11 @@ const SCENES = [
   },
   {
     name: "mid-rise",
-    query: "?t=37&freeze=1",
+    query: "?t=33&freeze=1",
     expect: [
       "Why now",
       "Feature attributions · 24 inputs",
-      "Term groups",
+      "Hidden layer",
       "drift risk · next 30 s",
       "logit",
       "→ risk",
@@ -56,13 +56,13 @@ const SCENES = [
   },
   {
     name: "nudge",
-    query: "?t=40&freeze=1",
+    query: "?t=38&freeze=1",
     expect: ["Focus Forecast · nudge", "pre-tab-out pattern", "Elevated"],
     calibration: true,
   },
   {
     name: "prearm",
-    query: "?t=59&freeze=1",
+    query: "?t=79&freeze=1",
     expect: ["Pre-armed", "FUSE 10s → 5s", "pre-armed · forecast"],
     calibration: true,
   },
@@ -70,12 +70,12 @@ const SCENES = [
     // The countdown overlay is full-bleed here, so the panel behind it is not
     // what the judge is reading — only the receipt is.
     name: "kill-receipt",
-    query: "?t=69&freeze=1",
+    query: "?t=86&freeze=1",
     expect: ["Killing blocked apps in", "Forecast pre-armed", "DISTRACTED"],
   },
   {
     name: "unlocked",
-    query: "?t=76&freeze=1",
+    query: "?t=92&freeze=1",
     expect: ["ON TASK", "called it", "unlock · back on task"],
     forbid: ["Killing blocked apps in"],
     calibration: true,
@@ -401,7 +401,7 @@ try {
   // The built page must also run with no server at all.
   {
     const { page, problems } = await newPage(browser, "file://", "file-url");
-    const fileUrl = `${pathToFileURL(join(DIST, "index.html")).href}?t=59&freeze=1`;
+    const fileUrl = `${pathToFileURL(join(DIST, "index.html")).href}?t=79&freeze=1`;
     await page.goto(fileUrl, { waitUntil: "load", timeout: 45_000 });
     await settle(page);
     const text = await readText(page);

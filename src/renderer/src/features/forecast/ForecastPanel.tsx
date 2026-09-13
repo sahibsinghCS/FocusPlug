@@ -54,7 +54,7 @@ export function ForecastPanel(props: ForecastPanelProps): JSX.Element {
         <p className="ml-auto font-mono text-[10px] uppercase tracking-[0.1em] text-fp-faint">
           {snapshot
             ? `v ${snapshot.modelVersion} · ${snapshot.paramCount} params · horizon ${snapshot.horizonSec} s`
-            : `${FORECAST_PARAM_COUNT}-param logistic · on-device`}
+            : `${FORECAST_PARAM_COUNT}-param net · on-device`}
         </p>
       </div>
 

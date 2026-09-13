@@ -114,8 +114,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   plugs: [],
   forecastEnabled: true,
   forecastPrearmEnabled: true,
-  forecastNudgeRisk: 0.45,
-  forecastPrearmRisk: 0.8,
+  forecastNudgeRisk: 0.5,
+  forecastPrearmRisk: 0.65,
   forecastPrearmFuseSec: 5,
 };
 

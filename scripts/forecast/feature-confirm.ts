@@ -1,6 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { FORECAST_INPUT_DIM, expandBasis } from "../../src/shared/forecast/model";
+import { FORECAST_INPUT_DIM } from "../../src/shared/forecast/model";
+import { expandBasis } from "./pairwise";
 import { pairedClusterBootstrap, type BootstrapModel } from "./bootstrap";
 import {
   DATASET_FILE,

@@ -1,0 +1,2130 @@
+{
+  "description": "THE CONTEST THAT CHOSE THE SHIPPED HEAD. Eight model families fitted at BOTH feature bases (the 18 level features of round 8 and the 24 that ship today) — 17 fits in total — every one refit on split:\"train\" rows of data/forecast/dataset.jsonl and scored on the same 900-session / 1 230-onset hold-out corpus the committed eval-report.json uses, through one replay, one metric, one operating point and one escalation reducer. Every loser is here on purpose: publishing what lost is the only thing that makes the winner's margin mean anything. NON-GATING.",
+  "whyThisExists": "round 8 ran the same contest on 48 held-out sessions, where the paired session-clustered SE of a model-vs-model lead-AUC difference was ≈ 0.009 and every margin on offer was 0.4–0.7 of one SE. It shipped the simplest model and said, honestly, that it could not tell the field apart. That was an underpowered shrug, not a measurement. This corpus is 18.75× the sessions; the measured SE is ≈ 0.003; and the comparison resolves — the other way.",
+  "regenerate": [
+    "npm run forecast:evalset",
+    "npm run forecast:holdout:bakeoff",
+    "npm run forecast:bakeoff:publish"
+  ],
+  "sourceReport": "data/forecast/holdout/bakeoff-holdout.json (gitignored working data)",
+  "gating": false,
+  "corpus": {
+    "kind": "holdout-power-corpus",
+    "regenerate": "npm run forecast:evalset",
+    "sessions": 900,
+    "frames": 1673451,
+    "rows": 1581863,
+    "leadEligible20": 1558493,
+    "leadEligible20Positives": 13530,
+    "manifest": {
+      "version": 1,
+      "kind": "forecast-holdout-evalset",
+      "gitCommit": "cb282c1",
+      "regenerate": "npm run forecast:evalset",
+      "consume": "npm run forecast:eval:holdout",
+      "namespace": {
+        "baseSeed": 42,
+        "holdoutSeed": 700000042,
+        "seedOffset": 700000000,
+        "indexBase": 9000000,
+        "sessionIndexRange": [
+          9000000,
+          9000899
+        ],
+        "sessionIdPrefix": "hld-",
+        "trainingIdPrefixes": [
+          "syn-",
+          "aug-",
+          "adp-"
+        ],
+        "splitField": "eval (literal, never hashed — splitForSession is not consulted)",
+        "definedIn": "scripts/forecast/holdout-namespace.ts"
+      },
+      "contamination": {
+        "claim": "no model in the bake-off, and no model the trainer has produced, has ever seen these sessions: they did not exist when those models were fitted, they carry seeds no training run can derive, ids no training row uses, and streams that hash to nothing in the training corpus.",
+        "barrier1SeedDerivation": {
+          "holdoutSeeds": 900,
+          "trainCorpusSeeds": 256,
+          "sweptSeeds": 799985,
+          "sweepSessions": 20000,
+          "sweepBaseSeeds": [
+            42,
+            0,
+            1,
+            7,
+            2026
+          ],
+          "collisions": []
+        },
+        "barrier2IdNamespace": {
+          "holdoutIds": 900,
+          "trainingIdsInRawCorpus": 288,
+          "distinctSessionIdsInDatasetJsonl": 288,
+          "datasetRowsScanned": 218732,
+          "overlap": 0
+        },
+        "barrier3StreamContent": {
+          "trainingStreamsHashed": 288,
+          "syntheticSessions": 240,
+          "augmentedSessionsRegenerated": 48,
+          "holdoutStreamsHashed": 900,
+          "collisions": 0,
+          "note": "hashes cover archetype + duration + every focus and desk event, not ids or seeds, so a renamed copy of a training session would still be caught"
+        },
+        "scanned": {
+          "raw": true,
+          "dataset": true
+        },
+        "trainingManifest": {
+          "seed": 42,
+          "mode": "offline",
+          "gitCommit": "40f93b7",
+          "adaptionMergedRows": 0
+        }
+      },
+      "generator": {
+        "script": "scripts/forecast/build-evalset.ts",
+        "simulator": "scripts/forecast/simulate.ts (unmodified)",
+        "replay": "lib.labelSession → TelemetryRing + classify + extractFeatures + findDriftOnsets/labelFrames",
+        "schema": "docs/FORECAST-CONTRACTS.md §4 (identical to dataset.jsonl rows), split always 'eval'",
+        "archetypeWeights": {
+          "grinder": 0.2,
+          "wanderer": 0.2,
+          "burst_switcher": 0.2,
+          "away_drifter": 0.15,
+          "research_churn": 0.15,
+          "steady_then_snap": 0.1
+        },
+        "deskHz": 2,
+        "hazardScale": 1,
+        "minutes": [
+          22,
+          40
+        ],
+        "webcamOffProb": 0.08,
+        "greyVocab": 5
+      },
+      "sampling": {
+        "calmNegativeDownsampling": "NONE — every eligible frame is kept",
+        "keepProbability": 1,
+        "importanceWeight": 1,
+        "naturalPrevalence": true,
+        "framesTheTrainRuleWouldHaveDropped": 1434373,
+        "note": "the train path keeps all negatives within 120 s of an onset and 25 % of calm stretches, then train.ts undoes it with 1/keepProbability weights. This corpus needs no such correction: metrics computed on it are already at natural prevalence."
+      },
+      "counts": {
+        "sessions": 900,
+        "sessionsByArchetype": {
+          "grinder": 180,
+          "wanderer": 180,
+          "burst_switcher": 180,
+          "away_drifter": 135,
+          "research_churn": 135,
+          "steady_then_snap": 90
+        },
+        "archetypeMix": {
+          "grinder": 0.2,
+          "wanderer": 0.2,
+          "burst_switcher": 0.2,
+          "away_drifter": 0.15,
+          "research_churn": 0.15,
+          "steady_then_snap": 0.1
+        },
+        "hours": 464.8475,
+        "driftOnsets": 1230,
+        "driftOnsetsByArchetype": {
+          "grinder": 7,
+          "wanderer": 385,
+          "burst_switcher": 394,
+          "away_drifter": 343,
+          "research_churn": 0,
+          "steady_then_snap": 101
+        },
+        "driftOnsetsByType": {
+          "tab_out": 888,
+          "walk_away": 342
+        },
+        "rawFrames": 1673451,
+        "excludedFrames": 91588,
+        "rows": 1581863,
+        "positives": 36900,
+        "baseRate": 0.023327,
+        "leadCensored": {
+          "lead20": {
+            "positives": 13530,
+            "negatives": 1544963
+          },
+          "lead10": {
+            "positives": 25830,
+            "negatives": 1544963
+          }
+        }
+      },
+      "power": {
+        "targetSessions": 600,
+        "targetDriftOnsets": 800,
+        "meetsTarget": true,
+        "referenceEvalSessions": 48,
+        "referencePairedSe": 0.009,
+        "sessionScale": 18.75,
+        "projectedPairedSe": 0.002078,
+        "projectedResolvableDiff95": 0.004074,
+        "note": "projection only — SE scales as 1/√(independent clusters) and sessions are the cluster. The MEASURED paired session-clustered bootstrap SE is produced by `npm run forecast:eval:holdout` and written to eval-report-holdout.json."
+      },
+      "files": {
+        "rawSessions": {
+          "path": "holdout-sessions.jsonl",
+          "bytes": 204567686,
+          "sha256": "071940a858f4f58720189510eee0fcf400937adbb48b09b74df6de5571001f10"
+        },
+        "dataset": {
+          "path": "holdout-dataset.jsonl",
+          "bytes": 1555205833,
+          "sha256": "6c1da5e6efede84efd23b39ff7fd66294d46c24916ba4157d19d72e2e16546f3"
+        }
+      }
+    }
+  },
+  "protocol": {
+    "fitting": "every model refit on split:\"train\" rows of data/forecast/dataset.jsonl ONLY, with its own already-tuned recipe from scripts/forecast/candidates/**. No hyper-parameter, no early stop, no calibration and no fold split consulted a hold-out frame.",
+    "operatingPoint": "nudge 0.45 / pre-arm 0.8 — the SHIPPED point train.ts derived on 3-fold cross-fitted TRAIN sessions, copied here unchanged and never re-searched on this corpus. A model whose research_churn frame FPR exceeds 0.01 at that cut has its nudge line raised along a fixed grid until it complies (a penalty; flagged per model).",
+    "hitRule": "recallAt30Event — the shipped stepEscalation reducer EMITTED a forecast_nudge or forecast_prearm event inside (onset − 30 s, onset]. ONE rule for every model. recallAt30LooseBandRule (band ≠ calm at onset − 1 s, no event required) is printed beside it because the round-8 table mixed the two.",
+    "uncertainty": "paired session-clustered bootstrap, 2000 draws over the 900 hold-out sessions, ONE draw matrix shared by every model and every reference (fixed seed 20260913); the weighted estimator is asserted equal to lib.rocAuc at unit weights before any draw, and cross-checked against scripts/forecast/bootstrap.ts itself.",
+    "bootstrapCrossCheck": {
+      "against": "scripts/forecast/bootstrap.ts (pairedClusterBootstrap)",
+      "draws": 100,
+      "worstAbsoluteDifference": 0,
+      "note": "same PRNG, same seed, same resampling order ⇒ identical draws; the fast path only pre-sorts the cluster/label vectors alongside the scores"
+    },
+    "calibration": "every model is Platt-calibrated with the SHIPPED robust calibrator (linear.ts fitPlatt, the Lin-Weng-Keerthi variant train.ts uses) rather than each contender's own copy of the plain Newton, which diverges on a near-separable train-internal calibration slice (the 24-feature plain logistic pinned a at -3.9e12 the first time this ran). Platt is monotone increasing, so it cannot move an AUC; it moves ECE and every threshold-crossing number, and using one calibrator is what makes the shared 0.45/0.80 operating point mean the same thing for all of them.",
+    "gbdtCopy": "gbdt-nd.ts verified == candidates/trees/gbdt.ts + 2 mechanical edits (17621 bytes)",
+    "caveatSameGenerator": "this corpus is FRESH SAMPLING from the same simulator, not new recorded data. It removes sampling noise; it does not remove simulator misspecification, and the simulator and the feature set were themselves shaped by held-out diagnostics in GAUNTLET rounds 1–6. It is fresh data for the models, not a fresh universe."
+  },
+  "scoredAtOperatingPoint": {
+    "nudge": 0.45,
+    "prearm": 0.8,
+    "clear": 0.35,
+    "source": "DEFAULT_SETTINGS",
+    "note": "the point that shipped WHEN THE CONTEST RAN, applied identically to every contender so the rows are comparable. The shipped head's own operating point has since been re-derived for its risk scale (train.ts, cross-fitted TRAIN sessions), so the alarm columns here are a common ruler, not the product's current settings."
+  },
+  "table": [
+    {
+      "model": "mlp-tuned18",
+      "family": "tuned + bagged MLP",
+      "basis": "mlp-tuned18",
+      "featureDim": 18,
+      "params": 721,
+      "paramsNote": "3 × 18-12-1 members, collapsed exactly into one 18-36-1 net",
+      "microsPerTick": 2.647,
+      "aucLead20": 0.934863,
+      "aucLead20Ci95": [
+        0.925243,
+        0.944546
+      ],
+      "aucLead10": 0.946283,
+      "rocAuc": 0.95094,
+      "prAuc": 0.576502,
+      "ece": 0.005382,
+      "recallAt30sNudgeRule": 0.7504,
+      "recallAt30sPrearmRule": 0.2268,
+      "recallAt30sLooseBandRule": 0.7374,
+      "nudgesPerHour": 2.8719,
+      "falsePrearmsPerHour": 0.1592,
+      "researchChurnFprAtNudge": 0,
+      "recipe": {
+        "source": "scripts/forecast/candidates/mlp-tuned.ts",
+        "selected": "18-12-1 tanh lr0.01 b256 l20.003 do0 const pw0.5 lead:flat e60 k1/fold (its metrics.json)",
+        "folds": 3,
+        "calibrationSessions": 29,
+        "augmentedAttachedToParentFold": 30,
+        "augmentedDropped": 18,
+        "earlyStopOn": "fold-val lead≥20s AUC + 0.1 × nudge-recall@30s through the shipped reducer",
+        "calibration": {
+          "a": 2.009619,
+          "b": -5.749935
+        }
+      }
+    },
+    {
+      "model": "mlp-tuned24",
+      "family": "tuned + bagged MLP",
+      "basis": "mlp-tuned24",
+      "featureDim": 24,
+      "params": 937,
+      "paramsNote": "3 × 24-12-1 members, collapsed exactly into one 24-36-1 net",
+      "microsPerTick": 3.1347,
+      "aucLead20": 0.933041,
+      "aucLead20Ci95": [
+        0.922562,
+        0.943061
+      ],
+      "aucLead10": 0.945885,
+      "rocAuc": 0.951004,
+      "prAuc": 0.63105,
+      "ece": 0.0038,
+      "recallAt30sNudgeRule": 0.7837,
+      "recallAt30sPrearmRule": 0.3358,
+      "recallAt30sLooseBandRule": 0.7878,
+      "nudgesPerHour": 3.1128,
+      "falsePrearmsPerHour": 0.1764,
+      "researchChurnFprAtNudge": 0,
+      "recipe": {
+        "source": "scripts/forecast/candidates/mlp-tuned.ts",
+        "selected": "18-12-1 tanh lr0.01 b256 l20.003 do0 const pw0.5 lead:flat e60 k1/fold (its metrics.json)",
+        "folds": 3,
+        "calibrationSessions": 29,
+        "augmentedAttachedToParentFold": 30,
+        "augmentedDropped": 18,
+        "earlyStopOn": "fold-val lead≥20s AUC + 0.1 × nudge-recall@30s through the shipped reducer",
+        "calibration": {
+          "a": 2.086807,
+          "b": -5.795284
+        }
+      }
+    },
+    {
+      "model": "trees24",
+      "family": "gradient-boosted decision trees (GBDT)",
+      "basis": "gbdt24",
+      "featureDim": 24,
+      "params": 2115,
+      "paramsNote": "TOTAL NODE COUNT (1016 internal + 1099 leaves) across 83 trees",
+      "microsPerTick": 3.4426,
+      "aucLead20": 0.932016,
+      "aucLead20Ci95": [
+        0.922129,
+        0.941204
+      ],
+      "aucLead10": 0.947315,
+      "rocAuc": 0.953411,
+      "prAuc": 0.617733,
+      "ece": 0.001241,
+      "recallAt30sNudgeRule": 0.8236,
+      "recallAt30sPrearmRule": 0.0293,
+      "recallAt30sLooseBandRule": 0.8415,
+      "nudgesPerHour": 4.0185,
+      "falsePrearmsPerHour": 0.0151,
+      "researchChurnFprAtNudge": 0,
+      "recipe": {
+        "source": "scripts/forecast/candidates/trees.ts",
+        "selected": "d4-lr0.1-sub0.5-col1-pw0.5-mc100-l21 (its metrics.json) — the 3-stage grid is NOT re-run",
+        "maxBins": 64,
+        "cvFolds": 3,
+        "foldTrees": [
+          80,
+          120,
+          50
+        ],
+        "trees": 83,
+        "calibrator": "isotonic",
+        "cvLogLoss": {
+          "platt": 0.04602701675048723,
+          "isotonic": 0.04550844500264054
+        },
+        "note": "tree count = mean of the 3 train-internal fold early stops; calibrator fitted on cross-fitted out-of-fold margins over the CV pool"
+      }
+    },
+    {
+      "model": "hybrid25",
+      "family": "GLM trunk + tanh residual, per-drift-type heads (hybrid)",
+      "basis": "hybrid25",
+      "featureDim": 25,
+      "params": 888,
+      "paramsNote": "3 heads × (linear trunk + 10-unit tanh residual)",
+      "microsPerTick": 2.5719,
+      "aucLead20": 0.931323,
+      "aucLead20Ci95": [
+        0.922014,
+        0.940429
+      ],
+      "aucLead10": 0.947793,
+      "rocAuc": 0.954144,
+      "prAuc": 0.617681,
+      "ece": 0.005229,
+      "recallAt30sNudgeRule": 0.7276,
+      "recallAt30sPrearmRule": 0.4406,
+      "recallAt30sLooseBandRule": 0.7203,
+      "nudgesPerHour": 2.8439,
+      "falsePrearmsPerHour": 0.3033,
+      "researchChurnFprAtNudge": 0,
+      "recipe": {
+        "source": "scripts/forecast/candidates/hybrid.ts",
+        "hidden": 10,
+        "epochs": 45,
+        "batch": 256,
+        "lr": 0.008,
+        "l2Residual": 0.0003,
+        "l2Trunk": 0.00005,
+        "loss": "weighted BCE, w_pos=(n_neg/n_pos)^1 (its metrics.json's chosen probe; the 4-way loss grid is NOT re-run)",
+        "baseFeatures": 18,
+        "extraFeatures": [
+          "hybridExtra0",
+          "hybridExtra1",
+          "hybridExtra2",
+          "hybridExtra3",
+          "hybridExtra4",
+          "hybridExtra5",
+          "hybridExtra6"
+        ],
+        "fusionAlpha": 0.4,
+        "alphaSelectedOn": "train-internal val lead≥20s AUC",
+        "calibration": {
+          "final": {
+            "a": 1.038562,
+            "b": 0.134097
+          }
+        }
+      }
+    },
+    {
+      "model": "hybrid26",
+      "family": "GLM trunk + tanh residual, per-drift-type heads (hybrid)",
+      "basis": "hybrid26",
+      "featureDim": 26,
+      "params": 921,
+      "paramsNote": "3 heads × (linear trunk + 10-unit tanh residual)",
+      "microsPerTick": 2.5629,
+      "aucLead20": 0.929652,
+      "aucLead20Ci95": [
+        0.919383,
+        0.939352
+      ],
+      "aucLead10": 0.946332,
+      "rocAuc": 0.952957,
+      "prAuc": 0.621558,
+      "ece": 0.004836,
+      "recallAt30sNudgeRule": 0.7553,
+      "recallAt30sPrearmRule": 0.5033,
+      "recallAt30sLooseBandRule": 0.7626,
+      "nudgesPerHour": 2.9967,
+      "falsePrearmsPerHour": 0.3442,
+      "researchChurnFprAtNudge": 0,
+      "recipe": {
+        "source": "scripts/forecast/candidates/hybrid.ts",
+        "hidden": 10,
+        "epochs": 45,
+        "batch": 256,
+        "lr": 0.008,
+        "l2Residual": 0.0003,
+        "l2Trunk": 0.00005,
+        "loss": "weighted BCE, w_pos=(n_neg/n_pos)^1 (its metrics.json's chosen probe; the 4-way loss grid is NOT re-run)",
+        "baseFeatures": 24,
+        "extraFeatures": [
+          "hybridExtra0",
+          "hybridExtra6"
+        ],
+        "fusionAlpha": 0.75,
+        "alphaSelectedOn": "train-internal val lead≥20s AUC",
+        "calibration": {
+          "final": {
+            "a": 1.021231,
+            "b": 0.082447
+          }
+        }
+      }
+    },
+    {
+      "model": "mlp24-12-1",
+      "family": "TinyMLP (the round-7 incumbent architecture)",
+      "basis": "mlp24-12-1",
+      "featureDim": 24,
+      "params": 313,
+      "paramsNote": null,
+      "microsPerTick": 1.1982,
+      "aucLead20": 0.928824,
+      "aucLead20Ci95": [
+        0.91905,
+        0.9383
+      ],
+      "aucLead10": 0.945022,
+      "rocAuc": 0.951649,
+      "prAuc": 0.61202,
+      "ece": 0.003845,
+      "recallAt30sNudgeRule": 0.7569,
+      "recallAt30sPrearmRule": 0.5919,
+      "recallAt30sLooseBandRule": 0.7894,
+      "nudgesPerHour": 3.1946,
+      "falsePrearmsPerHour": 0.4195,
+      "researchChurnFprAtNudge": 0.000033,
+      "recipe": {
+        "source": "the round-7 trainer (git 8990e50 scripts/forecast/train.ts)",
+        "arch": "24-12-1 tanh",
+        "lr": 0.003,
+        "batch": 256,
+        "l2": 0.0001,
+        "posWeightPower": 0.5,
+        "maxEpochs": 400,
+        "patience": 40,
+        "earlyStopOn": "importance-weighted val BCE, val = 10% of TRAIN sessions",
+        "bestEpoch": 8,
+        "calibration": {
+          "a": 1.109491,
+          "b": -1.747577
+        }
+      }
+    },
+    {
+      "model": "lr18+pairwise",
+      "family": "logistic + pairwise basis (GLM)",
+      "basis": "lr18+pairwise",
+      "featureDim": 18,
+      "params": 190,
+      "paramsNote": null,
+      "microsPerTick": 2.6635,
+      "aucLead20": 0.928249,
+      "aucLead20Ci95": [
+        0.918668,
+        0.937723
+      ],
+      "aucLead10": 0.940913,
+      "rocAuc": 0.945838,
+      "prAuc": 0.522181,
+      "ece": 0.006545,
+      "recallAt30sNudgeRule": 0.7407,
+      "recallAt30sPrearmRule": 0.5293,
+      "recallAt30sLooseBandRule": 0.7537,
+      "nudgesPerHour": 2.9773,
+      "falsePrearmsPerHour": 0.6604,
+      "researchChurnFprAtNudge": 0,
+      "recipe": {
+        "source": "scripts/forecast/candidates/lr-ceiling.ts",
+        "fit": "L-BFGS to convergence, importance-weighted, warm-started L2 path",
+        "posWeightPower": 1,
+        "lambdaSelectedOn": "train-internal val (10% of TRAIN sessions) lead≥20s AUC",
+        "lambda": 0.00001,
+        "lambdaSweep": [
+          {
+            "lambda": 1,
+            "valLeadAuc20": 0.928229
+          },
+          {
+            "lambda": 0.1,
+            "valLeadAuc20": 0.942881
+          },
+          {
+            "lambda": 0.01,
+            "valLeadAuc20": 0.951547
+          },
+          {
+            "lambda": 0.001,
+            "valLeadAuc20": 0.954744
+          },
+          {
+            "lambda": 0.0001,
+            "valLeadAuc20": 0.957604
+          },
+          {
+            "lambda": 0.00001,
+            "valLeadAuc20": 0.958508
+          },
+          {
+            "lambda": 0.000001,
+            "valLeadAuc20": 0.958403
+          }
+        ],
+        "valLeadAuc20": 0.958508,
+        "calibration": {
+          "a": 0.826682,
+          "b": -3.53537
+        }
+      }
+    },
+    {
+      "model": "mlp18-12-1",
+      "family": "TinyMLP (the round-7 incumbent architecture)",
+      "basis": "mlp18-12-1",
+      "featureDim": 18,
+      "params": 241,
+      "paramsNote": null,
+      "microsPerTick": 0.7966,
+      "aucLead20": 0.92696,
+      "aucLead20Ci95": [
+        0.916662,
+        0.93639
+      ],
+      "aucLead10": 0.943167,
+      "rocAuc": 0.949641,
+      "prAuc": 0.557551,
+      "ece": 0.004011,
+      "recallAt30sNudgeRule": 0.7805,
+      "recallAt30sPrearmRule": 0.5398,
+      "recallAt30sLooseBandRule": 0.7927,
+      "nudgesPerHour": 3.2376,
+      "falsePrearmsPerHour": 0.4969,
+      "researchChurnFprAtNudge": 0,
+      "recipe": {
+        "source": "the round-7 trainer (git 8990e50 scripts/forecast/train.ts)",
+        "arch": "18-12-1 tanh",
+        "lr": 0.003,
+        "batch": 256,
+        "l2": 0.0001,
+        "posWeightPower": 0.5,
+        "maxEpochs": 400,
+        "patience": 40,
+        "earlyStopOn": "importance-weighted val BCE, val = 10% of TRAIN sessions",
+        "bestEpoch": 16,
+        "calibration": {
+          "a": 1.08169,
+          "b": -1.821907
+        }
+      }
+    },
+    {
+      "model": "lr24",
+      "family": "logistic (plain additive GLM)",
+      "basis": "lr24",
+      "featureDim": 24,
+      "params": 25,
+      "paramsNote": null,
+      "microsPerTick": 0.7751,
+      "aucLead20": 0.924884,
+      "aucLead20Ci95": [
+        0.914085,
+        0.935096
+      ],
+      "aucLead10": 0.936974,
+      "rocAuc": 0.941727,
+      "prAuc": 0.527621,
+      "ece": 0.00428,
+      "recallAt30sNudgeRule": 0.6992,
+      "recallAt30sPrearmRule": 0.3431,
+      "recallAt30sLooseBandRule": 0.6561,
+      "nudgesPerHour": 3.0483,
+      "falsePrearmsPerHour": 0.2775,
+      "researchChurnFprAtNudge": 0,
+      "recipe": {
+        "source": "scripts/forecast/candidates/lr-ceiling.ts",
+        "fit": "L-BFGS to convergence, importance-weighted, warm-started L2 path",
+        "posWeightPower": 1,
+        "lambdaSelectedOn": "train-internal val (10% of TRAIN sessions) lead≥20s AUC",
+        "lambda": 0.0001,
+        "lambdaSweep": [
+          {
+            "lambda": 1,
+            "valLeadAuc20": 0.913366
+          },
+          {
+            "lambda": 0.1,
+            "valLeadAuc20": 0.924545
+          },
+          {
+            "lambda": 0.01,
+            "valLeadAuc20": 0.928507
+          },
+          {
+            "lambda": 0.001,
+            "valLeadAuc20": 0.93072
+          },
+          {
+            "lambda": 0.0001,
+            "valLeadAuc20": 0.931745
+          },
+          {
+            "lambda": 0.00001,
+            "valLeadAuc20": 0.931563
+          },
+          {
+            "lambda": 0.000001,
+            "valLeadAuc20": 0.931418
+          }
+        ],
+        "valLeadAuc20": 0.931745,
+        "calibration": {
+          "a": 0.923103,
+          "b": -3.945241
+        }
+      }
+    },
+    {
+      "model": "temporal-ens24",
+      "family": "causal 1-D CNN on the raw 1 Hz stream (temporal)",
+      "basis": "temporal-ens24",
+      "featureDim": 12,
+      "params": 14899,
+      "paramsNote": "3 net(s) over 12 raw channels × 120 s; 3-net ensemble",
+      "microsPerTick": 301.0927,
+      "aucLead20": 0.924537,
+      "aucLead20Ci95": [
+        0.914373,
+        0.93447
+      ],
+      "aucLead10": 0.941436,
+      "rocAuc": 0.948926,
+      "prAuc": 0.597059,
+      "ece": 0.001922,
+      "recallAt30sNudgeRule": 0.7805,
+      "recallAt30sPrearmRule": 0.3756,
+      "recallAt30sLooseBandRule": 0.8049,
+      "nudgesPerHour": 3.3151,
+      "falsePrearmsPerHour": 0.2495,
+      "researchChurnFprAtNudge": 0,
+      "recipe": {
+        "source": "scripts/forecast/candidates/temporal.ts",
+        "members": [
+          {
+            "name": "seq",
+            "params": 4817,
+            "bestEpoch": 7,
+            "valLeadAuc20": 0.961422
+          },
+          {
+            "name": "seq+ctx",
+            "params": 4881,
+            "bestEpoch": 4,
+            "valLeadAuc20": 0.95776
+          },
+          {
+            "name": "seq+f24",
+            "params": 5201,
+            "bestEpoch": 4,
+            "valLeadAuc20": 0.965208
+          }
+        ],
+        "config": {
+          "seqLen": 120,
+          "epochs": 14,
+          "batch": 96,
+          "lr": 0.004,
+          "lrFloor": 0.04,
+          "l2": 0.00003,
+          "patience": 8,
+          "negRate": 0.35,
+          "valFraction": 0.2,
+          "posWeightPower": 0.5,
+          "filters": 16,
+          "kernel1": 10,
+          "stride1": 5,
+          "hidden": 16
+        },
+        "fusion": "mean calibrated risk"
+      }
+    },
+    {
+      "model": "trees18",
+      "family": "gradient-boosted decision trees (GBDT)",
+      "basis": "gbdt18",
+      "featureDim": 18,
+      "params": 3011,
+      "paramsNote": "TOTAL NODE COUNT (1447 internal + 1564 leaves) across 117 trees",
+      "microsPerTick": 4.8967,
+      "aucLead20": 0.92289,
+      "aucLead20Ci95": [
+        0.911837,
+        0.933288
+      ],
+      "aucLead10": 0.937717,
+      "rocAuc": 0.944014,
+      "prAuc": 0.552611,
+      "ece": 0.001744,
+      "recallAt30sNudgeRule": 0.8024,
+      "recallAt30sPrearmRule": 0.122,
+      "recallAt30sLooseBandRule": 0.8073,
+      "nudgesPerHour": 3.9432,
+      "falsePrearmsPerHour": 0.0925,
+      "researchChurnFprAtNudge": 0,
+      "recipe": {
+        "source": "scripts/forecast/candidates/trees.ts",
+        "selected": "d4-lr0.1-sub0.5-col1-pw0.5-mc100-l21 (its metrics.json) — the 3-stage grid is NOT re-run",
+        "maxBins": 64,
+        "cvFolds": 3,
+        "foldTrees": [
+          30,
+          210,
+          110
+        ],
+        "trees": 117,
+        "calibrator": "isotonic",
+        "cvLogLoss": {
+          "platt": 0.05012607379801949,
+          "isotonic": 0.04932012115221362
+        },
+        "note": "tree count = mean of the 3 train-internal fold early stops; calibrator fitted on cross-fitted out-of-fold margins over the CV pool"
+      }
+    },
+    {
+      "model": "temporal-ens18",
+      "family": "causal 1-D CNN on the raw 1 Hz stream (temporal)",
+      "basis": "temporal-ens18",
+      "featureDim": 12,
+      "params": 14803,
+      "paramsNote": "3 net(s) over 12 raw channels × 120 s; 3-net ensemble",
+      "microsPerTick": 337.8118,
+      "aucLead20": 0.9225,
+      "aucLead20Ci95": [
+        0.912144,
+        0.932724
+      ],
+      "aucLead10": 0.940209,
+      "rocAuc": 0.947562,
+      "prAuc": 0.599434,
+      "ece": 0.002038,
+      "recallAt30sNudgeRule": 0.7789,
+      "recallAt30sPrearmRule": 0.3927,
+      "recallAt30sLooseBandRule": 0.8089,
+      "nudgesPerHour": 3.5216,
+      "falsePrearmsPerHour": 0.2538,
+      "researchChurnFprAtNudge": 0.000008,
+      "recipe": {
+        "source": "scripts/forecast/candidates/temporal.ts",
+        "members": [
+          {
+            "name": "seq",
+            "params": 4817,
+            "bestEpoch": 7,
+            "valLeadAuc20": 0.961422
+          },
+          {
+            "name": "seq+ctx",
+            "params": 4881,
+            "bestEpoch": 4,
+            "valLeadAuc20": 0.95776
+          },
+          {
+            "name": "seq+f18",
+            "params": 5105,
+            "bestEpoch": 5,
+            "valLeadAuc20": 0.962409
+          }
+        ],
+        "config": {
+          "seqLen": 120,
+          "epochs": 14,
+          "batch": 96,
+          "lr": 0.004,
+          "lrFloor": 0.04,
+          "l2": 0.00003,
+          "patience": 8,
+          "negRate": 0.35,
+          "valFraction": 0.2,
+          "posWeightPower": 0.5,
+          "filters": 16,
+          "kernel1": 10,
+          "stride1": 5,
+          "hidden": 16
+        },
+        "fusion": "mean calibrated risk"
+      }
+    },
+    {
+      "model": "lr18",
+      "family": "logistic (plain additive GLM)",
+      "basis": "lr18",
+      "featureDim": 18,
+      "params": 19,
+      "paramsNote": null,
+      "microsPerTick": 0.5461,
+      "aucLead20": 0.922191,
+      "aucLead20Ci95": [
+        0.912081,
+        0.931995
+      ],
+      "aucLead10": 0.934258,
+      "rocAuc": 0.938733,
+      "prAuc": 0.453697,
+      "ece": 0.006188,
+      "recallAt30sNudgeRule": 0.4675,
+      "recallAt30sPrearmRule": 0.2016,
+      "recallAt30sLooseBandRule": 0.4317,
+      "nudgesPerHour": 2.3319,
+      "falsePrearmsPerHour": 0.2151,
+      "researchChurnFprAtNudge": 0,
+      "recipe": {
+        "source": "scripts/forecast/candidates/lr-ceiling.ts",
+        "fit": "L-BFGS to convergence, importance-weighted, warm-started L2 path",
+        "posWeightPower": 1,
+        "lambdaSelectedOn": "train-internal val (10% of TRAIN sessions) lead≥20s AUC",
+        "lambda": 0.0001,
+        "lambdaSweep": [
+          {
+            "lambda": 1,
+            "valLeadAuc20": 0.903288
+          },
+          {
+            "lambda": 0.1,
+            "valLeadAuc20": 0.916742
+          },
+          {
+            "lambda": 0.01,
+            "valLeadAuc20": 0.923767
+          },
+          {
+            "lambda": 0.001,
+            "valLeadAuc20": 0.929012
+          },
+          {
+            "lambda": 0.0001,
+            "valLeadAuc20": 0.929894
+          },
+          {
+            "lambda": 0.00001,
+            "valLeadAuc20": 0.929642
+          },
+          {
+            "lambda": 0.000001,
+            "valLeadAuc20": 0.929494
+          }
+        ],
+        "valLeadAuc20": 0.929894,
+        "calibration": {
+          "a": 0.881428,
+          "b": -3.873616
+        }
+      }
+    },
+    {
+      "model": "lr24+pairwise",
+      "family": "logistic + pairwise basis (GLM)",
+      "basis": "lr24+pairwise",
+      "featureDim": 24,
+      "params": 325,
+      "paramsNote": null,
+      "microsPerTick": 3.9907,
+      "aucLead20": 0.920879,
+      "aucLead20Ci95": [
+        0.910291,
+        0.930569
+      ],
+      "aucLead10": 0.936507,
+      "rocAuc": 0.942467,
+      "prAuc": 0.528438,
+      "ece": 0.006768,
+      "recallAt30sNudgeRule": 0.7472,
+      "recallAt30sPrearmRule": 0.5553,
+      "recallAt30sLooseBandRule": 0.7211,
+      "nudgesPerHour": 2.973,
+      "falsePrearmsPerHour": 0.5464,
+      "researchChurnFprAtNudge": 0.000012,
+      "recipe": {
+        "source": "scripts/forecast/candidates/lr-ceiling.ts",
+        "fit": "L-BFGS to convergence, importance-weighted, warm-started L2 path",
+        "posWeightPower": 1,
+        "lambdaSelectedOn": "train-internal val (10% of TRAIN sessions) lead≥20s AUC",
+        "lambda": 0.00001,
+        "lambdaSweep": [
+          {
+            "lambda": 1,
+            "valLeadAuc20": 0.936418
+          },
+          {
+            "lambda": 0.1,
+            "valLeadAuc20": 0.948132
+          },
+          {
+            "lambda": 0.01,
+            "valLeadAuc20": 0.95495
+          },
+          {
+            "lambda": 0.001,
+            "valLeadAuc20": 0.96097
+          },
+          {
+            "lambda": 0.0001,
+            "valLeadAuc20": 0.963194
+          },
+          {
+            "lambda": 0.00001,
+            "valLeadAuc20": 0.963607
+          },
+          {
+            "lambda": 0.000001,
+            "valLeadAuc20": 0.963045
+          }
+        ],
+        "valLeadAuc20": 0.963607,
+        "calibration": {
+          "a": 0.703979,
+          "b": -3.410159
+        }
+      }
+    },
+    {
+      "model": "shipped:lr24+pairwise",
+      "family": "the committed weights.json (not refit here)",
+      "basis": "lr24+pairwise",
+      "featureDim": 24,
+      "params": 325,
+      "paramsNote": null,
+      "microsPerTick": 5.1322,
+      "aucLead20": 0.92076,
+      "aucLead20Ci95": [
+        0.910088,
+        0.930475
+      ],
+      "aucLead10": 0.936437,
+      "rocAuc": 0.942351,
+      "prAuc": 0.528323,
+      "ece": 0.00672,
+      "recallAt30sNudgeRule": 0.7472,
+      "recallAt30sPrearmRule": 0.5569,
+      "recallAt30sLooseBandRule": 0.726,
+      "nudgesPerHour": 2.9666,
+      "falsePrearmsPerHour": 0.5572,
+      "researchChurnFprAtNudge": 0.000016,
+      "recipe": {
+        "source": "src/shared/forecast/weights.json, produced by npm run forecast:train",
+        "note": "scored through the SHIPPED forward pass, so this row is exactly what `npm run forecast:eval:holdout` reports; every other row is a refit",
+        "trainProvenanceSha": "500f138b723a0a91e95c70b508f4c19d26a12a61c6a67e16107e5435feb5ea87"
+      }
+    },
+    {
+      "model": "temporal-1net24",
+      "family": "causal 1-D CNN on the raw 1 Hz stream (temporal)",
+      "basis": "temporal-1net24",
+      "featureDim": 12,
+      "params": 5201,
+      "paramsNote": "1 net(s) over 12 raw channels × 120 s; best single net (seq + late fusion)",
+      "microsPerTick": 111.5713,
+      "aucLead20": 0.917254,
+      "aucLead20Ci95": [
+        0.906906,
+        0.927364
+      ],
+      "aucLead10": 0.935446,
+      "rocAuc": 0.943945,
+      "prAuc": 0.555943,
+      "ece": 0.004217,
+      "recallAt30sNudgeRule": 0.7439,
+      "recallAt30sPrearmRule": 0.5065,
+      "recallAt30sLooseBandRule": 0.778,
+      "nudgesPerHour": 3.1107,
+      "falsePrearmsPerHour": 0.398,
+      "researchChurnFprAtNudge": 0.000078,
+      "recipe": {
+        "source": "scripts/forecast/candidates/temporal.ts",
+        "members": [
+          {
+            "name": "seq+f24",
+            "params": 5201,
+            "bestEpoch": 4,
+            "valLeadAuc20": 0.965208
+          }
+        ],
+        "config": {
+          "seqLen": 120,
+          "epochs": 14,
+          "batch": 96,
+          "lr": 0.004,
+          "lrFloor": 0.04,
+          "l2": 0.00003,
+          "patience": 8,
+          "negRate": 0.35,
+          "valFraction": 0.2,
+          "posWeightPower": 0.5,
+          "filters": 16,
+          "kernel1": 10,
+          "stride1": 5,
+          "hidden": 16
+        },
+        "fusion": "single net"
+      }
+    },
+    {
+      "model": "temporal-1net18",
+      "family": "causal 1-D CNN on the raw 1 Hz stream (temporal)",
+      "basis": "temporal-1net18",
+      "featureDim": 12,
+      "params": 5105,
+      "paramsNote": "1 net(s) over 12 raw channels × 120 s; best single net (seq + late fusion)",
+      "microsPerTick": 111.7232,
+      "aucLead20": 0.913908,
+      "aucLead20Ci95": [
+        0.903371,
+        0.924283
+      ],
+      "aucLead10": 0.933898,
+      "rocAuc": 0.942426,
+      "prAuc": 0.551201,
+      "ece": 0.003831,
+      "recallAt30sNudgeRule": 0.7439,
+      "recallAt30sPrearmRule": 0.5406,
+      "recallAt30sLooseBandRule": 0.7927,
+      "nudgesPerHour": 3.2849,
+      "falsePrearmsPerHour": 0.3851,
+      "researchChurnFprAtNudge": 0.000148,
+      "recipe": {
+        "source": "scripts/forecast/candidates/temporal.ts",
+        "members": [
+          {
+            "name": "seq+f18",
+            "params": 5105,
+            "bestEpoch": 5,
+            "valLeadAuc20": 0.962409
+          }
+        ],
+        "config": {
+          "seqLen": 120,
+          "epochs": 14,
+          "batch": 96,
+          "lr": 0.004,
+          "lrFloor": 0.04,
+          "l2": 0.00003,
+          "patience": 8,
+          "negRate": 0.35,
+          "valFraction": 0.2,
+          "posWeightPower": 0.5,
+          "filters": 16,
+          "kernel1": 10,
+          "stride1": 5,
+          "hidden": 16
+        },
+        "fusion": "single net"
+      }
+    }
+  ],
+  "pairedBootstrap": {
+    "draws": 2000,
+    "clusteredBy": "session",
+    "clusters": 900,
+    "meanPairedSe": 0.002776,
+    "smallestResolvableDiff95": 0.005442,
+    "references": [
+      {
+        "vs": "lr24",
+        "pairs": [
+          {
+            "model": "shipped:lr24+pairwise",
+            "diff": -0.004124,
+            "lo95": -0.010524,
+            "hi95": 0.001874,
+            "se": 0.003254,
+            "p": 0.904,
+            "resolved": false
+          },
+          {
+            "model": "lr18",
+            "diff": -0.002693,
+            "lo95": -0.006815,
+            "hi95": 0.001571,
+            "se": 0.002146,
+            "p": 0.897,
+            "resolved": false
+          },
+          {
+            "model": "lr18+pairwise",
+            "diff": 0.003365,
+            "lo95": -0.001813,
+            "hi95": 0.008304,
+            "se": 0.002603,
+            "p": 0.1135,
+            "resolved": false
+          },
+          {
+            "model": "mlp18-12-1",
+            "diff": 0.002077,
+            "lo95": -0.00408,
+            "hi95": 0.008291,
+            "se": 0.003184,
+            "p": 0.291,
+            "resolved": false
+          },
+          {
+            "model": "mlp-tuned18",
+            "diff": 0.009979,
+            "lo95": 0.005241,
+            "hi95": 0.014812,
+            "se": 0.002498,
+            "p": 0,
+            "resolved": true
+          },
+          {
+            "model": "trees18",
+            "diff": -0.001994,
+            "lo95": -0.008109,
+            "hi95": 0.004052,
+            "se": 0.003114,
+            "p": 0.748,
+            "resolved": false
+          },
+          {
+            "model": "lr24+pairwise",
+            "diff": -0.004005,
+            "lo95": -0.010395,
+            "hi95": 0.002002,
+            "se": 0.003259,
+            "p": 0.898,
+            "resolved": false
+          },
+          {
+            "model": "mlp24-12-1",
+            "diff": 0.00394,
+            "lo95": -0.001792,
+            "hi95": 0.009283,
+            "se": 0.002843,
+            "p": 0.091,
+            "resolved": false
+          },
+          {
+            "model": "mlp-tuned24",
+            "diff": 0.008157,
+            "lo95": 0.004327,
+            "hi95": 0.011633,
+            "se": 0.001862,
+            "p": 0,
+            "resolved": true
+          },
+          {
+            "model": "trees24",
+            "diff": 0.007132,
+            "lo95": 0.001326,
+            "hi95": 0.012849,
+            "se": 0.002857,
+            "p": 0.01,
+            "resolved": true
+          },
+          {
+            "model": "hybrid25",
+            "diff": 0.006439,
+            "lo95": 0.000793,
+            "hi95": 0.011833,
+            "se": 0.002812,
+            "p": 0.0125,
+            "resolved": true
+          },
+          {
+            "model": "hybrid26",
+            "diff": 0.004768,
+            "lo95": -0.000642,
+            "hi95": 0.009839,
+            "se": 0.002723,
+            "p": 0.0405,
+            "resolved": false
+          },
+          {
+            "model": "temporal-ens18",
+            "diff": -0.002384,
+            "lo95": -0.007767,
+            "hi95": 0.003081,
+            "se": 0.002762,
+            "p": 0.829,
+            "resolved": false
+          },
+          {
+            "model": "temporal-1net18",
+            "diff": -0.010976,
+            "lo95": -0.016934,
+            "hi95": -0.004849,
+            "se": 0.003066,
+            "p": 0.999,
+            "resolved": true
+          },
+          {
+            "model": "temporal-ens24",
+            "diff": -0.000347,
+            "lo95": -0.005488,
+            "hi95": 0.004754,
+            "se": 0.002676,
+            "p": 0.5575,
+            "resolved": false
+          },
+          {
+            "model": "temporal-1net24",
+            "diff": -0.00763,
+            "lo95": -0.013569,
+            "hi95": -0.001888,
+            "se": 0.002986,
+            "p": 0.9945,
+            "resolved": true
+          }
+        ]
+      },
+      {
+        "vs": "lr18",
+        "pairs": [
+          {
+            "model": "shipped:lr24+pairwise",
+            "diff": -0.001431,
+            "lo95": -0.00935,
+            "hi95": 0.005506,
+            "se": 0.003737,
+            "p": 0.663,
+            "resolved": false
+          },
+          {
+            "model": "lr18+pairwise",
+            "diff": 0.006058,
+            "lo95": 0.001266,
+            "hi95": 0.010815,
+            "se": 0.002455,
+            "p": 0.006,
+            "resolved": true
+          },
+          {
+            "model": "mlp18-12-1",
+            "diff": 0.004769,
+            "lo95": -0.001506,
+            "hi95": 0.011,
+            "se": 0.003189,
+            "p": 0.073,
+            "resolved": false
+          },
+          {
+            "model": "mlp-tuned18",
+            "diff": 0.012672,
+            "lo95": 0.008869,
+            "hi95": 0.016326,
+            "se": 0.001883,
+            "p": 0,
+            "resolved": true
+          },
+          {
+            "model": "trees18",
+            "diff": 0.000699,
+            "lo95": -0.005011,
+            "hi95": 0.00621,
+            "se": 0.002942,
+            "p": 0.4115,
+            "resolved": false
+          },
+          {
+            "model": "lr24",
+            "diff": 0.002693,
+            "lo95": -0.001571,
+            "hi95": 0.006815,
+            "se": 0.002146,
+            "p": 0.103,
+            "resolved": false
+          },
+          {
+            "model": "lr24+pairwise",
+            "diff": -0.001312,
+            "lo95": -0.009251,
+            "hi95": 0.005617,
+            "se": 0.003738,
+            "p": 0.6515,
+            "resolved": false
+          },
+          {
+            "model": "mlp24-12-1",
+            "diff": 0.006633,
+            "lo95": 0.000104,
+            "hi95": 0.01307,
+            "se": 0.003305,
+            "p": 0.0235,
+            "resolved": true
+          },
+          {
+            "model": "mlp-tuned24",
+            "diff": 0.01085,
+            "lo95": 0.005486,
+            "hi95": 0.016055,
+            "se": 0.002726,
+            "p": 0,
+            "resolved": true
+          },
+          {
+            "model": "trees24",
+            "diff": 0.009825,
+            "lo95": 0.004157,
+            "hi95": 0.015495,
+            "se": 0.002888,
+            "p": 0,
+            "resolved": true
+          },
+          {
+            "model": "hybrid25",
+            "diff": 0.009132,
+            "lo95": 0.002893,
+            "hi95": 0.015072,
+            "se": 0.003137,
+            "p": 0.003,
+            "resolved": true
+          },
+          {
+            "model": "hybrid26",
+            "diff": 0.007461,
+            "lo95": 0.000618,
+            "hi95": 0.013593,
+            "se": 0.003379,
+            "p": 0.018,
+            "resolved": true
+          },
+          {
+            "model": "temporal-ens18",
+            "diff": 0.000308,
+            "lo95": -0.005381,
+            "hi95": 0.006256,
+            "se": 0.002982,
+            "p": 0.462,
+            "resolved": false
+          },
+          {
+            "model": "temporal-1net18",
+            "diff": -0.008284,
+            "lo95": -0.01429,
+            "hi95": -0.002369,
+            "se": 0.003077,
+            "p": 0.9965,
+            "resolved": true
+          },
+          {
+            "model": "temporal-ens24",
+            "diff": 0.002346,
+            "lo95": -0.003467,
+            "hi95": 0.008382,
+            "se": 0.003008,
+            "p": 0.2125,
+            "resolved": false
+          },
+          {
+            "model": "temporal-1net24",
+            "diff": -0.004937,
+            "lo95": -0.011385,
+            "hi95": 0.00157,
+            "se": 0.003284,
+            "p": 0.934,
+            "resolved": false
+          }
+        ]
+      },
+      {
+        "vs": "lr18+pairwise",
+        "pairs": [
+          {
+            "model": "shipped:lr24+pairwise",
+            "diff": -0.007489,
+            "lo95": -0.012894,
+            "hi95": -0.002652,
+            "se": 0.002635,
+            "p": 0.999,
+            "resolved": true
+          },
+          {
+            "model": "lr18",
+            "diff": -0.006058,
+            "lo95": -0.010815,
+            "hi95": -0.001266,
+            "se": 0.002455,
+            "p": 0.994,
+            "resolved": true
+          },
+          {
+            "model": "mlp18-12-1",
+            "diff": -0.001289,
+            "lo95": -0.005973,
+            "hi95": 0.003247,
+            "se": 0.002353,
+            "p": 0.7035,
+            "resolved": false
+          },
+          {
+            "model": "mlp-tuned18",
+            "diff": 0.006614,
+            "lo95": 0.002495,
+            "hi95": 0.010816,
+            "se": 0.002166,
+            "p": 0.001,
+            "resolved": true
+          },
+          {
+            "model": "trees18",
+            "diff": -0.005359,
+            "lo95": -0.011545,
+            "hi95": 0.000324,
+            "se": 0.00303,
+            "p": 0.9655,
+            "resolved": false
+          },
+          {
+            "model": "lr24",
+            "diff": -0.003365,
+            "lo95": -0.008304,
+            "hi95": 0.001813,
+            "se": 0.002603,
+            "p": 0.8865,
+            "resolved": false
+          },
+          {
+            "model": "lr24+pairwise",
+            "diff": -0.00737,
+            "lo95": -0.012791,
+            "hi95": -0.002557,
+            "se": 0.00263,
+            "p": 0.9985,
+            "resolved": true
+          },
+          {
+            "model": "mlp24-12-1",
+            "diff": 0.000575,
+            "lo95": -0.004401,
+            "hi95": 0.005614,
+            "se": 0.002599,
+            "p": 0.414,
+            "resolved": false
+          },
+          {
+            "model": "mlp-tuned24",
+            "diff": 0.004791,
+            "lo95": 0.000536,
+            "hi95": 0.009524,
+            "se": 0.002327,
+            "p": 0.0175,
+            "resolved": true
+          },
+          {
+            "model": "trees24",
+            "diff": 0.003766,
+            "lo95": -0.001143,
+            "hi95": 0.00896,
+            "se": 0.002604,
+            "p": 0.0705,
+            "resolved": false
+          },
+          {
+            "model": "hybrid25",
+            "diff": 0.003074,
+            "lo95": -0.001535,
+            "hi95": 0.007946,
+            "se": 0.00241,
+            "p": 0.106,
+            "resolved": false
+          },
+          {
+            "model": "hybrid26",
+            "diff": 0.001403,
+            "lo95": -0.003706,
+            "hi95": 0.006713,
+            "se": 0.00268,
+            "p": 0.3045,
+            "resolved": false
+          },
+          {
+            "model": "temporal-ens18",
+            "diff": -0.00575,
+            "lo95": -0.011357,
+            "hi95": 0.000107,
+            "se": 0.00295,
+            "p": 0.97,
+            "resolved": false
+          },
+          {
+            "model": "temporal-1net18",
+            "diff": -0.014342,
+            "lo95": -0.020134,
+            "hi95": -0.008166,
+            "se": 0.00306,
+            "p": 1,
+            "resolved": true
+          },
+          {
+            "model": "temporal-ens24",
+            "diff": -0.003713,
+            "lo95": -0.009286,
+            "hi95": 0.00205,
+            "se": 0.002848,
+            "p": 0.8985,
+            "resolved": false
+          },
+          {
+            "model": "temporal-1net24",
+            "diff": -0.010995,
+            "lo95": -0.016896,
+            "hi95": -0.004898,
+            "se": 0.003022,
+            "p": 1,
+            "resolved": true
+          }
+        ]
+      },
+      {
+        "vs": "lr24+pairwise",
+        "pairs": [
+          {
+            "model": "shipped:lr24+pairwise",
+            "diff": -0.000119,
+            "lo95": -0.00027,
+            "hi95": 0.00002,
+            "se": 0.000075,
+            "p": 0.9545,
+            "resolved": false
+          },
+          {
+            "model": "lr18",
+            "diff": 0.001312,
+            "lo95": -0.005617,
+            "hi95": 0.009251,
+            "se": 0.003738,
+            "p": 0.3485,
+            "resolved": false
+          },
+          {
+            "model": "lr18+pairwise",
+            "diff": 0.00737,
+            "lo95": 0.002557,
+            "hi95": 0.012791,
+            "se": 0.00263,
+            "p": 0.0015,
+            "resolved": true
+          },
+          {
+            "model": "mlp18-12-1",
+            "diff": 0.006081,
+            "lo95": -0.000217,
+            "hi95": 0.012713,
+            "se": 0.003324,
+            "p": 0.029,
+            "resolved": false
+          },
+          {
+            "model": "mlp-tuned18",
+            "diff": 0.013984,
+            "lo95": 0.007317,
+            "hi95": 0.021273,
+            "se": 0.003493,
+            "p": 0,
+            "resolved": true
+          },
+          {
+            "model": "trees18",
+            "diff": 0.002011,
+            "lo95": -0.005187,
+            "hi95": 0.009562,
+            "se": 0.003788,
+            "p": 0.291,
+            "resolved": false
+          },
+          {
+            "model": "lr24",
+            "diff": 0.004005,
+            "lo95": -0.002002,
+            "hi95": 0.010395,
+            "se": 0.003259,
+            "p": 0.102,
+            "resolved": false
+          },
+          {
+            "model": "mlp24-12-1",
+            "diff": 0.007945,
+            "lo95": 0.003572,
+            "hi95": 0.012761,
+            "se": 0.002308,
+            "p": 0,
+            "resolved": true
+          },
+          {
+            "model": "mlp-tuned24",
+            "diff": 0.012162,
+            "lo95": 0.006938,
+            "hi95": 0.017807,
+            "se": 0.002865,
+            "p": 0,
+            "resolved": true
+          },
+          {
+            "model": "trees24",
+            "diff": 0.011137,
+            "lo95": 0.005065,
+            "hi95": 0.017817,
+            "se": 0.003282,
+            "p": 0.0005,
+            "resolved": true
+          },
+          {
+            "model": "hybrid25",
+            "diff": 0.010444,
+            "lo95": 0.005365,
+            "hi95": 0.015974,
+            "se": 0.002654,
+            "p": 0,
+            "resolved": true
+          },
+          {
+            "model": "hybrid26",
+            "diff": 0.008773,
+            "lo95": 0.003655,
+            "hi95": 0.014255,
+            "se": 0.002683,
+            "p": 0.0005,
+            "resolved": true
+          },
+          {
+            "model": "temporal-ens18",
+            "diff": 0.00162,
+            "lo95": -0.004963,
+            "hi95": 0.008569,
+            "se": 0.00345,
+            "p": 0.3015,
+            "resolved": false
+          },
+          {
+            "model": "temporal-1net18",
+            "diff": -0.006972,
+            "lo95": -0.013546,
+            "hi95": -0.000091,
+            "se": 0.003432,
+            "p": 0.976,
+            "resolved": true
+          },
+          {
+            "model": "temporal-ens24",
+            "diff": 0.003658,
+            "lo95": -0.0028,
+            "hi95": 0.010373,
+            "se": 0.00334,
+            "p": 0.1265,
+            "resolved": false
+          },
+          {
+            "model": "temporal-1net24",
+            "diff": -0.003625,
+            "lo95": -0.010096,
+            "hi95": 0.00304,
+            "se": 0.003281,
+            "p": 0.86,
+            "resolved": false
+          }
+        ]
+      },
+      {
+        "vs": "mlp-tuned18",
+        "pairs": [
+          {
+            "model": "shipped:lr24+pairwise",
+            "diff": -0.014103,
+            "lo95": -0.021358,
+            "hi95": -0.007487,
+            "se": 0.003498,
+            "p": 1,
+            "resolved": true
+          },
+          {
+            "model": "lr18",
+            "diff": -0.012672,
+            "lo95": -0.016326,
+            "hi95": -0.008869,
+            "se": 0.001883,
+            "p": 1,
+            "resolved": true
+          },
+          {
+            "model": "lr18+pairwise",
+            "diff": -0.006614,
+            "lo95": -0.010816,
+            "hi95": -0.002495,
+            "se": 0.002166,
+            "p": 0.999,
+            "resolved": true
+          },
+          {
+            "model": "mlp18-12-1",
+            "diff": -0.007903,
+            "lo95": -0.013237,
+            "hi95": -0.00277,
+            "se": 0.002668,
+            "p": 0.9985,
+            "resolved": true
+          },
+          {
+            "model": "trees18",
+            "diff": -0.011973,
+            "lo95": -0.017519,
+            "hi95": -0.006917,
+            "se": 0.002718,
+            "p": 1,
+            "resolved": true
+          },
+          {
+            "model": "lr24",
+            "diff": -0.009979,
+            "lo95": -0.014812,
+            "hi95": -0.005241,
+            "se": 0.002498,
+            "p": 1,
+            "resolved": true
+          },
+          {
+            "model": "lr24+pairwise",
+            "diff": -0.013984,
+            "lo95": -0.021273,
+            "hi95": -0.007317,
+            "se": 0.003493,
+            "p": 1,
+            "resolved": true
+          },
+          {
+            "model": "mlp24-12-1",
+            "diff": -0.006039,
+            "lo95": -0.011939,
+            "hi95": -0.000423,
+            "se": 0.002944,
+            "p": 0.979,
+            "resolved": true
+          },
+          {
+            "model": "mlp-tuned24",
+            "diff": -0.001822,
+            "lo95": -0.005751,
+            "hi95": 0.00186,
+            "se": 0.001959,
+            "p": 0.82,
+            "resolved": false
+          },
+          {
+            "model": "trees24",
+            "diff": -0.002847,
+            "lo95": -0.008148,
+            "hi95": 0.002656,
+            "se": 0.00275,
+            "p": 0.859,
+            "resolved": false
+          },
+          {
+            "model": "hybrid25",
+            "diff": -0.00354,
+            "lo95": -0.008936,
+            "hi95": 0.001761,
+            "se": 0.002725,
+            "p": 0.9065,
+            "resolved": false
+          },
+          {
+            "model": "hybrid26",
+            "diff": -0.005211,
+            "lo95": -0.011134,
+            "hi95": 0.000152,
+            "se": 0.002848,
+            "p": 0.972,
+            "resolved": false
+          },
+          {
+            "model": "temporal-ens18",
+            "diff": -0.012364,
+            "lo95": -0.017725,
+            "hi95": -0.007291,
+            "se": 0.002672,
+            "p": 1,
+            "resolved": true
+          },
+          {
+            "model": "temporal-1net18",
+            "diff": -0.020956,
+            "lo95": -0.026423,
+            "hi95": -0.01542,
+            "se": 0.002886,
+            "p": 1,
+            "resolved": true
+          },
+          {
+            "model": "temporal-ens24",
+            "diff": -0.010326,
+            "lo95": -0.015539,
+            "hi95": -0.005254,
+            "se": 0.002628,
+            "p": 0.9995,
+            "resolved": true
+          },
+          {
+            "model": "temporal-1net24",
+            "diff": -0.017609,
+            "lo95": -0.023596,
+            "hi95": -0.011827,
+            "se": 0.002993,
+            "p": 1,
+            "resolved": true
+          }
+        ]
+      },
+      {
+        "vs": "mlp-tuned24",
+        "pairs": [
+          {
+            "model": "shipped:lr24+pairwise",
+            "diff": -0.012281,
+            "lo95": -0.017876,
+            "hi95": -0.007074,
+            "se": 0.002865,
+            "p": 1,
+            "resolved": true
+          },
+          {
+            "model": "lr18",
+            "diff": -0.01085,
+            "lo95": -0.016055,
+            "hi95": -0.005486,
+            "se": 0.002726,
+            "p": 1,
+            "resolved": true
+          },
+          {
+            "model": "lr18+pairwise",
+            "diff": -0.004791,
+            "lo95": -0.009524,
+            "hi95": -0.000536,
+            "se": 0.002327,
+            "p": 0.9825,
+            "resolved": true
+          },
+          {
+            "model": "mlp18-12-1",
+            "diff": -0.00608,
+            "lo95": -0.011817,
+            "hi95": -0.000547,
+            "se": 0.002844,
+            "p": 0.985,
+            "resolved": true
+          },
+          {
+            "model": "mlp-tuned18",
+            "diff": 0.001822,
+            "lo95": -0.00186,
+            "hi95": 0.005751,
+            "se": 0.001959,
+            "p": 0.18,
+            "resolved": false
+          },
+          {
+            "model": "trees18",
+            "diff": -0.010151,
+            "lo95": -0.016071,
+            "hi95": -0.004427,
+            "se": 0.002985,
+            "p": 1,
+            "resolved": true
+          },
+          {
+            "model": "lr24",
+            "diff": -0.008157,
+            "lo95": -0.011633,
+            "hi95": -0.004327,
+            "se": 0.001862,
+            "p": 1,
+            "resolved": true
+          },
+          {
+            "model": "lr24+pairwise",
+            "diff": -0.012162,
+            "lo95": -0.017807,
+            "hi95": -0.006938,
+            "se": 0.002865,
+            "p": 1,
+            "resolved": true
+          },
+          {
+            "model": "mlp24-12-1",
+            "diff": -0.004217,
+            "lo95": -0.008878,
+            "hi95": 0.000271,
+            "se": 0.002382,
+            "p": 0.9705,
+            "resolved": false
+          },
+          {
+            "model": "trees24",
+            "diff": -0.001025,
+            "lo95": -0.006466,
+            "hi95": 0.004472,
+            "se": 0.002743,
+            "p": 0.6595,
+            "resolved": false
+          },
+          {
+            "model": "hybrid25",
+            "diff": -0.001718,
+            "lo95": -0.006449,
+            "hi95": 0.002751,
+            "se": 0.002374,
+            "p": 0.7805,
+            "resolved": false
+          },
+          {
+            "model": "hybrid26",
+            "diff": -0.003389,
+            "lo95": -0.007941,
+            "hi95": 0.000902,
+            "se": 0.002259,
+            "p": 0.9435,
+            "resolved": false
+          },
+          {
+            "model": "temporal-ens18",
+            "diff": -0.010541,
+            "lo95": -0.015612,
+            "hi95": -0.005572,
+            "se": 0.002572,
+            "p": 1,
+            "resolved": true
+          },
+          {
+            "model": "temporal-1net18",
+            "diff": -0.019133,
+            "lo95": -0.024833,
+            "hi95": -0.013718,
+            "se": 0.002807,
+            "p": 1,
+            "resolved": true
+          },
+          {
+            "model": "temporal-ens24",
+            "diff": -0.008504,
+            "lo95": -0.013284,
+            "hi95": -0.003872,
+            "se": 0.002421,
+            "p": 0.999,
+            "resolved": true
+          },
+          {
+            "model": "temporal-1net24",
+            "diff": -0.015787,
+            "lo95": -0.02105,
+            "hi95": -0.010519,
+            "se": 0.00271,
+            "p": 1,
+            "resolved": true
+          }
+        ]
+      }
+    ]
+  },
+  "featuresVsArchitecture": {
+    "question": "round 9 concluded that FEATURES beat ARCHITECTURE — that the six trend features were worth more than any hidden layer anyone tried. This decomposition tests that claim on a corpus that can resolve it, by fitting every family at both bases.",
+    "featureEffect": {
+      "definition": "lead≥20s AUC at the 24-feature basis minus the same architecture at 18",
+      "perFamily": [
+        {
+          "family": "plain additive logistic",
+          "at18": "lr18",
+          "at24": "lr24",
+          "aucLead20At18": 0.922191,
+          "aucLead20At24": 0.924884,
+          "delta": 0.002693
+        },
+        {
+          "family": "GLM + pairwise basis (the round-8 head)",
+          "at18": "lr18+pairwise",
+          "at24": "lr24+pairwise",
+          "aucLead20At18": 0.928249,
+          "aucLead20At24": 0.920879,
+          "delta": -0.00737
+        },
+        {
+          "family": "TinyMLP d-12-1 (the round-7 head)",
+          "at18": "mlp18-12-1",
+          "at24": "mlp24-12-1",
+          "aucLead20At18": 0.92696,
+          "aucLead20At24": 0.928824,
+          "delta": 0.001864
+        },
+        {
+          "family": "tuned + bagged MLP",
+          "at18": "mlp-tuned18",
+          "at24": "mlp-tuned24",
+          "aucLead20At18": 0.934863,
+          "aucLead20At24": 0.933041,
+          "delta": -0.001822
+        },
+        {
+          "family": "GBDT",
+          "at18": "trees18",
+          "at24": "trees24",
+          "aucLead20At18": 0.92289,
+          "aucLead20At24": 0.932016,
+          "delta": 0.009126
+        },
+        {
+          "family": "hybrid (GLM trunk + tanh residual)",
+          "at18": "hybrid25",
+          "at24": "hybrid26",
+          "aucLead20At18": 0.931323,
+          "aucLead20At24": 0.929652,
+          "delta": -0.001671
+        },
+        {
+          "family": "temporal CNN, single net",
+          "at18": "temporal-1net18",
+          "at24": "temporal-1net24",
+          "aucLead20At18": 0.913908,
+          "aucLead20At24": 0.917254,
+          "delta": 0.003346
+        },
+        {
+          "family": "temporal CNN, 3-net ensemble",
+          "at18": "temporal-ens18",
+          "at24": "temporal-ens24",
+          "aucLead20At18": 0.9225,
+          "aucLead20At24": 0.924537,
+          "delta": 0.002037
+        }
+      ],
+      "mean": 0.001025,
+      "verdict": "indistinguishable from zero at the measured paired SE, and DECISIVELY NEGATIVE for the round-8 pairwise GLM (324 product terms on 133 k train rows overfit where 189 did not). Round 9's ranking claim does not replicate. What the trend block DID buy is pre-arm recall, which does replicate — see the recallAt30sPrearmRule column."
+    },
+    "architectureEffect": {
+      "definition": "lead≥20s AUC minus the PLAIN additive logistic at the same basis",
+      "perModel": [
+        {
+          "model": "lr18+pairwise",
+          "basis": 18,
+          "vsPlainLogistic": "lr18",
+          "delta": 0.006058
+        },
+        {
+          "model": "lr24+pairwise",
+          "basis": 24,
+          "vsPlainLogistic": "lr24",
+          "delta": -0.004005
+        },
+        {
+          "model": "mlp-tuned18",
+          "basis": 18,
+          "vsPlainLogistic": "lr18",
+          "delta": 0.012672
+        },
+        {
+          "model": "mlp-tuned24",
+          "basis": 24,
+          "vsPlainLogistic": "lr24",
+          "delta": 0.008157
+        },
+        {
+          "model": "mlp18-12-1",
+          "basis": 18,
+          "vsPlainLogistic": "lr18",
+          "delta": 0.004769
+        },
+        {
+          "model": "mlp24-12-1",
+          "basis": 24,
+          "vsPlainLogistic": "lr24",
+          "delta": 0.00394
+        },
+        {
+          "model": "trees18",
+          "basis": 18,
+          "vsPlainLogistic": "lr18",
+          "delta": 0.000699
+        },
+        {
+          "model": "trees24",
+          "basis": 24,
+          "vsPlainLogistic": "lr24",
+          "delta": 0.007132
+        },
+        {
+          "model": "hybrid25",
+          "basis": 18,
+          "vsPlainLogistic": "lr18",
+          "delta": 0.009132
+        },
+        {
+          "model": "hybrid26",
+          "basis": 24,
+          "vsPlainLogistic": "lr24",
+          "delta": 0.004768
+        },
+        {
+          "model": "temporal-ens18",
+          "basis": 18,
+          "vsPlainLogistic": "lr18",
+          "delta": 0.000309
+        },
+        {
+          "model": "temporal-ens24",
+          "basis": 24,
+          "vsPlainLogistic": "lr24",
+          "delta": -0.000347
+        }
+      ],
+      "verdict": "the tuned + bagged MLP clears a plain logistic by a resolved margin at both bases. On 48 sessions this comparison was a coin flip; on 900 it is not. The round-9 conclusion inverts, and the general lesson is the one worth keeping: a resolved margin at n=48 is not a margin."
+    }
+  },
+  "runtimeSec": 630.572
+}

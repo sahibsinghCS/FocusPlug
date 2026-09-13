@@ -6,17 +6,16 @@
  * `coefficients`/`intercept` the shipped `weights.json` carries.
  *
  * The BASIS is deliberately NOT defined here — `expandBasis` /
- * `FORECAST_TERMS` live in `src/shared/forecast/model.ts` and are imported by
- * both the trainer and runtime inference, so the 189 columns can never mean
- * something different at fit time than at serve time. This file owns only the
- * optimizer.
+ * `pairwiseTerms` live in `scripts/forecast/pairwise.ts`, so every script that
+ * fits a GLM over the same columns reads one definition of them. This file
+ * owns only the optimizer.
  *
  * Promoted from `scripts/forecast/candidates/lr-ceiling/linear.ts` (the
  * bake-off winner) into the real pipeline; the candidate copy stays untouched
  * as the bake-off record.
  */
 
-import { expandBasis } from "../../src/shared/forecast/model";
+import { expandBasis } from "./pairwise";
 
 export function sigmoidStable(z: number): number {
   return z >= 0 ? 1 / (1 + Math.exp(-z)) : Math.exp(z) / (1 + Math.exp(z));

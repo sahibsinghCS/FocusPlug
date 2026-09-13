@@ -49,7 +49,6 @@ import { pairedClusterBootstrap, type BootstrapModel } from "./bootstrap";
 import {
   HOLDOUT_DATASET_FILE,
   HOLDOUT_MANIFEST_FILE,
-  HOLDOUT_REPORT_FILE,
   HOLDOUT_SESSIONS_FILE,
   holdoutRoot,
   isHoldoutSessionId,
@@ -93,16 +92,23 @@ interface EvalConfig {
   raw: string;
   weights: string;
   bakeOff: string;
+  bakeOffPower: string;
   out: string;
   seed: number;
   gateOff: boolean;
   /**
-   * `--holdout` swaps the 48-session eval SPLIT for the large fresh corpus in
-   * `data/forecast/holdout/` (npm run forecast:evalset). Train rows still come
-   * from `--data` — the baselines have to be fitted on something — but not one
-   * scored frame does: eval rows, raw sessions for the alarm simulation and
-   * the report path all move. Off by default, so the committed
-   * `eval-report.json` stays exactly what `npm run forecast:pipeline` produces.
+   * THE OFFICIAL EVALUATION SET (default ON): the large fresh corpus in
+   * `data/forecast/holdout/` — 900 sessions, 1 230 drift onsets — built by
+   * `npm run forecast:evalset` from a seed namespace no training run can reach.
+   * Train rows still come from `--data`, because the baselines have to be
+   * fitted on something, but not one SCORED frame does.
+   *
+   * `--split-eval` reverts to the old 48-session eval SPLIT of dataset.jsonl.
+   * That split could not resolve the bake-off — its paired session-clustered SE
+   * was ≈ 0.009 against margins of 0.004–0.013 — which is precisely why the
+   * corpus was grown and why it is no longer what the committed report carries.
+   * The flag stays because the gate's teeth are verified on a deliberately tiny
+   * toy corpus, which has no hold-out namespace.
    */
   holdout: boolean;
   holdoutData: string;
@@ -115,10 +121,15 @@ interface EvalConfig {
 function readConfig(): EvalConfig {
   const gateOff =
     process.argv.includes("--gate=off") || stringArg("--gate", "on").toLowerCase() === "off";
-  const holdout = process.argv.includes("--holdout");
+  // Hold-out is the default. `--holdout` is still accepted (and is a no-op) so
+  // every command written down in GAUNTLET rounds 9–10 still runs.
+  const holdout = !process.argv.includes("--split-eval");
+  // The COMMITTED report can only be produced by the official corpus. A
+  // `--split-eval` run writes to gitignored working data unless `--out` says
+  // otherwise, so nobody can quietly replace 900 sessions of evidence with 48.
   const defaultOut = holdout
-    ? join(holdoutRoot(), HOLDOUT_REPORT_FILE)
-    : join(repoRoot(), "src", "shared", "forecast", "eval-report.json");
+    ? join(repoRoot(), "src", "shared", "forecast", "eval-report.json")
+    : join(forecastDataRoot(), "eval-report-split.json");
   return {
     data: stringArg("--data", join(forecastDataRoot(), DATASET_FILE)),
     raw: stringArg("--raw", join(forecastDataRoot(), RAW_SESSIONS_FILE)),
@@ -130,6 +141,10 @@ function readConfig(): EvalConfig {
       "--bake-off",
       join(repoRoot(), "src", "shared", "forecast", "bake-off.json"),
     ),
+    bakeOffPower: stringArg(
+      "--bake-off-power",
+      join(repoRoot(), "src", "shared", "forecast", "bake-off-power.json"),
+    ),
     out: stringArg("--out", defaultOut),
     seed: numberArg("--seed", 42),
     gateOff,
@@ -137,7 +152,7 @@ function readConfig(): EvalConfig {
     holdoutData: stringArg("--holdout-data", join(holdoutRoot(), HOLDOUT_DATASET_FILE)),
     holdoutRaw: stringArg("--holdout-raw", join(holdoutRoot(), HOLDOUT_SESSIONS_FILE)),
     holdoutManifest: stringArg("--holdout-manifest", join(holdoutRoot(), HOLDOUT_MANIFEST_FILE)),
-    powerDraws: Math.max(0, Math.round(numberArg("--power-draws", 1000))),
+    powerDraws: Math.max(0, Math.round(numberArg("--power-draws", 2000))),
   };
 }
 
@@ -148,23 +163,28 @@ const FEATURE_DIM = FORECAST_FEATURE_KEYS.length;
  * Required margin over the FULL-feature multivariate logistic, in
  * lead-censored ROC-AUC.
  *
- * Zero, deliberately, and that is the honest number rather than a soft one.
- * On this eval set (48 held-out sessions, 78 drift onsets, 858 lead-censored
- * positives) the paired session-clustered bootstrap in
- * `scripts/forecast/adjudicate.ts` puts the standard error of a
- * model-vs-model lead-AUC difference at ≈ 0.009 — no contender in the
- * five-family bake-off, including a 14 803-parameter temporal CNN, cleared
- * the strongest linear result by more than 0.7 of one SE. Demanding a
- * POSITIVE margin here would therefore be demanding a number this evaluation
- * cannot measure; the meaningful bar is the one a hostile question actually
- * asks — "does the shipped head beat a logistic regression?" — so the gate
- * fails the build the moment the answer stops being yes.
+ * Zero, deliberately. The bar is the one a hostile question actually asks —
+ * "does the shipped head beat a logistic regression?" — so the gate fails the
+ * build the moment the answer stops being yes, and demands nothing beyond it.
  *
- * The previous bar (+0.03 over the best SINGLE-feature logistic) is still
- * computed and printed, but it is context, not the gate: it compared the
- * shipped model against a model with one input, and the model that shipped
- * before this swap PASSED that bar by +0.15 while LOSING to the full logistic
- * by −0.0077.
+ * Round 8 chose zero because a positive margin was UNMEASURABLE: on the
+ * 48-session eval split the paired session-clustered SE of a model-vs-model
+ * lead-AUC difference was ≈ 0.009 and no contender, including a 14 803-parameter
+ * temporal CNN, cleared the strongest linear result by more than 0.7 of one SE.
+ * That is no longer the situation. On the 900-session corpus this report now
+ * scores, the measured paired SE is ≈ 0.003, and the shipped margin comes with
+ * a bootstrap confidence interval printed beside it in `gate.marginCi95`. The
+ * bar stays at zero anyway — a gate should encode the promise, not the current
+ * comfortable distance from it — but a reader can now see whether the margin is
+ * resolved, and for the first time it is.
+ *
+ * The gate anchors to the plain additive logistic on THE SHIPPED FEATURE BASIS,
+ * so growing the feature set moves the bar with it: a feature block that helps
+ * the baseline more than the head must not be able to hide behind an old
+ * baseline. The plain 18-feature (level-block) logistic and the best
+ * SINGLE-feature logistic are both still computed and printed as context, never
+ * as the gate — the model that shipped before the round-8 swap PASSED the
+ * single-feature bar by +0.15 while LOSING to the full logistic.
  */
 const GATE_MARGIN = 0;
 
@@ -582,6 +602,17 @@ async function main(): Promise<void> {
   });
   const greyDwellScores = evalRows.map((row) => row.features[6] ?? 0);
 
+  // CONTEXT (never the gate): the plain logistic on the ROUND-8 feature basis —
+  // the 18 level features, before the trend block was appended. Published so
+  // "did the six trend features earn their place?" has a number beside it on
+  // this corpus rather than only on the 48-session split that could not resolve
+  // it. Indices 0..17 are the level block by contract (types.ts is append-only).
+  const LEVEL_BLOCK_DIM = 18;
+  const levelColumns = Array.from({ length: Math.min(LEVEL_BLOCK_DIM, FEATURE_DIM) }, (_, i) => i);
+  const levelLogistic = trainLogistic(subX, subY, levelColumns);
+  const levelScores = evalRows.map((row) => logisticScore(levelLogistic, row.features, levelColumns));
+  const levelLead20 = round4(leadAuc(evalRows, levelScores, 20));
+
   const fullLogisticLead20 = round4(leadAuc(evalRows, fullLogisticScores, 20));
   const convergedLead20 = round4(leadAuc(evalRows, convergedScores, 20));
   const linearBaselineLead20 = Math.max(fullLogisticLead20, convergedLead20);
@@ -625,6 +656,16 @@ async function main(): Promise<void> {
         "importance-weighted to natural prevalence, at the λ train.ts selected on its " +
         "train-internal val split (never on eval) — the honest ceiling of the plain additive " +
         "logistic, and given MORE data than the shipped model",
+    },
+    plainLogisticLevelBlock: {
+      auc: round4(rocAuc(levelScores, evalLabels)),
+      leadAuc20: levelLead20,
+      features: levelColumns.length,
+      fit: "class-weighted full-batch GD (lib.trainLogistic) on FORECAST_FEATURE_KEYS[0..17]",
+      note:
+        "CONTEXT ONLY — the plain logistic on the round-8 feature basis (the level block, before " +
+        "the trend features were appended). Its distance from `fullLogistic` is what the six trend " +
+        "features buy a plain additive model on this corpus.",
     },
     /** What the gate is anchored to: the stronger of the two plain additive fits. */
     fullLogisticStrongest: {
@@ -749,6 +790,17 @@ async function main(): Promise<void> {
   } catch {
     console.warn(`WARN ${config.bakeOff} unreadable — report carries "bakeOff": null`);
   }
+  // The RE-RUN of that contest on this corpus — 17 fits, every family at BOTH
+  // feature bases, paired CIs, and the feature-vs-architecture decomposition.
+  // This is the table that actually chose the shipped head; the one above is
+  // the historical record of the contest that chose its predecessor. Publishing
+  // both, losers included, is the point.
+  let bakeOffPower: unknown = null;
+  try {
+    bakeOffPower = JSON.parse(readFileSync(config.bakeOffPower, "utf8"));
+  } catch {
+    console.warn(`WARN ${config.bakeOffPower} unreadable — report carries "bakeOffPower": null`);
+  }
   // bake-off.json is adjudicate.ts's output and is never hand-edited, so when
   // the feature basis moves on, the table's `SHIPPED` row stops describing what
   // actually ships. Rather than tamper with the adjudicator's artifact, the
@@ -760,57 +812,34 @@ async function main(): Promise<void> {
   })();
   const bakeOffStale = bakeOffWinner !== null && bakeOffWinner !== weights.basis;
   const bakeOffContext = {
-    verbatimFrom: "src/shared/forecast/bake-off.json",
-    producedBy: "scripts/forecast/candidates/*.ts, adjudicated by scripts/forecast/adjudicate.ts",
-    gating: false,
-    describesShippedBasis: !bakeOffStale,
-    note: bakeOffStale
-      ? `HISTORICAL. The bake-off contested the feature basis of 2026-09-12 and recorded ` +
-        `"${bakeOffWinner}" as SHIPPED. That FAMILY still ships, but its basis has since grown to ` +
-        `"${weights.basis}" (${FEATURE_DIM} features, ${weights.paramCount} params) — see ` +
-        `scripts/forecast/GAUNTLET.md round 9. Every score in the embedded table is on the older ` +
-        `basis; re-run adjudicate.ts to re-contest the field on this one.`
-      : "CURRENT — the embedded table's winner is the basis that ships today.",
-  };
-
-  // --- Gate ------------------------------------------------------------------
-  // Anchored to the FULL-feature multivariate logistic (the strongest of
-  // our two honest fits of it), not to a one-input strawman.
-  const margin = modelLead20 - linearBaselineLead20;
-  const gatePassed = margin >= GATE_MARGIN;
-  const legacyMargin = modelLead20 - bestSingle.leadAuc20;
-  const gate = {
-    enforced: !config.gateOff,
-    metric: "lead-censored ROC-AUC (onset ≥ 20 s away vs calm)",
-    baseline: "fullLogisticStrongest",
-    baselineRationale:
-      `the strongest ${FEATURE_DIM}-feature multivariate logistic regression on the SAME feature ` +
-      "basis the shipped head sees — the model a judge means by 'did you try logistic regression?'. " +
-      "The shipped head must not lose to it, and growing the feature set moves the bar with it.",
-    marginRequired: GATE_MARGIN,
-    marginRequiredRationale:
-      "zero by design: the paired session-clustered bootstrap over these 48 eval sessions puts the " +
-      "SE of a model-vs-model lead-AUC difference at ≈0.009, so no positive margin is measurable " +
-      "here. The bar is 'must not be beaten', and it fails the build the moment it is.",
-    modelLeadAuc20: round4(modelLead20),
-    baselineLeadAuc20: round4(linearBaselineLead20),
-    baselineFit: linearBaselineFit,
-    margin: round4(margin),
-    passed: gatePassed,
-    context: {
+    current: {
+      verbatimFrom: "src/shared/forecast/bake-off-power.json",
+      producedBy:
+        "scripts/forecast/holdout-bakeoff.ts (npm run forecast:holdout:bakeoff), published by " +
+        "scripts/forecast/bakeoff-publish.ts",
+      gating: false,
       note:
-        "the pre-bake-off gate: +0.03 over the best SINGLE-feature logistic. Reported so the two " +
-        "bars can be compared — the 18→12→1 MLP that shipped before this swap passed THIS one by " +
-        "+0.1514 while losing to the full logistic by −0.0077.",
-      bestSingleFeature: bestSingle.key,
-      bestSingleFeatureLeadAuc20: bestSingle.leadAuc20,
-      legacyMargin: round4(legacyMargin),
-      legacyMarginRequired: 0.03,
-      legacyPassed: legacyMargin >= 0.03,
+        "THE CONTEST THAT CHOSE THE SHIPPED HEAD. 17 fits — 8 families at BOTH feature bases — " +
+        "refit on split:\"train\" rows only and scored on this same 900-session corpus, with a " +
+        "paired session-clustered bootstrap and the feature-vs-architecture decomposition. Every " +
+        "loser is in it on purpose.",
+    },
+    historical: {
+      verbatimFrom: "src/shared/forecast/bake-off.json",
+      producedBy: "scripts/forecast/candidates/*.ts, adjudicated by scripts/forecast/adjudicate.ts",
+      gating: false,
+      describesShippedBasis: !bakeOffStale,
+      note: bakeOffStale
+        ? `HISTORICAL. Round 8's five-family contest on the 48-session eval SPLIT and the feature ` +
+          `basis of 2026-09-12, which recorded "${bakeOffWinner}" as SHIPPED. That result has since ` +
+          `been superseded twice: the basis grew (round 9) and the contest was re-run with enough ` +
+          `power to decide it (round 10), where the head it chose FAILED this report's own gate. ` +
+          `It is kept because the retraction is only legible next to it.`
+        : "CURRENT — the embedded table's winner is the basis that ships today.",
     },
   };
 
-  // --- MEASURED power (hold-out mode only) ----------------------------------
+  // --- MEASURED power + the gate's confidence interval ----------------------------------
   // The 48-session split could not resolve the bake-off: the paired
   // session-clustered SE was ≈ 0.009 and every non-linear margin was 0.4–0.7 of
   // one SE. This block measures — not projects — what the large corpus buys, by
@@ -818,6 +847,7 @@ async function main(): Promise<void> {
   // against the gate baseline, and then asking of every margin the bake-off
   // reported: would this evaluation have resolved it?
   let power: Record<string, unknown> | null = null;
+  let marginCi95: Record<string, unknown> | null = null;
   if (config.holdout && config.powerDraws > 0) {
     const eligibleIdx: number[] = [];
     for (let i = 0; i < evalRows.length; i += 1) {
@@ -887,6 +917,12 @@ async function main(): Promise<void> {
         pairedSe: 0.009,
         source: "scripts/forecast/adjudicate.ts over the 48-session eval split (GAUNTLET round 8)",
       },
+      whyTheCorpusWasGrown:
+        "the first eval set was 48 sessions / 78 onsets / 858 lead-censored positives. Its paired " +
+        "SE was ≈0.009 while every margin the five-family bake-off produced was 0.001–0.006, so " +
+        "round 8 could not tell a 190-parameter GLM from a 14 803-parameter CNN and said so. " +
+        "Resolving a +0.006 gap needed ~7-8× the sessions; this corpus is 18.75×, and the " +
+        "comparison it could not decide is now decided (GAUNTLET round 10).",
       sessionScale: round4(clusterOf.size / 48),
       seRatioObservedVsSqrtN:
         measuredSe === null ? null : round4(measuredSe / (0.009 / Math.sqrt(clusterOf.size / 48))),
@@ -914,16 +950,73 @@ async function main(): Promise<void> {
         "the five contenders against `--data data/forecast/holdout/holdout-dataset.jsonl` is what " +
         "actually settles the bake-off.",
     };
-    // The gate's stock rationale quotes the 48-session noise floor. On this
-    // corpus that sentence would be a stale number sitting next to a margin it
-    // no longer describes, so the hold-out report carries the measured one.
-    (gate as { marginRequiredRationale: string }).marginRequiredRationale =
-      `zero was the honest bar on the 48-session split, where the paired session-clustered SE was ` +
-      `≈0.009 and no positive margin was measurable. On THIS corpus the measured paired SE is ` +
-      `${measuredSe}, so the margin above is a resolved measurement rather than a coin flip — see ` +
-      `the power block. The bar itself is unchanged: the shipped head must not lose to a plain ` +
-      `additive logistic on the same features.`;
+    // The GATE's confidence interval: the shipped head minus the exact model the
+    // gate anchors to, on the exact metric it gates on, from the same paired
+    // session-clustered resampling. This is the number that turns "+0.0xx" from
+    // an assertion into a measurement.
+    marginCi95 =
+      shippedPair === undefined
+        ? null
+        : {
+            diff: round6(shippedPair.diff),
+            lo95: round6(shippedPair.lo95),
+            hi95: round6(shippedPair.hi95),
+            se: round6(shippedPair.sd),
+            p: round6(shippedPair.pDiffLeZero),
+            draws: config.powerDraws,
+            clusteredBy: "session",
+            resolved: shippedPair.lo95 > 0,
+            note:
+              "paired session-clustered bootstrap of (shipped − gate baseline) on lead-censored " +
+              "ROC-AUC, same resamples for both models. `resolved` means the interval excludes 0.",
+          };
   }
+
+  // --- Gate ------------------------------------------------------------------
+  // Anchored to the FULL-feature multivariate logistic (the strongest of
+  // our two honest fits of it), not to a one-input strawman.
+  const margin = modelLead20 - linearBaselineLead20;
+  const gatePassed = margin >= GATE_MARGIN;
+  const legacyMargin = modelLead20 - bestSingle.leadAuc20;
+  const gate = {
+    enforced: !config.gateOff,
+    metric: "lead-censored ROC-AUC (onset ≥ 20 s away vs calm)",
+    baseline: "fullLogisticStrongest",
+    baselineRationale:
+      `the strongest ${FEATURE_DIM}-feature multivariate logistic regression on the SAME feature ` +
+      "basis the shipped head sees — the model a judge means by 'did you try logistic regression?'. " +
+      "The shipped head must not lose to it, and growing the feature set moves the bar with it.",
+    marginRequired: GATE_MARGIN,
+    marginRequiredRationale:
+      "zero by design. The bar is 'a logistic regression on the same features must not beat the " +
+      "shipped head', and it fails the build the moment one does. Round 8 additionally could not " +
+      "have demanded more — on 48 eval sessions the paired SE was ≈0.009 and no positive margin " +
+      "was measurable. That constraint is gone: `marginCi95` below is the measured interval on " +
+      "this corpus. The bar stays at zero because a gate should encode the promise, not the " +
+      "current comfortable distance from it.",
+    modelLeadAuc20: round4(modelLead20),
+    baselineLeadAuc20: round4(linearBaselineLead20),
+    baselineFit: linearBaselineFit,
+    margin: round4(margin),
+    marginCi95,
+    passed: gatePassed,
+    context: {
+      note:
+        "the pre-bake-off gate: +0.03 over the best SINGLE-feature logistic. Reported so the two " +
+        "bars can be compared — the 18→12→1 MLP that shipped before this swap passed THIS one by " +
+        "+0.1514 while losing to the full logistic by −0.0077.",
+      bestSingleFeature: bestSingle.key,
+      bestSingleFeatureLeadAuc20: bestSingle.leadAuc20,
+      plainLogisticLevelBlockLeadAuc20: levelLead20,
+      plainLogisticLevelBlockNote:
+        `the plain logistic on the round-8 basis (${levelColumns.length} level features). Context ` +
+        `for what the trend block buys a plain additive model; the gate anchors to the full ` +
+        `${FEATURE_DIM}-feature fit so growing the feature set moves the bar with it.`,
+      legacyMargin: round4(legacyMargin),
+      legacyMarginRequired: 0.03,
+      legacyPassed: legacyMargin >= 0.03,
+    },
+  };
 
   const manifest = (provenance as { manifest?: { createdAt?: string } }).manifest;
   const report = {
@@ -997,6 +1090,7 @@ async function main(): Promise<void> {
     },
     baselines,
     bakeOffContext,
+    bakeOffPower,
     bakeOff,
     perArchetype,
     ablation,

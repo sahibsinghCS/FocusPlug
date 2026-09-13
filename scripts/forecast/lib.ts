@@ -175,9 +175,27 @@ export interface RawSession {
   durationSec: number;
   focus: RawFocusEvent[];
   desk: RawDeskEvent[];
+  /**
+   * For `augmented:local` sessions only: the train session ids this one was
+   * derived from (one for jitter/time-warp, two for a remix). The augmenter
+   * records it rather than leaving the trainer to re-derive it, because
+   * train.ts uses it to keep a jittered copy of a validation session OUT of
+   * that fold's fit set — the leak the round-7 trainer had and the mlp-tuned
+   * contender fixed. Never present on simulated sessions.
+   */
+  parents?: string[];
 }
 
 export const RAW_SESSIONS_FILE = "raw-sessions.jsonl";
+/**
+ * `{ "aug-000000": ["syn-000012"], … }` — the augmenter's own record of which
+ * TRAIN sessions each augmented session descends from. Written by
+ * build-dataset.ts beside the dataset; read by train.ts to assign every
+ * augmented row to its parent's cross-validation fold (or drop it when the
+ * parents straddle folds). Augmented sessions never reach
+ * `raw-sessions.jsonl`, so this sidecar is where the lineage lives.
+ */
+export const AUGMENT_PARENTS_FILE = "augment-parents.json";
 export const DATASET_FILE = "dataset.jsonl";
 export const MANIFEST_FILE = "manifest.json";
 export const PROVENANCE_FILE = "provenance.json";
@@ -724,14 +742,18 @@ export const CONTRACT_BASE_FUSE_SEC = 10;
  *
  * - `CHURN_FPR_CEILING` — the brief's own constraint: the `research_churn`
  *   archetype (heavy allowlist-internal switching, zero drifts) must not fire.
- * - `ALARM_LOAD_ALLOWANCE` — the nudge rate may exceed the rate the SAME model
- *   produces at the FROZEN 0.55 threshold on the SAME sessions by at most this
- *   factor. It is deliberately a RATIO, not an absolute rate: the search runs
- *   on cross-fitted train sessions whose risk scale is not identical to the
- *   shipped model's, and a ratio measured against a reference on that same
- *   scale cancels the difference, where an absolute "3.5 nudges/h" would not
- *   transfer at all. 1.15 is the product call: at most ~15 % louder than what
- *   already ships — a nudge roughly every 16 minutes instead of every 19.
+ * - `ALARM_LOAD_ALLOWANCE` — the ALARM rate (nudges + pre-arms) may exceed the
+ *   rate the SAME model produces at the FROZEN 0.55/0.80 point on the SAME
+ *   sessions by at most this factor. It is deliberately a RATIO, not an
+ *   absolute rate: the search runs on cross-fitted train sessions whose risk
+ *   scale is not identical to the shipped model's, and a ratio measured against
+ *   a reference on that same scale cancels the difference, where an absolute
+ *   "3.5 nudges/h" would not transfer at all. 1.15 is the product call: at most
+ *   ~15 % louder than what already ships — an alarm roughly every 16 minutes
+ *   instead of every 19. It counts pre-arms as well as nudges because a pre-arm
+ *   is an interruption too: counting only nudges would let a lower pre-arm line
+ *   buy recall by converting nudge events into pre-arm events and then call the
+ *   product quieter.
  * - `FALSE_PREARM_CEILING_PER_HOUR` — the design's stated budget
  *   (docs/FORECAST-DESIGN.md §4.5: "< 2 false pre-arms/hour"). Absolute,
  *   because the design states it as an absolute promise to the user.
@@ -748,6 +770,13 @@ export const FALSE_PREARM_CEILING_PER_HOUR = 2;
  * one grid step at a time. Frozen: it is a historical fact, not a setting.
  */
 export const ALARM_BUDGET_REFERENCE_NUDGE_RISK = 0.55;
+
+/**
+ * The pre-arm threshold that rode alongside it (0.80, unchanged from the
+ * original design). Frozen for the same reason: the alarm-load reference has
+ * to be one fixed historical point, not whatever the last run selected.
+ */
+export const ALARM_BUDGET_REFERENCE_PREARM_RISK = 0.8;
 
 export interface ThresholdSource {
   nudge: number;

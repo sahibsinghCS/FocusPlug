@@ -6,6 +6,7 @@ import { FORECAST_FEATURE_KEYS, type ForecastFeatureKey } from "../../src/shared
 import { augmentLocal } from "./augment-local";
 import { runAdaptionAugment, type AdaptionOutcome } from "./adaption";
 import {
+  AUGMENT_PARENTS_FILE,
   DATASET_FILE,
   MANIFEST_FILE,
   RAW_SESSIONS_FILE,
@@ -328,6 +329,11 @@ async function main(): Promise<void> {
     }
   }
 
+  // The augmenter's own lineage record: augmented session id -> parent TRAIN
+  // session ids. Written beside the dataset (augmented sessions never reach
+  // raw-sessions.jsonl) so train.ts can put a jittered copy of a validation
+  // session in its parent's fold instead of in that fold's fit set.
+  const augmentParents: Record<string, string[]> = {};
   if (useLocalAugment) {
     const augmented = augmentLocal(trainSessions, {
       fraction: config.augmentFraction,
@@ -336,10 +342,15 @@ async function main(): Promise<void> {
     for (const session of augmented) {
       bump(counts.sessionsBySource, session.source);
       bump(counts.sessionsByArchetype, session.archetype);
+      augmentParents[session.id] = [...(session.parents ?? [])];
       // Augmented sessions are train-only by construction.
       await emitSessionRows(session, "train", config.seed, stream, null, counts);
     }
   }
+  writeFileSync(
+    join(forecastDataRoot(), AUGMENT_PARENTS_FILE),
+    `${JSON.stringify(augmentParents, null, 2)}\n`,
+  );
 
   await new Promise<void>((resolve, reject) => {
     stream.end(() => resolve());

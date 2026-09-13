@@ -24,6 +24,12 @@ import {
  * Augmented sessions are TRAIN-ONLY by construction — the builder never lets
  * an `augmented:*` source into the eval split, so held-out metrics cannot be
  * inflated by generated data.
+ *
+ * Every emitted session carries `parents`: the train session ids it descends
+ * from. `build-dataset.ts` writes that lineage to `augment-parents.json` and
+ * `train.ts` uses it to keep a jittered copy of a fold's validation session out
+ * of that fold's fit set. Without it, every fold-val number is optimistic —
+ * exactly the leak the round-7 trainer shipped with.
  */
 
 export interface AugmentConfig {
@@ -114,9 +120,9 @@ export function augmentLocal(
     const id = `aug-${String(i).padStart(6, "0")}`;
     const op = i % 3;
     if (op === 0) {
-      out.push(jitterSession(source, rand, id));
+      out.push({ ...jitterSession(source, rand, id), parents: [source.id] });
     } else if (op === 1) {
-      out.push(warpSession(source, 0.9 + rand() * 0.22, id));
+      out.push({ ...warpSession(source, 0.9 + rand() * 0.22, id), parents: [source.id] });
     } else {
       const peers = byArchetype.get(source.archetype) ?? [source];
       const partner =
@@ -125,7 +131,7 @@ export function augmentLocal(
               Math.floor(rand() * (peers.length - 1))
             ] as RawSession)
           : source;
-      out.push(remixSessions(source, partner, rand, id));
+      out.push({ ...remixSessions(source, partner, rand, id), parents: [source.id, partner.id] });
     }
   }
   return out;

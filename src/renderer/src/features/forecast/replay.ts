@@ -32,23 +32,40 @@ import weightsJson from "@shared/forecast/weights.json";
  * calibration readout, and a real receipt. Same inputs ⇒ byte-identical
  * frames (no Date.now, no RNG beyond a seeded hash of `t`).
  *
- * Beat (≈2 min): warm-up → calm grind → grey flicking ramp → NUDGE → comply
- * and decay → harder flicking → PRE-ARM → Discord → 5 s fuse → kill (receipt:
- * hit + lead seconds) → unlock → calm.
+ * Beat (≈2 min): warm-up → calm grind → a gentle grey-flicking ramp → NUDGE →
+ * PRE-ARM → the student complies and the needle decays → PRE-ARM STOOD DOWN,
+ * UNCONFIRMED (a false alarm, shown as loudly as a hit) → a harder, sustained
+ * ramp with a fidgety desk signal → NUDGE → PRE-ARM → Discord → 5 s fuse (not
+ * 10) → kill, receipt: HIT with real lead seconds → unlock → calm.
+ *
+ * The two ramps differ on purpose. The first is short and gentle and the
+ * student backs off, so its pre-arm stands down unconfirmed — the demo shows
+ * the model being WRONG before it shows it being right. The second is longer,
+ * has almost no code time in it, and runs while the desk model turns restless;
+ * it earns its pre-arm and collects the receipt.
+ *
+ * `nudge`/`prearm` in REPLAY_BEATS are ANNOTATIONS: they record when the
+ * shipped model actually fires on this stream, they do not force it. A new
+ * head moves them — that is the whole point of replaying through the real
+ * model — so re-check with `npm run forecast:preview` after any swap.
  */
 
 export const REPLAY_EPOCH = Date.UTC(2026, 0, 5, 9, 0, 0);
 export const REPLAY_DURATION_SEC = 135;
 
-/** Scripted beats — seconds since session start. */
+/**
+ * Scripted beats — seconds since session start. `warmup`, `calm`, `ramp`,
+ * `comply`, `ramp2`, `drift`, `kill` and `recovered` DRIVE the script;
+ * `nudge` and `prearm` are OBSERVED — the second the shipped head fires.
+ */
 export const REPLAY_BEATS = {
   warmup: 4,
   calm: 24,
   ramp: 30,
-  nudge: 46,
-  comply: 58,
+  nudge: 41,
+  comply: 47,
   ramp2: 72,
-  prearm: 100,
+  prearm: 97,
   drift: 112,
   kill: 117,
   recovered: 124,
@@ -107,9 +124,9 @@ function poke(app: typeof CODE, offsetMs: number, title?: string): FocusPoke {
  * The behavior stream for second `t`. Sub-second pokes model real 4 Hz
  * monitor cadence: fast alt-tabs land as multiple pokes inside one second.
  */
-/** The grey-flicking cycle both ramps share: Spotify loiter + tab churn. */
+/** The HARD grey-flicking cycle of the second, ignored ramp: almost no code time. */
 function flickCycle(t: number, from: number): FocusPoke[] {
-  const phase = (t - from) % 6;
+  const phase = (t - from) % 7;
   if (phase === 0) {
     return [poke(CODE, 0), poke(SPOTIFY, 620)];
   }
@@ -122,7 +139,29 @@ function flickCycle(t: number, from: number): FocusPoke[] {
   if (phase === 4) {
     return [poke(SPOTIFY, 0), poke(EXPLORER, 550)];
   }
-  return [poke(YOUTUBE, 0, `video ${t}c — YouTube`), poke(SPOTIFY, 480)];
+  if (phase === 5) {
+    return [poke(YOUTUBE, 0, `video ${t}c — YouTube`), poke(SPOTIFY, 480)];
+  }
+  return [poke(EXPLORER, 0), poke(YOUTUBE, 600, `video ${t}d — YouTube`)];
+}
+
+/**
+ * The FIRST ramp is deliberately gentler than the second: one grey loiter and
+ * one tab flick per cycle, with real code time in between. It is the "caught
+ * early" beat — enough to cross the nudge line, not enough to pre-arm.
+ */
+function softFlickCycle(t: number, from: number): FocusPoke[] {
+  const phase = (t - from) % 5;
+  if (phase === 0) {
+    return [poke(CODE, 0), poke(SPOTIFY, 700)];
+  }
+  if (phase === 1) {
+    return [poke(SPOTIFY, 0, `Spotify — track ${t}`)];
+  }
+  if (phase === 2) {
+    return [poke(YOUTUBE, 0, `video ${t} — YouTube`)];
+  }
+  return [poke(CODE, 0, `forecast.ts:${140 + t} — FocusPlug — Visual Studio Code`)];
 }
 
 function scriptSecond(t: number): FocusPoke[] {
@@ -135,9 +174,10 @@ function scriptSecond(t: number): FocusPoke[] {
     const line = 120 + Math.floor(t / 8);
     return [poke(CODE, 0, `forecast.ts:${line} — FocusPlug — Visual Studio Code`)];
   }
-  // First drift ramp: Spotify loiter + Chrome tab churn + short code stops.
+  // First drift ramp: a gentler grey loiter + tab flick, with code time in
+  // between — the pattern that should cross the nudge line and stop there.
   if (t < B.comply) {
-    return flickCycle(t, B.ramp);
+    return softFlickCycle(t, B.ramp);
   }
   // Comply after the nudge: back to VS Code, heads down. Risk decays.
   if (t < B.ramp2) {

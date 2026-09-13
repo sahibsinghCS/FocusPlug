@@ -4,10 +4,9 @@ import type {
   ForecastSnapshot,
 } from "@shared/ipc";
 import {
-  FORECAST_FEATURE_KEYS,
   FORECAST_INPUT_DIM,
+  FORECAST_HIDDEN_DIM,
   FORECAST_PARAM_COUNT,
-  FORECAST_TERM_COUNT,
   FORECAST_WARMUP_SEC,
   parseForecastWeights,
   type ForecastFeatureKey,
@@ -126,7 +125,7 @@ export function forecastSensorCard(
   snap: ForecastSnapshot | null,
   ctx: ForecastCardCtx,
 ): SensorCardView {
-  const meta = `${FORECAST_PARAM_COUNT}-param logistic · on-device`;
+  const meta = `${FORECAST_PARAM_COUNT}-param net · on-device`;
   if (!ctx.enabled) {
     return {
       id: "forecast",
@@ -500,10 +499,10 @@ export interface ModelCardView {
 export function modelCard(): ModelCardView {
   const version = WEIGHTS?.version ?? "ff-?";
   const params = WEIGHTS?.paramCount ?? FORECAST_PARAM_COUNT;
-  const terms = WEIGHTS?.coefficients.length ?? FORECAST_TERM_COUNT;
+  const hidden = WEIGHTS?.layers.hidden.bias.length ?? FORECAST_HIDDEN_DIM;
   const sizeKb = Math.max(1, Math.round(JSON.stringify(weightsJson).length / 1024));
   const spec =
-    `Logistic ${FORECAST_INPUT_DIM}→${terms} terms→1 · ${params} params · ${sizeKb} KB · ` +
+    `MLP ${FORECAST_INPUT_DIM}→${hidden}→1 tanh · ${params} params · ${sizeKb} KB · ` +
     `on-device · 1 Hz · v ${version}`;
 
   const auc = digNumber(EVAL_REPORT, "metrics", "rocAuc");
@@ -560,19 +559,25 @@ export interface HiddenCellView {
 }
 
 /**
- * The GLM's activation strip: one cell per feature, tinted by `tanh` of the
- * summed contribution of every basis term containing that feature. Unlike the
- * old MLP's opaque hidden units, each cell has a name.
+ * The hidden-layer activation strip: one cell per unit of the shipped
+ * `FORECAST_INPUT_DIM → FORECAST_HIDDEN_DIM → 1` net, tinted by its `tanh`.
+ *
+ * These units are ANONYMOUS — a learned basis, not one cell per feature — and
+ * the UI says so rather than pretending otherwise. The named, signed numbers
+ * live in the attribution bars beside it, which are real occlusion deltas
+ * (`risk(x) − risk(x with this feature at its training mean)`); a hidden layer
+ * moves every unit at once, so there is no exact per-term decomposition to
+ * offer and the panel does not claim one.
+ *
+ * Labels are positional (`h01`…): the units carry no meaning individually, and
+ * the point of the strip is the pattern across them.
  */
 export function hiddenCells(hidden: readonly number[]): HiddenCellView[] {
-  return hidden.map((value, index) => {
-    const key = FORECAST_FEATURE_KEYS[index] ?? null;
-    return {
-      key,
-      label: key ? FEATURE_SHORT_LABELS[key] : `t${index}`,
-      value,
-      intensity: Math.min(1, Math.abs(value)),
-      positive: value >= 0,
-    };
-  });
+  return hidden.map((value, index) => ({
+    key: null,
+    label: `h${String(index + 1).padStart(2, "0")}`,
+    value,
+    intensity: Math.min(1, Math.abs(value)),
+    positive: value >= 0,
+  }));
 }

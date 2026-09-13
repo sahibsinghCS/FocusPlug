@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   FORECAST_FEATURE_KEYS,
   FORECAST_INPUT_DIM,
+  FORECAST_HIDDEN_DIM,
   FORECAST_PARAM_COUNT,
-  FORECAST_TERM_COUNT,
 } from "@shared/forecast";
 import type { ForecastEvent, ForecastSnapshot } from "@shared/ipc";
 import {
@@ -58,12 +58,12 @@ function makeSnapshot(overrides: Partial<ForecastSnapshot> = {}): ForecastSnapsh
       value: index / FORECAST_FEATURE_KEYS.length,
       attribution: 0,
     })),
-    hidden: new Array<number>(FORECAST_INPUT_DIM).fill(0.2),
+    hidden: new Array<number>(FORECAST_HIDDEN_DIM).fill(0.2),
     prearmedAt: null,
     effectiveFuseSec: 10,
     baseFuseSec: 10,
     modelVersion: "ff-1",
-    paramCount: 190,
+    paramCount: FORECAST_PARAM_COUNT,
     ...overrides,
   };
 }
@@ -177,7 +177,7 @@ describe("calibration + model card", () => {
 
   it("feeds the model card from the committed artifacts", () => {
     const card = modelCard();
-    expect(card.spec).toContain(`Logistic ${FORECAST_INPUT_DIM}→${FORECAST_TERM_COUNT} terms→1`);
+    expect(card.spec).toContain(`MLP ${FORECAST_INPUT_DIM}→${FORECAST_HIDDEN_DIM}→1 tanh`);
     expect(card.spec).toContain(`${FORECAST_PARAM_COUNT} params`);
     expect(card.spec).toContain("v ff-1");
     expect(card.evalLine).toMatch(/held-out AUC 0\.\d{2}/);
@@ -255,7 +255,7 @@ describe("meter + sparkline geometry", () => {
       nowTs,
       width: 220,
       height: 44,
-      nudgeRisk: 0.55,
+      nudgeRisk: 0.5,
       prearmRisk: 0.8,
     });
     expect(spark.empty).toBe(false);
@@ -263,7 +263,7 @@ describe("meter + sparkline geometry", () => {
     expect(spark.path.endsWith("L220.0 0.0")).toBe(true);
     expect(spark.markers.map((marker) => marker.kind)).toEqual(["nudge", "prearm", "drift"]);
     expect(spark.markers[0]?.x).toBeCloseTo(110, 1);
-    expect(spark.nudgeY).toBeCloseTo(44 * 0.45, 3);
+    expect(spark.nudgeY).toBeCloseTo(44 * 0.5, 3);
   });
 });
 
@@ -311,17 +311,20 @@ describe("pre-arm plate + event copy", () => {
     expect(preview.reached.cause).toBe(true);
   });
 
-  it("names and tints each term-group cell by |tanh| with sign", () => {
+  it("tints each hidden-unit cell by |tanh| with sign, and names none of them", () => {
     const cells = hiddenCells([0.8, -0.4, 0]);
-    // One cell per FEATURE now — the GLM has no anonymous hidden units.
+    // The shipped head HAS a hidden layer, and its units are anonymous. The
+    // panel labels them positionally rather than pretending each one is a
+    // feature; the named numbers are the occlusion bars beside the strip.
     expect(cells[0]).toEqual({
-      key: "switch15",
-      label: FEATURE_SHORT_LABELS.switch15,
+      key: null,
+      label: "h01",
       value: 0.8,
       intensity: 0.8,
       positive: true,
     });
-    expect(cells[1]?.key).toBe("switch60");
+    expect(cells[1]?.key).toBeNull();
+    expect(cells[1]?.label).toBe("h02");
     expect(cells[1]?.positive).toBe(false);
     expect(cells[2]?.intensity).toBe(0);
   });
@@ -345,7 +348,7 @@ describe("scripted replay (real shared core)", () => {
       expect(frame.snapshot.features.map((feature) => feature.key)).toEqual([
         ...FORECAST_FEATURE_KEYS,
       ]);
-      expect(frame.snapshot.hidden).toHaveLength(FORECAST_INPUT_DIM);
+      expect(frame.snapshot.hidden).toHaveLength(FORECAST_HIDDEN_DIM);
       expect(frame.snapshot.risk).toBeGreaterThanOrEqual(0);
       expect(frame.snapshot.risk).toBeLessThanOrEqual(1);
       expect(frame.events.length === 0 || frame.snapshot.ready).toBe(true);

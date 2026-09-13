@@ -8,7 +8,7 @@ A static page that runs the shipped Focus Forecast without Windows, Electron, or
 | `vite.config.ts` | `base: "./"`, single classic-IIFE bundle with fonts and BlazeFace weights inlined (see below), out to `dist/demo`. |
 | `src/pipeline.ts` | The one loop. `TelemetryRing` → `extractFeatures` → trained GLM → `smoothRisk` → `stepEscalation`, with `stepPolicy` deciding and `effectiveFuseSec` as the only knob the forecast turns. Both modes step this. |
 | `src/script.ts` | Mode 1's simulated student — a raw behaviour stream (window pokes + desk labels), never features, never a risk number. |
-| `src/timeline.ts` | Precomputes the 80 s arc once and reads chapter marks off the events the model actually emitted. |
+| `src/timeline.ts` | Precomputes the 94 s arc once and reads chapter marks off the events the model actually emitted. |
 | `src/timeline.test.ts` | The demo's contract: ordering, the 5 s pre-armed fuse, one kill, a real receipt, determinism. `npm run demo:test`. |
 | `src/live.ts` | Mode 2's session: `getUserMedia` + a 1 Hz tick into the same pipeline, with a status for every failure path. |
 | `src/desk/detector.ts` | BlazeFace over a `<video>` frame, classified by the app's own `@main/desk/classify`. |

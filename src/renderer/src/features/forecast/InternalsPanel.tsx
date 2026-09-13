@@ -111,12 +111,12 @@ export function InternalsPanel(props: {
           <span className="text-fp-red">■ pushes risk up</span>
           <span className="ml-3 text-fp-blue">■ holds risk down</span>
           <span className="ml-3">
-            occluded to training mean · exact {bars.length + 1}-term delta per feature
+            occluded to training mean · one exact re-forward per feature
           </span>
         </p>
       </div>
 
-      {/* Calibration readout + term-group activations — the model, visibly. */}
+      {/* Calibration readout + hidden-layer activations — the model, visibly. */}
       <div className="grid gap-2 min-[700px]:grid-cols-[minmax(0,1fr)_auto]">
         <div className="rounded-md border border-fp-line bg-fp-elev/60 px-2.5 py-1.5">
           <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-fp-faint">
@@ -129,9 +129,9 @@ export function InternalsPanel(props: {
         <div className="rounded-md border border-fp-line bg-fp-elev/60 px-2.5 py-1.5">
           <p
             className="text-[9px] font-semibold uppercase tracking-[0.18em] text-fp-faint"
-            title="tanh of each feature's summed basis-term contribution. Product terms count toward both of their features, so these do not sum to the logit."
+            title="The shipped net's hidden layer: tanh of each unit's pre-activation. The units are anonymous — a learned basis, not one per feature — so read the pattern, not any single cell. The named per-feature numbers are the occlusion bars above."
           >
-            Term groups · tanh
+            Hidden layer · tanh
           </p>
           <div className="mt-1 flex flex-wrap gap-[3px]" aria-hidden="true">
             {cells.map((cell, index) => (

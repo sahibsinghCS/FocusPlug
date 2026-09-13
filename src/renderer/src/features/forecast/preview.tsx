@@ -1,6 +1,7 @@
 import { StrictMode, useEffect, useMemo, useState, type JSX } from "react";
 import { createRoot } from "react-dom/client";
 import type { ForecastEvent, SessionState } from "@shared/ipc";
+import { FORECAST_BASIS, FORECAST_PARAM_COUNT } from "@shared/forecast";
 import "../../index.css";
 import { CountdownOverlay } from "../../components/CountdownOverlay";
 import { Chip } from "../../components/ui";
@@ -258,8 +259,8 @@ function Preview(): JSX.Element {
 
         <p className="text-[11px] text-fp-faint">
           Scripted student-behavior stream → the shipped TelemetryRing, feature extractor,
-          190-param logistic head and escalation reducer — the exact code the Electron main
-          process runs. No network, no canned risk numbers.
+          {" "}{FORECAST_PARAM_COUNT}-param {FORECAST_BASIS} head and escalation reducer — the
+          exact code the Electron main process runs. No network, no canned risk numbers.
         </p>
       </div>
 

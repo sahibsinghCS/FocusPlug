@@ -1,5 +1,6 @@
 import { useState, type JSX } from "react";
 import { FACE_CATALOG, type FaceId } from "@shared/faces";
+import { FORECAST_PARAM_COUNT } from "@shared/forecast";
 import type { DeskModelId } from "@shared/ipc";
 import { Field, GhostButton, Toggle } from "../components/ui";
 import { pageCopy } from "../lib/routes";
@@ -162,8 +163,8 @@ export function SettingsPage(): JSX.Element {
           <div>
             <p className="text-[13px] font-medium">Focus Forecast</p>
             <p className="mt-0.5 text-[12px] text-fp-mute">
-              190-param on-device logistic regression predicts drift 30 s out — nudges early, pre-arms the
-              fuse. Off reproduces today&apos;s behavior exactly.
+              {FORECAST_PARAM_COUNT}-param on-device neural net predicts drift 30 s out — nudges
+              early, pre-arms the fuse. Off reproduces today&apos;s behavior exactly.
             </p>
           </div>
           <Toggle

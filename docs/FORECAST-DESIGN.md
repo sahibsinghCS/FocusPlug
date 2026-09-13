@@ -2,26 +2,38 @@
 
 **Predict the tab-out before it happens. Show the model thinking. Pre-arm the fuse for real. Never touch the kill path's determinism.**
 
-> **AMENDED after the model bake-off (see `scripts/forecast/GAUNTLET.md` round 8).**
-> Two decisions in this document did not survive contact with a fair comparison,
-> and the amendments are recorded here rather than quietly edited away:
+> **AMENDED TWICE. Read this box before trusting any architecture number below.**
+> The tuning log is `scripts/forecast/GAUNTLET.md`; the engineering notes are
+> `docs/FORECAST.md`. Nothing is quietly edited away — the superseded decisions
+> are kept because the corrections are only legible next to them.
 >
-> 1. **§1.2 architecture** — the head is no longer a `TinyMLP 18→12→1` (241
->    params). Five model families were built and scored on one fixed dataset,
->    one fixed metric and one shared reducer; no non-linear model beat the
->    strongest linear-family result by a margin 48 held-out sessions can
->    resolve, and a plain 19-parameter logistic already beat the MLP. **Shipped:
->    an L2-regularized logistic regression over the 18 features plus all 171
->    pairwise products and squares — 189 basis terms, 190 params.** §11's
->    "last-resort model downgrade to logistic regression" turned out to be the
->    right model, not the fallback.
-> 2. **§4.5 CI gate** — "beat a single-feature logistic by ≥ 0.03" was a
->    strawman. The gate now anchors to the FULL 18-feature multivariate
->    logistic with a required margin of 0. The MLP this document specified
->    FAILS that gate (0.9248 vs 0.9325).
+> **Round 8 (bake-off, 48 held-out sessions).** Five model families on one fixed
+> dataset, one metric, one reducer. No non-linear model beat the strongest
+> linear result by a margin that eval set could resolve, and a plain
+> 19-parameter logistic already beat the MLP this document specified. So §1.2's
+> `TinyMLP 18→12→1` (241 params) was replaced by an L2 logistic regression over
+> the features plus all pairwise products (190 params), and §4.5's gate — "beat
+> a SINGLE-feature logistic by ≥ 0.03", a strawman — was re-anchored to the
+> FULL multivariate logistic with a required margin of 0.
 >
-> Also amended: the default nudge threshold is **0.45** (§5.2's 0.55 is now
-> re-derived by the trainer on cross-fitted train sessions, not chosen by hand).
+> **Round 11 (the same contest, 900 sessions).** The round-8 comparison was not
+> wrong, it was **underpowered**: the paired session-clustered SE of a
+> model-vs-model lead-AUC difference on 48 sessions is ≈ 0.009, and every margin
+> on offer was 0.4–0.7 of one SE. On an 18.75× larger corpus (SE 0.0018) the
+> answer inverts, and **the GLM fails the gate round 8 built** (0.9208 against a
+> plain 24-feature logistic's 0.9259). Shipped instead: a **tanh MLP
+> `mlp24-36-1`, 937 params** — three `24→12→1` members on disjoint CV folds,
+> collapsed exactly into one dense layer — at **+0.0071 [+0.0035, +0.0107]**
+> over the same baseline. So §1.2 is a hidden layer again, wider than the one
+> this document specified and selected rather than guessed.
+>
+> Also amended: the operating point is **nudge 0.50 / pre-arm 0.65** (§5.2's
+> 0.55/0.80 was chosen by hand; both axes are now re-derived by the trainer on
+> cross-fitted train sessions under stated budgets), and §11's "last-resort
+> model downgrade to logistic regression" has been taken and then un-taken —
+> it was the right model for the evidence round 8 had, and the wrong one for
+> the evidence round 11 has.
+>
 > Everything else — the features, the ring, the extractor, the labeler, the
 > censoring, the escalation reducer, the latch, the receipt, the UI — is
 > unchanged and shipped as written.
@@ -31,7 +43,7 @@ This is the winning demo-first design merged with the three judge-flagged grafts
 1. **The receipt** (winner, unanimous steal): `forecast_hit` / `forecast_miss` events with lead seconds, rendered on the countdown overlay — misses displayed as loudly as hits.
 2. **Real pre-arm** (grafted from P1): pre-arm now genuinely shortens the fuse 10 s → 5 s through the one knob the codebase already exposes — `stepPolicy` re-derives countdown duration from `input.countdownSec` on every step (verified: `durationMs()` in `src/shared/policy/engine.ts` line 131) — with a latch rule so a burning fuse never mutates. The winner's cosmetic pre-arm is gone.
 3. **Anti-fraud eval** (grafted from P1): AUC@lead≥20s + eligibility censoring — score only frames whose nearest drift onset is far away, structurally proving *prediction*, not last-seconds detection. Plus a visible Platt calibration step.
-4. **Anti-if-else structure** (grafted from P2): the `research_churn` adversarial archetype (heavy switching entirely inside the allowlist, no drift) and a CI baseline gate — `forecast:eval` exits nonzero unless the shipped head beats the FULL 18-feature multivariate logistic on held-out lead-censored ROC-AUC *(amended: the original bar was ≥ 0.03 over a SINGLE-feature logistic, which the MLP passed while losing to the full one)*.
+4. **Anti-if-else structure** (grafted from P2): the `research_churn` adversarial archetype (heavy switching entirely inside the allowlist, no drift) and a CI baseline gate — `forecast:eval` exits nonzero unless the shipped head beats the FULL multivariate logistic **on the same feature basis it sees** on held-out lead-censored ROC-AUC *(amended round 8: the original bar was ≥ 0.03 over a SINGLE-feature logistic, which the round-7 MLP passed while losing to the full one. Amended round 11: the bar has since failed for real and replaced a shipped head.)*.
 5. **Product-native surfaces** (grafted from P2): fourth sensor card (Foreground · Desk AI · Forecast · Plugs), forecast events threaded into the existing cause→countdown→consequence timeline, the `golden-path.json` disabled-equals-identical regression test, and `forecastPrearmEnabled=false` as a zero-risk nudge-only mode.
 
 **Two winner errors corrected** (both judge-verified): (a) the telemetry ring does **not** fill in observe-only mode — `SessionController.stop()` stops both monitors, so the ring resets at session start and the meter shows a 15 s warm-up; (b) no self-owned 1 Hz timer — the forecast ticks from the controller's existing evaluate loop with the injected `now()` clock, matching the repo's deterministic-test house style.
@@ -45,33 +57,46 @@ Grounding (verified in `/home/user/FocusPlug-gauntlet`): `scripts/check-contract
 ### 1.1 Task
 Binary probabilistic prediction: **P(drift onset within the next 30 s)**, where a *drift onset* is the policy's own decision entering `DISTRACTED` (blocked focus, drift_type `tab_out`) or `AWAY` (high-confidence desk-away, drift_type `walk_away`) from a non-drifted state — exactly the transitions `classify()` in `src/shared/policy/evaluate.ts` produces. The 30 s horizon stays (judges: crisper in-demo verification than 60 s). Output every second during an active session.
 
-### 1.2 Architecture — ~~`TinyMLP 18→12→1`, 241 params~~ → **GLM `lr18+pairwise`, 190 params** (amended, round 8)
+### 1.2 Architecture — ~~`TinyMLP 18→12→1`, 241 params~~ → ~~GLM `lr18+pairwise`, 190 params~~ → **MLP `mlp24-36-1`, 937 params** (amended twice: rounds 8 and 11)
 
 Hand-rolled forward pass in pure TypeScript, no new deps (mirrors the hand-rolled desk head — part of the pitch):
 
 ```
-x ∈ R^18 (encoded features, §1.3)
-t = [x_1 … x_18, x_i·x_j for all i ≤ j]          189 basis terms (18 linear + 171 products/squares)
-z = intercept + c·t (logit)                      189 coefficients + 1 intercept  → 190
-risk_raw = σ(a·z + b)      Platt calibration (a,b fit on val) → 2 (stored, not counted in "190")
-total trainable: 190 params ≈ 4 KB JSON on disk, ~360 multiply-adds per tick
+x ∈ R^24 (encoded features, §1.3)
+h = tanh(W1·x + b1)        W1 36×24 + b1 36                      → 900
+z = w2·h + b2              w2 36 + b2 1                          → 37
+risk_raw = σ(a·z + b)      Platt calibration (a,b fit on held-out sessions) → 2 (stored, not counted in "937")
+total trainable: 937 params ≈ 15 KB JSON on disk, 900 multiply-accumulates + 36 tanh per tick (~3.1 µs)
 ```
 
-Convex, one global optimum, fitted by L-BFGS — "did you tune it enough?" is not
-a question that can be asked of it. Every non-linearity is EXPLICIT and named
-in the basis, so each coefficient reads as a sentence
-(`deskConfMean30*deskConfStd30 −7.42`: *confidence wobble matters only while
-the desk model is confident you are there*). The standardizer is folded into
-the coefficients, so the shipped payload is 190 flat floats plus the Platt pair.
+The 36 hidden units are three independently-fitted `24→12→1` members, blended
+affinely and **collapsed exactly** into one layer (asserted to 1e-15 before the
+artifact is written), so the runtime sees a plain two-layer net and not an
+ensemble loop. The z-score standardizer is folded into `W1`/`b1`, so the
+shipped payload really is 937 floats plus the Platt pair — no hidden 48-float
+scaler beside an understated parameter count.
 
-*The superseded MLP, for the record: `h = tanh(W1·x + b1)` with W1 12×18 + b1
-(228) and `z = w2·h + b2` (13) — 241 params. Its 12 tanh units were learning
-the same conjunctions the 171 product terms now state outright.*
+*The superseded heads, for the record:*
+- *`lr18+pairwise` (round 8): 189 basis terms + intercept = 190 params, 324
+  MACs at the 24-feature width, convex, one global optimum. It ships no more
+  because it lost its own gate at 0.9208 vs 0.9259 — 324 pairwise products on
+  133 k train rows overfit where 189 did not.*
+- *`TinyMLP 18→12→1` (round 7): `h = tanh(W1·x + b1)` with W1 12×18 + b1 (228)
+  and `z = w2·h + b2` (13) — **241 params, 228 multiply-accumulates plus 12
+  tanh** per tick. (An earlier version of this document said "~450"; it was
+  wrong, and the GLM that replaced it was never as much cheaper as that number
+  implied. All three heads are sub-microsecond-to-few-microsecond per tick and
+  the cost argument between them was never the deciding one — it decides only
+  against the 14 899-parameter temporal CNN at 301 µs/tick.)*
 
-- The two added features over the winner's 16 are **title-churn** (in-browser tab flicking via FNV-1a title hashes) — the real signal judges flagged the winner for skipping, captured without ever storing a title string.
-- Calibration is a real, separate, **visible** step (grafted from P1): the internals panel prints `logit z = +0.48 → σ(a·z+b), a=1.31 b=−0.22 → risk 0.62`. ECE reported in eval.
-- Forward pass ≈ 360 multiply-adds *(amended: no tanh calls at all; one `exp` for the Platt sigmoid)*; occlusion is a 19-term delta per feature rather than a full re-forward, so the whole tick is still ≪ 0.1 ms. tfjs stays where it is (Desk AI).
-- ~~Why not LR: kept as baseline + last-resort fallback (§11); the MLP must beat it by the CI gate or it doesn't ship.~~ *Amended: the MLP did not beat it, so LR ships and the gate is anchored to it.* Why not a GRU: the windowed features encode time already — though a causal 1-D CNN over the raw 1 Hz stream (bake-off contender `temporal`) scored 0.9340 with ZERO hand-engineered features, above the MLP, which says the aggregates destroy real signal. Recorded as the open question, not shipped: 14 803 params and 330 µs/tick for +0.0064 at p 0.24.
+- The two added features over the winner's 16 are **title-churn** (in-browser tab flicking via FNV-1a title hashes) — the real signal judges flagged the winner for skipping, captured without ever storing a title string. Six more (§1.3 trend block) were appended in round 9.
+- Calibration is a real, separate, **visible** step (grafted from P1): the internals panel prints `logit z = +0.48 → σ(a·z+b), a=2.09 b=−5.80 → risk 0.62`. ECE reported in eval.
+- Forward pass = 900 multiply-accumulates + 36 tanh + one `exp` for the Platt
+  sigmoid. Occlusion attribution re-uses the cached hidden pre-activations and
+  shifts each by `W1_jf·(m_f − x_f)`, so all 24 attributions cost 864 MACs and
+  864 tanh rather than 24 full forward passes — the whole tick is ≪ 0.1 ms.
+  tfjs stays where it is (Desk AI).
+- ~~Why not LR: kept as baseline + last-resort fallback (§11); the MLP must beat it by the CI gate or it doesn't ship.~~ *Amended twice: the round-7 MLP did not beat it, so LR shipped and the gate was anchored to it (round 8); on a corpus with the power to decide it, a TUNED MLP does beat it by a resolved margin and LR does not clear its own bar, so a hidden layer ships again (round 11).* Why not a GRU: the windowed features encode time already — and a causal 1-D CNN over the raw 1 Hz stream (bake-off contender `temporal`) with ZERO hand-engineered features scored 0.9340 on 48 sessions, above the then-shipped MLP. On 900 sessions its best variants land at 0.9245 and 0.9173, *below* a 25-parameter plain logistic, at 14 899 params and 301 µs/tick. Still recorded as the open question — both corpora come from the same simulator, which is exactly where a raw-stream advantage would be hidden — but the evidence now points away from it.
 
 ### 1.3 Input feature vector (exact, `FORECAST_FEATURE_KEYS` order)
 Computed by `extractFeatures(ring, ts)` in `src/shared/forecast/features.ts` — **the identical pure function runs in the trainer, the simulator's dataset build, and runtime inference** (train/serve skew killed by construction). `focusKind()` / `deskPresence()` are imported from `@shared/policy` — the forecast sees the world exactly as policy does. All encodings land in [0,1]; missing data encodes to defined neutrals, never NaN. `L(x,c) = log1p(x)/log1p(c)` clamped to 1.
@@ -103,10 +128,10 @@ Normalization: per-feature `(x − mean)/scale` learned on the train split, ship
 Each inference produces a `ForecastSnapshot` (exact type in the Contracts appendix):
 - `rawRisk` = calibrated σ(a·z+b); `risk` = EMA-smoothed (α = 0.5 per 1 Hz tick) for a stable needle; `logit` = z for the calibration readout.
 - `features[18]`: per feature `raw` (human units), `value` (encoded), and `attribution` — occlusion delta `risk(x) − risk(x with feature i at its training mean)`. 18 extra forward passes/s — free. Signed; labeled "contribution estimate" in the panel tooltip (occlusion deltas don't sum to the logit — say so).
-- `hidden[18]` *(amended)*: `tanh` of each feature's summed basis-term contribution — the GLM's term-group strip. Product terms count toward BOTH of their features, so these do not sum to the logit; the panel labels them as an activation strip, not a decomposition.
+- `hidden[36]` *(amended twice)*: the shipped net's hidden-layer activations, `tanh` of each unit's pre-activation. The contract is "a `number[]` of whatever length the architecture has" and the UI reads its length — it was 12 anonymous units (round 7), then 18 named term groups (round 8), and is now 36 anonymous units again. The panel labels them positionally (`h01`…) and says they are a learned basis, because they are; the NAMED signed numbers are the occlusion bars beside the strip.
 - `band`: `"calm" | "elevated" | "prearm"` per §5 thresholds; `prearmedAt`, `effectiveFuseSec`, `baseFuseSec` so the UI can render the 10s→5s chip from data, not guesswork.
 - `ready`: false until ≥ 15 real seconds after session start (meter renders "warming up · n/15 s"). The ring is **empty at session start** — monitors do not run between sessions.
-- `modelVersion`, `paramCount` (190): on-screen provenance.
+- `modelVersion`, `paramCount` (937 — every float the forward pass reads, standardizer folded in): on-screen provenance.
 
 ### 1.5 Inference cadence — no new timers
 The forecast is ticked by the controller's existing evaluate loop: `ForecastHook.beforeStep(now, baseCountdownSec)` is called once per `evaluateOnce()` (the 250 ms session ticker, plus every monitor-snapshot-triggered evaluate). The monitor closes one telemetry frame per wall second of the injected clock and runs inference on frame close (1 Hz); a `focusKind` change additionally forces an immediate recompute (rate-capped 4 Hz) — since every focus snapshot already enqueues an evaluate, the needle moves within ≤ 250 ms of an alt-tab with zero timers of our own. Everything is synchronous, sub-millisecond, try/caught, and can never delay `PolicyEngine.step` or a kill.
@@ -179,6 +204,9 @@ scripts/forecast/
   adaption.ts        Adaption Labs client: upload / augment / invent / run / status / evaluation / download
   augment-local.ts   offline fallback augmentation (identical schema, source "augmented:local")
   linear.ts          L-BFGS + weighted-L2 logistic + robust Platt (shared by train + eval)   [round 8]
+  mlp.ts             forward/backward + Adam + gradient check, promoted from the winner     [round 11]
+  pairwise.ts        the round-8 GLM basis, moved out of the shared core when it stopped     [round 11]
+                     shipping — research scripts still fit it
   train.ts           GLM lr18+pairwise → src/shared/forecast/weights.json (+ golden fixture)
   eval.ts            held-out metrics, baselines, ablations, alarm simulation, CI gate → src/shared/forecast/eval-report.json
   adjudicate.ts      independent re-scoring + paired session-clustered bootstrap            [round 8]
@@ -198,7 +226,7 @@ Archetypes (CLI-weighted; defaults):
 - **research_churn** (15 %, grafted from P2) — **heavy switching + title churn entirely inside the allowlist, no drift**. The anti-if-else archetype: it forces the model to learn interactions and single-handedly kills any "switching = risk" threshold.
 - **steady_then_snap** (10 %) — near-zero-warning drifts; keeps recall < 100 % and lead-time claims honest.
 
-Levers: `--sessions --seed`, per-archetype weights, hazard scale, dwell jitter, desk-noise σ, grey vocabulary size, sensor-dropout probability, webcam-off spans. Default: 240 sessions ≈ 536 k raw frames ≈ 133 k train frames — ~3 min to train at 190 params (the λ path over a 189-column design, plus 3 cross-fit folds for the operating point).
+Levers: `--sessions --seed`, per-archetype weights, hazard scale, dwell jitter, desk-noise σ, grey vocabulary size, sensor-dropout probability, webcam-off spans. Default: 240 sessions ≈ 536 k raw frames ≈ 133 k train frames — ~40 s to train at 937 params (3 cross-validation folds, ≤ 60 epochs each with early stopping, plus the two-stage operating-point search over the same folds). The EVAL corpus is separate and larger: 900 sessions from a disjoint seed namespace, `npm run forecast:evalset`.
 
 ### 4.3 Adaption Labs (sponsor) + offline fallback + provenance
 `adaption.ts` reads `ADAPTION_API_KEY` only — never a generic `API_KEY`, which would leak an unrelated credential to a third party; base `https://api.prod.adaptionlabs.ai/api/v1`, `Authorization: Bearer`. Row mapping: `prompt` = compact deterministic JSON of the frame's `raw` stats + context; `completion` = `"DRIFT" | "STAY"`.
@@ -218,10 +246,10 @@ L-BFGS (m = 10, Armijo backtracking) on the convex weighted-BCE + L2 objective, 
 - Frame metrics: ROC-AUC, PR-AUC (base rate beside it), 10-bin ECE + reliability table.
 - **AUC@lead≥20s** (grafted from P1, the anti-fraud headline): computed over eligible eval frames with `secs_to_drift` null or > 20 — positives are only frames 20–30 s before onset. Also reported at ≥ 10 s. This proves the model sees drifts *coming*.
 - **Alarm simulation** (deployment-faithful): replay held-out sessions through the *shipped* escalation reducer at the *shipped* default thresholds; per drift, hit (pre-arm active at onset or fired within the prior 30 s) + lead time; per session, false pre-arms/hour. Report recall@30s, median + p25 lead, FA/hr.
-- **Baselines, one table**: base-rate; the if-else strawman (3-rule heuristic); single-feature logistic on `switch15`; grey-dwell heuristic; full 18-feature logistic; the MLP. Per-archetype slices (research_churn and steady_then_snap called out).
+- **Baselines, one table**: base-rate; the if-else strawman (3-rule heuristic); every single-feature logistic (best chosen adversarially by the gate metric); grey-dwell heuristic; the plain 18-feature level-block logistic; the full 24-feature logistic in two fits; the shipped head. Per-archetype slices (research_churn and steady_then_snap called out). Plus the 17-model bake-off table with paired CIs, embedded non-gating.
 - **Per-feature occlusion ablation** on eval — doubles as proof the UI attributions mean something.
-- **CI gate** (grafted from P2, softened against the 3 a.m. brick; **amended round 8**): exit nonzero unless shipped-head lead≥20s AUC ≥ FULL-18-feature-logistic lead≥20s AUC on eval (required margin 0 — the paired session-clustered SE here is ≈ 0.009, so no positive margin is measurable). The single-feature number is still printed as context. `--gate=off` bypasses but stamps `"gate":{"enforced":false}` into the committed report — the claim can be skipped, never faked. eval.ts also asserts `weights.thresholds` matches the `DEFAULT_SETTINGS` forecast keys (operating-point parity guard).
-- Target line, filled with real numbers and the provenance caveat printed with it *(amended to what actually shipped)*: *"Held-out sessions: ROC-AUC 0.9659, AUC@lead≥20s 0.9423, 83 % of drifts get a warning with median 18 s of lead on the ones we pre-arm, 0.59 false pre-arms/hour against a budget of two — versus 0.9355 for a full logistic regression and 0.7734 for the best single-signal heuristic. Trained on simulated + locally-augmented archetypes per the provenance block."* Same-seed rerun ⇒ byte-identical report.
+- **CI gate** (grafted from P2, softened against the 3 a.m. brick; **amended rounds 8 and 11**): exit nonzero unless shipped-head lead≥20s AUC ≥ the plain FULL-feature logistic's lead≥20s AUC on eval, on the same basis the head sees (required margin 0 — the bar is "must not be beaten", and round 8 could not have demanded more because no positive margin was measurable on 48 sessions). The report now also carries the MEASURED bootstrap interval of that margin: +0.0071 [+0.0035, +0.0107]. The single-feature number and the plain 18-feature number are printed as context, never as the gate. `--gate=off` bypasses but stamps `"gate":{"enforced":false}` into the committed report — the claim can be skipped, never faked. eval.ts also asserts `weights.thresholds` matches the `DEFAULT_SETTINGS` forecast keys (operating-point parity guard).
+- Target line, filled with real numbers and the provenance caveat printed with it *(amended to what actually shipped)*: *"900 held-out sessions, 1 230 drift onsets: ROC-AUC 0.9510, AUC@lead≥20s 0.9330, 71 % of drifts get a warning and 57 % get the fuse shortened, median 16 s of lead on those, 0.42 false pre-arms/hour against a budget of two — versus 0.9259 for a full logistic regression on the same features (margin +0.0071, 95 % CI [+0.0035, +0.0107]) and 0.7850 for the best single-signal heuristic. Trained on simulated + locally-augmented archetypes per the provenance block."* Same-seed rerun ⇒ byte-identical report.
 
 ---
 
@@ -232,8 +260,8 @@ L-BFGS (m = 10, Armijo backtracking) on the convex weighted-BCE + L2 objective, 
 
 ### 5.2 Escalation reducer (`src/shared/forecast/escalate.ts`, pure — `stepPolicy` style)
 `stepEscalation(state, input: { ts, risk, ready, decision, countdownActive, policySignal, settings }) → { state, events: ForecastEvent[] }`. Exact rules (all constants exported for tests; thresholds from settings, defaults below):
-- **NUDGE**: smoothed risk ≥ `forecastNudgeRisk` (0.55) for 3 consecutive 1 Hz ticks; `ready`; decision ∈ {ON_TASK, IDLE}; no active countdown; ≥ 30 s since last nudge/clear → `forecast_nudge` (carries top-3 attribution keys for toast copy).
-- **PRE-ARM**: smoothed risk ≥ `forecastPrearmRisk` (0.80) for 2 ticks, same gating, `forecastPrearmEnabled` → `forecast_prearm { fuseSec }`; state records `prearmedAt`.
+- **NUDGE**: smoothed risk ≥ `forecastNudgeRisk` (**0.50**, re-derived — §1.2 box) for 3 consecutive 1 Hz ticks; `ready`; decision ∈ {ON_TASK, IDLE}; no active countdown; ≥ 30 s since last nudge/clear → `forecast_nudge` (carries top-3 attribution keys for toast copy).
+- **PRE-ARM**: smoothed risk ≥ `forecastPrearmRisk` (**0.65**, re-derived — §1.2 box) for 2 ticks, same gating, `forecastPrearmEnabled` → `forecast_prearm { fuseSec }`; state records `prearmedAt`.
 - **CLEAR**: smoothed risk < `forecastNudgeRisk − 0.10` for 5 ticks from any escalated state → `forecast_clear { wasPrearmed }`. A pre-arm that clears without a drift logs `pre-arm stood down · unconfirmed` — **false alarms are as visible as hits**.
 - **RECEIPT** (the unanimous steal): on drift onset (decision entering DISTRACTED/AWAY from non-drifted): pre-armed → `forecast_hit { leadSec: ts − prearmedAt }`; not pre-armed → `forecast_miss`. Both logged, both rendered.
 - Session start/stop resets. Drifted decision or active countdown ⇒ escalation suppressed (policy owns the moment).
@@ -256,7 +284,7 @@ Every monitor entry point try/caught; first error ⇒ `off` for the session, bas
 New renderer feature dir `src/renderer/src/features/forecast/`. Follow the dataviz skill when building the meter/sparkline (tokened colors, light/dark safe).
 
 **Placement (merged):**
-1. **Fourth sensor card** (grafted from P2): `forecastSensorCard(snapshot): SensorCardView` in `features/forecast/model.ts` (imports the `SensorCardView` type from `features/session/model`), added to the card list SessionPage passes to `SensorRail` — Foreground · Desk AI · **Forecast** · Plugs. LED tone: ok = calm, warn = elevated, danger = prearm; title `risk 34%`; body = top driver sentence; meta `190-param logistic · on-device` *(amended)*.
+1. **Fourth sensor card** (grafted from P2): `forecastSensorCard(snapshot): SensorCardView` in `features/forecast/model.ts` (imports the `SensorCardView` type from `features/session/model`), added to the card list SessionPage passes to `SensorRail` — Foreground · Desk AI · **Forecast** · Plugs. LED tone: ok = calm, warn = elevated, danger = prearm; title `risk 34%`; body = top driver sentence; meta `937-param net · on-device` *(amended twice)*.
 2. **`ForecastPanel`** — full width between the DecisionHero/clock grid and the SensorRail (Decision is the verdict; Forecast is the co-star predicting the next verdict).
 
 **Left — `RiskMeter.tsx`:** 180° arc gauge, needle on smoothed risk, big percentage, caption "drift risk · next 30 s". Threshold ticks at the *live settings values*, labeled **nudge** and **pre-arm**, so the judge watches the needle approach a consequence. Bands slate → amber → red. Under the arc: 60 s risk sparkline with nudge ▲ / pre-arm ◆ / drift ✖ markers. Warm-up renders the needle ghosted with "warming up · n/15 s".
@@ -264,9 +292,9 @@ New renderer feature dir `src/renderer/src/features/forecast/`. Follow the datav
 **Right — `InternalsPanel.tsx` (watch-it-think):**
 - **Why now**: top-5 signed attribution bars, live, plain language from a `copy.ts` key→phrase map — `▲ +0.21 Fast window switching (6 in 15 s)` · `▲ +0.12 Loitering on Spotify (18 s)` · `▲ +0.09 Tab flicking (9 flips in 30 s)` · `▼ −0.14 Solid desk presence (96 %)`. Red pushes up, teal holds down; bars reshuffle as the presenter alt-tabs. (Copy uses the live in-memory process name; nothing hashed on screen.)
 - **Calibration readout**, monospace (grafted from P1): `logit +0.48 → σ(a·z+b) a=1.31 b=−0.22 → risk 0.62`.
-- **Term-group strip** *(amended)*: 18 cells tinted by `tanh` of each feature's summed basis-term contribution, labeled "term groups". Better than the MLP's version, not worse — every cell now has a name.
+- **Hidden-layer strip** *(amended twice)*: 36 cells tinted by `tanh` of each hidden unit's pre-activation, labeled "Hidden layer · tanh" and positionally named `h01`…`h36`. Round 8 briefly made this strip one NAMED cell per feature, which was genuinely better; round 11 gave the head a real hidden layer back, so the panel says what it actually computes — anonymous learned units, read as a pattern — rather than keeping a label it no longer earns. The named, signed per-feature numbers live in the occlusion bars beside it, which are exact.
 - **Receipt line**: "✔ called it 18 s early" / "✘ missed — no warning" / "◌ pre-arm stood down · unconfirmed".
-- **Model card footer** (always visible; fed from imported `weights.json` + `eval-report.json`): `Logistic 18→189 terms→1 · 190 params · 3 KB · on-device · 1 Hz · v ff-1 · held-out AUC 0.97 / lead≥20s 0.94 · ECE 0.007 · data: synthetic + local-aug (Adaption: offline-fallback 403)` *(amended)*.
+- **Model card footer** (always visible; fed from imported `weights.json` + `eval-report.json`): `MLP 24→36→1 tanh · 937 params · 15 KB · on-device · 1 Hz · v ff-1 · held-out AUC 0.95 / lead≥20 s 0.93 · ECE 0.004 · data: synthetic + local-aug (Adaption: offline-fallback 403)` *(amended twice)*.
 
 **Escalation surfaces:** `NudgeToast.tsx` (auto-dismiss 8 s, z-index below `CountdownOverlay` — the kill overlay is never obstructed): "Heads up — this matches your pre-tab-out pattern. 6 window switches in 15 s." `SessionClock` fuse plate: amber `pre-armed · forecast` treatment + `10s → 5s` chip (className + one prop). `CountdownOverlay`: optional `forecastLeadSec` prop → one line. **Timeline threading** (grafted from P2): add `"forecast"` to `PREVIEW_KINDS` and a `kind === "forecast" → "cause"` branch in `classifySessionEvent` so nudge → pre-arm → distracted → kill → hit reads as one causal story in the existing cause→countdown→consequence→recovery narrative.
 
@@ -328,20 +356,20 @@ See the **Contracts appendix** (returned alongside this doc) for the exact TypeS
 
 ## 10. Demo beat (< 90 s, scripted)
 Setup: fuse 10 s, strict on, webcam on, Discord in background, ForecastPanel open, eval card showing held-out numbers.
-- **0:00** — "Everything runs on this laptop — the model is 190 parameters, right there in the footer, and it is a logistic regression: we ran five model families against it and none of them beat it by anything this evaluation can measure." Start session in VS Code. ON_TASK, meter ~8 %, teal bars: *solid desk presence*, *on-task streak* holding risk down.
+- **0:00** — "Everything runs on this laptop — 937 parameters, right there in the footer. We ran eight model families against a plain logistic regression twice: the first time on 48 held-out sessions, where nothing separated and we shipped the logistic and said so; the second time on 900, where it separates and the logistic loses its own build gate." Start session in VS Code. ON_TASK, meter ~8 %, teal bars: *solid desk presence*, *on-task streak* holding risk down.
 - **0:12** — Drift like a real student: Spotify, back, Chrome tabs, Spotify… Needle 8 → 45 %. Red bars overtake: *fast window switching*, *tab flicking*, *grey-app loiter*. "It's not reacting to Discord — Discord hasn't happened. It's reading the pattern that precedes it."
-- **0:25** — Sustained ≥ 0.55 → **NUDGE** toast + amber glow + log. **Comply**: stay in VS Code. Risk visibly decays to ~30 %. *This is the learning-state change, inside 30 seconds — the student pulled back with zero enforcement.*
-- **0:40** — Ignore it: resume flicking, faster. 0.80 → **PRE-ARM**: plate reads *PRE-ARMED · forecast*, fuse chip flips **10s → 5s** red. Point at the hidden-unit strip and the calibration readout: "you're watching the network think, and the calibration that makes 0.83 mean 83 %."
+- **0:25** — Sustained ≥ 0.50 → **NUDGE** toast + amber glow + log. **Comply**: stay in VS Code. Risk visibly decays to ~30 %. *This is the learning-state change, inside 30 seconds — the student pulled back with zero enforcement.*
+- **0:40** — Ignore it: resume flicking, faster. Past the pre-arm line (0.65) → **PRE-ARM**: plate reads *PRE-ARMED · forecast*, fuse chip flips **10s → 5s** red. Point at the hidden-layer strip and the calibration readout: "you're watching the network think, and the calibration that makes 0.83 mean 83 %. Both thresholds on that dial were searched on cross-fitted training sessions under a stated alarm budget, not picked by hand."
 - **0:52** — *Now* open Discord. The unchanged deterministic policy classifies the violation and the countdown starts — **at 5 seconds**, because the fuse was pre-armed. Overlay carries the receipt: **"Forecast pre-armed 16 s before this fuse."**
 - **0:58** — Discord dies (existing kill path — say so out loud). Timeline reads the causal story: nudge → pre-arm → distracted → kill → `hit · called 16 s early`.
-- **1:05–1:25** *(amended to the real numbers)* — Close on the model card: "Held-out: ROC-AUC 0.97, lead-restricted AUC 0.94 — it scores frames twenty-plus seconds out, so it isn't just recognizing the last moment. 83 % of drifts get a warning, median 18 s of lead on the ones it pre-arms, 0.6 false pre-arms an hour against a budget of two — and when it misses or cries wolf, it prints that too. The build fails if this model can't beat a full logistic regression; the model that shipped last week couldn't. Provenance says exactly what was synthetic and that the sponsor pipeline is one flag away."
+- **1:05–1:25** *(amended to the real numbers)* — Close on the model card: "900 held-out sessions, 1 230 drifts: ROC-AUC 0.95, lead-restricted AUC 0.93 — it scores frames twenty-plus seconds out, so it isn't just recognizing the last moment. 71 % of drifts get a warning, 57 % get the fuse actually shortened with a median 16 s of lead, 0.4 false pre-arms an hour against a budget of two — and when it misses or cries wolf, it prints that too. The build fails if this model can't beat a full logistic regression on the same features; the model that shipped last week couldn't, which is why it isn't here. Provenance says exactly what was synthetic and that the sponsor pipeline is one flag away."
 Fallback: `forecast:preview` browser replay of the same beat, or the mock-api replay in the console. Thresholds are live settings — tune in rehearsal, no rebuild.
 
 ---
 
 ## 11. Risks + cut lines
 **Risks & mitigations**
-- *Trivial proxy ("any switching/grey ⇒ drift")*: research_churn + grinder + steady_then_snap archetypes; CI baseline gate (now the full logistic); ablation table; per-archetype slices published; and the whole five-family bake-off table published as a non-gating artifact.
+- *Trivial proxy ("any switching/grey ⇒ drift")*: research_churn + grinder + steady_then_snap archetypes; CI baseline gate (now the full logistic on the shipped basis, with a measured CI); ablation table; per-archetype slices published; and the whole 17-model bake-off table — eight families at two feature bases, losers and all — published as a non-gating artifact.
 - *Detection masquerading as prediction*: eligibility censoring + AUC@lead≥20s headline.
 - *Train/serve skew*: one shared `extractFeatures`; golden-fixture parity at 1e-6.
 - *Fuse-shortening feels risky*: bounded [3, countdownSec], never lengthens, latch tested, kill still needs a real violation, `forecastPrearmEnabled=false` is a one-key nudge-only mode, disabled==golden-path test.
@@ -350,7 +378,7 @@ Fallback: `forecast:preview` browser replay of the same beat, or the mock-api re
 - *CI gate bricks the night*: `--gate=off` escape that stamps the bypass into the committed report.
 - *Stage nerves*: thresholds are live settings; replay fallbacks; rehearse burst_switcher.
 
-**Cut lines, in order (each leaves a coherent demo):** 1) web preview page (Electron carries it; interactive buttons go first); 2) live Adaption client (keep mapping + provenance + `--adaption` stub recording the attempt); 3) fun-plug blink; 4) Settings-page group (keys still work via `settingsSet` from devtools — `requirePatch`/`normalizeSettings` support stays); 5) hidden-unit strip (attributions are the legibility core, keep them); 6) recorder; 7) fourth sensor card (panel carries the feature); 8) **pre-arm policy effect** — flip `forecastPrearmEnabled` default to false, nudge-only, zero enforcement risk (receipt then reads "forecast flagged this N s early"); 9) ~~**last-resort model downgrade**: MLP → logistic regression on the same 18 features~~ — *taken, and not as a downgrade: the bake-off found the logistic family wins on the gate's own metric. The remaining cut below it is the pairwise basis: dropping to the plain 19-parameter logistic costs 0.0068 of lead-censored AUC and 0.148 of PR-AUC, and still beats the MLP that shipped before it.*
+**Cut lines, in order (each leaves a coherent demo):** 1) web preview page (Electron carries it; interactive buttons go first); 2) live Adaption client (keep mapping + provenance + `--adaption` stub recording the attempt); 3) fun-plug blink; 4) Settings-page group (keys still work via `settingsSet` from devtools — `requirePatch`/`normalizeSettings` support stays); 5) hidden-unit strip (attributions are the legibility core, keep them); 6) recorder; 7) fourth sensor card (panel carries the feature); 8) **pre-arm policy effect** — flip `forecastPrearmEnabled` default to false, nudge-only, zero enforcement risk (receipt then reads "forecast flagged this N s early"); 9) ~~**last-resort model downgrade**: MLP → logistic regression on the same features~~ — *taken in round 8 and un-taken in round 11: on 48 sessions the logistic family won the gate's own metric, on 900 it loses it. The cut is still available and still cheap — the plain 25-parameter logistic scores 0.9249 against the shipped 0.9330, and the 313-parameter `mlp24-12-1` scores 0.9288 at 1.2 µs/tick with the best pre-arm recall in the field (0.5919). Either is a coherent product; neither clears the gate by a resolved margin.*
 
 **Never cut:** the shared pure core; held-out eval with baselines + AUC@lead≥20s; the meter + attribution bars; the receipt; the non-interference test; the disabled==golden-path test; the latch test; `check:contracts` green.
 

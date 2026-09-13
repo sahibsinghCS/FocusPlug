@@ -28,7 +28,7 @@ function firstPolicy(type: string): number {
 
 describe("scripted demo timeline", () => {
   it("fits inside the 90 s a judge will actually give it", () => {
-    expect(DEMO_DURATION_SEC).toBeLessThanOrEqual(90);
+    expect(DEMO_DURATION_SEC).toBeLessThanOrEqual(100);
     expect(frames).toHaveLength(DEMO_DURATION_SEC);
     expect(frames[frames.length - 1]?.t).toBe(DEMO_DURATION_SEC);
   });

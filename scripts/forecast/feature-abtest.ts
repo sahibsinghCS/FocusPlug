@@ -1,7 +1,7 @@
 import { execSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { expandBasis } from "../../src/shared/forecast/model";
+import { expandBasis } from "./pairwise";
 import { forward, parseForecastWeights } from "../../src/shared/forecast/model";
 import { FORECAST_FEATURE_KEYS } from "../../src/shared/forecast/types";
 import { pairedClusterBootstrap, type BootstrapModel } from "./bootstrap";
@@ -32,7 +32,8 @@ import {
  *
  * The baseline head is read straight out of git (`git show
  * <ref>:src/shared/forecast/weights.json`), so "before" is a commit, not a
- * remembered number. Its feature vector is the first `featureKeys.length`
+ * remembered number — `BASELINE_REF` below, the artifact that shipped
+ * immediately before the trend block. Its feature vector is the first `featureKeys.length`
  * columns of each dataset row: the feature list is append-only and
  * `make-fixtures.ts` re-verifies every pre-existing column bit-for-bit, so the
  * old head sees exactly the inputs it was fitted on.
@@ -47,6 +48,16 @@ import {
 
 const LEAD_SEC = 20;
 
+/**
+ * The "before" artifact: the commit that shipped `lr18+pairwise`, immediately
+ * before the trend block landed. Frozen as a historical FACT rather than
+ * defaulted to `HEAD`, for the same reason `lib.ALARM_BUDGET_REFERENCE_NUDGE_RISK`
+ * is frozen — once this change is committed, `HEAD` is the AFTER model and the
+ * script would cheerfully report a difference of zero against itself.
+ * Override with `--baseline-ref` to compare against anything else.
+ */
+const BASELINE_REF = "40f93b7";
+
 interface Config {
   data: string;
   out: string;
@@ -59,7 +70,7 @@ function readConfig(): Config {
   return {
     data: stringArg("--data", join(forecastDataRoot(), DATASET_FILE)),
     out: stringArg("--out", join(forecastDataRoot(), "feature-abtest.json")),
-    baselineRef: stringArg("--baseline-ref", "HEAD"),
+    baselineRef: stringArg("--baseline-ref", BASELINE_REF),
     draws: Math.max(1, Math.round(numberArg("--draws", 2000))),
     seed: numberArg("--seed", 42),
   };

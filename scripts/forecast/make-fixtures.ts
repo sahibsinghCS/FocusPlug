@@ -2,12 +2,12 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { extractFeatures } from "../../src/shared/forecast/features";
 import {
+  FORECAST_ACTIVATION,
   FORECAST_BASIS,
   FORECAST_BASIS_SHA,
+  FORECAST_HIDDEN_DIM,
   FORECAST_INPUT_DIM,
   FORECAST_PARAM_COUNT,
-  FORECAST_TERMS,
-  FORECAST_TERM_COUNT,
   attributions,
   forward,
   parseForecastWeights,
@@ -18,7 +18,6 @@ import {
   FORECAST_HORIZON_SEC,
   FORECAST_MODEL_VERSION,
   type ForecastFeatureKey,
-  type ForecastTerm,
   type ForecastWeightsFile,
 } from "../../src/shared/forecast/types";
 import type { Decision, DeskSnapshot } from "../../src/shared/types";
@@ -50,12 +49,13 @@ const FIXTURE = join(repoRoot(), "src", "shared", "forecast", "fixtures", "golde
 /** Fixture weight formulas — quoted verbatim in the fixture description. */
 const FIXTURE_MEAN = (k: number): number => k / (2 * FORECAST_INPUT_DIM);
 const FIXTURE_SCALE = 0.5;
-const FIXTURE_INTERCEPT = 0.05;
+const FIXTURE_OUTPUT_BIAS = 0.05;
 const FIXTURE_PLATT = { a: 1.25, b: -0.15 };
-const fixtureCoefficient = (t: number, term: ForecastTerm): number => {
-  const j = term.j === null ? FORECAST_INPUT_DIM - 1 : term.j;
-  return (((7 * t + 3 * term.i + 5 * j) % 11) - 5) / 40;
-};
+/** Hidden row j, column i. A length-11 cycle, so it never degenerates as d grows. */
+const fixtureHiddenWeight = (j: number, i: number): number =>
+  (((7 * j + 3 * i) % 11) - 5) / 20;
+const fixtureHiddenBias = (j: number): number => (((5 * j) % 7) - 3) / 10;
+const fixtureOutputWeight = (j: number): number => (((3 * j) % 9) - 4) / 8;
 /** `mixed` case: a length-11 cycle, so it never degenerates as the width grows. */
 const MIXED = (k: number): number => ((7 * k) % 11) / 10;
 
@@ -131,7 +131,12 @@ function main(): void {
   const golden = JSON.parse(readFileSync(FIXTURE, "utf8")) as Golden;
 
   // --- modelForward ---------------------------------------------------------
-  const coefficients = FORECAST_TERMS.map((term, t) => fixtureCoefficient(t, term));
+  const hiddenWeights: number[] = [];
+  for (let j = 0; j < FORECAST_HIDDEN_DIM; j += 1) {
+    for (let i = 0; i < FORECAST_INPUT_DIM; i += 1) {
+      hiddenWeights.push(fixtureHiddenWeight(j, i));
+    }
+  }
   const weightsFile = {
     version: FORECAST_MODEL_VERSION,
     createdAt: golden.modelForward.weights.createdAt,
@@ -143,8 +148,16 @@ function main(): void {
     },
     basis: FORECAST_BASIS,
     basisSha: FORECAST_BASIS_SHA,
-    coefficients,
-    intercept: FIXTURE_INTERCEPT,
+    layers: {
+      hidden: {
+        weights: hiddenWeights,
+        bias: Array.from({ length: FORECAST_HIDDEN_DIM }, (_, j) => fixtureHiddenBias(j)),
+      },
+      output: {
+        weights: Array.from({ length: FORECAST_HIDDEN_DIM }, (_, j) => fixtureOutputWeight(j)),
+        bias: [FIXTURE_OUTPUT_BIAS],
+      },
+    },
     calibration: { ...FIXTURE_PLATT },
     horizonSec: FORECAST_HORIZON_SEC,
     thresholds: golden.modelForward.weights.thresholds,
@@ -181,18 +194,18 @@ function main(): void {
     return { name: entry.name, encoded, expected };
   });
   golden.modelForward.description =
-    `GLM ${FORECAST_BASIS} forward pass (${FORECAST_TERM_COUNT} basis terms, ` +
-    `${FORECAST_PARAM_COUNT} params). Basis order: the ${FORECAST_INPUT_DIM} linear terms in ` +
-    `FORECAST_FEATURE_KEYS order, then every product x_i*x_j for i<=j in lexicographic order. ` +
-    `Fixture weights: mean[k]=k/${2 * FORECAST_INPUT_DIM}, scale[k]=${FIXTURE_SCALE} (published ` +
-    `dispersion only — the standardizer is folded into the coefficients, so the forward pass uses ` +
-    `neither), coefficients[t]=(((7t+3i+5j')%11)-5)/40 where (i,j) is term t and ` +
-    `j'=${FORECAST_INPUT_DIM - 1} for a linear term, intercept=${FIXTURE_INTERCEPT}, ` +
-    `Platt a=${FIXTURE_PLATT.a} b=${FIXTURE_PLATT.b}. Case encodings: mixed[k]=((7k)%11)/10, ` +
-    `at_norm_mean[k]=mean[k], zeros[k]=0. logit=intercept+sum_t coefficients[t]*t(x); ` +
-    `rawRisk=sigmoid(a*logit+b); hidden[i]=tanh(sum over terms containing feature i of ` +
-    `coefficients[t]*t(x)) — product terms count toward BOTH of their features, so hidden does not ` +
-    `sum to the logit. attribution_i = rawRisk(x) - rawRisk(x with encoded[i] set to mean[i]). ` +
+    `MLP ${FORECAST_BASIS} forward pass (${FORECAST_INPUT_DIM} inputs \u2192 ${FORECAST_HIDDEN_DIM} ` +
+    `${FORECAST_ACTIVATION} units \u2192 1 logit, ${FORECAST_PARAM_COUNT} params). Fixture weights: ` +
+    `mean[k]=k/${2 * FORECAST_INPUT_DIM}, scale[k]=${FIXTURE_SCALE} (published dispersion only \u2014 ` +
+    `the standardizer is folded into the hidden layer, so the forward pass uses neither), ` +
+    `hidden.weights[j*${FORECAST_INPUT_DIM}+i]=(((7j+3i)%11)-5)/20 row-major, ` +
+    `hidden.bias[j]=(((5j)%7)-3)/10, output.weights[j]=(((3j)%9)-4)/8, ` +
+    `output.bias=[${FIXTURE_OUTPUT_BIAS}], Platt a=${FIXTURE_PLATT.a} b=${FIXTURE_PLATT.b}. Case ` +
+    `encodings: mixed[k]=((7k)%11)/10, at_norm_mean[k]=mean[k], zeros[k]=0. ` +
+    `hidden[j]=tanh(hidden.bias[j]+sum_i hidden.weights[j][i]*x_i); ` +
+    `logit=output.bias+sum_j output.weights[j]*hidden[j]; rawRisk=sigmoid(a*logit+b). ` +
+    `attribution_i = rawRisk(x) - rawRisk(x with encoded[i] set to mean[i]) \u2014 a hidden layer ` +
+    `moves EVERY unit, so this is a real occlusion pass, not a per-term sum. ` +
     `Regenerate with scripts/forecast/make-fixtures.ts.`;
 
   // --- features -------------------------------------------------------------
@@ -234,7 +247,7 @@ function main(): void {
 
   writeFileSync(FIXTURE, `${JSON.stringify(golden, null, 2)}\n`, "utf8");
   console.log(
-    `golden.json regenerated: ${FORECAST_INPUT_DIM} features, ${FORECAST_TERM_COUNT} terms, ` +
+    `golden.json regenerated: ${FORECAST_INPUT_DIM} features, ${FORECAST_HIDDEN_DIM} hidden units, ` +
       `${golden.features.scenarios.length} feature scenarios | ${checked} previously-pinned values ` +
       `re-verified unchanged`,
   );

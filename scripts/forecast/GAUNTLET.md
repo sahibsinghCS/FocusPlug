@@ -164,6 +164,19 @@ weights read as sentences — `deskConfMean30*deskConfStd30 −7.42`: *confidenc
 wobble matters only while the desk model is confident you are there* — ties a
 14 803-parameter conv ensemble on the headline metric.
 
+> **CORRECTION (round 11).** This paragraph, and the design doc it was written
+> from, compared the GLM's ~360 multiply-adds against "~450" for the incumbent
+> MLP. The MLP forward is **228 multiply-accumulates plus 12 tanh**, not ~450:
+> `W1` is 12×18 = 216, `b1` 12, `w2` 12, `b2` 1. So the GLM was never cheaper
+> than the head it replaced — it was *dearer* — and the cost argument did not
+> separate them. It never mattered to this round's conclusion, because at
+> 18 features both are well under a microsecond per tick and neither was ever
+> close to the decision. Where cost DOES decide is the temporal CNN: 14 803
+> parameters at 330 µs/tick, three orders of magnitude away, and that part
+> stands. Round 11's measurements on the same machine: plain lr18 0.5 µs,
+> mlp18-12-1 0.8 µs, lr18+pairwise 2.7 µs, lr24+pairwise 4.0 µs, the shipped
+> mlp24-36-1 3.1 µs, temporal-ens24 301 µs.
+
 **The honesty clause fires: no non-linear model beats the strongest
 linear-family result by a margin this eval set can resolve, so the linear model
 ships.**
@@ -475,6 +488,464 @@ Determinism is unchanged and re-verified: two back-to-back `forecast:train`
 runs on the same dataset produce a byte-identical `weights.json`
 (sha-256 `69541cb2…`), and two `forecast:eval` runs a byte-identical
 `eval-report.json` (`42e14d3c…`).
+
+## Round 10 — the bake-off re-run with enough power to decide it
+
+Round 8 scored five model families on 48 held-out sessions, found every
+non-linear margin inside its own interval, and shipped the linear model under
+an explicitly-labelled honesty clause: *"no non-linear model beats the
+strongest linear-family result by a margin this eval set can resolve."* Round 9
+added six trend features on the same 48 sessions and had to write the same
+sentence again (−0.0035, CI [−0.029, +0.016]).
+
+This round re-runs the contest on the 900-session / 1 230-onset power corpus
+(`npm run forecast:evalset`), where the **measured** paired session-clustered SE
+is **0.0032** instead of 0.009 and the smallest 95 %-resolvable lead-AUC
+difference is **0.0064** instead of ~0.018. Both of the previous rounds'
+unresolved questions are now decided, and both answers reverse the record.
+
+```
+npm run forecast:holdout:bakeoff     # the field: refit, scored, bootstrapped
+npm run forecast:eval:holdout        # the shipped head through eval.ts itself
+```
+
+**Protocol.** Every model is REFIT on `split:"train"` rows only, with its own
+already-tuned recipe read off its committed
+`data/forecast/candidates/<name>/metrics.json`; the hyper-parameter SEARCHES are
+not re-run, and everything a recipe must re-derive per basis (λ on the
+warm-started path, an early-stop epoch, a GBDT tree count, a Platt pair, hybrid's
+fusion α) is re-derived on train-internal rows. No hold-out frame enters any fit,
+any early stop, any calibration or any threshold. Every model is scored on ONE
+replay of the corpus through the shared core, and the row/onset counts of that
+replay are asserted equal to `holdout-manifest.json`.
+
+**Two protocol fixes the round-8 table needed.**
+
+1. **ONE hit rule.** The adjudicator caught round 8 mixing a strict rule with a
+   looser "band was elevated at some tick" rule (temporal submitted 0.8718 loose
+   against four contenders' 0.8333 strict). Recall here is always *the shipped
+   `stepEscalation` reducer EMITTED a `forecast_nudge` or `forecast_prearm` event
+   inside (onset − 30 s, onset]*, and the loose rule is printed beside it so the
+   gap is visible (it is worth up to +0.03 on some models).
+2. **One calibrator.** Each contender ships its own copy of the PLAIN Newton
+   Platt, and on a near-separable train-internal calibration slice that copy
+   diverges — the 24-feature plain logistic pinned `a` at −3.9e12 on the first
+   attempt, turning its "calibrated" risk into a step function. All models use
+   the robust Lin–Weng–Keerthi Platt `train.ts` ships. It is monotone increasing,
+   so it moves no AUC; it moves ECE and every threshold-crossing number, and it
+   is what makes one shared operating point mean the same thing for all of them.
+
+### The table (900 sessions · 1 230 onsets · 1 558 493 lead≥20 s frames)
+
+Operating point is the SHIPPED 0.45/0.80, copied from `train.ts` and never
+re-searched here. `research_churn` frame FPR is ≤ 0.0002 for every row.
+
+| model | basis | params | µs/tick | lead≥20s | 95 % CI | recall@30s | pre-arm | ECE | nudges/h |
+|---|---|---|---|---|---|---|---|---|---|
+| **mlp-tuned18** | 18 | 721 | 2.6 | **0.9349** | [0.9252, 0.9445] | 0.7504 | 0.2268 | 0.0054 | 2.87 |
+| **mlp-tuned24** | 24 | 937 | 3.1 | **0.9330** | [0.9226, 0.9431] | 0.7837 | 0.3358 | 0.0038 | 3.11 |
+| trees24 | 24 | 2 115 n | 3.4 | 0.9320 | [0.9221, 0.9412] | **0.8236** | 0.0293 | **0.0012** | 4.02 |
+| hybrid25 | 18+7 | 888 | 2.6 | 0.9313 | [0.9220, 0.9404] | 0.7276 | 0.4406 | 0.0052 | 2.84 |
+| hybrid26 | 24+2 | 921 | 2.6 | 0.9297 | [0.9194, 0.9394] | 0.7553 | 0.5033 | 0.0048 | 3.00 |
+| mlp24-12-1 | 24 | 313 | 1.2 | 0.9288 | [0.9191, 0.9383] | 0.7569 | **0.5919** | 0.0038 | 3.19 |
+| lr18+pairwise *(round 8's pick)* | 18 | 190 | 2.7 | 0.9282 | [0.9187, 0.9377] | 0.7407 | 0.5293 | 0.0065 | 2.98 |
+| mlp18-12-1 *(round 7's incumbent)* | 18 | 241 | 0.8 | 0.9270 | [0.9167, 0.9364] | 0.7805 | 0.5398 | 0.0040 | 3.24 |
+| *lr24 — plain additive logistic* | 24 | 25 | 0.8 | *0.9249* | [0.9141, 0.9351] | 0.6992 | 0.3431 | 0.0043 | 3.05 |
+| temporal-ens24 | 12 ch | 14 899 | 301 | 0.9245 | [0.9144, 0.9345] | 0.7805 | 0.3756 | 0.0019 | 3.32 |
+| trees18 | 18 | 3 011 n | 4.9 | 0.9229 | [0.9118, 0.9333] | 0.8024 | 0.1220 | 0.0017 | 3.94 |
+| temporal-ens18 | 12 ch | 14 803 | 338 | 0.9225 | [0.9121, 0.9327] | 0.7789 | 0.3927 | 0.0020 | 3.52 |
+| *lr18 — plain additive logistic* | 18 | 19 | 0.5 | *0.9222* | [0.9121, 0.9320] | 0.4675 | 0.2016 | 0.0062 | 2.33 |
+| **lr24+pairwise — SHIPS TODAY** | 24 | 325 | 4.0 | **0.9209** | [0.9103, 0.9306] | 0.7472 | 0.5553 | 0.0068 | 2.97 |
+| *shipped `weights.json` verbatim* | 24 | 325 | 5.1 | *0.9208* | [0.9101, 0.9305] | 0.7472 | 0.5569 | 0.0067 | 2.97 |
+| temporal-1net24 | 12 ch | 5 201 | 112 | 0.9173 | [0.9069, 0.9274] | 0.7439 | 0.5065 | 0.0042 | 3.11 |
+| temporal-1net18 | 12 ch | 5 105 | 112 | 0.9139 | [0.9034, 0.9243] | 0.7439 | 0.5406 | 0.0038 | 3.28 |
+
+The refit `lr24+pairwise` (0.9209) and the committed `weights.json` scored
+through the shipped forward pass (0.9208) differ by 0.0001 — the whole refit
+harness reproduces what actually ships. `npm run forecast:eval:holdout`
+independently prints the same 0.9208 / ROC 0.9424 / PR 0.5283 / ECE 0.0067 /
+919 of 1 230 / 2.9666 nudges·h⁻¹ / 0.5572 false pre-arms·h⁻¹.
+
+### Priority 1 — the honesty clause no longer fires
+
+Paired session-clustered bootstrap, 2 000 draws, ONE draw matrix shared by every
+model and every reference (so all of these are the same resamples), cross-checked
+against `scripts/forecast/bootstrap.ts` itself at |Δ| = 0.
+
+| contender | Δ vs plain `lr24` | 95 % CI | p(Δ ≤ 0) | resolved? |
+|---|---|---|---|---|
+| mlp-tuned18 | **+0.0100** | [+0.0052, +0.0148] | 0.000 | **yes** |
+| mlp-tuned24 | **+0.0082** | [+0.0043, +0.0116] | 0.000 | **yes** |
+| trees24 | **+0.0071** | [+0.0013, +0.0128] | 0.010 | **yes** |
+| hybrid25 | **+0.0064** | [+0.0008, +0.0118] | 0.013 | **yes** |
+| hybrid26 | +0.0048 | [−0.0006, +0.0098] | 0.041 | no |
+| lr18+pairwise | +0.0034 | [−0.0018, +0.0083] | 0.114 | no |
+| temporal-ens24 | −0.0003 | [−0.0055, +0.0048] | 0.557 | no |
+| lr24+pairwise *(ships today)* | −0.0040 | [−0.0104, +0.0020] | 0.898 | no |
+| temporal-1net18 | **−0.0110** | [−0.0169, −0.0048] | 0.999 | **yes, worse** |
+
+**Four families now beat a plain logistic regression by a margin this evaluation
+can resolve**, and the tuned+bagged MLP also beats the strongest LINEAR model:
+mlp-tuned18 vs lr18+pairwise **+0.0066 [+0.0025, +0.0108]**, p 0.001;
+mlp-tuned24 vs lr18+pairwise +0.0048 [+0.0005, +0.0095]. Round 8's
+"nothing non-linear beats the strongest linear result" was a statement about 48
+sessions, not about the world. With 18.75× the sessions it is false.
+
+**And the head that ships today fails the repo's own gate on this corpus.**
+`npm run forecast:eval:holdout` exits 1: `lr24+pairwise` 0.9208 against a
+converged plain 24-feature logistic's 0.9259, margin **−0.0051**. The gate is
+working exactly as round 8 designed it to.
+
+### Priority 2 — recall, and the load it is bought with
+
+trees24 posts the best recall@30 s (0.8236, 1 013/1 230) — at **4.02 nudges/h
+against the shipped head's 2.97**, a 35 % louder product, outside the 1.15×
+`ALARM_LOAD_ALLOWANCE` the trainer's own operating-point search enforces. Recall
+bought with volume is the thing that budget exists to refuse.
+
+At a comparable load, **mlp-tuned24 catches 964 of 1 230 onsets (0.7837) at 3.11
+nudges/h with 0.176 false pre-arms/h**, against the shipped head's 919/1 230
+(0.7472) at 2.97 nudges/h with 0.557 false pre-arms/h: **+45 drifts for +5 %
+alarms and a third of the false pre-arms.** The gain is in the two families the
+round-7 log called weak — wanderer 271 → 282 and burst_switcher 335 → 353 —
+while `steady_then_snap` stays 0/101 and `research_churn` stays 0 FPR, both by
+construction.
+
+**Where every non-linear model loses: the pre-arm.** At the *unchanged* 0.80
+line the shipped GLM gets 0.5569 and mlp-tuned24 gets 0.3358. That line was
+derived for the GLM's own risk scale on cross-fitted TRAIN sessions, and this
+round deliberately did NOT re-derive it (searching a threshold on the corpus you
+then read recall off is the contamination this whole exercise refuses). So the
+pre-arm column is a property of where each model's calibrated risk saturates as
+much as of the model — trees24's isotonic calibrator reaches 0.80 so rarely that
+its pre-arm recall is 0.0293, which would kill the fuse-shortening feature
+outright. **Any swap must re-run `train.ts`'s operating-point search for the new
+head before the pre-arm numbers mean anything.**
+
+### Priority 3 — calibration discriminates nothing
+
+ECE spans 0.0012 (trees24) to 0.0068 (the shipped GLM). Everything is an order
+of magnitude inside anything the design treats as a budget.
+
+### Priority 4 — cost, and this time it does NOT decide it
+
+Round 8's decisive argument was cost: 190 convex parameters against 14 803 and
+330 µs/tick. That argument still kills the temporal CNN — 14 899 params, 301
+µs/tick, **0.9245**, statistically indistinguishable from a 25-parameter plain
+logistic and decisively worse than the strongest linear model. It does not touch
+mlp-tuned24: **937 parameters against the shipped 325, and 3.1 µs/tick against
+the shipped head's 4.0** (the GLM pays 324 basis terms plus its attribution
+strip). It is pure TypeScript, no new runtime dependency, and its three members
+collapse EXACTLY into one 24→36→1 tanh net — the same shape `src/shared/forecast`
+already knows how to serve. 2.9× the parameters, no extra tick cost, ~15 KB.
+
+### The decomposition this round was built to produce
+
+Every family was fitted at BOTH bases, so "features" and "architecture" are
+separately visible for the first time.
+
+| FEATURES: 24-basis − 18-basis, same architecture | Δ lead≥20s |
+|---|---|
+| trees | +0.0091 |
+| temporal-1net | +0.0033 |
+| plain logistic | +0.0027 |
+| temporal-ens | +0.0020 |
+| TinyMLP 12 | +0.0019 |
+| hybrid | −0.0017 |
+| mlp-tuned | −0.0018 |
+| **+pairwise GLM (the shipped head)** | **−0.0074** [−0.0128, −0.0026] |
+
+| ARCHITECTURE: vs the plain additive logistic on the SAME basis | Δ lead≥20s |
+|---|---|
+| mlp-tuned (18) | **+0.0127** [+0.0089, +0.0163] |
+| mlp-tuned (24) | **+0.0082** [+0.0043, +0.0116] |
+| trees (24) | **+0.0071** [+0.0013, +0.0128] |
+| pairwise GLM (18) | **+0.0061** [+0.0013, +0.0108] |
+| TinyMLP 12 (24) | +0.0039 |
+| temporal ensemble (24) | −0.0003 |
+| pairwise GLM (24) | −0.0040 |
+
+**This reverses round 8's "features beat architecture" conclusion.** The six
+trend features move the headline metric by a mean of **+0.0011** across eight
+architectures — indistinguishable from zero at an SE of 0.0032 — while the tuned
+MLP's architectural gain is +0.008…+0.013 with intervals that exclude zero. The
+feature block is not worthless: it is what moved the *pre-arm* (round 9's own
+claim, and lr18+pairwise 0.5293 → lr24+pairwise 0.5553 reproduces here on 1 230
+onsets). But as a RANKING improvement it does not survive contact with a corpus
+that can measure it, and on the shipped pairwise basis it is decisively
+NEGATIVE: 324 terms on 133 k train rows overfit where 189 did not.
+
+Both round 8 and round 9 stated their ablation gains from 48 sessions — 0.9325 →
+0.9408 (+0.0083) for hybrid's ladder, +0.0190 inner-val for the feature block.
+Neither replicates at this size. That is the most useful thing in this file: a
+resolved margin at n = 48 is not a margin.
+
+### What should ship
+
+**`mlp-tuned24` — the tuned, bagged MLP on the shipped 24-feature basis,
+collapsed to one 24→36→1 tanh net (937 parameters).** It is the simplest model
+that both (a) decisively beats a plain logistic regression (+0.0082
+[+0.0043, +0.0116]) and (b) ties the best model in the field within CI
+(mlp-tuned18 +0.0018 [−0.0019, +0.0058]). It beats the head that ships today by
+**+0.0122 [+0.0069, +0.0178]**, catches 45 more drifts at a 5 % higher alarm
+load with a third of the false pre-arms, calibrates better (ECE 0.0038 vs
+0.0068), costs 3.1 µs/tick instead of 4.0, adds no dependency and needs no change
+to the feature extractor.
+
+Rejected, with reasons: trees24 ties it on ranking but buys its recall with a
+35 % louder product and its isotonic calibrator effectively disables the pre-arm;
+hybrid25 ties it but needs two features the extractor does not have and posts the
+worst recall in the tier; mlp-tuned18 ties it but would require un-appending
+`FORECAST_FEATURE_KEYS`, and loses on recall, pre-arm, PR-AUC and ECE;
+mlp24-12-1 is much simpler (313 p, 1.2 µs) and has the best pre-arm recall in the
+whole field, but does NOT clear the primary bar — +0.0039 [−0.0018, +0.0093] over
+plain `lr24` is not resolved; every temporal variant loses.
+
+**Conditions on the swap, and they are not optional.** (1) Re-run `train.ts`'s
+operating-point search on cross-fitted TRAIN sessions for the new head before
+publishing any pre-arm number — at the GLM's own 0.80 line mlp-tuned24 loses
+0.22 of pre-arm recall, and that line was never derived for it. (2) The CI gate
+stays anchored to the strongest plain-24 logistic; mlp-tuned24 passes it by
++0.0082 where the current head fails it by −0.0051. (3) The convexity and the
+readable coefficients are a real loss; the fit is deterministic under the fixed
+seeds but no longer has a unique global optimum, and the provenance block must
+say so.
+
+### Two caveats, stated as loudly as the result
+
+**Same generator.** This corpus is fresh sampling from the same simulator, not
+new recorded data. It removes sampling noise; it does not remove simulator
+misspecification. Worse, GAUNTLET rounds 1–6 tuned that simulator AND the feature
+set with held-out diagnostics, so the world these models are measured in was
+shaped by the same evaluation. It is fresh data for the models, not a fresh
+universe. Round 8's open question — that the raw 1 Hz stream carries signal the
+window aggregates destroy — still needs a real recorded corpus, and this round
+makes its answer *less* likely, not more: the pure sequence net is the worst
+model in the table.
+
+**The pre-arm regression is the reason not to ship this today.** Every model
+that beats the linear head on ranking loses pre-arm recall at the inherited
+threshold. Until the operating point is re-derived, the swap trades a measured
++0.0122 of ranking and +45 nudged drifts against an unmeasured amount of the
+fuse-shortening feature. Re-derive first, then decide.
+
+### Reproducing it
+
+```
+npm run forecast:evalset             # the 900-session corpus (93 s, manifest-verified)
+npm run forecast:holdout:bakeoff     # refit + score + bootstrap the whole field (~40 min)
+npm run forecast:eval:holdout        # the shipped head through eval.ts, gate enforced (exits 1)
+npm run forecast:holdout:bakeoff -- --only=verify-gbdt-copy
+```
+
+Output is `data/forecast/holdout/bakeoff-holdout.json` (gitignored working data,
+like every other corpus artifact); every number in this section is a field of it
+or of `eval-report-holdout.json`. Scores are cached per model under
+`data/forecast/holdout/bakeoff-cache/` so a crash in one family does not throw
+away the others; `--refit` ignores the cache.
+
+Determinism: a from-scratch `--only=linear --refit` in a separate process
+reproduces the first run's lead≥20 s AUC, ROC-AUC, ECE and recall@30 s for all
+four linear models at **|Δ| = 0**. The paired bootstrap is checked against
+`scripts/forecast/bootstrap.ts` itself on 100 draws at **|Δ| = 0** — same PRNG,
+same seed, same resampling order; the fast path only pre-sorts the cluster and
+label vectors alongside the scores so 2 000 draws × 17 models × 1.56 M rows fits
+in minutes instead of hours.
+
+`trees`'s GBDT hard-codes `N_FEATURES = 18` and is a frozen contender, so the
+24-basis fit uses `scripts/forecast/holdout-bakeoff/gbdt-nd.ts` — that file with
+exactly two textual edits (the constant becomes a settable width; one import path
+moves one directory up). `--only=verify-gbdt-copy` re-applies the transform at
+run time and throws on any other difference, so the copy cannot drift from the
+contender it claims to be.
+
+## Round 11 — the MLP ships, the operating point is re-derived (SHIPPED)
+
+Round 10 measured the field on a corpus that could decide it and recommended
+`mlp-tuned24`, **conditional on re-deriving the operating point first**. This
+round does both. It also does the thing the recommendation implied but did not
+say out loud: the 900-session corpus stops being a side experiment and becomes
+**the** evaluation set — `npm run forecast:pipeline` builds it, `npm run
+forecast:eval` scores it, and `src/shared/forecast/eval-report.json` is its
+output.
+
+### What shipped
+
+`mlp24-36-1`: three `24→12→1` tanh members fitted on disjoint cross-validation
+folds, logits standardized on a held-out calibration slice and averaged. That
+affine blend of tanh nets over one shared input standardizer **collapses exactly
+into a single `24→36→1` net**, so the artifact is one dense layer — 937
+parameters, 900 MACs + 36 tanh per tick, ~15 KB, pure TypeScript, no new runtime
+dependency, no change to `extractFeatures`. train.ts asserts the collapse before
+writing:
+
+```
+collapse verified on 5093 train frames: the single mlp24-36-1 net equals the
+3-member ensemble to 1.39e-15 risk, and 8-digit serialization costs a further 2.06e-8
+```
+
+The two claims are checked separately on purpose: the algebra is exact to
+floating-point noise (1e-12 bar), and the JSON rounding is a *separate*,
+bounded, reported cost (1e-6 bar). Conflating them would let a real bug hide
+behind a rounding one — the first version of the check did exactly that and
+failed at 2e-8.
+
+The hyper-parameters are **pinned** from the contender's committed
+`metrics.json`; its 10-stage sweep is not re-run, so nothing is re-selected
+against the corpus the model is then scored on. The fold partition reproduces
+the contender's exactly — 29 calibration sessions / 15 278 rows, fold-val
+55/54/54 sessions, fit rows 73 932 / 71 714 / 70 270 — which is the cheapest
+available check that the promoted recipe is the recipe.
+
+**The leak fix came with it.** The round-7 trainer put jittered and time-warped
+copies of its own validation sessions into its fit set, so every early-stopping
+decision it ever made was read off an optimistic number. Augmented sessions now
+go to their PARENT's fold and are dropped when the parents straddle folds or
+descend from the calibration slice (30 attached, 18 dropped). The lineage is no
+longer re-derived by mirroring the augmenter — `augment-local.ts` records it and
+`build-dataset.ts` writes `data/forecast/augment-parents.json`. A missing
+sidecar drops every augmented session rather than risking the leak: the safe
+failure costs training data, it cannot contaminate a fold.
+
+### The gate, fired in anger
+
+`npm run forecast:eval` on this corpus, against the committed GLM:
+
+```
+GATE FAILED: shipped head lead≥20s AUC 0.9208 must beat the full 24-feature
+logistic (lbfgs-converged, 0.9259) by ≥ 0 — margin -0.0051.
+```
+
+Round 8 built that gate to catch exactly this, and it did. The replacement
+passes with **+0.0071, 95 % CI [+0.0035, +0.0107]**, SE 0.0018, 2 000 draws —
+the first time in this project's history the gate margin has come with an
+interval that excludes zero. The bar stays at 0: a gate should encode the
+promise, not the current comfortable distance from it.
+
+### The operating point, re-derived — and two wrong versions of it first
+
+This is where most of the round went, and the record is more useful than the
+answer.
+
+The condition round 10 attached to its recommendation was real. At the
+inherited 0.45/0.80 the new head's pre-arm recall is **0.3358** against the
+GLM's 0.5569 — not because it is worse at predicting drift, but because 0.80 is
+a cut on *the GLM's* risk scale and this model's calibrated risk saturates
+somewhere else. Shipping without re-deriving would have traded a measured
++0.0122 of ranking for an unmeasured amount of the fuse-shortening feature.
+
+**Attempt 1 — one objective over a joint grid. Wrong, and instructively so.**
+Search (nudge × pre-arm) for max nudge-rule recall@30 s under the alarm-load
+ceiling, tie-broken by pre-arm recall. It selected **0.40 / 0.90**, the worst
+pre-arm line on the entire grid — pre-arm recall **0.116**. The mechanism is
+mechanical, not statistical: raising the pre-arm threshold DELETES pre-arm
+events, which buys headroom under an alarm-load ceiling that counted them,
+which buys a lower nudge threshold. The objective was maximised exactly as
+written and the product would have been ruined.
+
+**Attempt 2 — fix the ceiling, keep one objective. Still wrong.** Counting only
+nudges in the load ceiling (round 8's own definition) removes the loophole, but
+a single scalar still cannot honour two promises: it picked **0.50 / 0.75**,
+pre-arm recall 0.372, because the last increment of nudge recall is always
+worth more to it than any amount of pre-arm.
+
+**Attempt 3 — two stages, each against the budget that governs it.** Shipped.
+
+1. **The nudge line**, pre-arm held at its FROZEN 0.80: max nudge-rule
+   recall@30 s subject to nudges/h ≤ 1.15× the frozen 0.55/0.80 point. Round
+   8's rule, unchanged, so the nudge threshold stays comparable across the whole
+   gauntlet. → **0.50** (2.59 nudges/h against a 2.66 ceiling).
+2. **The pre-arm line**, nudge now fixed: max pre-arm-rule recall@30 s subject
+   to the design's < 2 false pre-arms/hour and a FLOOR on stage 1's nudge
+   recall. → **0.65** (pre-arm recall 0.537 vs 0.281 at 0.80, 0.38 false
+   pre-arms/h against a budget of 2).
+
+The floor is not a fudge factor. An over-eager pre-arm CONSUMES an escalation —
+the reducer latches the band, suppresses further nudges, and a stand-down before
+the onset spends the warning for nothing — which is visible in the grid as nudge
+recall falling 0.703 → 0.682 → 0.674 → 0.641 as the pre-arm line drops 0.80 →
+0.60. The tolerance is one standard error of a recall estimate on the search
+corpus, `sqrt(p(1−p)/242)` = 0.0294: a difference smaller than that is not a
+measurement, anything bigger is a real loss and is refused.
+
+Search corpus: 192 cross-fitted TRAIN sessions, 242 onsets, 98.1 h. A fold-`f`
+session is scored by member `f` — the only member whose fit set excluded it —
+rescaled so its calibration-slice logit spread matches the shipped blend's and
+read through the SHIPPED Platt, because a threshold is a cut on one scale. A
+calibration-slice session is scored by the shipped net, which never trained on
+it. No eval row is opened; no cross-fit model ships.
+
+`DEFAULT_SETTINGS.forecastNudgeRisk` 0.45 → **0.50** and
+`forecastPrearmRisk` 0.80 → **0.65**, moved together with
+`weights.thresholds` so eval.ts's parity assertion holds.
+
+### Shipped numbers — 900 sessions, 1 230 onsets, 464.8 h
+
+| | MLP `mlp24-36-1` (937p) | GLM `lr24+pairwise` (325p) |
+|---|---|---|
+| lead≥20s AUC | **0.9330** | 0.9208 |
+| lead≥10s AUC | **0.9459** | 0.9364 |
+| ROC-AUC | **0.9510** | 0.9424 |
+| PR-AUC (base 0.0233) | **0.6311** | 0.5283 |
+| ECE | **0.0038** | 0.0067 |
+| recall@30s nudge rule | 0.7081 (871/1230) | **0.7472** (919/1230) |
+| recall@30s pre-arm rule | **0.5748** (707/1230) | 0.5569 (685/1230) |
+| median / p25 pre-arm lead | **16 s / 11 s** | 14 s / 9 s |
+| nudges/h · false pre-arms/h | **2.28** · **0.42** | 2.97 · 0.56 |
+| research_churn FPR @ nudge | 0.0000 | 0.0000 |
+| µs/tick | **3.1** | 5.1 |
+| gate margin | **+0.0071 PASS** | −0.0051 **FAIL** |
+
+**What it costs, said plainly.** 48 of 1 230 onsets lose their warning under
+the nudge rule. Two things buy that back and both are measured: the product is
+**23 % quieter** (2.28 vs 2.97 nudges/h), and the pre-arm — the rule that
+actually shortens the fuse — is **better** at **25 % fewer false pre-arms**. At
+the GLM's own louder point (0.45/0.80) this head scores 0.7837 nudge recall at
+3.11 nudges/h (row `mlp-tuned24` of `bake-off-power.json` — the same recipe refit by the bake-off harness, which reproduces the shipped head's lead≥20 s AUC to four decimals), so the recall difference is a threshold choice
+inside a stated budget, not a property of the model.
+
+Per family (pre-arm hits/drifts): away_drifter 336/343, burst_switcher 288/394,
+wanderer 83/385, steady_then_snap 0/101, grinder 0/7, research_churn 0 drifts.
+**Wanderer is still the weak family.**
+
+### What the round did NOT do
+
+- It did not re-run the mlp-tuned hyper-parameter sweep, the trees grid, the
+  hybrid loss probe or the temporal variant choice. Those values are read off
+  committed contender `metrics.json` files and pinned.
+- It did not re-derive the replaced GLM's operating point under the new
+  two-stage rule. The GLM's 0.45/0.80 came from stage 1 alone, because stage 2
+  did not exist when it was selected. So some unknown part of the pre-arm
+  improvement in the table above belongs to the rule rather than the model —
+  the honest comparison is the one stated above at the GLM's own point, where
+  this head trades 0.3358 pre-arm recall for 0.7837 nudge recall.
+- It did not touch the deterministic kill path, `extractFeatures`, the
+  `ForecastSnapshot` contract, or any runtime dependency.
+
+### Reproducing it
+
+```
+npm run forecast:pipeline            # simulate → data → evalset → train → eval
+npm run forecast:eval -- --gate=off  # same run, gate stamped enforced:false
+npm run forecast:holdout:bakeoff     # re-contest the 17-model field (~40 min)
+npm run forecast:bakeoff:publish     # → src/shared/forecast/bake-off-power.json
+```
+
+Every number in this section is a field of `src/shared/forecast/eval-report.json`
+or `src/shared/forecast/bake-off-power.json`, both committed. The
+`forecast:eval:holdout` and `forecast:power` scripts still exist and still work
+— they are now aliases, because the hold-out corpus is no longer a special mode.
+
+### Determinism, re-checked for a non-convex head
+
+The round-8 GLM was convex and L-BFGS deterministic, so reproducibility did not
+depend on shuffle order. This head does: Adam, one dropout-free but shuffled
+pass per epoch, and an early-stopping epoch. It is still byte-reproducible,
+because every source of randomness is `mulberry32(seed)` — the shuffle, the
+initialization and the fold assignment all draw from seeded streams, and the
+early-stop criterion is a deterministic function of the fold. Same seed, same
+dataset → identical `weights.json`. The cost of that guarantee is that changing
+the seed changes the model, which the convex predecessor did not have to say.
 
 ## Adaption Labs round (live, 2026-09-12)
 
