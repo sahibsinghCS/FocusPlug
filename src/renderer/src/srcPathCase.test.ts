@@ -26,10 +26,20 @@ function listSrcFilePaths(srcRoot: string): string[] {
   return files;
 }
 
+/** Script suffixes stripped so we compare import specifiers, not filenames. */
+const SCRIPT_EXT = /\.(?:d\.ts|tsx|ts|jsx|js|mts|cts)$/;
+
+function toImportPath(filePath: string): string {
+  const withoutExt = filePath.replace(SCRIPT_EXT, "");
+  return withoutExt.endsWith("/index")
+    ? withoutExt.slice(0, -"/index".length)
+    : withoutExt;
+}
+
 function groupsThatDifferOnlyByCase(paths: readonly string[]): string[][] {
   const byLower = new Map<string, string[]>();
   for (const path of paths) {
-    const key = path.toLowerCase();
+    const key = toImportPath(path).toLowerCase();
     const group = byLower.get(key);
     if (group) {
       if (!group.includes(path)) {
@@ -40,7 +50,7 @@ function groupsThatDifferOnlyByCase(paths: readonly string[]): string[][] {
     }
   }
   return [...byLower.values()]
-    .filter((group) => group.length > 1)
+    .filter((group) => new Set(group.map(toImportPath)).size > 1)
     .map((group) => [...group].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)));
 }
 
@@ -52,10 +62,10 @@ describe("src/ path case", () => {
     expect(groupsThatDifferOnlyByCase(["a/foo.ts", "a/foo.tsx"])).toEqual([]);
     expect(
       groupsThatDifferOnlyByCase(["flight/routePicker.ts", "flight/RoutePicker.tsx"]),
-    ).toEqual([]);
+    ).toEqual([["flight/RoutePicker.tsx", "flight/routePicker.ts"]]);
   });
 
-  it("has no two file paths that differ only in letter case", () => {
+  it("has no two import paths that differ only in letter case", () => {
     const collisions = groupsThatDifferOnlyByCase(listSrcFilePaths(SRC_ROOT));
     expect(collisions).toEqual([]);
   });
