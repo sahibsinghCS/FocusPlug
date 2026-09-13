@@ -1,10 +1,12 @@
 import { useMemo, type JSX } from "react";
 import { cn } from "../../../lib/cn";
+import { isFaceThumb } from "../thumb";
 import "./growth.css";
 import { poseGrowth, resolveKillCount, resolveProgress } from "./pose";
 import { buildDrawModel, leafPath } from "./svg";
 import { generateGrowthTree } from "./tree";
 import { GROWTH_FACE_TITLE, GROWTH_VIEWBOX, type GrowthFaceProps } from "./types";
+import { thumbGrowthViewBox } from "./view";
 
 export function GrowthFace(props: GrowthFaceProps): JSX.Element {
   if (typeof props.sessionId !== "string" || props.sessionId.length === 0) {
@@ -27,15 +29,17 @@ export function GrowthFace(props: GrowthFaceProps): JSX.Element {
   const { palette } = model;
   const wiltPct = Math.round(posed.view.wilt * 100);
   const grownPct = Math.round(posed.view.progress * 100);
-  const view = zoomedGrowthViewBox(progress);
+  const thumb = isFaceThumb(height);
+  const view = thumb ? thumbGrowthViewBox(posed) : zoomedGrowthViewBox(progress);
   const label = posed.view.killCount > 0
     ? `${GROWTH_FACE_TITLE} bonsai, ${grownPct}% grown, wilted after ${posed.view.killCount} kills`
     : `${GROWTH_FACE_TITLE} bonsai, ${grownPct}% grown`;
 
   return (
     <div
-      className={cn("fp-growth", props.className)}
+      className={cn("fp-growth", thumb && "is-thumb", props.className)}
       data-face="growth"
+      data-thumb={thumb ? "1" : "0"}
       data-session={props.sessionId}
       data-progress={progress}
       data-kills={killCount}

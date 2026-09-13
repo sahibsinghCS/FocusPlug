@@ -3,6 +3,7 @@ import type { FaceProps } from "../instrument";
 import { formatRemain } from "../derive";
 import { useFaceCanvas } from "../useFaceCanvas";
 import { isBurstKind } from "../events";
+import { isFaceThumb } from "../thumb";
 import {
   progressTheta,
   sampleTrace,
@@ -72,16 +73,8 @@ function paintRecord(
   clockMs: number,
 ): void {
   ctx.clearRect(0, 0, w, h);
-  const min = Math.min(w, h);
-  const drum: Drum = {
-    cx: w * 0.46,
-    cy: h * 0.5,
-    rx: min * 0.3,
-    ry: min * 0.1,
-    hh: min * 0.46,
-    top: 0,
-  };
-  drum.top = drum.cy - drum.hh * 0.42;
+  const thumb = isFaceThumb(h);
+  const drum = layoutRecordDrum(w, h);
 
   const r0 = 0.08;
   const r1 = 0.94;
@@ -106,13 +99,13 @@ function paintRecord(
   const stylusWobble = props.freeze || props.paused ? 0 : Math.sin(clockMs / 70) * 1.8;
 
   drawRoom(ctx, w, h);
-  drawBench(ctx, w, h, drum);
-  drawUpright(ctx, drum, -1);
+  drawBench(ctx, w, h, drum, thumb);
+  drawUpright(ctx, drum, -1, thumb);
   drawDrumBody(ctx, drum);
   drawHelixClipped(ctx, drum, points, r0, r1, viewRot, false);
   drawHelixClipped(ctx, drum, points, r0, r1, viewRot, true);
-  drawRims(ctx, drum);
-  drawUpright(ctx, drum, 1);
+  drawRims(ctx, drum, thumb);
+  drawUpright(ctx, drum, 1, thumb);
   drawStylus(
     ctx,
     drum,
@@ -122,8 +115,37 @@ function paintRecord(
     viewRot,
     props.phase === "ended" || props.progress >= 0.999,
     stylusWobble,
+    thumb,
   );
-  drawPlaque(ctx, w, h, props);
+  if (!thumb) {
+    drawPlaque(ctx, w, h, props);
+  }
+}
+
+export function layoutRecordDrum(w: number, h: number): Drum {
+  const min = Math.min(w, h);
+  if (isFaceThumb(h)) {
+    const drum: Drum = {
+      cx: w * 0.5,
+      cy: h * 0.52,
+      rx: min * 0.4,
+      ry: min * 0.15,
+      hh: min * 0.82,
+      top: 0,
+    };
+    drum.top = drum.cy - drum.hh * 0.46;
+    return drum;
+  }
+  const drum: Drum = {
+    cx: w * 0.46,
+    cy: h * 0.5,
+    rx: min * 0.3,
+    ry: min * 0.1,
+    hh: min * 0.46,
+    top: 0,
+  };
+  drum.top = drum.cy - drum.hh * 0.42;
+  return drum;
 }
 
 function paperPoint(
@@ -168,11 +190,17 @@ function drawRoom(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   ctx.restore();
 }
 
-function drawBench(ctx: CanvasRenderingContext2D, w: number, h: number, drum: Drum): void {
+function drawBench(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  drum: Drum,
+  thumb: boolean,
+): void {
   const x = w * 0.07;
-  const y = drum.top + drum.hh + drum.ry + 18;
+  const y = drum.top + drum.hh + drum.ry + (thumb ? 4 : 18);
   const bw = w * 0.86;
-  const bh = h * 0.09;
+  const bh = h * (thumb ? 0.07 : 0.09);
   const wood = ctx.createLinearGradient(x, y, x, y + bh);
   wood.addColorStop(0, "#5a3a24");
   wood.addColorStop(0.4, "#3d2618");
@@ -185,25 +213,32 @@ function drawBench(ctx: CanvasRenderingContext2D, w: number, h: number, drum: Dr
   ctx.fill();
 }
 
-function drawUpright(ctx: CanvasRenderingContext2D, drum: Drum, side: -1 | 1): void {
-  const x = drum.cx + side * (drum.rx + 42) - 22;
-  const y = drum.top - 26;
-  const wood = ctx.createLinearGradient(x, y, x + 44, y);
+function drawUpright(
+  ctx: CanvasRenderingContext2D,
+  drum: Drum,
+  side: -1 | 1,
+  thumb: boolean,
+): void {
+  const postW = thumb ? Math.max(8, drum.rx * 0.28) : 44;
+  const gap = thumb ? drum.rx * 0.2 : 42;
+  const x = drum.cx + side * (drum.rx + gap) - postW / 2;
+  const y = drum.top - (thumb ? 6 : 26);
+  const wood = ctx.createLinearGradient(x, y, x + postW, y);
   wood.addColorStop(0, "#3a2418");
   wood.addColorStop(0.45, "#6a4630");
   wood.addColorStop(1, "#24160e");
   ctx.fillStyle = wood;
-  roundRectFill(ctx, x, y, 44, drum.hh + 66, 6);
+  roundRectFill(ctx, x, y, postW, drum.hh + (thumb ? 16 : 66), thumb ? 3 : 6);
   ctx.fillStyle = BRASS;
   ctx.beginPath();
-  ctx.arc(x + 22, drum.top + 4, 10, 0, Math.PI * 2);
+  ctx.arc(x + postW / 2, drum.top + 4, thumb ? 4 : 10, 0, Math.PI * 2);
   ctx.fill();
   ctx.beginPath();
-  ctx.arc(x + 22, drum.top + drum.hh - 4, 10, 0, Math.PI * 2);
+  ctx.arc(x + postW / 2, drum.top + drum.hh - 4, thumb ? 4 : 10, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = "#1a120c";
   ctx.beginPath();
-  ctx.arc(x + 22, drum.top + 4, 3.4, 0, Math.PI * 2);
+  ctx.arc(x + postW / 2, drum.top + 4, thumb ? 1.4 : 3.4, 0, Math.PI * 2);
   ctx.fill();
 }
 
@@ -308,7 +343,7 @@ function drawHelixClipped(
   ctx.restore();
 }
 
-function drawRims(ctx: CanvasRenderingContext2D, drum: Drum): void {
+function drawRims(ctx: CanvasRenderingContext2D, drum: Drum, thumb = false): void {
   for (const z of [0, 1]) {
     ctx.beginPath();
     for (let i = 0; i <= 72; i += 1) {
@@ -324,10 +359,10 @@ function drawRims(ctx: CanvasRenderingContext2D, drum: Drum): void {
     ctx.fillStyle = z === 1 ? "rgba(196, 146, 46, 0.16)" : "rgba(80, 56, 18, 0.2)";
     ctx.fill();
     ctx.strokeStyle = "#b8862a";
-    ctx.lineWidth = 7;
+    ctx.lineWidth = thumb ? 3.2 : 7;
     ctx.stroke();
     ctx.strokeStyle = "rgba(255, 224, 150, 0.45)";
-    ctx.lineWidth = 1.6;
+    ctx.lineWidth = thumb ? 0.9 : 1.6;
     ctx.stroke();
   }
 }
@@ -341,27 +376,28 @@ function drawStylus(
   viewRot: number,
   lifted: boolean,
   wobble: number,
+  thumb = false,
 ): void {
   const last = points[points.length - 1];
   const z = last ? zFromRadius(last.radius, r0, r1) : 0.55;
   const tip = paperPoint(drum, (last?.theta ?? 0) + viewRot, z);
-  const pivotX = drum.cx + drum.rx + 92;
+  const pivotX = drum.cx + drum.rx + (thumb ? drum.rx * 0.55 : 92);
   const pivotY = drum.top + drum.hh * 0.28;
-  const endY = lifted ? tip.y - 14 : tip.y + 1 + wobble;
+  const endY = lifted ? tip.y - (thumb ? 6 : 14) : tip.y + 1 + wobble;
 
   ctx.beginPath();
   ctx.moveTo(pivotX, pivotY);
   ctx.lineTo(tip.x + 2, endY);
   ctx.strokeStyle = "#c5ccd4";
-  ctx.lineWidth = 6;
+  ctx.lineWidth = thumb ? 3 : 6;
   ctx.lineCap = "round";
   ctx.stroke();
   ctx.strokeStyle = "#8b939c";
-  ctx.lineWidth = 2.2;
+  ctx.lineWidth = thumb ? 1.2 : 2.2;
   ctx.stroke();
 
   ctx.beginPath();
-  ctx.arc(pivotX, pivotY, 14, 0, Math.PI * 2);
+  ctx.arc(pivotX, pivotY, thumb ? 6 : 14, 0, Math.PI * 2);
   ctx.fillStyle = "#9aa3ad";
   ctx.fill();
   ctx.strokeStyle = "rgba(255,255,255,0.25)";
@@ -369,14 +405,14 @@ function drawStylus(
   ctx.stroke();
 
   ctx.beginPath();
-  ctx.arc(pivotX + 22, pivotY + 26, 11, 0, Math.PI * 2);
+  ctx.arc(pivotX + (thumb ? 10 : 22), pivotY + (thumb ? 12 : 26), thumb ? 5 : 11, 0, Math.PI * 2);
   ctx.fillStyle = "#2a3038";
   ctx.fill();
 
   ctx.beginPath();
   ctx.moveTo(tip.x, endY);
-  ctx.lineTo(tip.x + 9, endY - 13);
-  ctx.lineTo(tip.x - 7, endY - 4);
+  ctx.lineTo(tip.x + (thumb ? 4 : 9), endY - (thumb ? 6 : 13));
+  ctx.lineTo(tip.x - (thumb ? 3 : 7), endY - (thumb ? 2 : 4));
   ctx.closePath();
   ctx.fillStyle = INK;
   ctx.fill();

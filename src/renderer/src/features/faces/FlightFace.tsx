@@ -3,6 +3,7 @@ import { useOptionalAppState } from "../../state/AppState";
 import { toFlightClock } from "./flight/clock";
 import { FlightFace as FlightInstrument } from "./flight/FlightFace";
 import { parseFlightPreview } from "./flight/preview";
+import { isFaceThumb } from "./thumb";
 import type { FaceProps } from "./types";
 
 function stillsExtras(): {
@@ -46,7 +47,7 @@ export function FlightFace(props: FaceProps): JSX.Element {
     settings,
     estimateMinutes: extras.estimateMinutes,
   });
-  const thumb = props.height > 0 && props.height < 140;
+  const thumb = isFaceThumb(props.height);
   const compact = props.height > 0 && props.height < 400;
   return (
     <div

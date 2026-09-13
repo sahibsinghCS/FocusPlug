@@ -1,6 +1,7 @@
 import type { FacePhase } from "@shared/faces";
 import { clamp, lerp } from "../canvas";
 import { clamp01 } from "../clock";
+import { isFaceThumb } from "../thumb";
 
 /** Absolute |y| from the neck → inner glass radius. Bulbous, not triangular. */
 const RADIUS_KEYS: readonly { readonly y: number; readonly r: number }[] = [
@@ -214,6 +215,15 @@ export function transferFromProgress(progress: number, phase: FacePhase): Hourgl
 }
 
 export function layoutHourglass(width: number, height: number): HourglassLayout {
+  if (isFaceThumb(height)) {
+    return {
+      cx: width * 0.5,
+      cy: height * 0.5,
+      scale: Math.max(18, height / 2.05),
+      width,
+      height,
+    };
+  }
   const padY = Math.max(14, height * 0.07);
   const padX = Math.max(18, width * 0.06);
   const unitH = 2.42;
