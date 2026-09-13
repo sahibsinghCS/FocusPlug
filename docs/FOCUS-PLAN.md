@@ -1306,12 +1306,43 @@ export interface PlanRevisionCopy {
 
 export const PLAN_LEDGER_VERSION = 1;
 
+/**
+ * Fabricated history, stamped by a seeding tool — today only
+ * `scripts/demo-seed.ts` (`npm run demo:seed`), which writes a plausible
+ * multi-day ledger so the plan card has something to say on a clean machine
+ * while a demo is being filmed.
+ *
+ * The recorder NEVER writes one. Its presence therefore means exactly one
+ * thing: those rounds were WRITTEN, not measured on this machine. That is why
+ * it belongs to the ledger shape rather than to a sidecar file, why
+ * `reviveLedger` keeps it and `appendRound` carries it forward across every
+ * rewrite, and why `PlanRecorder` prints it into the session log — seeded
+ * history must not be able to age quietly into measurement.
+ *
+ * `normalizeSeedStamp` treats ANY present, truthy `seed` as seeded and fills
+ * in house copy for the fields it cannot read: a half-written stamp is still a
+ * disclosure, and the one failure it must never have is dropping the label.
+ */
+export interface PlanSeedStamp {
+  /** The command that wrote it, e.g. "npm run demo:seed". Never empty. */
+  source: string;
+  /** Epoch ms the seed was written, or 0 when the stamp did not say. */
+  writtenAt: number;
+  /** How many of the ledger's rounds were fabricated. */
+  rounds: number;
+  /** Rendered verbatim wherever the notice is shown. Never empty. */
+  note: string;
+}
+
 /** On-disk shape of <userData>/focus-plan.json. */
 export interface FocusPlanLedger {
   v: typeof PLAN_LEDGER_VERSION;
   lifetimeRounds: number;
   /** Oldest first, capped at PLAN_LEDGER_CAP. */
   rounds: PlanRound[];
+  /** Present ONLY on a ledger a seeding tool wrote; absent on every ledger the
+   *  recorder produces, and cleared by PLAN_RESET along with the rounds. */
+  seed?: PlanSeedStamp;
 }
 
 /** PLAN_GET_STATE payload. Closed rounds only — the live round is built
@@ -1582,6 +1613,28 @@ Written atomically through the existing `writeJsonAtomic` in `src/main/store/app
 **Reset** (`PLAN_RESET`) writes `{ "v": 1, "lifetimeRounds": 0, "rounds": [] }`, appends `plan · history cleared (37 rounds)`, and pushes the empty state. It touches neither `adaptive-model.json`, nor `session-log.json`, nor `settings.json`, and the Settings panel says so and names the file path.
 
 **Privacy, structurally:** only numbers, enums, one opaque `roundKey`, and a `"YYYY-MM-DD"` day string. No process name, no window title, no free text. `day` and `hour` are stamped **in main at write time**, so `src/shared/plan/**` never imports `Date` — which is what keeps the pure core environment-agnostic and inside the purity fence.
+
+### 5.1 The seed stamp — fabricated history that cannot pass for measurement
+
+One optional top-level key, `seed`, and the recorder never writes it. `scripts/demo-seed.ts` (`npm run demo:seed`) does, because a plan card is the feature's best beat and a clean machine has nothing to put on it the night before a demo; it slides the named ledgers out of `src/shared/plan/fixtures.ts` onto real local days and writes them straight into this file. The rounds it writes are shaped exactly like measured ones — that is the point, and it is also the hazard, because on screen the card that reads them is word-for-word the card that reads real work.
+
+So the stamp is load-bearing and it is deliberately hard to lose:
+
+```jsonc
+"seed": {
+  "source": "npm run demo:seed",
+  "writtenAt": 1789334738545,
+  "rounds": 3,
+  "note": "Fabricated demo history from src/shared/plan/fixtures.ts, written for filming. …"
+}
+```
+
+- `reviveLedger` keeps it and `appendRound` carries it forward, so the first real round closed on top of a seeded ledger cannot launder it (`ledger.test.ts` › "the seed stamp — fabricated history cannot age into measurement").
+- `normalizeSeedStamp` treats **any** present, truthy `seed` as seeded, filling in house copy for fields it cannot read. The failure that costs something here is a fabricated ledger reading as measured; a measured ledger reading as fabricated costs nothing.
+- `PlanRecorder` prints `seedNotice()` into the session log — the app's own **Log** route — when the ledger is first read and again for each round armed on top of it, keyed so a pause/resume does not repeat it (`recorder.test.ts` › "seeded history announces itself").
+- `PLAN_RESET` clears it with the rounds, and `npm run demo:unseed` restores whatever ledger was there first. Under `FOCUSPLUG_NO_PLAN=1` the file is not read at all, so there is nothing to announce.
+
+The filming procedure that uses all of this, including the sentence to say out loud, is `docs/DEMO-TODAY.md`.
 
 **Log lines** (`SessionEvent{kind:"plan"}` — free, `kind` is a bare `string` in the locked types):
 

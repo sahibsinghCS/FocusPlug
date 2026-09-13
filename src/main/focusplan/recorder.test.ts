@@ -769,3 +769,105 @@ describe("PlanRecorder — state and reset", () => {
     expect(state.rounds.map((round) => round.status)).toEqual(["completed", "discarded"]);
   });
 });
+
+/**
+ * `npm run demo:seed` writes fabricated rounds into the real
+ * `<userData>/focus-plan.json` so a plan card has something to say while a
+ * demo is being filmed. On screen that card is indistinguishable from one
+ * built out of real work — same headline, same evidence table — so the
+ * disclosure has to come out of the app itself, not out of a README.
+ */
+describe("PlanRecorder — seeded history announces itself", () => {
+  const STAMP = {
+    source: "npm run demo:seed",
+    writtenAt: 1_700_000_000_000,
+    rounds: 3,
+    note: "Fabricated demo history, written for filming.",
+  };
+
+  function seededLedger(): FocusPlanLedger {
+    return {
+      ...ledgerOf([
+        makeRound({ day: 0, driftMin: 19 }),
+        makeRound({ day: 1, driftMin: 22 }),
+        makeRound({ day: 2, driftMin: 20 }),
+      ]),
+      seed: STAMP,
+    };
+  }
+
+  function notices(log: readonly string[]): string[] {
+    return log.filter((line) => line.startsWith("SEEDED DEMO HISTORY"));
+  }
+
+  it("prints the stamp into the session log the first time the ledger is read", () => {
+    const rig = makeRig({ store: createMemoryPlanStore(seededLedger()) });
+    expect(rig.log).toEqual([]);
+
+    rig.recorder.getState();
+    const printed = notices(rig.log);
+    expect(printed).toHaveLength(1);
+    expect(printed[0]).toContain("3 fabricated rounds");
+    expect(printed[0]).toContain("npm run demo:seed");
+    expect(printed[0]).toContain("npm run demo:unseed");
+  });
+
+  it("says it again for the round that arms on top of it, once per round", () => {
+    const rig = makeRig({ store: createMemoryPlanStore(seededLedger()) });
+    rig.recorder.getState();
+    arm(rig, context({ roundKey: "plan-0" }));
+    status(rig, "ON_TASK");
+    serve(rig, 600);
+    // A pause and a resume are two segments of ONE round, and one disclosure.
+    disarm(rig);
+    arm(rig, context({ roundKey: "plan-0" }));
+    serve(rig, 900);
+    disarm(rig);
+    expect(notices(rig.log)).toHaveLength(2);
+  });
+
+  it("never writes a stamp of its own, and never drops the one it found", () => {
+    const store = createMemoryPlanStore(seededLedger());
+    const rig = makeRig({ store });
+    arm(rig, context({ roundKey: "plan-0" }));
+    status(rig, "ON_TASK");
+    serve(rig, 1500);
+    disarm(rig);
+
+    const written = store.current() as FocusPlanLedger;
+    expect(written.rounds).toHaveLength(4);
+    expect(written.seed).toEqual(STAMP);
+
+    // …and a ledger nobody seeded stays unstamped, whatever the recorder does.
+    const clean = createMemoryPlanStore(null);
+    const plain = makeRig({ store: clean });
+    arm(plain, context({ roundKey: "plan-0" }));
+    status(plain, "ON_TASK");
+    serve(plain, 1500);
+    disarm(plain);
+    expect((clean.current() as FocusPlanLedger).seed).toBeUndefined();
+    expect(notices(plain.log)).toEqual([]);
+  });
+
+  it("PLAN_RESET forgets the seed along with the rounds", () => {
+    const store = createMemoryPlanStore(seededLedger());
+    const rig = makeRig({ store });
+    rig.recorder.reset();
+    expect((store.current() as FocusPlanLedger).seed).toBeUndefined();
+    expect((store.current() as FocusPlanLedger).rounds).toEqual([]);
+  });
+
+  it("the filming pin reads no ledger, so it has no seed to announce", () => {
+    withPin(() => {
+      const store = countingPlanStore(seededLedger());
+      const rig = makeRig({ store });
+      rig.recorder.getState();
+      arm(rig, context({ roundKey: "plan-0" }));
+      status(rig, "ON_TASK");
+      serve(rig, 1500);
+      disarm(rig);
+      expect(store.loads).toBe(0);
+      expect(notices(rig.log)).toEqual([]);
+    });
+  });
+});

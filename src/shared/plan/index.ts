@@ -63,6 +63,7 @@ export type {
   PlanRound,
   PlanRoundStatus,
   PlanRung,
+  PlanSeedStamp,
   PlanStep,
   PlanTap,
   PlanTrend,
@@ -97,6 +98,8 @@ export { iqr, leastSquaresSlope, median, planTrend, survivesLeaveOneOut, theilSe
 export {
   EMPTY_LEDGER,
   LEDGER_FROM_SESSION_LOG,
+  SEED_FALLBACK_NOTE,
+  SEED_FALLBACK_SOURCE,
   accumulateServed,
   appendRound,
   civilDayUtc,
@@ -105,6 +108,7 @@ export {
   evidenceFrom,
   ledgerFromSessionLog,
   normalizeRound,
+  normalizeSeedStamp,
   reviveLedger,
   samplesFrom,
   selectWindow,
@@ -130,6 +134,7 @@ export {
   planCardCopy,
   planDebriefCopy,
   planRevisionCopy,
+  seedNotice,
   trendLine,
 } from "./copy";
 export type { PlanCardCopyInput, PlanDebriefCopyInput, PlanRevisionCopyInput } from "./copy";

@@ -361,12 +361,43 @@ export interface PlanRevisionCopy {
 
 export const PLAN_LEDGER_VERSION = 1;
 
+/**
+ * Fabricated history, stamped by a seeding tool — today only
+ * `scripts/demo-seed.ts` (`npm run demo:seed`), which writes a plausible
+ * multi-day ledger so the plan card has something to say on a clean machine
+ * while a demo is being filmed.
+ *
+ * The recorder NEVER writes one. Its presence therefore means exactly one
+ * thing: those rounds were WRITTEN, not measured on this machine. That is why
+ * it belongs to the ledger shape rather than to a sidecar file, why
+ * `reviveLedger` keeps it and `appendRound` carries it forward across every
+ * rewrite, and why `PlanRecorder` prints it into the session log — seeded
+ * history must not be able to age quietly into measurement.
+ *
+ * `normalizeSeedStamp` treats ANY present, truthy `seed` as seeded and fills
+ * in house copy for the fields it cannot read: a half-written stamp is still a
+ * disclosure, and the one failure it must never have is dropping the label.
+ */
+export interface PlanSeedStamp {
+  /** The command that wrote it, e.g. "npm run demo:seed". Never empty. */
+  source: string;
+  /** Epoch ms the seed was written, or 0 when the stamp did not say. */
+  writtenAt: number;
+  /** How many of the ledger's rounds were fabricated. */
+  rounds: number;
+  /** Rendered verbatim wherever the notice is shown. Never empty. */
+  note: string;
+}
+
 /** On-disk shape of <userData>/focus-plan.json. */
 export interface FocusPlanLedger {
   v: typeof PLAN_LEDGER_VERSION;
   lifetimeRounds: number;
   /** Oldest first, capped at PLAN_LEDGER_CAP. */
   rounds: PlanRound[];
+  /** Present ONLY on a ledger a seeding tool wrote; absent on every ledger the
+   *  recorder produces, and cleared by PLAN_RESET along with the rounds. */
+  seed?: PlanSeedStamp;
 }
 
 /** PLAN_GET_STATE payload. Closed rounds only — the live round is built

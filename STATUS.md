@@ -41,12 +41,28 @@ The pure `PolicyEngine` (`src/shared/policy`) consumes all of it as one input
 struct and returns events. It has never been changed by either model: both write
 the same single field, `countdownSec`.
 
+A fifth piece decides nothing. **Focus Plan** (`src/shared/plan`,
+`src/main/focusplan`, cards on the Session panel) records per round how many
+minutes you held before your first drift — reusing the forecast's own drift
+definition verbatim — recommends the next block from it in plain language, and
+debriefs the round that just ended. Kaplan-Meier returns `null` rather than a
+number it cannot support, and the trend stays `null` until seven gates pass. It
+never enforces: `src/main/focusplan/integration.test.ts` replays a scripted
+session with a recorder that throws on every call and asserts the policy events,
+kills and log come out byte-identical. `npm run test:plan`, `npm run
+gauntlet:plan`, `docs/FOCUS-PLAN.md`.
+
 Consequences: force-quit of blocklist processes, an opaque full-screen kill
-overlay that names its blast radius, nudges (window to the front + a line, and
-a lamp on in `plugMode: "nudge"`), optional LAN smart plugs (Kasa XOR / Tapo
-KLAP / generic HTTP), and a session log that keeps the causal chain. The study
-PC is hard-denied at the plug layer and cannot be powered off. Demo Kill skips
-the fuse for filming.
+overlay that names its blast radius, nudges (window to the front + a line), and
+a session log that keeps the causal chain. Demo Kill skips the fuse for
+filming.
+
+Optional, and deliberately no part of the pitch: LAN smart plugs still ship and
+are unchanged — they boot with none configured, light a lamp on a nudge in the
+default `plugMode: "nudge"` and cut on a kill in `"cut"`, and the study PC is
+hard-denied at that layer down to every loopback spelling
+(`src/main/plugs/protect.ts`, `docs/SMART-PLUGS.md`). A plug is an actuator, not
+a model; nothing above needs one.
 
 One consequence is subtraction rather than force. Fifteen unbroken seconds of
 `away` **stops the study clock**, and it stays stopped until the student presses
@@ -157,8 +173,8 @@ assistant: `docs/AI-DISCLOSURE.md`.
 from `file://`) that runs the shipped forecast weights, the real feature
 extractor, the real escalation reducer and the real policy engine over a
 scripted 94-second session, ending in the kill decision and its lead-time
-receipt. A browser tab cannot force-quit anything or cut a plug — the page
-renders the decision and says so in its footer. Optional webcam mode runs the
+receipt. A browser tab cannot force-quit anything — the page renders the
+decision and says so in its footer. Optional webcam mode runs the
 app's own BlazeFace graph in-tab. `npm run demo:verify` is its gauntlet
 (typecheck → tests → build → headless Chromium over the built page, including
 off-origin request and text-clipping assertions) and writes `demo/evidence`.
@@ -182,14 +198,17 @@ Chromium, `CHROME_PATH=` to point at one): `preview:renderer`, `stills:readme`,
 `session:stills`, `console:stills`, `smoke:session-actions`, `faces:stills`,
 `gauntlet:flight`.
 
-Known broken by the merge, both in the renderer and both owned by the UI work,
-not by the docs: `src/renderer/src/state/AppState.tsx` declares
-`useOptionalAppState` twice (the whole renderer fails to compile, so
-`typecheck:web` and one vitest file fail), and
-`src/renderer/src/features/forecast/preview.tsx` still imports
-`components/CountdownOverlay` and `session/DecisionHero`, which the Phase-4
-rebuild removed — so `forecast:preview` and `forecast:stills` do not run until
-those two are fixed. Nothing else on the list above is affected.
+Re-run on this tree on 2026-09-13, after both merges landed: `npm run typecheck`
+(contracts fence + node / web / demo) and `npm test` (99 files, **1278** tests)
+are both green, as are `test:plan`, `test:forecast`, `test:store`, `test:desk`,
+`gauntlet:adapt`, `gauntlet:plan`, `build`, `demo:build` and `demo:verify`.
+Quote **1278** if you put the suite on camera — the seed-stamp and demo-pin work
+added 33 tests to the 1245 this file used to report. The two
+renderer breaks this file used to list are gone — `AppState.tsx` declares
+`useOptionalAppState` once, and `features/forecast/preview.tsx` imports
+`KillOverlay` and `DecisionHero`, both of which exist. The stills and smoke
+scripts still need a Chrome on the box; that is the only thing between them and
+a run.
 
 ## Platform truth
 
@@ -200,16 +219,34 @@ those two are fixed. Nothing else on the list above is affected.
   version survives, guarded by `src/main/window/win32.test.ts`.
 - Camera lifecycle fixes are in: a failed start tears the hidden window down
   instead of leaking a renderer, concurrent callers join one warm-up, and the
-  `started` flag cannot stick on. So is the plug hardening — every loopback
-  spelling including IPv6 is hard-denied (`src/main/plugs/protect.ts`), and a
-  Kasa switch is only believed on `err_code` 0.
+  `started` flag cannot stick on.
 
 ## Not shipping — do not claim
 
 macOS support, cloud vision, pose or skeleton tracking, phone camera, any
-hosted inference. Smart plugs ship but boot with zero configured and are
-CI-verified against mocks and loopback; claim hardware only if you probed it.
-Nine faces ship and both pickers (Session panel and Settings) write the same
+hosted inference. Plug hardware is CI-verified against mocks and loopback only,
+so claim it on camera solely if you probed a real one. Nine faces ship and both pickers (Session panel and Settings) write the same
 `settings.faceId` that lock mode reads; the retired ids in `RETIRED_FACE_IDS`
-normalise back to Flight. `docs/DEMO-5MIN.md` § Known traps still lists the
-Settings grid as dead — that trap is stale, the rest of the list is not.
+normalise back to Flight. `docs/DEMO-5MIN.md` § Known traps is re-checked
+against this tree: the two face traps it used to carry are gone, and so is the
+"bash syntax in the old script" one — `DEMO-SCRIPT.md` now prints the PowerShell
+form of the fuse pin first. The rest of that list still bites.
+
+Seeded demo history is a thing this tree can now produce, so it is a thing to be
+careful about: `npm run demo:seed` writes a fabricated Focus Plan ledger into
+`<userData>/focus-plan.json` for filming. It cannot pass for measurement — the
+ledger carries a `seed` stamp the recorder never writes and `appendRound` never
+drops, and `PlanRecorder` prints it into the app's own **Log** under the *Focus
+Plan* filter at start-up and again for each round armed on top of it. `npm run
+demo:unseed` restores whatever was there and refuses to touch an unstamped
+ledger. Never read a seeded plan number on camera without saying it is seeded:
+`docs/DEMO-TODAY.md` § 2 beat 1 is the wording, `docs/FOCUS-PLAN.md § 5.1` the
+argument.
+
+## Filming
+
+`docs/DEMO-TODAY.md` is the two-minute take for the 2026-09-14 deadline and the
+one to follow today; `docs/DEMO-SCRIPT.md` is the fuller 2:45 cut and remains
+the source of truth for the kill beats; `docs/DEMO-5MIN.md` is the five-minute
+assembly. All three agree on the pause rule, the two sayable fuse numbers, and
+that no hardware appears in the film.

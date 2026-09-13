@@ -25,6 +25,41 @@ import { ListsJsonStore } from "./lists.ts";
 
 const MAX_SESSION_LOG = 1000;
 
+/**
+ * The four files FocusPlug keeps in `userData`, named once.
+ *
+ * `scripts/demo-seed.ts` writes two of them from outside the app — the plan
+ * ledger it seeds and the settings it pins for filming — and a seeding tool
+ * that guessed at a filename would write a file nothing reads, which is the
+ * worst possible failure the night before a demo. It imports these instead,
+ * so the app and the seeder cannot drift.
+ */
+export const SETTINGS_FILE = "settings.json";
+export const SESSION_LOG_FILE = "session-log.json";
+export const ADAPTIVE_MODEL_FILE = "adaptive-model.json";
+export const PLAN_LEDGER_FILE = "focus-plan.json";
+
+export function settingsPath(directory: string): string {
+  return join(directory, SETTINGS_FILE);
+}
+
+export function planLedgerPath(directory: string): string {
+  return join(directory, PLAN_LEDGER_FILE);
+}
+
+/**
+ * The atomic JSON write the store uses, exported so a tool writing into a live
+ * userData directory cannot leave a half-file behind either.
+ */
+export function writeUserDataJson(filePath: string, value: unknown): void {
+  writeJsonAtomic(filePath, value);
+}
+
+/** The store's own defensive read: missing or unparseable ⇒ `null`, never a throw. */
+export function readUserDataJson(filePath: string): unknown {
+  return readJson(filePath);
+}
+
 function writeJsonAtomic(filePath: string, value: unknown): void {
   mkdirSync(dirname(filePath), { recursive: true });
   const tmp = `${filePath}.${process.pid}.tmp`;
@@ -256,10 +291,10 @@ export class FocusPlugStore implements Store {
 
   constructor(directory: string) {
     this.lists = new ListsJsonStore(directory);
-    this.settingsPath = join(directory, "settings.json");
-    this.logPath = join(directory, "session-log.json");
-    this.modelPath = join(directory, "adaptive-model.json");
-    this.planPath = join(directory, "focus-plan.json");
+    this.settingsPath = settingsPath(directory);
+    this.logPath = join(directory, SESSION_LOG_FILE);
+    this.modelPath = join(directory, ADAPTIVE_MODEL_FILE);
+    this.planPath = planLedgerPath(directory);
   }
 
   loadAllowlist(): AppEntry[] {
