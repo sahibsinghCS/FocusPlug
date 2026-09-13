@@ -2,6 +2,7 @@ import { useEffect, useState, type JSX } from "react";
 import { normalizeFaceId, type FaceId } from "@shared/faces";
 import { ErrorBanner } from "../components/page";
 import { SetupFacePicker } from "../features/faces";
+import { DebriefCard, PlanCard } from "../features/focusplan";
 import { Dial } from "../features/timer/Dial";
 import { HoldSwitch } from "../features/timer/HoldSwitch";
 import { Ribbon } from "../features/timer/Ribbon";
@@ -63,7 +64,19 @@ export function SetupPage(props: { timer: SessionTimer }): JSX.Element {
         </h1>
       </header>
 
-      <section className="fp-rise" style={{ animationDelay: "60ms" }}>
+      {/* The plan reads before you touch a dial — recommendation, reasoning,
+          and the round that just ended, if one did. Nothing here is enforced.
+          Both are direct children of the page's flex column: switched off they
+          render nothing at all, gap included, and the screen is today's. */}
+      <PlanCard timer={timer} className="fp-rise" style={{ animationDelay: "60ms" }} />
+      <DebriefCard
+        variant="setup"
+        timer={timer}
+        className="fp-rise"
+        style={{ animationDelay: "90ms" }}
+      />
+
+      <section className="fp-rise" style={{ animationDelay: "120ms" }}>
         <div className="mb-2 flex items-baseline justify-between gap-4">
           <p className="fp-stencil">Watch it run out</p>
           <p className="font-mono text-[11px] text-fp-faint tabular">live preview</p>
@@ -79,7 +92,7 @@ export function SetupPage(props: { timer: SessionTimer }): JSX.Element {
 
       <div
         className="fp-rise grid min-w-0 items-start gap-4 min-[900px]:grid-cols-[minmax(0,1.25fr)_minmax(280px,0.75fr)]"
-        style={{ animationDelay: "120ms" }}
+        style={{ animationDelay: "180ms" }}
       >
         <div className="fp-card flex min-w-0 flex-col p-4">
           <Dial
@@ -157,7 +170,7 @@ export function SetupPage(props: { timer: SessionTimer }): JSX.Element {
         <Stakes lists={app.lists} plugs={app.plugs} settings={app.settings} />
       </div>
 
-      <div className="fp-rise mx-auto w-full max-w-[460px]" style={{ animationDelay: "180ms" }}>
+      <div className="fp-rise mx-auto w-full max-w-[460px]" style={{ animationDelay: "240ms" }}>
         <HoldSwitch
           label="Hold to lock"
           holdingLabel="Locking…"

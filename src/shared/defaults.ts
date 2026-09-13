@@ -121,6 +121,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   forecastNudgeRisk: 0.5,
   forecastPrearmRisk: 0.65,
   forecastPrearmFuseSec: 5,
+  focusPlanEnabled: true,
+  focusPlanStretchEnabled: true,
 };
 
 export const DEFAULT_SESSION_STATE: SessionState = {

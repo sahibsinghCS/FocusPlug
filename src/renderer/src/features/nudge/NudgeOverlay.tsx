@@ -1,5 +1,5 @@
 import { useEffect, useRef, type JSX } from "react";
-import type { NudgeEvent, NudgeKind } from "@shared/ipc";
+import type { NudgeEvent, NudgeKind, PlanRevision } from "@shared/ipc";
 import { nudgeCopy } from "@shared/nudge";
 import type { RunPosition } from "../timer/runtime";
 import { nudgeTiming } from "./timing";
@@ -25,10 +25,18 @@ function formatClock(seconds: number): string {
  * The pull-back. Main brought the window to the front; this puts the time
  * left front and centre with a line of encouragement. Unlike the kill overlay
  * it is not a threat, so it dismisses on a click, Escape, or by itself.
+ *
+ * `revision` is Focus Plan's ONE live surface: when the forecast says the
+ * student is hitting their limit earlier or later than the plan assumed, the
+ * revised break time rides this overlay as one extra sentence. It adds no
+ * button, no channel and no timer — `reviseBreak` already returns null while
+ * a fuse is burning, so the plan never speaks over enforcement, and it is
+ * never a way out of the kill.
  */
 export function NudgeOverlay(props: {
   nudge: NudgeEvent;
   position: RunPosition | null;
+  revision?: PlanRevision | null;
   onDismiss: () => void;
 }): JSX.Element {
   const { onDismiss } = props;
@@ -74,6 +82,9 @@ export function NudgeOverlay(props: {
         <p id="fp-nudge-line" className="mt-6 text-[19px] font-medium text-zinc-100" aria-live="polite">
           {copy.line}
         </p>
+        {props.revision ? (
+          <p className="mt-4 text-[14px] leading-5 text-zinc-400">{props.revision.copy.line}</p>
+        ) : null}
         <button
           ref={buttonRef}
           type="button"

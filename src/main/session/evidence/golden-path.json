@@ -35,7 +35,9 @@
     "forecastPrearmEnabled": true,
     "forecastNudgeRisk": 0.5,
     "forecastPrearmRisk": 0.65,
-    "forecastPrearmFuseSec": 5
+    "forecastPrearmFuseSec": 5,
+    "focusPlanEnabled": true,
+    "focusPlanStretchEnabled": true
   },
   "policyEventTypes": [
     "status",

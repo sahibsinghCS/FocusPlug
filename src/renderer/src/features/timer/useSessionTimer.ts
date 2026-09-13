@@ -19,6 +19,23 @@ import {
 const PLAN_KEY = "focusplug.plan.v1";
 const TICK_MS = 250;
 
+/**
+ * What the run clock knows about the focus block that just armed enforcement.
+ *
+ * Deliberately raw — segments and an index, not a Focus Plan type. The timer
+ * is the only place that reliably knows WHICH block armed at the instant it
+ * armed, but it stays ignorant of what any observer does with that: `Shell`
+ * turns this into a `SessionPlanContext` via `armContextFor`, and with Focus
+ * Plan switched off nothing reads it at all.
+ */
+export interface EnforceArm {
+  /** `startedAtMs` at the moment of arming. */
+  startedAtMs: number | null;
+  segments: PlanSegment[];
+  /** Position in `segments` of the block being armed. */
+  index: number;
+}
+
 export interface SessionTimer {
   plan: TimerPlan;
   setPlan: (next: TimerPlan) => void;
@@ -96,9 +113,11 @@ function savePlan(plan: TimerPlan): void {
  *
  * `onEnforce` fires only on a change, and only ever with the truth: armed
  * during a running focus block, released on a break, a pause, or the finish.
+ * Its second argument describes the block being armed and is non-null exactly
+ * when `armed` is true.
  */
 export function useSessionTimer(options: {
-  onEnforce: (armed: boolean) => void;
+  onEnforce: (armed: boolean, arm: EnforceArm | null) => void;
   onPhaseChange?: (position: RunPosition | null) => void;
 }): SessionTimer {
   const [plan, setPlanState] = useState<TimerPlan>(loadPlan);
@@ -146,13 +165,21 @@ export function useSessionTimer(options: {
   const phaseRef = useRef(options.onPhaseChange);
   phaseRef.current = options.onPhaseChange;
 
+  // Read in the arm effect rather than closed over: the effect depends on
+  // `armed` alone, so the block that armed has to be looked up at fire time.
+  const armRef = useRef<EnforceArm | null>(null);
+  armRef.current =
+    position === null
+      ? null
+      : { startedAtMs, segments, index: position.segment.index };
+
   const lastArmed = useRef(false);
   useEffect(() => {
     if (lastArmed.current === armed) {
       return;
     }
     lastArmed.current = armed;
-    enforceRef.current(armed);
+    enforceRef.current(armed, armed ? armRef.current : null);
   }, [armed]);
 
   const lastSegment = useRef<number | null>(null);

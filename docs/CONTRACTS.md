@@ -187,6 +187,45 @@ Five flat keys (house `requirePatch`/`normalizeSettings` style — no nested blo
 | `forecastPrearmRisk` | number | `0.65` | finite → clamp [0.10, 0.95] else default; then raised to ≥ `forecastNudgeRisk` + 0.05 |
 | `forecastPrearmFuseSec` | number | `5` | finite → `Math.round`, clamp [3, 600] else default (runtime additionally caps at `countdownSec`) |
 
-The two risk defaults are operating points re-derived with the model, not free constants. Code-side parity is enforced: `scripts/forecast/eval.ts` asserts `weights.thresholds.nudge/prearm` equal `DEFAULT_SETTINGS.forecastNudgeRisk/forecastPrearmRisk` (`nudge` 0.50 / `prearm` 0.65 today). This *table* is not machine-guarded — `npm run check:contracts` byte-compares only the Types fence above — so re-check it by hand after any threshold re-derivation, against `src/shared/defaults.ts` and `docs/FORECAST-CONTRACTS.md § 3`.
+The two risk defaults are operating points re-derived with the model, not free constants. Code-side parity is enforced: `scripts/forecast/eval.ts` asserts `weights.thresholds.nudge/prearm` equal `DEFAULT_SETTINGS.forecastNudgeRisk/forecastPrearmRisk` (`nudge` 0.50 / `prearm` 0.65 today). This *table* is not machine-guarded — `npm run check:contracts` byte-compares source fences only, never prose tables — so re-check it by hand after any threshold re-derivation, against `src/shared/defaults.ts` and `docs/FORECAST-CONTRACTS.md § 3`.
 
 `forecastEnabled: false` (or any load/inference failure) reproduces today's behavior event-for-event. The forecast's only authority over enforcement is `PolicyInput.countdownSec`, bounded to `[3, countdownSec]`, never lengthened. `src/shared/policy/**` and `SessionPush` (`src/main/session/push.ts`) stay untouched.
+
+---
+
+## Focus Plan (Phase 5)
+Additive only. `src/shared/types.ts` receives ZERO changes (byte-locked against the Types fence above). New shared types live in `src/shared/plan/types.ts` and are re-exported from `src/shared/ipc.ts` (`FocusPlanState`, `FocusPlanLedger`, `PlanRound`, `PlanEstimate`, `PlanRecommendation`, `PlanDebrief`, `PlanRevision`, `PlanTrend`, `SessionArmContext`, `SessionPlanContext`). Design: `docs/FOCUS-PLAN.md`.
+
+Focus Plan is a coaching layer, and the contract is written so it cannot become anything else. It **never** locks, blocks or kills: the process kill stays the only enforcement in this product. Its one authority over the running session is **none** — `SessionControllerOptions` gains no plan-shaped key, `src/main/session/adaptiveFuse.ts` and `fuseAuthority.ts` are untouched, and `src/main/focusplan/integration.test.ts` fails the build if a plan-shaped option is ever added.
+
+### IPC (Phase 5 additions)
+Invoke:
+
+- `focusplug:plan:getState` → `FocusPlanState` (closed rounds only; the live round is assembled renderer-side)
+- `focusplug:plan:reset` → `FocusPlanState` (forgets the ledger; touches neither the adaptive model, the log, nor settings)
+
+Push:
+
+- `focusplug:plan:round` → `PlanRound` (on round close only, roughly once per focus block)
+
+Widened:
+
+- `focusplug:session:start` gains **one optional argument**, `SessionPlanContext`. It is consumed in `src/main/index.ts` by `FocusPlan.declareRound` and handed to `controller.start()` **never** — the session controller does not see it. Every pre-Phase-5 caller (`probe.ts`, the smoke script, `mockApi`) still typechecks and still works, and a missing or malformed context costs a labelled round and nothing else.
+
+`FocusPlugApi` gains `planGetState()`, `planReset()`, `onPlanRound(cb)`, and the optional argument on `sessionStart(context?)`. There is no plan settings invoke — settings flow through the existing `focusplug:settings:set` patch.
+
+### Settings (Phase 5 additions to `AppSettings`)
+Two flat keys (house `requirePatch`/`normalizeSettings` style — no nested block):
+
+| key | type | default | `normalizeSettings` clamp |
+|---|---|---|---|
+| `focusPlanEnabled` | boolean | `true` | boolean else default |
+| `focusPlanStretchEnabled` | boolean | `true` | boolean else default |
+
+`focusPlanEnabled: false` reproduces today's screens exactly: `PlanCard` and `DebriefCard` render `null`, `PLAN_GET_STATE` returns an empty window, and nothing is recorded. `focusPlanStretchEnabled: false` keeps the measurement and the debrief and plans to the estimate with no progression step. `FOCUSPLUG_NO_PLAN=1` is a different thing from that switch, and mirrors `FOCUSPLUG_NO_ADAPT=1`: for one run the feature stays on and `PLAN_GET_STATE` reports `enabled: true` with an empty window and `lifetimeRounds: 0`, so the cards stay on screen at the `no-history` rung, while `focus-plan.json` is not read, not written and not cleared — `PLAN_RESET` is refused under the pin. Settings are untouched either way.
+
+### Storage
+`<userData>/focus-plan.json`, a sibling of `adaptive-model.json`, written through the existing `writeJsonAtomic` on round close only. Wrong version, wrong shape or unreadable ⇒ an empty ledger, never a throw. It holds round durations, drift offsets and risk peaks — **no process name, no window title and no frame**, which is structural rather than promised: `src/main/focusplan/tap.ts` observes `sessionState`, `policyEvent`, `forecastSnapshot` and `forecastEvent` only, and never subscribes to `focusSnapshot`, `deskSnapshot`, `sessionEvent` or `nudge`.
+
+### Uncoupling
+Both taps forward to the base push **first** and only then mirror, and `swallow()` catches anything that escapes the recorder's own `guard()`, so a coaching layer can never delay, reorder or drop an enforcement message. `src/main/focusplan/integration.test.ts` deep-equals the push trace of a scripted session with Focus Plan attached against the same session without it. This table is not machine-guarded — `npm run check:contracts` byte-compares source fences only: the Types fence above, plus the two "complete source" fences for `src/shared/plan/types.ts` and `src/shared/plan/constants.ts` in `docs/FOCUS-PLAN.md`.

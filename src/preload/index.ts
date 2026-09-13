@@ -6,15 +6,18 @@ import {
   type AppSettings,
   type DeskModelId,
   type DeskSnapshot,
+  type FocusPlanState,
   type FocusPlugApi,
   type FocusSnapshot,
   type ForecastEvent,
   type ForecastSnapshot,
   type NudgeEvent,
   type NudgeKind,
+  type PlanRound,
   type PlugDevice,
   type PolicyEvent,
   type SessionEvent,
+  type SessionPlanContext,
   type SessionState,
 } from "@shared/ipc";
 
@@ -29,7 +32,10 @@ function subscribe<T>(channel: string, cb: (payload: T) => void): () => void {
 }
 
 const api: FocusPlugApi = {
-  sessionStart: () => ipcRenderer.invoke(IPC_INVOKE.SESSION_START),
+  // One optional argument: the Focus Plan arm context. `undefined` is the
+  // pre-Focus-Plan call and still works exactly as before.
+  sessionStart: (context?: SessionPlanContext) =>
+    ipcRenderer.invoke(IPC_INVOKE.SESSION_START, context),
   sessionStop: () => ipcRenderer.invoke(IPC_INVOKE.SESSION_STOP),
   sessionGetState: () => ipcRenderer.invoke(IPC_INVOKE.SESSION_GET_STATE),
   listsGet: () => ipcRenderer.invoke(IPC_INVOKE.LISTS_GET),
@@ -54,6 +60,8 @@ const api: FocusPlugApi = {
   demoKill: () => ipcRenderer.invoke(IPC_INVOKE.DEMO_KILL),
   demoNudge: (kind: NudgeKind) => ipcRenderer.invoke(IPC_INVOKE.DEMO_NUDGE, kind),
   forecastGetState: () => ipcRenderer.invoke(IPC_INVOKE.FORECAST_GET_STATE),
+  planGetState: (): Promise<FocusPlanState> => ipcRenderer.invoke(IPC_INVOKE.PLAN_GET_STATE),
+  planReset: (): Promise<FocusPlanState> => ipcRenderer.invoke(IPC_INVOKE.PLAN_RESET),
   onSessionState: (cb: (state: SessionState) => void) =>
     subscribe(IPC_PUSH.SESSION_STATE, cb),
   onPolicyEvent: (cb: (event: PolicyEvent) => void) =>
@@ -69,6 +77,7 @@ const api: FocusPlugApi = {
     subscribe(IPC_PUSH.FORECAST_SNAPSHOT, cb),
   onForecastEvent: (cb: (event: ForecastEvent) => void) =>
     subscribe(IPC_PUSH.FORECAST_EVENT, cb),
+  onPlanRound: (cb: (round: PlanRound) => void) => subscribe(IPC_PUSH.PLAN_ROUND, cb),
 };
 
 contextBridge.exposeInMainWorld("focusplug", api);

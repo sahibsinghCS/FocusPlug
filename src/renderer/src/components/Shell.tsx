@@ -1,8 +1,16 @@
-import { useCallback, useEffect, useState, type JSX } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react";
+import type { PlanRecommendation } from "@shared/ipc";
 import { parseRoute, type RouteId, ROUTES, navigate } from "../lib/routes";
 import { countdownIsPreview } from "../features/session/model";
+import {
+  armContextFor,
+  liveRoundFor,
+  planContextFor,
+  revisionFor,
+  usePlanRecommendation,
+} from "../features/focusplan";
 import { useAppState } from "../state/AppState";
-import { useSessionTimer } from "../features/timer/useSessionTimer";
+import { useSessionTimer, type EnforceArm } from "../features/timer/useSessionTimer";
 import { shellView, viewIsLocked } from "../features/timer/view";
 import { ErrorBanner } from "./page";
 import { KillOverlay } from "../features/kill/KillOverlay";
@@ -38,20 +46,82 @@ export function Shell(): JSX.Element {
   const route = useHashRoute();
   const { startSession, stopSession } = app;
 
+  /* Read at arm time rather than closed over. `onEnforce` has to exist before
+     `useSessionTimer`, and the recommendation is only known after it — a ref
+     is what breaks that circle, and the arm fires from an effect, so the
+     value is always the one the card was showing when the switch was thrown. */
+  const recommendationRef = useRef<PlanRecommendation | null>(null);
+
   // The plan is what arms enforcement: focus blocks start a real session,
   // breaks and pauses stop it, so a break genuinely hands Discord back.
+  //
+  // The second argument is the Focus Plan arm context. It is advisory: main
+  // hands it to `declareRound` and then calls `controller.start()` regardless,
+  // so a null context costs a labelled round and nothing else.
   const onEnforce = useCallback(
-    (armed: boolean): void => {
-      if (armed) {
-        void startSession();
-      } else {
+    (armed: boolean, arm: EnforceArm | null): void => {
+      if (!armed) {
         void stopSession();
+        return;
       }
+      const base = arm === null ? null : armContextFor(arm);
+      void startSession(
+        base === null ? undefined : planContextFor(base, recommendationRef.current),
+      );
     },
     [startSession, stopSession],
   );
 
   const timer = useSessionTimer({ onEnforce });
+
+  /* The round in progress, assembled here so main never has to stream one.
+     It is what makes the cold-start wobble rung reachable inside the very
+     first round of a fresh install, and what feeds `reviseBreak`. */
+  const live = useMemo(
+    () =>
+      liveRoundFor({
+        startedAtMs: timer.startedAtMs,
+        position: timer.position,
+        forecastOn: app.settings.forecastEnabled,
+        forecastEvents: app.forecastEvents,
+        history: app.forecastHistory,
+      }),
+    [
+      timer.startedAtMs,
+      timer.position,
+      app.settings.forecastEnabled,
+      app.forecastEvents,
+      app.forecastHistory,
+    ],
+  );
+  const plan = usePlanRecommendation(live);
+  recommendationRef.current = plan.recommendation;
+
+  /* Focus Plan's only live surface (decision 5): one extra sentence on a
+     nudge main already fired. Computed only while a nudge is up, and
+     `reviseBreak` refuses outright whenever a countdown is on screen — the
+     plan never offers a break that could read as a way out of the fuse. */
+  const revision = useMemo(() => {
+    if (app.nudge === null || plan.recommendation === null) {
+      return null;
+    }
+    return revisionFor({
+      live,
+      position: timer.position,
+      estimateMin: plan.recommendation.estimate.medianMin,
+      risk: app.forecast?.risk ?? null,
+      nudgeRisk: app.settings.forecastNudgeRisk,
+      countdownActive: app.countdown !== null,
+    });
+  }, [
+    app.nudge,
+    app.forecast,
+    app.countdown,
+    app.settings.forecastNudgeRisk,
+    plan.recommendation,
+    live,
+    timer.position,
+  ]);
   // Lock is a *view* of a live session, not the session itself. Enforcement is
   // armed exactly while the plan runs, so deriving the lock from the lifecycle
   // alone is what would make the live console unreachable in the shipped app.
@@ -132,7 +202,12 @@ export function Shell(): JSX.Element {
       ) : null}
 
       {app.nudge ? (
-        <NudgeOverlay nudge={app.nudge} position={timer.position} onDismiss={app.dismissNudge} />
+        <NudgeOverlay
+          nudge={app.nudge}
+          position={timer.position}
+          revision={revision}
+          onDismiss={app.dismissNudge}
+        />
       ) : null}
     </div>
   );

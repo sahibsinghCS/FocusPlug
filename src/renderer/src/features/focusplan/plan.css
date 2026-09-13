@@ -1,0 +1,45 @@
+/* Focus Plan — the coaching cards. Same tokens as the rest of the console
+   (fp-* theme vars); only the two shapes Tailwind cannot express live here:
+   the lock-mode surface, which has to follow --phase so it works black-on-bone
+   on a break as well as bone-on-black under the lock, and the evidence grid. */
+
+/* The debrief on LockPage. `fp-card`'s fixed panel colour would be a hole in
+   the bone room, so the surface is mixed out of the phase colour instead. */
+.fp-plan-lock {
+  border: 1px solid color-mix(in srgb, var(--phase) 18%, transparent);
+  background: color-mix(in srgb, var(--phase) 4%, transparent);
+  border-radius: var(--radius-fp);
+}
+
+/* One row per round in "Why this?". Collapses to two columns on a narrow
+   window rather than truncating — a reconciliation you cannot read is not a
+   disclosure. */
+.fp-plan-evidence-row {
+  display: grid;
+  grid-template-columns: 88px 62px minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  align-items: baseline;
+}
+
+@media (max-width: 640px) {
+  .fp-plan-evidence-row {
+    grid-template-columns: 88px minmax(0, 1fr);
+    row-gap: 2px;
+  }
+}
+
+/* Censoring marks: an open circle with an upward tick, the standard notation
+   for "the true value is somewhere past here". Filled dots are drifts. */
+.fp-plan-spark-event {
+  fill: currentColor;
+}
+
+.fp-plan-spark-censored {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.2;
+}
+
+/* No prefers-reduced-motion block: src/renderer/src/index.css already forces
+   transition-duration to 0.01ms on `*` under that query, and nothing here
+   animates the number — it changes when a round ends, not while you look. */
