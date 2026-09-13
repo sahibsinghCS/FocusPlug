@@ -115,7 +115,10 @@ try {
           window.localStorage.setItem("focusplug.plan.v1", JSON.stringify(plan));
         }
         if (face) {
-          window.localStorage.setItem("focusplug.face.v1", face);
+          window.localStorage.setItem(
+            "focusplug.mock.settings",
+            JSON.stringify({ faceId: face }),
+          );
         }
       },
       shot.plan ?? null,

@@ -93,6 +93,29 @@
   fill: #ff2d55;
 }
 
+.fp-lock-stage .fp-circuit:not([data-complete="1"]) .fp-circuit-led-core {
+  animation: fp-circuit-led-pulse 1.15s ease-in-out infinite;
+}
+
 .fp-circuit[data-complete="1"] .fp-circuit-led-core {
   fill: #d4ff3a;
+  animation: none;
+}
+
+@keyframes fp-circuit-led-pulse {
+  0%,
+  100% {
+    fill: #ff2d55;
+    opacity: 1;
+  }
+  50% {
+    fill: #ff6b82;
+    opacity: 0.62;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fp-lock-stage .fp-circuit:not([data-complete="1"]) .fp-circuit-led-core {
+    animation: none;
+  }
 }

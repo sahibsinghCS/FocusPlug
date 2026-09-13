@@ -1,5 +1,6 @@
 import type { JSX } from "react";
 import { GrowthFace as GrowthBonsai } from "./growth/GrowthFace";
+import { isFaceThumb } from "./thumb";
 import { parseKillsParam, parseSessionParam } from "./urlFace";
 import type { FaceProps } from "./types";
 
@@ -29,12 +30,14 @@ export function GrowthFace(props: FaceProps): JSX.Element {
   const killCount = stillsKillCount(props.killCount);
   const width = Math.max(1, Math.round(props.width));
   const height = Math.max(1, Math.round(props.height));
+  const thumb = isFaceThumb(height);
   return (
     <div
       className="fp-growth-face"
       data-face="growth"
       data-face-status="ready"
       data-phase={props.phase}
+      data-thumb={thumb ? "1" : "0"}
     >
       <GrowthBonsai
         sessionId={sessionId}

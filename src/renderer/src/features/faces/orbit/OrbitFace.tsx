@@ -1,5 +1,5 @@
 import type { CSSProperties, JSX } from "react";
-import { clampKillCount, clampProgress, resolveFaceBox } from "../clamp";
+import { clampKillCount, clampProgress, resolveFaceBox, tallStripViewBox } from "../clamp";
 import type { VisualFaceProps } from "../visual";
 import {
   ALIGN_ANGLE,
@@ -13,15 +13,17 @@ import "./orbit.css";
 
 const BODIES = orbitBodies();
 const VW = 1280;
-const VH = 380;
+const DESIGN_H = 380;
 
 export function OrbitFace(props: VisualFaceProps): JSX.Element {
   const box = resolveFaceBox(props.size);
+  const view = tallStripViewBox(box, VW, DESIGN_H);
+  const VH = view.height;
   const progress = clampProgress(props.progress);
   const kills = clampKillCount(props.killCount);
   const locked = progress >= 0.995;
   const cx = 640;
-  const cy = 198;
+  const cy = VH / 2;
   const outer = 148;
   const inner = 48;
   const radii = ringRadii(BODIES.length, inner, outer);
@@ -49,7 +51,7 @@ export function OrbitFace(props: VisualFaceProps): JSX.Element {
         viewBox={`0 0 ${VW} ${VH}`}
         width={box.width}
         height={box.height}
-        preserveAspectRatio="xMidYMid slice"
+        preserveAspectRatio={box.height < 140 ? "xMidYMid slice" : "xMidYMid meet"}
         aria-hidden="true"
       >
         <defs>

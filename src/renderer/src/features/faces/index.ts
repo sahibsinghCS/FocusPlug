@@ -1,5 +1,8 @@
-export { FaceHost } from "./FaceHost";
+export { FaceHost, FaceErrorBoundary } from "./FaceHost";
 export { FacePicker } from "./FacePicker";
+export { SetupFacePicker } from "./SetupFacePicker";
+export { buildLockFaceProps, lockFacePhase } from "./lockProps";
+export { previewFaceProps, PREVIEW_PROGRESS } from "./previewProps";
 export { FlightFace } from "./FlightFace";
 export { HourglassFace } from "./HourglassFace";
 export { ReadoutFace } from "./ReadoutFace";

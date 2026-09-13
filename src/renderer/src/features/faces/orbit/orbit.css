@@ -12,6 +12,26 @@
   height: 100%;
 }
 
+.fp-lock-stage .fp-orbit[data-locked="0"] .fp-orbit-svg {
+  animation: fp-orbit-breathe 2.4s ease-in-out infinite;
+}
+
+@keyframes fp-orbit-breathe {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.12);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fp-lock-stage .fp-orbit[data-locked="0"] .fp-orbit-svg {
+    animation: none;
+  }
+}
+
 .fp-orbit-kicker {
   font-family: var(--font-mono);
   font-size: 12px;

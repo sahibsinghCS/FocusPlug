@@ -1,3 +1,4 @@
+import { isFaceThumb } from "../thumb";
 import {
   birdAlpha,
   bloomAmount,
@@ -678,5 +679,7 @@ export function paintGarden(
 
   drawFireflies(ctx, world, w, h, p, clockMs);
   drawBirds(ctx, world, w, h, p, clockMs);
-  drawReadout(ctx, h, p, gardenPhaseLabel(gardenPhase(p)));
+  if (!isFaceThumb(h)) {
+    drawReadout(ctx, h, p, gardenPhaseLabel(gardenPhase(p)));
+  }
 }

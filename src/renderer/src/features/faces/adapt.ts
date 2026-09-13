@@ -43,7 +43,7 @@ export function toInstrumentProps(
     startedAt,
     rounds: extras?.rounds,
     freeze: extras?.freeze,
-    paused: extras?.paused,
+    paused: extras?.paused === true || extras?.freeze === true || props.paused === true,
     lineMode: extras?.lineMode,
   };
 }

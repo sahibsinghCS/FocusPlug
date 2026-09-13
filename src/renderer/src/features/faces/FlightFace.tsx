@@ -3,6 +3,8 @@ import { useOptionalAppState } from "../../state/AppState";
 import { toFlightClock } from "./flight/clock";
 import { FlightFace as FlightInstrument } from "./flight/FlightFace";
 import { parseFlightPreview } from "./flight/preview";
+import { resolveFlightRoutePicker } from "./flight/routePickerVisibility";
+import { isFaceThumb } from "./thumb";
 import type { FaceProps } from "./types";
 
 function stillsExtras(): {
@@ -41,12 +43,18 @@ export function FlightFace(props: FaceProps): JSX.Element {
     arrLon: extras.settings.arrLon,
   };
   const clock = toFlightClock(props, {
-    paused: extras.freeze || undefined,
+    paused: extras.freeze || props.paused || undefined,
     reducedMotion: extras.reducedMotion,
     settings,
     estimateMinutes: extras.estimateMinutes,
   });
-  const compact = props.height > 0 && props.height < 520;
+  const thumb = isFaceThumb(props.height);
+  const compact = props.height > 0 && props.height < 400;
+  // Lock never opts in (showRoutePicker stays false). Settings has its own
+  // picker. Stills may opt in with ?picker=dep|arr.
+  const showRoutePicker = resolveFlightRoutePicker({
+    showRoutePicker: extras.picker !== null,
+  });
   return (
     <div
       className="fp-flight-slot"
@@ -56,12 +64,13 @@ export function FlightFace(props: FaceProps): JSX.Element {
     >
       <FlightInstrument
         clock={clock}
-        variant={extras.variant}
+        variant={thumb ? "sticker" : extras.variant}
         idleOverride={extras.idleOverride}
         compact={compact}
-        routePickerOpen={extras.picker}
+        showRoutePicker={showRoutePicker}
+        routePickerOpen={showRoutePicker && !thumb ? extras.picker : null}
         onRouteChange={
-          app
+          showRoutePicker && app
             ? (next) => {
                 void app.patchSettings({ flightDep: next.dep, flightArr: next.arr });
               }

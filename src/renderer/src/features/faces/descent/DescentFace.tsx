@@ -1,15 +1,17 @@
 import type { CSSProperties, JSX } from "react";
-import { clampKillCount, clampProgress, phaseSine, resolveFaceBox } from "../clamp";
+import { clampKillCount, clampProgress, phaseSine, resolveFaceBox, tallStripViewBox } from "../clamp";
 import type { VisualFaceProps } from "../visual";
 import { bioAmount, DESCENT_ZONES, depthMeters, formatDepth, zoneAt } from "./zones";
 import { FAR_SILT, MID_MOTES, NEAR_BIO } from "./particles";
 import "./descent.css";
 
 const VW = 1280;
-const VH = 380;
+const DESIGN_H = 380;
 
 export function DescentFace(props: VisualFaceProps): JSX.Element {
   const box = resolveFaceBox(props.size);
+  const view = tallStripViewBox(box, VW, DESIGN_H);
+  const VH = view.height;
   const progress = clampProgress(props.progress);
   const kills = clampKillCount(props.killCount);
   const zone = zoneAt(progress);
@@ -40,7 +42,7 @@ export function DescentFace(props: VisualFaceProps): JSX.Element {
         viewBox={`0 0 ${VW} ${VH}`}
         width={box.width}
         height={box.height}
-        preserveAspectRatio="xMidYMid slice"
+        preserveAspectRatio="xMidYMid meet"
         aria-hidden="true"
       >
         <defs>
@@ -132,6 +134,7 @@ export function DescentFace(props: VisualFaceProps): JSX.Element {
           period={4200}
           fill="rgba(190, 220, 210, 0.38)"
           opacityScale={0.7}
+          viewHeight={VH}
         />
         <SpeckLayer
           specks={MID_MOTES}
@@ -139,6 +142,7 @@ export function DescentFace(props: VisualFaceProps): JSX.Element {
           period={2600}
           fill="rgba(170, 230, 235, 0.55)"
           opacityScale={0.85}
+          viewHeight={VH}
         />
         <SpeckLayer
           specks={NEAR_BIO}
@@ -147,6 +151,7 @@ export function DescentFace(props: VisualFaceProps): JSX.Element {
           fill={bio > 0.2 ? "#e8fff4" : "rgba(200, 230, 220, 0.4)"}
           opacityScale={0.35 + bio * 0.95}
           glow={bio > 0.2}
+          viewHeight={VH}
         />
 
         <g filter="url(#fp-descent-gauge)">
@@ -183,6 +188,7 @@ function SpeckLayer(props: {
   fill: string;
   opacityScale: number;
   glow?: boolean;
+  viewHeight: number;
 }): JSX.Element {
   return (
     <g filter={props.glow ? "url(#fp-descent-soft)" : undefined}>
@@ -193,7 +199,7 @@ function SpeckLayer(props: {
           <circle
             key={`${speck.seed}-${i}`}
             cx={14 + speck.x * (VW - 28)}
-            cy={16 + speck.y * (VH - 32)}
+            cy={16 + speck.y * (props.viewHeight - 32)}
             r={speck.r}
             fill={props.fill}
             opacity={opacity}

@@ -7,7 +7,6 @@ import {
   type PlanSegment,
   type TimerPlan,
 } from "./plan";
-import { DEFAULT_FACE, isFaceId, type FaceId } from "./faces";
 import {
   focusSecondsDone,
   positionAt,
@@ -18,20 +17,22 @@ import {
 } from "./runtime";
 
 const PLAN_KEY = "focusplug.plan.v1";
-const FACE_KEY = "focusplug.face.v1";
 const TICK_MS = 250;
 
 export interface SessionTimer {
   plan: TimerPlan;
   setPlan: (next: TimerPlan) => void;
-  face: FaceId;
-  setFace: (next: FaceId) => void;
   status: RunStatus;
   segments: PlanSegment[];
   position: RunPosition | null;
   elapsedSec: number;
   /** Wall-clock finish, projected from what is left. `null` before you commit. */
   endsAtMs: number | null;
+  /**
+   * Wall-clock when `start()` ran. Survives pause/resume so lock faces can
+   * ignore persisted log from earlier sessions. `null` on the setup screen.
+   */
+  startedAtMs: number | null;
   remainingSec: number;
   /** Focus time actually served — a skipped round does not count as work. */
   workedSec: number;
@@ -80,15 +81,6 @@ function savePlan(plan: TimerPlan): void {
   }
 }
 
-export function loadFace(): FaceId {
-  try {
-    const raw = window.localStorage.getItem(FACE_KEY);
-    return isFaceId(raw) ? raw : DEFAULT_FACE;
-  } catch {
-    return DEFAULT_FACE;
-  }
-}
-
 /**
  * Drives the plan in real time and tells the caller when enforcement should be
  * armed. Elapsed time is read from the wall clock rather than counted in
@@ -102,8 +94,8 @@ export function useSessionTimer(options: {
   onPhaseChange?: (position: RunPosition | null) => void;
 }): SessionTimer {
   const [plan, setPlanState] = useState<TimerPlan>(loadPlan);
-  const [face, setFaceState] = useState<FaceId>(loadFace);
   const [status, setStatus] = useState<RunStatus>("setup");
+  const [startedAtMs, setStartedAtMs] = useState<number | null>(null);
   const [anchorMs, setAnchorMs] = useState<number | null>(null);
   const [bankedSec, setBankedSec] = useState(0);
   const [skippedFocusSec, setSkippedFocusSec] = useState(0);
@@ -164,15 +156,6 @@ export function useSessionTimer(options: {
     phaseRef.current?.(position);
   }, [position]);
 
-  const setFace = useCallback((next: FaceId): void => {
-    setFaceState(next);
-    try {
-      window.localStorage.setItem(FACE_KEY, next);
-    } catch {
-      // Same as the plan: a face you cannot persist is still a face you can use.
-    }
-  }, []);
-
   const setPlan = useCallback((next: TimerPlan): void => {
     const safe = clampPlan(next);
     setPlanState(safe);
@@ -181,6 +164,7 @@ export function useSessionTimer(options: {
 
   const start = useCallback((): void => {
     const now = Date.now();
+    setStartedAtMs(now);
     setBankedSec(0);
     setSkippedFocusSec(0);
     setAnchorMs(now);
@@ -226,6 +210,7 @@ export function useSessionTimer(options: {
 
   const end = useCallback((): void => {
     setStatus("setup");
+    setStartedAtMs(null);
     setAnchorMs(null);
     setBankedSec(0);
     setSkippedFocusSec(0);
@@ -239,13 +224,12 @@ export function useSessionTimer(options: {
   return {
     plan,
     setPlan,
-    face,
-    setFace,
     status,
     segments,
     position,
     elapsedSec,
     endsAtMs,
+    startedAtMs,
     remainingSec,
     workedSec,
     armed,

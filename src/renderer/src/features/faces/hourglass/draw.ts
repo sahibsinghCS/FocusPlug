@@ -1,6 +1,7 @@
 import { hashString, lerp, mulberry32 } from "../canvas";
 import { formatFaceClock, formatFacePercent } from "../clock";
 import type { FacePhase } from "@shared/faces";
+import { isFaceThumb } from "../thumb";
 import type { FaceProps } from "../types";
 import {
   GLASS_CAP,
@@ -49,7 +50,9 @@ export function paintHourglass(
   paintPillars(ctx, layout, "front");
   paintCaps(ctx, layout);
   paintReflection(ctx, layout, transfer);
-  paintCaption(ctx, width, height, props, transfer);
+  if (!isFaceThumb(height)) {
+    paintCaption(ctx, width, height, props, transfer);
+  }
 }
 
 function paintRoom(
@@ -691,7 +694,7 @@ function paintCaption(
   transfer: HourglassTransfer,
 ): void {
   const kicker =
-    props.phase === "idle" ? "AT REST" : props.phase === "break" ? "FUSE" : "SAND";
+    props.phase === "idle" ? "AT REST" : props.phase === "break" ? "BREAK" : "SAND";
   const read =
     props.phase === "idle"
       ? "Unflipped"
