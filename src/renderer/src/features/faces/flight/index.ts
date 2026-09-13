@@ -6,4 +6,4 @@ export { buildFlightModel } from "./model";
 export { drawFlightFace } from "./draw";
 export { parseFlightPreview } from "./preview";
 export { FlightRoutePicker } from "./RoutePicker";
-export { resolveFlightRoutePicker } from "./routePicker";
+export { resolveFlightRoutePicker } from "./routePickerVisibility";
