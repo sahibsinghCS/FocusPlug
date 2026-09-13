@@ -20,3 +20,4 @@ datasets/*.improved.*
 # Scratch video project and local editor config — kept out of the app repo.
 demo-intro/
 .claude/
+__pycache__/

@@ -11,6 +11,7 @@ import { dirname, join } from "node:path";
 import { DEFAULT_SETTINGS } from "../../shared/defaults.ts";
 import { isFaceId } from "../../shared/faces.ts";
 import { normalizeFlightPair } from "../../shared/flightRoute.ts";
+import { isPlugMode } from "../../shared/nudge.ts";
 import type { AppSettings, Store } from "../../shared/ipc.ts";
 import type {
   AppEntry,
@@ -139,6 +140,7 @@ export function normalizeSettings(raw: Partial<AppSettings> | null | undefined):
     deskModelId: isDeskModelId(raw?.deskModelId) ? raw.deskModelId : DEFAULT_SETTINGS.deskModelId,
     faceId: isFaceId(raw?.faceId) ? raw.faceId : DEFAULT_SETTINGS.faceId,
     ...normalizeFlightPair(raw?.flightDep, raw?.flightArr),
+    plugMode: isPlugMode(raw?.plugMode) ? raw.plugMode : DEFAULT_SETTINGS.plugMode,
     plugs: normalizePlugs(raw?.plugs),
   };
 }

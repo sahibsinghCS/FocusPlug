@@ -16,6 +16,8 @@ export interface SessionRuntimeOptions {
   plugs?: PlugController;
   now?: () => number;
   tickIntervalMs?: number;
+  /** Brings the app window to the front when the session nudges. */
+  revealWindow?: () => void;
 }
 
 function createStoreBackedPlugs(
@@ -59,6 +61,7 @@ export function createSessionRuntime(options: SessionRuntimeOptions): SessionCon
     policyFactory: () => new PolicyEngine(),
     now: options.now,
     tickIntervalMs: options.tickIntervalMs,
+    revealWindow: options.revealWindow,
   };
   return new SessionController(controllerOptions);
 }

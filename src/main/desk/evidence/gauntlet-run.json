@@ -1,5 +1,5 @@
 {
-  "ranAt": "2026-09-11T23:48:59.090Z",
+  "ranAt": "2026-09-12T23:06:48.461Z",
   "model": "blazeface",
   "backend": "cpu",
   "unitChecks": [
@@ -112,7 +112,7 @@
   "fixtures": [
     {
       "id": "face",
-      "path": "C:\\Users\\SS\\FocusPlug-desk-model\\src\\main\\desk\\fixtures\\face.jpg",
+      "path": "C:\\Users\\SS\\FocusPlug\\src\\main\\desk\\fixtures\\face.jpg",
       "labels": [
         "at_desk",
         "at_desk",
@@ -154,7 +154,7 @@
     },
     {
       "id": "covered",
-      "path": "C:\\Users\\SS\\FocusPlug-desk-model\\src\\main\\desk\\fixtures\\covered.jpg",
+      "path": "C:\\Users\\SS\\FocusPlug\\src\\main\\desk\\fixtures\\covered.jpg",
       "labels": [
         "away",
         "away",
@@ -196,7 +196,7 @@
     },
     {
       "id": "empty",
-      "path": "C:\\Users\\SS\\FocusPlug-desk-model\\src\\main\\desk\\fixtures\\empty.jpg",
+      "path": "C:\\Users\\SS\\FocusPlug\\src\\main\\desk\\fixtures\\empty.jpg",
       "labels": [
         "away",
         "away",
@@ -238,7 +238,7 @@
     },
     {
       "id": "noise",
-      "path": "C:\\Users\\SS\\FocusPlug-desk-model\\src\\main\\desk\\fixtures\\noise.jpg",
+      "path": "C:\\Users\\SS\\FocusPlug\\src\\main\\desk\\fixtures\\noise.jpg",
       "labels": [
         "away",
         "away",
@@ -507,7 +507,7 @@
     {
       "name": "trained custom model calls the face fixture at_desk with real confidence",
       "pass": true,
-      "detail": "{\"ts\":3000,\"label\":\"at_desk\",\"confidence\":0.9971059585928542,\"webcamEnabled\":true}"
+      "detail": "{\"ts\":3000,\"label\":\"at_desk\",\"confidence\":0.9971059585928542,\"webcamEnabled\":true,\"attention\":{\"label\":\"unfocused\",\"confidence\":0.5490196549244827}}"
     }
   ],
   "verdict": "PASS"

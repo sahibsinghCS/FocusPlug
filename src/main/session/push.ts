@@ -1,6 +1,7 @@
 import type {
   DeskSnapshot,
   FocusSnapshot,
+  NudgeEvent,
   PolicyEvent,
   SessionEvent,
   SessionState,
@@ -13,6 +14,7 @@ export interface SessionPush {
   focusSnapshot(snap: FocusSnapshot): void;
   deskSnapshot(snap: DeskSnapshot): void;
   sessionEvent(event: SessionEvent): void;
+  nudge(event: NudgeEvent): void;
 }
 
 export function silentPush(): SessionPush {
@@ -22,5 +24,6 @@ export function silentPush(): SessionPush {
     focusSnapshot: () => undefined,
     deskSnapshot: () => undefined,
     sessionEvent: () => undefined,
+    nudge: () => undefined,
   };
 }

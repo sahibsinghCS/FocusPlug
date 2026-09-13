@@ -54,6 +54,24 @@ describe("chrome status labels", () => {
     });
   });
 
+  it("shows attention in place of at-desk when the model reports it", () => {
+    expect(deskChrome({ ...desk, attention: { label: "phone", confidence: 0.84 } })).toEqual({
+      label: "Desk AI",
+      detail: "On phone 84%",
+      tone: "warn",
+      live: false,
+    });
+    expect(deskChrome({ ...desk, attention: { label: "focused", confidence: 0.9 } })).toEqual({
+      label: "Desk AI",
+      detail: "Focused 90%",
+      tone: "focus",
+      live: true,
+    });
+    expect(
+      deskChrome({ ...desk, label: "away", attention: { label: "unfocused", confidence: 0.7 } }).detail,
+    ).toBe("Away 94%");
+  });
+
   it("labels desk AI standby, live, and webcam-off", () => {
     expect(deskChrome(null).detail).toBe("Standby");
     expect(deskChrome(desk)).toEqual({
