@@ -7,6 +7,7 @@ import { pageCopy } from "../lib/routes";
 import {
   ConfigHeader,
   ConfigPage,
+  ConfirmAction,
   CUSTOM_GUIDE_PATH,
   CUSTOM_MODEL_PATH,
   customReadiness,
@@ -17,6 +18,7 @@ import {
   useSaveState,
 } from "../features/config";
 import { FacePicker } from "../features/faces";
+import { useFocusPlan } from "../features/focusplan";
 import { FlightRoutePicker } from "../features/faces/flight/RoutePicker";
 import { useAppState } from "../state/AppState";
 
@@ -28,6 +30,7 @@ export function SettingsPage(): JSX.Element {
   const [modelError, setModelError] = useState<string | null>(null);
   const [faceError, setFaceError] = useState<string | null>(null);
   const readiness = customReadiness();
+  const focusPlan = useFocusPlan();
 
   async function onFace(id: FaceId): Promise<void> {
     if (id === settings.faceId || faceSave.saving) {
@@ -266,6 +269,75 @@ export function SettingsPage(): JSX.Element {
             </span>
           </div>
         </Field>
+      </section>
+
+      <section className="fp-card space-y-4 p-4">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-[13px] font-medium">Focus Plan</p>
+            <p className="mt-0.5 text-[12px] text-fp-mute">
+              Recommends a round length before you start, debriefs it after, and tracks one
+              number: the minutes you hold before your first drift. It never locks, blocks or
+              kills anything — the plan is an offer. Off reproduces today&apos;s screens exactly.
+            </p>
+          </div>
+          <Toggle
+            checked={settings.focusPlanEnabled}
+            onChange={(next) => {
+              void app.patchSettings({ focusPlanEnabled: next });
+            }}
+            label="Focus Plan"
+          />
+        </div>
+
+        <div className="flex items-center justify-between gap-4 border-t border-fp-line pt-4">
+          <div>
+            <p className="text-[13px] font-medium">Let the plan progress</p>
+            <p className="mt-0.5 text-[12px] text-fp-mute">
+              Hold two rounds clean and the target goes up three minutes; drift early twice and
+              it comes back down three, and says so. Off keeps the measurement and the debrief
+              and plans straight to what you have held.
+            </p>
+          </div>
+          <Toggle
+            checked={settings.focusPlanStretchEnabled}
+            onChange={(next) => {
+              void app.patchSettings({ focusPlanStretchEnabled: next });
+            }}
+            label="Let the plan progress"
+            disabled={!settings.focusPlanEnabled}
+          />
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-fp-line pt-4">
+          <div>
+            <p className="text-[13px] font-medium">
+              Focus history · {focusPlan.state.lifetimeRounds}{" "}
+              {focusPlan.state.lifetimeRounds === 1 ? "round" : "rounds"}
+            </p>
+            <p className="mt-0.5 text-[12px] text-fp-mute">
+              Kept on this machine in <span className="font-mono">focus-plan.json</span>, beside
+              your settings. Numbers and dates only — no app names, no window titles, nothing
+              uploaded. Clearing it leaves the adaptive fuse model, the session log and your
+              settings untouched.
+            </p>
+          </div>
+          <ConfirmAction
+            label="Forget my focus history"
+            confirmLabel="Erase it"
+            ariaLabel="Forget my focus history"
+            disabled={focusPlan.state.lifetimeRounds === 0}
+            onConfirm={() => {
+              void focusPlan.reset();
+            }}
+          />
+        </div>
+
+        {focusPlan.error === null ? null : (
+          <p className="text-[12px] text-fp-red" role="alert">
+            {focusPlan.error}
+          </p>
+        )}
       </section>
 
       <section className="fp-card space-y-3 p-4" aria-busy={faceSave.saving}>

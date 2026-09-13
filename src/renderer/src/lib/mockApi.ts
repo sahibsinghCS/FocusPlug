@@ -11,16 +11,19 @@ import {
   type DeskModelId,
   type DeskSnapshot,
   type FocusPlugApi,
+  type FocusPlanState,
   type FocusSnapshot,
   type ForecastEvent,
   type ForecastSnapshot,
   type KillResult,
+  type PlanRound,
   type PlugDevice,
   type PolicyEvent,
   type SessionEvent,
   type SessionState,
 } from "@shared/ipc";
 import { isFaceId } from "@shared/faces";
+import { ledgerFromSessionLog } from "@shared/plan";
 import { isFlightIata, normalizeFlightPair } from "@shared/flightRoute";
 import { isDeskModelId } from "./plugsUi";
 import { isPlugMode, type NudgeEvent, type NudgeKind } from "@shared/nudge";
@@ -32,6 +35,7 @@ import {
   type ReplayFrame,
 } from "../features/forecast/replay";
 import { goldenSessionEvents } from "../features/logs/fixtures";
+import { planSceneState, readPlanScene } from "../features/focusplan/scenes";
 
 function cloneEntries(entries: AppEntry[]): AppEntry[] {
   return entries.map((entry) => ({
@@ -199,6 +203,14 @@ function loadStoredSettings(): AppSettings {
       Number.isFinite(record.forecastPrearmFuseSec)
         ? record.forecastPrearmFuseSec
         : DEFAULT_SETTINGS.forecastPrearmFuseSec,
+    focusPlanEnabled:
+      typeof record.focusPlanEnabled === "boolean"
+        ? record.focusPlanEnabled
+        : DEFAULT_SETTINGS.focusPlanEnabled,
+    focusPlanStretchEnabled:
+      typeof record.focusPlanStretchEnabled === "boolean"
+        ? record.focusPlanStretchEnabled
+        : DEFAULT_SETTINGS.focusPlanStretchEnabled,
     plugs,
   };
 }
@@ -257,6 +269,34 @@ export function createMockApi(): FocusPlugApi {
 
   const forecastBus = createBus<ForecastSnapshot>();
   const forecastEventBus = createBus<ForecastEvent>();
+  const planRoundBus = createBus<PlanRound>();
+
+  /**
+   * Focus Plan's ledger, seeded two honest ways and never a third: a named
+   * fixture for the `?scene=plan-*` / `?scene=debrief-*` screens, and
+   * otherwise `ledgerFromSessionLog` over this mock's own log — the same pure
+   * reducer the app ships, so the preview reads a real data path rather than a
+   * hand-typed number. No scene at all is the fresh install, which is exactly
+   * the state the cold-start card has to survive.
+   */
+  const planScene = readPlanScene(window.location.search, window.location.hash);
+  let planCleared = false;
+
+  function planState(): FocusPlanState {
+    const seeded = planSceneState(planScene, now());
+    if (seeded !== null) {
+      return seeded;
+    }
+    const rebuilt = planCleared
+      ? { rounds: [], lifetimeRounds: 0 }
+      : ledgerFromSessionLog(log);
+    return {
+      v: 1,
+      enabled: settings.focusPlanEnabled,
+      rounds: rebuilt.rounds,
+      lifetimeRounds: rebuilt.lifetimeRounds,
+    };
+  }
 
   // The forecast side of the mock is the deterministic scripted replay —
   // the same shared core (ring → features → GLM → escalation) the main
@@ -510,6 +550,7 @@ export function createMockApi(): FocusPlugApi {
         detail: "Allowlisted focus · at desk",
       });
       appendLog("session", "Session started");
+      planCleared = false;
       policyBus.emit({ type: "status", decision: "ON_TASK", detail: state.detail });
       startForecastTick();
       return state;
@@ -523,6 +564,12 @@ export function createMockApi(): FocusPlugApi {
         desk: state.desk,
       });
       appendLog("session", "Session stopped — observe only");
+      // The round that just closed, through the shipped log reducer — so the
+      // preview's debrief appears on the same push the app uses.
+      const closed = planState().rounds.at(-1);
+      if (closed) {
+        planRoundBus.emit(closed);
+      }
       return state;
     },
     sessionGetState: async () => state,
@@ -676,6 +723,13 @@ export function createMockApi(): FocusPlugApi {
       nudgeBus.emit({ ts: now(), kind });
     },
     forecastGetState: async () => forecastSnap,
+    planGetState: async () => planState(),
+    planReset: async () => {
+      const cleared = planState().rounds.length;
+      planCleared = true;
+      appendLog("plan", `history cleared (${cleared} ${cleared === 1 ? "round" : "rounds"})`);
+      return planState();
+    },
     onSessionState: (cb) => sessionBus.on(cb),
     onPolicyEvent: (cb) => policyBus.on(cb),
     onFocusSnapshot: (cb) => focusBus.on(cb),
@@ -684,6 +738,7 @@ export function createMockApi(): FocusPlugApi {
     onNudge: (cb) => nudgeBus.on(cb),
     onForecastSnapshot: (cb) => forecastBus.on(cb),
     onForecastEvent: (cb) => forecastEventBus.on(cb),
+    onPlanRound: (cb) => planRoundBus.on(cb),
   };
 
   if (state.sessionActive) {

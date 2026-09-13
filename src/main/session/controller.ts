@@ -61,6 +61,14 @@ export interface SessionStore {
   /** Optional: stores that cannot persist the adaptive model just relearn. */
   loadAdaptiveModel?(): unknown;
   saveAdaptiveModel?(value: unknown): void;
+  /**
+   * Optional: stores that cannot persist the Focus Plan ledger just forget it.
+   * The controller never calls these — `PlanRecorder` does, over the same
+   * store instance — but they belong on the seam the runtime already shares,
+   * exactly as the adaptive-model pair does.
+   */
+  loadPlanLedger?(): unknown;
+  savePlanLedger?(value: unknown): void;
 }
 
 export interface SessionControllerOptions {
@@ -250,6 +258,18 @@ function requirePatch(value: unknown): Partial<AppSettings> {
       throw new Error("forecastPrearmFuseSec must be a finite number");
     }
     patch.forecastPrearmFuseSec = record.forecastPrearmFuseSec;
+  }
+  if ("focusPlanEnabled" in record) {
+    if (typeof record.focusPlanEnabled !== "boolean") {
+      throw new Error("focusPlanEnabled must be a boolean");
+    }
+    patch.focusPlanEnabled = record.focusPlanEnabled;
+  }
+  if ("focusPlanStretchEnabled" in record) {
+    if (typeof record.focusPlanStretchEnabled !== "boolean") {
+      throw new Error("focusPlanStretchEnabled must be a boolean");
+    }
+    patch.focusPlanStretchEnabled = record.focusPlanStretchEnabled;
   }
   return patch;
 }

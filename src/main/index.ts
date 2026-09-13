@@ -10,6 +10,7 @@ import {
   type PlugDevice,
 } from "@shared/ipc";
 import type { ForecastPush } from "@shared/forecast/types";
+import type { PlanPush } from "@shared/plan/types";
 import { assertControllable, type PlugController } from "./plugs";
 import {
   createFocusPlugRuntime,
@@ -79,12 +80,31 @@ function createForecastElectronPush(): ForecastPush {
   };
 }
 
+function createPlanElectronPush(): PlanPush {
+  return {
+    round: (round) => broadcast(IPC_PUSH.PLAN_ROUND, round),
+  };
+}
+
 function registerIpc(
   controller: SessionController,
   plugs: PlugController,
   forecast: FocusPlugRuntime["forecast"],
+  plan: FocusPlugRuntime["plan"],
 ): void {
-  ipcMain.handle(IPC_INVOKE.SESSION_START, async () => controller.start());
+  /**
+   * SESSION_START carries ONE optional argument: the renderer's arm context
+   * (round key, round index, planned focus length, and whether the Focus Plan
+   * offer was accepted). It is consumed HERE and never handed to the
+   * controller — `declareRound` validates untrusted input, never throws, and
+   * runs synchronously immediately before `start()`, so the recorder always
+   * has the context before the first `sessionState` push arrives and there is
+   * no accept/start race to reason about.
+   */
+  ipcMain.handle(IPC_INVOKE.SESSION_START, async (_event, context?: unknown) => {
+    plan.declareRound(context);
+    return controller.start();
+  });
   ipcMain.handle(IPC_INVOKE.SESSION_STOP, async () => controller.stop());
   ipcMain.handle(IPC_INVOKE.SESSION_GET_STATE, () => controller.getState());
   ipcMain.handle(IPC_INVOKE.LISTS_GET, () => controller.getLists());
@@ -128,6 +148,8 @@ function registerIpc(
     controller.demoNudge(kind),
   );
   ipcMain.handle(IPC_INVOKE.FORECAST_GET_STATE, () => forecast.getSnapshot());
+  ipcMain.handle(IPC_INVOKE.PLAN_GET_STATE, () => plan.getState());
+  ipcMain.handle(IPC_INVOKE.PLAN_RESET, () => plan.reset());
 }
 
 function createWindow(): void {
@@ -200,10 +222,11 @@ if (!app.requestSingleInstanceLock()) {
         userDataDir: app.getPath("userData"),
         push: createElectronPush(),
         forecastPush: createForecastElectronPush(),
+        planPush: createPlanElectronPush(),
         revealWindow: revealMainWindow,
       });
       session = runtime.session;
-      registerIpc(runtime.session, runtime.plugs, runtime.forecast);
+      registerIpc(runtime.session, runtime.plugs, runtime.forecast, runtime.plan);
 
       app.on("browser-window-created", (_event, window) => {
         optimizer.watchWindowShortcuts(window);

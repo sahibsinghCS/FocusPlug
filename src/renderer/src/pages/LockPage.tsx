@@ -1,6 +1,7 @@
 import { useRef, type JSX, type ReactNode } from "react";
 import { faceMeta, normalizeFaceId } from "@shared/faces";
 import { FaceErrorBoundary, buildLockFaceProps, faceComponent } from "../features/faces";
+import { DebriefCard } from "../features/focusplan";
 import { formatFaceClock } from "../features/faces/clock";
 import { useHostSize } from "../features/faces/useHostSize";
 import { useLiveFaceNow } from "../features/faces/useLiveFaceNow";
@@ -101,6 +102,18 @@ export function LockPage(props: { timer: SessionTimer }): JSX.Element {
               ? "Blocked apps are yours again until the next round."
               : "Leave the assignment and the fuse starts."}
         </p>
+
+        {/* The break is exactly when you want to know how the round went, and
+            the lock is already off — so the debrief sits here rather than
+            interrupting the round it is about. */}
+        {onBreak ? (
+          <div
+            className="fp-lock-in mx-auto w-full max-w-[620px] shrink-0 pb-2 text-left"
+            style={{ animationDelay: "160ms" }}
+          >
+            <DebriefCard variant="break" timer={timer} />
+          </div>
+        ) : null}
       </main>
 
       <footer className="relative z-10 flex shrink-0 flex-col items-center gap-5 px-6 pb-6">
@@ -240,6 +253,10 @@ function Finished(props: { timer: SessionTimer }): JSX.Element {
             : `${timer.plan.rounds} round${timer.plan.rounds === 1 ? "" : "s"} of ${timer.plan.focusMin} minutes.`}{" "}
           Everything is unblocked and any plug you armed is back on.
         </p>
+      </div>
+
+      <div className="fp-lock-in relative z-10 w-full max-w-[620px] text-left">
+        <DebriefCard variant="done" timer={timer} />
       </div>
 
       <button

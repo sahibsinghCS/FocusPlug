@@ -178,6 +178,14 @@ export function normalizeSettings(raw: Partial<AppSettings> | null | undefined):
     forecastNudgeRisk,
     forecastPrearmRisk,
     forecastPrearmFuseSec: Math.min(600, Math.max(3, Math.round(prearmFuseRaw))),
+    focusPlanEnabled:
+      typeof raw?.focusPlanEnabled === "boolean"
+        ? raw.focusPlanEnabled
+        : DEFAULT_SETTINGS.focusPlanEnabled,
+    focusPlanStretchEnabled:
+      typeof raw?.focusPlanStretchEnabled === "boolean"
+        ? raw.focusPlanStretchEnabled
+        : DEFAULT_SETTINGS.focusPlanStretchEnabled,
   };
 }
 
@@ -218,6 +226,7 @@ export class FocusPlugStore implements Store {
   private readonly settingsPath: string;
   private readonly logPath: string;
   private readonly modelPath: string;
+  private readonly planPath: string;
   private settingsCache: AppSettings | null = null;
   private logCache: SessionEvent[] | null = null;
 
@@ -226,6 +235,7 @@ export class FocusPlugStore implements Store {
     this.settingsPath = join(directory, "settings.json");
     this.logPath = join(directory, "session-log.json");
     this.modelPath = join(directory, "adaptive-model.json");
+    this.planPath = join(directory, "focus-plan.json");
   }
 
   loadAllowlist(): AppEntry[] {
@@ -295,6 +305,23 @@ export class FocusPlugStore implements Store {
 
   saveAdaptiveModel(value: unknown): void {
     writeJsonAtomic(this.modelPath, value);
+  }
+
+  /**
+   * Focus Plan's round ledger, a sibling of `adaptive-model.json` and kept in
+   * its own file for the same stated reason: derived data that can always be
+   * thrown away and relearned, and losing it must never take settings or the
+   * log with it. Written on round close only — roughly once every 25 minutes,
+   * which is nothing next to the log's per-event write. Revived defensively
+   * by `revivePlanLedger`; nothing here validates, and nothing here throws
+   * into a session start.
+   */
+  loadPlanLedger(): unknown {
+    return readJson(this.planPath);
+  }
+
+  savePlanLedger(value: unknown): void {
+    writeJsonAtomic(this.planPath, value);
   }
 
   private persistSettings(): void {

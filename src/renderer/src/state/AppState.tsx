@@ -23,6 +23,7 @@ import type {
   PlugSnapshot,
   PolicyEvent,
   SessionEvent,
+  SessionPlanContext,
   SessionState,
 } from "@shared/ipc";
 import type { AppEntry } from "@shared/types";
@@ -74,7 +75,13 @@ interface AppStateValue {
   /** The latest drift nudge from main, until dismissed. */
   nudge: NudgeEvent | null;
   dismissNudge: () => void;
-  startSession: () => Promise<void>;
+  /**
+   * The optional argument is the Focus Plan arm context. It rides
+   * `SESSION_START`, is consumed in `src/main/index.ts` by
+   * `FocusPlan.declareRound`, and never reaches the session controller — so
+   * passing it, or not, changes nothing about enforcement.
+   */
+  startSession: (context?: SessionPlanContext) => Promise<void>;
   stopSession: () => Promise<void>;
   demoKill: () => Promise<void>;
   demoNudge: (kind: NudgeKind) => Promise<void>;
@@ -319,16 +326,19 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
     [],
   );
 
-  const startSession = useCallback(async (): Promise<void> => {
-    await run(async () => {
-      // A fresh session means a fresh forecast ledger — the monitor's ring
-      // resets too, so stale receipts must not survive into the new run.
-      setForecast(null);
-      setForecastEvents([]);
-      setForecastHistory([]);
-      setState(await api.sessionStart());
-    }, "Failed to start session");
-  }, [api, run]);
+  const startSession = useCallback(
+    async (context?: SessionPlanContext): Promise<void> => {
+      await run(async () => {
+        // A fresh session means a fresh forecast ledger — the monitor's ring
+        // resets too, so stale receipts must not survive into the new run.
+        setForecast(null);
+        setForecastEvents([]);
+        setForecastHistory([]);
+        setState(await api.sessionStart(context));
+      }, "Failed to start session");
+    },
+    [api, run],
+  );
 
   const stopSession = useCallback(async (): Promise<void> => {
     await run(async () => {

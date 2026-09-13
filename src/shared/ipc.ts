@@ -1,6 +1,7 @@
 import type { FaceId } from "./faces";
 import type { ForecastEvent, ForecastSnapshot } from "./forecast/types";
 import type { NudgeEvent, NudgeKind, PlugMode } from "./nudge";
+import type { FocusPlanState, PlanRound, SessionPlanContext } from "./plan/types";
 import type {
   AppEntry,
   Decision,
@@ -18,6 +19,18 @@ import type {
 export type { FaceId, FacePhase } from "./faces";
 export type { ForecastBand, ForecastEvent, ForecastSnapshot } from "./forecast/types";
 export type { NudgeEvent, NudgeKind, PlugMode } from "./nudge";
+export type {
+  FocusPlanLedger,
+  FocusPlanState,
+  PlanDebrief,
+  PlanEstimate,
+  PlanRecommendation,
+  PlanRevision,
+  PlanRound,
+  PlanTrend,
+  SessionArmContext,
+  SessionPlanContext,
+} from "./plan/types";
 export type {
   AppEntry,
   AttentionLabel,
@@ -59,6 +72,8 @@ export const IPC_INVOKE = {
   DEMO_KILL: "focusplug:demo:kill",
   DEMO_NUDGE: "focusplug:demo:nudge",
   FORECAST_GET_STATE: "focusplug:forecast:getState",
+  PLAN_GET_STATE: "focusplug:plan:getState",
+  PLAN_RESET: "focusplug:plan:reset",
 } as const;
 
 /** Main → renderer push (event) channels. */
@@ -71,6 +86,7 @@ export const IPC_PUSH = {
   NUDGE: "focusplug:session:nudge",
   FORECAST_SNAPSHOT: "focusplug:forecast:snapshot",
   FORECAST_EVENT: "focusplug:forecast:event",
+  PLAN_ROUND: "focusplug:plan:round",
 } as const;
 
 export type IpcInvokeChannel = (typeof IPC_INVOKE)[keyof typeof IPC_INVOKE];
@@ -101,6 +117,11 @@ export interface AppSettings {
   forecastPrearmRisk: number;
   /** Shortened fuse while pre-armed. Clamped [3, 600]; runtime caps at countdownSec. */
   forecastPrearmFuseSec: number;
+  /** Focus Plan master switch. Off reproduces today's screens exactly. */
+  focusPlanEnabled: boolean;
+  /** Let progression raise or lower the target. Off keeps the measurement
+   *  and the debrief, and plans to the estimate with no step. */
+  focusPlanStretchEnabled: boolean;
 }
 
 export interface SessionState {
@@ -123,7 +144,13 @@ export interface KillResult {
 }
 
 export interface IpcInvokeChannelMap {
-  "focusplug:session:start": { args: []; result: SessionState };
+  /**
+   * ONE optional argument, and it never reaches the session controller:
+   * `src/main/index.ts` hands it to `FocusPlan.declareRound` and then calls
+   * `controller.start()`. Backwards compatible — every existing caller
+   * (probe.ts, the smoke script, mockApi) still typechecks and still works.
+   */
+  "focusplug:session:start": { args: [context?: SessionPlanContext]; result: SessionState };
   "focusplug:session:stop": { args: []; result: SessionState };
   "focusplug:session:getState": { args: []; result: SessionState };
   "focusplug:lists:get": { args: []; result: AppLists };
@@ -142,6 +169,8 @@ export interface IpcInvokeChannelMap {
   "focusplug:demo:kill": { args: []; result: KillResult };
   "focusplug:demo:nudge": { args: [kind: NudgeKind]; result: void };
   "focusplug:forecast:getState": { args: []; result: ForecastSnapshot | null };
+  "focusplug:plan:getState": { args: []; result: FocusPlanState };
+  "focusplug:plan:reset": { args: []; result: FocusPlanState };
 }
 
 export interface IpcPushChannelMap {
@@ -153,11 +182,12 @@ export interface IpcPushChannelMap {
   "focusplug:session:nudge": NudgeEvent;
   "focusplug:forecast:snapshot": ForecastSnapshot;
   "focusplug:forecast:event": ForecastEvent;
+  "focusplug:plan:round": PlanRound;
 }
 
 /** Preload API exposed on `window.focusplug`. */
 export interface FocusPlugApi {
-  sessionStart(): Promise<SessionState>;
+  sessionStart(context?: SessionPlanContext): Promise<SessionState>;
   sessionStop(): Promise<SessionState>;
   sessionGetState(): Promise<SessionState>;
   listsGet(): Promise<AppLists>;
@@ -177,6 +207,8 @@ export interface FocusPlugApi {
   /** Fire a nudge now (window forward, overlay, lamp in nudge mode) — for demos. */
   demoNudge(kind: NudgeKind): Promise<void>;
   forecastGetState(): Promise<ForecastSnapshot | null>;
+  planGetState(): Promise<FocusPlanState>;
+  planReset(): Promise<FocusPlanState>;
   onSessionState(cb: (state: SessionState) => void): () => void;
   onPolicyEvent(cb: (event: PolicyEvent) => void): () => void;
   onFocusSnapshot(cb: (snap: FocusSnapshot) => void): () => void;
@@ -185,6 +217,7 @@ export interface FocusPlugApi {
   onNudge(cb: (event: NudgeEvent) => void): () => void;
   onForecastSnapshot(cb: (snap: ForecastSnapshot) => void): () => void;
   onForecastEvent(cb: (event: ForecastEvent) => void): () => void;
+  onPlanRound(cb: (round: PlanRound) => void): () => void;
 }
 
 export interface WindowMonitor {

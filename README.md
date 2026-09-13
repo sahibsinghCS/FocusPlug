@@ -96,6 +96,35 @@ Riding on the same feature vector is a second, **Adaption-Labs-labelled attentio
 
 Dropping in a model of your own means replacing `src/main/desk/model/your-model.ts` or adding a fourth factory id — both routes, and what each costs, are in [docs/MODEL-SEAM.md](docs/MODEL-SEAM.md).
 
+### 5. Focus Plan — *how long can you actually hold, and is it improving?*
+
+Not a fifth model, and it decides nothing — that is the point. The forecast knows *when* you are about to drift; **Focus Plan** turns that into a plan recommended before the round with its reasoning in plain language, a debrief after it, and one tracked headline metric: **minutes until your first drift**. It reuses the forecast's own drift definition verbatim (`isDriftedDecision`, `findDriftOnsets`, `DRIFT_DEBOUNCE_SEC`) rather than inventing a second one, and `src/shared/plan/drift.test.ts` pins the two together so a divergence is a failing test rather than a promise.
+
+**It never enforces.** No lock, no block, no kill, no button on the nudge overlay. The process kill remains the only enforcement in this product, and Focus Plan has no seam into it: `SessionControllerOptions` gains no plan-shaped key, `adaptiveFuse.ts` is untouched, and `src/main/focusplan/integration.test.ts` runs a scripted session with a recorder that **throws on every single call** and asserts the policy events, states, kill calls and log come out byte-identical to the committed golden path. A break is an offer that helps you avoid the kill.
+
+The estimator is **Kaplan–Meier**, because the data is censored: a round that ran clean is not a hold of exactly its length, it is an observation whose true value lies somewhere *past* it. Treating those the same biases the number downward exactly on your good rounds. KM also refuses on its own — when the curve never reaches a half the median is undefined, and the card then says "at least X" instead of inventing a point estimate.
+
+Three honesty rules it is built around, all of them load-bearing:
+
+- **It says something true on a fresh install.** A six-rung cold-start ladder means there is no empty state anywhere in this feature. With zero history the card reads *"Start with 25 minutes, then 5 off"* and says outright that this is the pomodoro default and not a reading of you. Inside the very first round it can fall back to the live risk curve, and it labels that read **provisional**.
+- **It refuses to draw a line through two points.** The trend has **seven gates** — enough drifts, across enough distinct days, balanced halves, not too censored, a change beating your own spread, a robust slope agreeing in sign, and a leave-one-out sweep that drops each round *and each day* in turn. `slopeMinPerRound` is structurally `null` unless every one passes, and the copy names the gate that stopped it.
+- **It is fully overridable.** The Dial below the card stays editable, the button only writes the plan, and acceptance is *measured* rather than trusted — it compares the block actually armed against the length recommended.
+
+`npm run gauntlet:plan` replays 400 simulated students, 24 rounds each, against a fixed 25/5:
+
+| | Focus Plan | fixed 25/5 |
+| --- | --- | --- |
+| Rounds finished without a drift (stationary students) | **14.2 / 24** | 11.2 / 24 |
+| Focus minutes served (stationary students) | 516 | **523** |
+| Rounds finished without a drift (improving students) | **19.8 / 24** | 17.2 / 24 |
+| Focus minutes served (improving students) | **581** | 573 |
+
+The second row is the trade, printed rather than hidden: planning to a student's measured limit buys 3 more clean rounds out of 24 and costs about 7 focus minutes across the whole run, because a shorter block that finishes is sometimes a shorter block. For a student who is actually improving the trade disappears — more clean rounds *and* more minutes.
+
+Censoring is earning its place: median absolute error of the estimate is **0.95 min** with Kaplan–Meier against **1.87 min** if clean rounds are counted as drifts. And the gate that actually fails the build — on a **stationary** population, where there is no trend to find, the seven gates report `clear` in **3.8%** of runs, under the 5% bar. A trend detector that finds trends in noise is worse than no trend detector.
+
+**Disclosure: that table is a simulation against simulated students, not a user study.** The per-install measurement is the real claim, and it has no number until it has watched you work. Everything is on-device in `<userData>/focus-plan.json`, which holds durations and drift offsets — no process name, no window title, no frame, structurally, because the plan's tap never subscribes to those channels. `focusPlanEnabled: false` reproduces today's screens exactly; `FOCUSPLUG_NO_PLAN=1` is the filming pin — the cards stay up on the cold-start rung for one run while the ledger is left untouched, exactly as `FOCUSPLUG_NO_ADAPT=1` leaves you a fuse and pins it to the Settings number. Full design: [docs/FOCUS-PLAN.md](docs/FOCUS-PLAN.md).
+
 ## Try it in the browser
 
 `npm run demo:build` writes a static page to `dist/demo`. Open `dist/demo/index.html` directly — it is one HTML file and one classic script with the fonts and model weights inlined, so it runs from `file://`, from `python3 -m http.server`, or from GitHub Pages without configuration (`base` is `./`, no module scripts, no sibling fetches). `npm run demo:dev` serves the same page from source on port 5190. It needs neither Windows nor an Electron install, and it makes no network requests at all.
@@ -136,7 +165,7 @@ npm run test:kill    # node --test: real tasklist / taskkill against a harmless 
 npm run test:window  # node --test: window matcher, monitor, and the Win32 foreground script
 ```
 
-Typecheck and the vitest suite take about twenty seconds together on a four-core Linux box (`npm ci` depends on your npm cache). `npm run typecheck` starts with `npm run check:contracts`, which byte-compares `src/shared/types.ts` against the frozen Types fence in [docs/CONTRACTS.md](docs/CONTRACTS.md), so the contract docs cannot drift from the types in silence.
+Typecheck and the vitest suite take about twenty seconds together on a four-core Linux box (`npm ci` depends on your npm cache). `npm run typecheck` starts with `npm run check:contracts`, which byte-compares every file a doc publishes as complete source against that file — `src/shared/types.ts` against the frozen Types fence in [docs/CONTRACTS.md](docs/CONTRACTS.md), and `src/shared/plan/types.ts` and `src/shared/plan/constants.ts` against the frozen appendix in [docs/FOCUS-PLAN.md](docs/FOCUS-PLAN.md) — so the contract docs cannot drift from the code in silence.
 
 Then the per-model gauntlets, each of which prints its own numbers:
 
