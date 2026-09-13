@@ -285,3 +285,17 @@ export function awayDesk(ts: number): DeskSnapshot {
     webcamEnabled: true,
   };
 }
+
+/**
+ * The model saying it does not know. A first-class answer in this product and
+ * a non-actionable one: it never nudges, never lights a lamp and never stops
+ * the clock, however sure it is of its own uncertainty.
+ */
+export function unsureDesk(ts: number, confidence = 0.99): DeskSnapshot {
+  return {
+    ts,
+    label: "uncertain",
+    confidence,
+    webcamEnabled: true,
+  };
+}

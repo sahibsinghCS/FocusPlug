@@ -121,6 +121,10 @@ export const DEFAULT_SETTINGS: AppSettings = {
   forecastNudgeRisk: 0.5,
   forecastPrearmRisk: 0.65,
   forecastPrearmFuseSec: 5,
+  pauseOnAwayEnabled: true,
+  pauseOnPhoneEnabled: false,
+  pauseAwayConfidence: 0.75,
+  pausePhoneConfidence: 0.9,
   focusPlanEnabled: true,
   focusPlanStretchEnabled: true,
 };

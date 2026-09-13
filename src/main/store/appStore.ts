@@ -148,6 +148,20 @@ export function normalizeSettings(raw: Partial<AppSettings> | null | undefined):
   const prearmFuseRaw = isFiniteNumber(raw?.forecastPrearmFuseSec)
     ? raw.forecastPrearmFuseSec
     : DEFAULT_SETTINGS.forecastPrearmFuseSec;
+  const awayPauseRaw = isFiniteNumber(raw?.pauseAwayConfidence)
+    ? raw.pauseAwayConfidence
+    : DEFAULT_SETTINGS.pauseAwayConfidence;
+  const phonePauseRaw = isFiniteNumber(raw?.pausePhoneConfidence)
+    ? raw.pausePhoneConfidence
+    : DEFAULT_SETTINGS.pausePhoneConfidence;
+  const pauseAwayConfidence = Math.min(0.95, Math.max(0.5, awayPauseRaw));
+  // Structural, not advisory: the attention head is the weaker of the two, so
+  // stopping the clock on a phone must always demand more than stopping it on
+  // an away — whatever a hand-edited settings.json says.
+  const pausePhoneConfidence = Math.max(
+    Math.min(0.99, Math.max(0.5, phonePauseRaw)),
+    pauseAwayConfidence + 0.05,
+  );
   const forecastNudgeRisk = Math.min(0.9, Math.max(0.05, nudgeRiskRaw));
   // Pre-arm must sit meaningfully above the nudge threshold or the bands collapse.
   const forecastPrearmRisk = Math.max(
@@ -178,6 +192,16 @@ export function normalizeSettings(raw: Partial<AppSettings> | null | undefined):
     forecastNudgeRisk,
     forecastPrearmRisk,
     forecastPrearmFuseSec: Math.min(600, Math.max(3, Math.round(prearmFuseRaw))),
+    pauseOnAwayEnabled:
+      typeof raw?.pauseOnAwayEnabled === "boolean"
+        ? raw.pauseOnAwayEnabled
+        : DEFAULT_SETTINGS.pauseOnAwayEnabled,
+    pauseOnPhoneEnabled:
+      typeof raw?.pauseOnPhoneEnabled === "boolean"
+        ? raw.pauseOnPhoneEnabled
+        : DEFAULT_SETTINGS.pauseOnPhoneEnabled,
+    pauseAwayConfidence,
+    pausePhoneConfidence,
     focusPlanEnabled:
       typeof raw?.focusPlanEnabled === "boolean"
         ? raw.focusPlanEnabled

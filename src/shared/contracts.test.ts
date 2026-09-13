@@ -9,6 +9,7 @@ import {
   type DeskModelFactory,
   type PlugController,
 } from "./ipc";
+import { deskModelMayPauseOnAway } from "./nudge";
 import type { DeskFrame, DeskModel, PolicyEvent } from "./types";
 
 function assertNever(value: never): never {
@@ -86,6 +87,27 @@ describe("Phase 2 contracts", () => {
     expect(DEFAULT_SETTINGS.forecastNudgeRisk).toBe(0.5);
     expect(DEFAULT_SETTINGS.forecastPrearmRisk).toBe(0.65);
     expect(DEFAULT_SETTINGS.forecastPrearmFuseSec).toBe(5);
+  });
+
+  it("proportions the pause defaults to how much each head can be trusted", () => {
+    // Walking off stops the clock out of the box — but only on the head that
+    // earned it. The switch is on by default because the TRAINED presence head
+    // is 92.5% precise on `away` (89.44% 3-way on the diverse-stock slice);
+    // `deskModelMayPauseOnAway` is what keeps that from reaching the shipped
+    // BlazeFace detector, which is 42.1% precise on the same call.
+    expect(DEFAULT_SETTINGS.pauseOnAwayEnabled).toBe(true);
+    expect(deskModelMayPauseOnAway("custom")).toBe(true);
+    expect(deskModelMayPauseOnAway(DEFAULT_SETTINGS.deskModelId)).toBe(false);
+    // The attention head is not (50-69% phone recall, ~17% false phones), and
+    // pausing a student who is working is the worst failure here — so it ships
+    // off, and needs a higher floor when it is switched on.
+    expect(DEFAULT_SETTINGS.pauseOnPhoneEnabled).toBe(false);
+    expect(DEFAULT_SETTINGS.pauseAwayConfidence).toBe(0.75);
+    expect(DEFAULT_SETTINGS.pausePhoneConfidence).toBe(0.9);
+    expect(DEFAULT_SETTINGS.pausePhoneConfidence).toBeGreaterThanOrEqual(
+      DEFAULT_SETTINGS.pauseAwayConfidence + 0.05,
+    );
+    expect(DEFAULT_SETTINGS.pauseAwayConfidence).toBeGreaterThan(DEFAULT_SETTINGS.deskThreshold);
   });
 
   it("defaults faceId to flight once the instrument is ready", () => {

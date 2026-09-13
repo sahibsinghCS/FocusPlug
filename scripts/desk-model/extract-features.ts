@@ -13,25 +13,32 @@ import {
   type FeatureRow,
   type PackItem,
 } from "./lib";
+import { ATTENTION_PROXY_BUCKET, isAttentionProxyRow } from "./attention-proxies";
 import { FIRST_PERSON_BUCKET, isFirstPersonRow } from "./first-person";
 
 /**
  * One-time (cached, resumable) feature extraction over the desk-data pack.
  * Runs the EXACT runtime pipeline (`extractDeskFeatures` from your-model.ts):
  * decode → BlazeFace → scene features → feature vector, one JSONL row per
- * image. The pool is `labels.json` plus any first-person webcam clips recorded
- * by capture-attention.ts. Shard for process-level parallelism:
+ * image. The pool is `labels.json` plus the two kinds of image that live in
+ * the pack without being in it: first-person webcam clips recorded by
+ * capture-attention.ts, and the stock attention proxies. Shard for
+ * process-level parallelism:
  *
  *   FOCUSPLUG_DESK_DATA=... tsx scripts/desk-model/extract-features.ts --shard 0 --of 4
  */
 
 /**
- * Webcam captures live inside the pack but not in its `labels.json`, so they
- * are read straight out of `datasets/desk-attention-labels.csv` (path prefix
- * `first-person/`). They carry `bucket: "first_person"`, which `readFeatureRows`
- * skips by default — the presence head never sees them.
+ * Attention-only images live inside the pack but not in its `labels.json`, so
+ * they are read straight out of `datasets/desk-attention-labels.csv` by path
+ * prefix — `first-person/` for webcam captures, `attention-proxies/` for the
+ * stock proxy release. This is the whole adapter: no restructuring of either
+ * the pack or the release, and no second labels file.
+ *
+ * They carry a bucket in `ATTENTION_ONLY_BUCKETS`, which `readFeatureRows`
+ * skips by default — the presence head never sees either kind.
  */
-function firstPersonItems(): PackItem[] {
+function attentionOnlyItems(): PackItem[] {
   const file = attentionLabelsFile();
   if (!existsSync(file)) {
     return [];
@@ -39,17 +46,18 @@ function firstPersonItems(): PackItem[] {
   const seen = new Set<string>();
   const items: PackItem[] = [];
   for (const row of readAttentionLabels(file)) {
-    if (!isFirstPersonRow(row) || seen.has(row.path)) {
+    const firstPerson = isFirstPersonRow(row);
+    if ((!firstPerson && !isAttentionProxyRow(row)) || seen.has(row.path)) {
       continue;
     }
     seen.add(row.path);
     items.push({
       path: row.path,
-      // The declared clip label, kept verbatim; `mapped` is at_desk because
-      // every capture is the user sitting at their own desk by construction.
-      label: row.attention,
+      // Webcam rows carry the declared clip label; proxy rows carry the
+      // release's own pack-vocabulary label, which `mapLabel` understands.
+      label: firstPerson ? row.attention : row.packLabel,
       split: row.split,
-      bucket: FIRST_PERSON_BUCKET,
+      bucket: firstPerson ? FIRST_PERSON_BUCKET : ATTENTION_PROXY_BUCKET,
     });
   }
   return items;
@@ -85,12 +93,13 @@ async function main(): Promise<void> {
     }
   }
 
-  const captures = firstPersonItems();
-  const items = [...pack.items, ...captures];
+  const extras = attentionOnlyItems();
+  const captures = extras.filter((item) => item.bucket === FIRST_PERSON_BUCKET).length;
+  const items = [...pack.items, ...extras];
   const mine = items.filter((_, index) => index % of === shard);
   const pending = mine.filter((item) => !done.has(item.path));
   console.log(
-    `[shard ${shard}/${of}] ${mine.length} items (${captures.length} first-person captures in the pool), ${done.size} cached, ${pending.length} to extract`,
+    `[shard ${shard}/${of}] ${mine.length} items (${captures} first-person captures, ${extras.length - captures} stock attention proxies in the pool), ${done.size} cached, ${pending.length} to extract`,
   );
 
   let processed = 0;

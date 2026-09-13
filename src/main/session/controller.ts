@@ -2,7 +2,13 @@ import { DEFAULT_SESSION_STATE } from "../../shared/defaults.ts";
 import { isFaceId } from "../../shared/faces.ts";
 import { isFlightIata } from "../../shared/flightRoute.ts";
 import type { ForecastHook } from "../../shared/forecast/index.ts";
-import { isNudgeKind, isPlugMode, type NudgeEvent, type NudgeKind } from "../../shared/nudge.ts";
+import {
+  deskModelMayPauseOnAway,
+  isNudgeKind,
+  isPlugMode,
+  type NudgeEvent,
+  type NudgeKind,
+} from "../../shared/nudge.ts";
 import { REASONS } from "../../shared/policy/constants.ts";
 import {
   PLUG_DRIVER_NOT_IMPLEMENTED,
@@ -24,7 +30,7 @@ import {
 } from "../../shared/policy/index.ts";
 import { AdaptiveFuse } from "./adaptiveFuse.ts";
 import { composeFuse } from "./fuseAuthority.ts";
-import { NudgeTracker } from "./nudge.ts";
+import { NudgeTracker, type DriftPolicy } from "./nudge.ts";
 import type {
   AppEntry,
   DeskModelId,
@@ -259,6 +265,36 @@ function requirePatch(value: unknown): Partial<AppSettings> {
     }
     patch.forecastPrearmFuseSec = record.forecastPrearmFuseSec;
   }
+  if ("pauseOnAwayEnabled" in record) {
+    if (typeof record.pauseOnAwayEnabled !== "boolean") {
+      throw new Error("pauseOnAwayEnabled must be a boolean");
+    }
+    patch.pauseOnAwayEnabled = record.pauseOnAwayEnabled;
+  }
+  if ("pauseOnPhoneEnabled" in record) {
+    if (typeof record.pauseOnPhoneEnabled !== "boolean") {
+      throw new Error("pauseOnPhoneEnabled must be a boolean");
+    }
+    patch.pauseOnPhoneEnabled = record.pauseOnPhoneEnabled;
+  }
+  if ("pauseAwayConfidence" in record) {
+    if (
+      typeof record.pauseAwayConfidence !== "number" ||
+      !Number.isFinite(record.pauseAwayConfidence)
+    ) {
+      throw new Error("pauseAwayConfidence must be a finite number");
+    }
+    patch.pauseAwayConfidence = record.pauseAwayConfidence;
+  }
+  if ("pausePhoneConfidence" in record) {
+    if (
+      typeof record.pausePhoneConfidence !== "number" ||
+      !Number.isFinite(record.pausePhoneConfidence)
+    ) {
+      throw new Error("pausePhoneConfidence must be a finite number");
+    }
+    patch.pausePhoneConfidence = record.pausePhoneConfidence;
+  }
   if ("focusPlanEnabled" in record) {
     if (typeof record.focusPlanEnabled !== "boolean") {
       throw new Error("focusPlanEnabled must be a boolean");
@@ -406,9 +442,13 @@ export class SessionController {
       }
       this.desk = snap;
       this.push.deskSnapshot({ ...snap });
-      const drift = this.nudges.observeDesk(snap, this.loadSettings().deskThreshold, this.now());
+      const drift = this.nudges.observeDesk(snap, this.driftPolicy(), this.now());
       if (drift !== null) {
-        void this.nudge(drift);
+        // Either flag pulls them back: `drift.nudge` is the nudge gate, not a
+        // veto. The reading that stops the clock arrives inside
+        // NUDGE_REPEAT_MS with `nudge: false`, and a round that just stopped
+        // is exactly when the window, the overlay and the lamp have to say so.
+        void this.nudge(drift.kind, { pause: drift.pause });
       }
       this.enqueueEvaluate();
     });
@@ -840,7 +880,7 @@ export class SessionController {
         }
         if (event.reason === REASONS.blockedFocus) {
           this.nudges.blocked(armedAt);
-          await this.nudge("blocked", this.focus?.processName);
+          await this.nudge("blocked", { app: this.focus?.processName });
         }
         return;
       }
@@ -902,25 +942,67 @@ export class SessionController {
   /** Demo trigger, like Demo Kill: the same nudge a real drift would fire. */
   async demoNudge(kind: unknown): Promise<void> {
     if (!isNudgeKind(kind)) {
-      throw new Error("nudge kind must be phone, unfocused, or blocked");
+      throw new Error("nudge kind must be phone, unfocused, away, or blocked");
     }
     this.appendLog("demo", `Test nudge · ${kind}`);
     await this.nudge(kind);
   }
 
   /**
+   * How much the drift tracker is allowed to do this reading. Rebuilt per
+   * reading rather than cached, so flipping a pause switch mid-session takes
+   * effect on the next frame like every other setting here.
+   */
+  private driftPolicy(): DriftPolicy {
+    const settings = this.loadSettings();
+    return {
+      threshold: settings.deskThreshold,
+      // The switch AND the model. `away` is a presence reading, and only the
+      // trained head's `away` has earned a stopped clock (92.5% precision, vs
+      // 42.1% for the shipped BlazeFace detector, which answers `away` for any
+      // frame with no usable face). On every other model an away nudges —
+      // window, overlay, lamp — and never stops the clock, whatever the
+      // setting says. See `deskModelMayPauseOnAway`.
+      pauseOnAway:
+        settings.pauseOnAwayEnabled && deskModelMayPauseOnAway(settings.deskModelId),
+      pauseOnPhone: settings.pauseOnPhoneEnabled,
+      awayConfidence: settings.pauseAwayConfidence,
+      phoneConfidence: settings.pausePhoneConfidence,
+      // THE KILL GOES FIRST — see `DriftPolicy.fuseBurning`.
+      // `countdownStartedAt` is set on `start_countdown` and cleared by
+      // `clearFuse` on every path that ends one (kill, recovery, Demo Kill,
+      // start, stop), so this is exactly "a fuse is burning right now" and it
+      // covers every fuse length: Settings', AdaptiveFuse's, a pre-armed one.
+      fuseBurning: this.countdownStartedAt !== null,
+    };
+  }
+
+  /**
    * Pull them back: the window comes to the front with the timer and a
    * motivational line, and in nudge mode the enabled plugs (a lamp) switch on.
+   * `options.pause` additionally asks the renderer's study clock to stop —
+   * enforcement in main is not involved either way.
    */
-  private async nudge(kind: NudgeKind, app?: string): Promise<void> {
-    const event: NudgeEvent = { ts: this.now(), kind, ...(app ? { app } : {}) };
+  private async nudge(
+    kind: NudgeKind,
+    options?: { app?: string; pause?: boolean },
+  ): Promise<void> {
+    const app = options?.app;
+    const pause = options?.pause === true;
+    const event: NudgeEvent = {
+      ts: this.now(),
+      kind,
+      ...(app ? { app } : {}),
+      ...(pause ? { pause: true } : {}),
+    };
     this.push.nudge(event);
     try {
       this.revealWindow?.();
     } catch (error) {
       console.error("Failed to bring FocusPlug to the front:", errorMessage(error));
     }
-    this.appendLog("nudge", app ? `${kind} · ${app}` : kind);
+    const detail = app ? `${kind} · ${app}` : kind;
+    this.appendLog("nudge", pause ? `${detail} · clock paused` : detail);
     const settings = this.loadSettings();
     const lampIds = settings.plugMode === "nudge" ? enabledFunPlugIds(settings.plugs) : [];
     if (lampIds.length > 0) {

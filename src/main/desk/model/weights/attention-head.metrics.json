@@ -1,5 +1,5 @@
 {
-  "trainedAt": "2026-09-13T01:31:54.000Z",
+  "trainedAt": "2026-09-13T18:12:01.050Z",
   "config": {
     "hidden": [
       16
@@ -19,6 +19,11 @@
         2025
       ]
     ],
+    "firstPersonWeight": 1,
+    "excludeFirstPerson": false,
+    "firstPersonOnly": false,
+    "excludeProxies": true,
+    "proxiesOnly": false,
     "arch": [
       1280,
       16,
@@ -33,6 +38,25 @@
       "focused": 252,
       "unfocused": 57,
       "phone": 275
+    },
+    "firstPerson": {
+      "train": {
+        "frames": 0,
+        "groups": 0,
+        "groupsByLabel": {},
+        "framesByLabel": {}
+      },
+      "val": {
+        "frames": 0,
+        "groups": 0,
+        "groupsByLabel": {},
+        "framesByLabel": {}
+      },
+      "weight": 1
+    },
+    "proxies": {
+      "train": 0,
+      "excluded": true
     }
   },
   "bestEpoch": 19,

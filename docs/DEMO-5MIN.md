@@ -77,6 +77,24 @@ screen. Set it in the persisted settings file (`{ "deskModelId": "custom" }`) �
 extra beat or two, because custom samples at ~0.7 Hz instead of 4 Hz. That is
 still 6–7 readings inside a 10 s fuse, which is enough.
 
+**Decide about the drift pause before you film too, and know which model you
+are filming.** *Stop the clock when you leave* is **on** by default, but the
+switch alone is not enough: the away pause needs `deskModelId: "custom"`,
+because the default BlazeFace detector answers `away` for any frame with no
+usable face and is right 42.1% of the time (`docs/CUSTOM-MODEL.md § Away, on
+the model that actually ships`). **On a default install the clock will not stop
+on camera at all** — the Away beat is the kill, the nudge and the lamp, and
+Settings shows a card saying exactly that.
+
+On the custom model the Away beat below runs 24 seconds, past the 15-second
+threshold: the kill lands at 10 s and then the study clock stops, the lock
+releases, and the screen says why. Narrate it (it is a real beat: "it stopped
+counting — that wasn't study time") or switch it off in Settings so the beat
+is only about the kill. What you must not do is let a clock stop on camera
+without a word: on video that reads as a crash. It fires on **Away**, not on
+Uncertain, so a lens covered hard enough to read Uncertain will not trigger it
+— the same reason Uncertain never kills.
+
 **Plug, if you are filming D:**
 
 ```powershell
@@ -129,7 +147,7 @@ you if a judge sees it.
 | **1:00–1:12** | Arm | **B** — sit in frame, **hold** the switch, lock mode takes the screen | "Hold it — that's the commitment. Wheels up. Off the clock it only observes. A live round can kill." |
 | **1:12–1:45** | Drift → kill | **B** — alt-tab to Discord, full-screen overlay counting down, then Discord quits | "I tabbed to Discord. Ten-second fuse. Go back to the doc and it cancels — I'm not going back." *(let the overlay play; say nothing over the last 3 seconds)* |
 | **1:45–1:58** | Unlock | **B** — back to Docs, still in frame, overlay gone | "Back on the assignment, still at the desk. Unlocked. Strict mode needs both." |
-| **1:58–2:22** | Desk AI | **B** — cover the lens or leave the chair → **Away** → blocklist apps quit | "This is the part a timer can't do. I left the desk. High-confidence Away kills blocked apps even if they were never in focus — and uncertain never kills on the camera alone." |
+| **1:58–2:22** | Desk AI | **B** — cover the lens or leave the chair → **Away** → blocklist apps quit, and at 15 s the clock stops too **if you are filming `deskModelId: "custom"`** and left that switch on | "This is the part a timer can't do. I left the desk. High-confidence Away kills blocked apps even if they were never in focus — and uncertain never kills on the camera alone." *(custom model only)* "Fifteen seconds gone and it stops the clock as well: that wasn't study time, and it won't restart until I press the button — and only the model we trained is allowed to do that, because the default detector is right about 42% of the times it says away." |
 | **2:22–2:35** | The proof lives here | **B** — hold End, open **Log**: Window → Distracted → Countdown → Kill | "The log is the receipt. Sensor, decision, fuse, kill — same labels as the overlay." |
 | **2:35–3:05** | **The plug** | **C** then **D** — Demo Kill, then the lamp going dark on camera | "And it doesn't stop at software. Demo Kill force-quits the blocked apps *and* cuts the plug. That's a TP-Link P110M on the LAN over KLAP — no vendor cloud. The study PC is the one thing it will never touch; that's a frozen contract, not a setting." |
 | **3:05–4:05** | **How it actually works** | **E** or slides over B-roll | *see § 4* |

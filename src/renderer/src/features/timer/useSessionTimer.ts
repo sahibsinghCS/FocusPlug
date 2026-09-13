@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { PauseKind } from "@shared/nudge";
 import {
   clampPlan,
   DEFAULT_PLAN,
@@ -55,6 +56,14 @@ export interface SessionTimer {
   workedSec: number;
   armed: boolean;
   /**
+   * Why the clock is stopped, when a confirmed drift stopped it: `away` or
+   * `phone`. `null` for a running clock and for a pause they asked for
+   * themselves. Nothing clears it but a deliberate action — there is no
+   * auto-resume anywhere in this hook, which is the whole point: study time
+   * must not accrue while they are gone, and getting it back costs a click.
+   */
+  pausedBy: PauseKind | null;
+  /**
    * The viewer stepped out of lock mode to the live console. The session keeps
    * running and enforcement stays armed — this is a view, not a lifecycle
    * state, which is why it is forced back off outside a live plan.
@@ -62,6 +71,8 @@ export interface SessionTimer {
   consoleOpen: boolean;
   start: () => void;
   pause: () => void;
+  /** Stop the clock on a drift main has confirmed. No-op unless it is running. */
+  pauseForDrift: (kind: PauseKind) => void;
   resume: () => void;
   skip: () => void;
   end: () => void;
@@ -127,6 +138,7 @@ export function useSessionTimer(options: {
   const [bankedSec, setBankedSec] = useState(0);
   const [skippedFocusSec, setSkippedFocusSec] = useState(0);
   const [consoleView, setConsoleView] = useState(false);
+  const [pausedBy, setPausedBy] = useState<PauseKind | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
 
   const segments = useMemo(() => planSegments(plan), [plan]);
@@ -206,23 +218,55 @@ export function useSessionTimer(options: {
     // Throwing the switch always lands in lock mode, whatever you were
     // looking at when the last session ended.
     setConsoleView(false);
+    setPausedBy(null);
     setAnchorMs(now);
     setNowMs(now);
     setStatus("running");
   }, []);
 
+  /** Bank what has run and stop. `cause` is null when they chose to pause. */
+  const stopClock = useCallback(
+    (cause: PauseKind | null): void => {
+      setBankedSec((banked) =>
+        anchorMs === null ? banked : banked + Math.max(0, Date.now() - anchorMs) / 1000,
+      );
+      setAnchorMs(null);
+      setStatus("paused");
+      setPausedBy(cause);
+    },
+    [anchorMs],
+  );
+
   const pause = useCallback((): void => {
-    setBankedSec((banked) =>
-      anchorMs === null ? banked : banked + Math.max(0, Date.now() - anchorMs) / 1000,
-    );
-    setAnchorMs(null);
-    setStatus("paused");
-  }, [anchorMs]);
+    stopClock(null);
+  }, [stopClock]);
+
+  const pauseForDrift = useCallback(
+    (kind: PauseKind): void => {
+      // Only a running clock can be stopped, and a clock already stopped by a
+      // drift keeps the reason it stopped for.
+      if (status !== "running") {
+        return;
+      }
+      // And it comes out of the console. A clock the student stopped needs no
+      // explanation and they know where the button is; one that main stopped
+      // owes them both, and both live on the lock screen — `pauseNotice` and
+      // the single restart button. The console is an instrument panel with no
+      // timer controls on it at all, so a drift pause landing there would show
+      // a frozen clock, no reason, and nothing to press. `shellView` reads
+      // `consoleOpen`, so closing it drops straight to the screen that
+      // explains itself.
+      setConsoleView(false);
+      stopClock(kind);
+    },
+    [status, stopClock],
+  );
 
   const resume = useCallback((): void => {
     const now = Date.now();
     setAnchorMs(now);
     setNowMs(now);
+    setPausedBy(null);
     setStatus("running");
   }, []);
 
@@ -239,6 +283,8 @@ export function useSessionTimer(options: {
     const next = skipTo(segments, current);
     setBankedSec(next);
     setNowMs(now);
+    // The reason described the block they just left, so it does not follow.
+    setPausedBy(null);
     if (next >= totalSec) {
       setAnchorMs(null);
       setStatus("done");
@@ -254,6 +300,7 @@ export function useSessionTimer(options: {
     setBankedSec(0);
     setSkippedFocusSec(0);
     setConsoleView(false);
+    setPausedBy(null);
   }, []);
 
   const openConsole = useCallback((): void => {
@@ -284,9 +331,11 @@ export function useSessionTimer(options: {
     remainingSec,
     workedSec,
     armed,
+    pausedBy: status === "paused" ? pausedBy : null,
     consoleOpen,
     start,
     pause,
+    pauseForDrift,
     resume,
     skip,
     end,

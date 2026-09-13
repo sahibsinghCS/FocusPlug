@@ -10,6 +10,7 @@ import {
   usePlanRecommendation,
 } from "../features/focusplan";
 import { useAppState } from "../state/AppState";
+import { driftPauseStep } from "../features/timer/driftPause";
 import { useSessionTimer, type EnforceArm } from "../features/timer/useSessionTimer";
 import { shellView, viewIsLocked } from "../features/timer/view";
 import { ErrorBanner } from "./page";
@@ -73,6 +74,31 @@ export function Shell(): JSX.Element {
   );
 
   const timer = useSessionTimer({ onEnforce });
+
+  /* A confirmed drift stops the study clock, and only a deliberate restart
+     starts it again — time on your phone or out of the room must not accrue as
+     study time. Main is what decides "confirmed": sustained readings above
+     that head's confidence floor, `uncertain` never counting, and a setting
+     per kind, all of it landing here as `pause: true` on the nudge it already
+     pushes. Read through a ref so the effect keys on the event alone: every
+     pause-carrying nudge is consumed exactly once, on arrival, which is what
+     stops a stale one from re-pausing a clock they have just restarted. */
+  const timerRef = useRef(timer);
+  timerRef.current = timer;
+  const handledNudgeTs = useRef<number | null>(null);
+  useEffect(() => {
+    const clock = timerRef.current;
+    const step = driftPauseStep({
+      nudge: app.nudge,
+      handledTs: handledNudgeTs.current,
+      status: clock.status,
+      position: clock.position,
+    });
+    handledNudgeTs.current = step.handledTs;
+    if (step.pause !== null) {
+      clock.pauseForDrift(step.pause);
+    }
+  }, [app.nudge]);
 
   /* The round in progress, assembled here so main never has to stream one.
      It is what makes the cold-start wobble rung reachable inside the very

@@ -4,10 +4,12 @@ import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 import { DEFAULT_BLOCKLIST, DEFAULT_SETTINGS } from "../../shared/defaults.ts";
-import type { KillResult, ProcessKiller } from "../../shared/ipc.ts";
+import { PAUSE_SUSTAIN_AWAY_MS, PAUSE_SUSTAIN_PHONE_MS } from "./nudge.ts";
+import type { AppSettings, KillResult, NudgeEvent, ProcessKiller } from "../../shared/ipc.ts";
 import { ALL_BLOCKLIST_TARGET } from "../../shared/policy/index.ts";
 import type { AppEntry, DeskSnapshot, PlugDevice, PolicyEvent } from "../../shared/types.ts";
 import { SAMPLE_PLUGS } from "./fixtures.ts";
+import { classifyDesk } from "../desk/classify.ts";
 import { SessionController } from "./controller.ts";
 import { MIN_FUSE_SEC, composeFuse } from "./fuseAuthority.ts";
 import {
@@ -17,6 +19,7 @@ import {
   ScriptedDeskMonitor,
   ScriptedWindowMonitor,
   awayDesk,
+  unsureDesk,
   createMemoryStore,
   createRecordingPush,
   discordFocus,
@@ -1086,9 +1089,438 @@ describe("nudges", () => {
     expect(h.plugs.offCalls.length).toBe(1);
   });
 
+  it("leaving the room switches the lamp on, exactly like a phone does", async () => {
+    const reveal = vi.fn();
+    const h = makeHarness({ plugs: SAMPLE_PLUGS, revealWindow: reveal });
+    await h.controller.start();
+    h.window.emit(docsFocus(h.clock.ms));
+    h.desk.emit(awayDesk(h.clock.ms));
+    expect(h.trace.nudges).toEqual([]);
+    h.clock.advance(250);
+    h.desk.emit(awayDesk(h.clock.ms));
+    await h.controller.flush();
+    expect(h.trace.nudges.map((nudge) => nudge.kind)).toEqual(["away"]);
+    expect(reveal).toHaveBeenCalledTimes(1);
+    expect(h.plugs.onCalls).toEqual([enabledPlugIds(SAMPLE_PLUGS)]);
+    expectNoStudyPc(h.plugs.onCalls[0]);
+  });
+
+  it("an uncertain reading never nudges and never lights the lamp", async () => {
+    const h = makeHarness({ plugs: SAMPLE_PLUGS });
+    await h.controller.start();
+    h.window.emit(docsFocus(h.clock.ms));
+    for (let i = 0; i < 10; i += 1) {
+      h.desk.emit(unsureDesk(h.clock.ms));
+      h.clock.advance(250);
+    }
+    await h.controller.flush();
+    expect(h.trace.nudges).toEqual([]);
+    expect(h.plugs.onCalls).toEqual([]);
+  });
+
+  it("a low-confidence away reading never nudges either", async () => {
+    const h = makeHarness({ plugs: SAMPLE_PLUGS });
+    await h.controller.start();
+    h.window.emit(docsFocus(h.clock.ms));
+    for (let i = 0; i < 10; i += 1) {
+      h.desk.emit({ ...awayDesk(h.clock.ms), confidence: 0.4 });
+      h.clock.advance(250);
+    }
+    await h.controller.flush();
+    expect(h.trace.nudges).toEqual([]);
+    expect(h.plugs.onCalls).toEqual([]);
+  });
+
   it("rejects an unknown plugMode", () => {
     const h = makeHarness();
     expect(() => h.controller.setSettings({ plugMode: "off" })).toThrow(/plugMode/);
+  });
+});
+
+/**
+ * Behaviour 2's main-side half. Main never touches the renderer's clock: all
+ * it does is put `pause: true` on the nudge it already pushes, once, when the
+ * evidence is strong enough. What the renderer then does with it lives in
+ * `src/renderer/src/features/timer/driftPause.test.ts`.
+ */
+describe("confirmed drifts stop the clock", () => {
+  const onPhone = (ts: number, confidence = 0.97): DeskSnapshot => ({
+    ...presentDesk(ts),
+    attention: { label: "phone", confidence },
+  });
+
+  /**
+   * The settings an away pause is even possible under.
+   *
+   * `deskModelMayPauseOnAway` is the outer gate: `away` is a presence reading,
+   * and only the trained head's `away` has earned a stopped clock. The shipped
+   * `blazeface` default is a face detector with no `away` class — it answers
+   * `away` for any frame with no usable face — so on it an away nudges and
+   * stops there, which is its own describe block below. Every test in here is
+   * about the *counters*, so it runs on the model that has paid for them.
+   */
+  const PAUSING: AppSettings = { ...DEFAULT_SETTINGS, deskModelId: "custom" };
+
+  /** The shipped desk cadence — `DEFAULT_DESK_INTERVAL_MS`. */
+  const TICK_MS = 250;
+
+  /** Drift for `ms` of wall clock at the real camera rate. */
+  function driftFor(
+    h: ReturnType<typeof makeHarness>,
+    desk: (ts: number) => DeskSnapshot,
+    ms: number,
+  ): void {
+    h.window.emit(docsFocus(h.clock.ms));
+    const until = h.clock.ms + ms;
+    while (h.clock.ms <= until) {
+      h.desk.emit(desk(h.clock.ms));
+      h.clock.advance(TICK_MS);
+    }
+  }
+
+  const pauses = (h: ReturnType<typeof makeHarness>): NudgeEvent[] =>
+    h.trace.nudges.filter((nudge) => nudge.pause === true);
+
+  it("fifteen seconds away flags exactly one nudge to pause, and says so in the log", async () => {
+    const h = makeHarness({ settings: PAUSING });
+    await h.controller.start();
+    driftFor(h, awayDesk, PAUSE_SUSTAIN_AWAY_MS + 5_000);
+    await h.controller.flush();
+    expect(pauses(h)).toHaveLength(1);
+    expect(pauses(h)[0]?.kind).toBe("away");
+    expect(logKinds(h.controller)).toContain("nudge");
+    expect(
+      h.controller
+        .getLog()
+        .some((event) => event.kind === "nudge" && event.detail.includes("clock paused")),
+    ).toBe(true);
+  });
+
+  it("a few seconds of away is a nudge and nothing more", async () => {
+    // At 250 ms a reading count alone would be met in under a second, which is
+    // a student reaching for a pen, not one who has left.
+    const h = makeHarness({ settings: PAUSING });
+    await h.controller.start();
+    driftFor(h, awayDesk, PAUSE_SUSTAIN_AWAY_MS - 2_000);
+    await h.controller.flush();
+    expect(h.trace.nudges.length).toBeGreaterThan(0);
+    expect(pauses(h)).toHaveLength(0);
+  });
+
+  it("phone is off by default: it nudges for a whole session and never pauses", async () => {
+    const h = makeHarness({ settings: PAUSING });
+    await h.controller.start();
+    driftFor(h, onPhone, PAUSE_SUSTAIN_PHONE_MS * 2);
+    await h.controller.flush();
+    expect(h.trace.nudges.length).toBeGreaterThan(0);
+    expect(h.trace.nudges.every((nudge) => nudge.pause === undefined)).toBe(true);
+  });
+
+  it("switched on, phone has to last twice as long as an away", async () => {
+    const h = makeHarness({
+      settings: { ...PAUSING, pauseOnPhoneEnabled: true },
+    });
+    await h.controller.start();
+    driftFor(h, onPhone, PAUSE_SUSTAIN_AWAY_MS + 2_000);
+    await h.controller.flush();
+    expect(pauses(h)).toHaveLength(0);
+    driftFor(h, onPhone, PAUSE_SUSTAIN_PHONE_MS);
+    await h.controller.flush();
+    expect(pauses(h)).toMatchObject([{ kind: "phone" }]);
+  });
+
+  it("a phone the model is only half sure of never pauses, however long it lasts", async () => {
+    const h = makeHarness({
+      settings: { ...PAUSING, pauseOnPhoneEnabled: true },
+    });
+    await h.controller.start();
+    // Clears deskThreshold, so it nudges; below pausePhoneConfidence, so it
+    // must never stop a working student's clock.
+    driftFor(h, (ts) => onPhone(ts, 0.7), PAUSE_SUSTAIN_PHONE_MS * 2);
+    await h.controller.flush();
+    expect(h.trace.nudges.length).toBeGreaterThan(0);
+    expect(pauses(h)).toHaveLength(0);
+  });
+
+  it("uncertain never pauses", async () => {
+    const h = makeHarness({
+      settings: { ...PAUSING, pauseOnPhoneEnabled: true },
+    });
+    await h.controller.start();
+    driftFor(h, unsureDesk, PAUSE_SUSTAIN_PHONE_MS * 2);
+    await h.controller.flush();
+    expect(h.trace.nudges).toEqual([]);
+  });
+
+  it("with both switches off no nudge carries the flag", async () => {
+    const off = {
+      ...PAUSING,
+      pauseOnAwayEnabled: false,
+      pauseOnPhoneEnabled: false,
+    };
+    const paused = makeHarness({ plugs: SAMPLE_PLUGS, settings: { ...PAUSING, plugs: SAMPLE_PLUGS } });
+    const plain = makeHarness({ plugs: SAMPLE_PLUGS, settings: { ...off, plugs: SAMPLE_PLUGS } });
+    for (const h of [paused, plain]) {
+      await h.controller.start();
+      driftFor(h, awayDesk, PAUSE_SUSTAIN_AWAY_MS + 2_000);
+      await h.controller.flush();
+    }
+
+    const shape = (h: typeof plain): { kind: string; pause: boolean | undefined }[] =>
+      h.trace.nudges.map((nudge) => ({ kind: nudge.kind, pause: nudge.pause }));
+
+    // Switched off: one sustained-drift nudge and nothing else on the wire.
+    // (Seventeen seconds is inside NUDGE_REPEAT_MS, so there is only the one.)
+    // Note what this is NOT claiming: `NudgeKind` gained `away`, so that one
+    // nudge and its lamp call are themselves new — a build without the drift
+    // pause at all does neither. The switches own the FLAG and the second
+    // pull-back that carries it, and switching them off removes exactly that.
+    expect(shape(plain)).toEqual([{ kind: "away", pause: undefined }]);
+    expect(plain.plugs.onCalls).toHaveLength(1);
+
+    // Switched on: the SAME nudge, plus one more event fifteen seconds in
+    // carrying the pause. There is no second channel — the flag rides the
+    // nudge stream — but that event is a real pull-back as well as the pause,
+    // because at these timings it cannot ride the first one (fifteen seconds
+    // is inside NUDGE_REPEAT_MS) and a round that just stopped has to say so.
+    // Switching the feature off removes the event entirely.
+    expect(shape(paused)).toEqual([
+      { kind: "away", pause: undefined },
+      { kind: "away", pause: true },
+    ]);
+    expect(paused.plugs.onCalls).toHaveLength(2);
+  });
+
+  /**
+   * THE KILL GOES FIRST — at every countdown length, not just the default.
+   *
+   * A stopped clock stops the session (`Shell` turns `pause: true` into
+   * `status: "paused"`, `shouldEnforce` drops, `onEnforce(false)` calls
+   * `stopSession()`), and `controller.stop()` replaces the policy engine, so
+   * a pause that landed mid-countdown would throw away the still-burning fuse
+   * and the force-quit this product exists to perform would never happen —
+   * with the student out of the room and nobody to restart it.
+   *
+   * `PAUSE_SUSTAIN_AWAY_MS` is 15 s and the shipped fuse is 10 s, so the
+   * default is safe by arithmetic. The Settings slider goes to 30 s and the
+   * adaptive fuse may hand out up to `MAX_FUSE_SEC`, so arithmetic is not
+   * enough: `DriftPolicy.fuseBurning` holds the pause until whatever fuse is
+   * actually burning has resolved.
+   */
+  describe("a drift pause never displaces the kill", () => {
+    /**
+     * A continuous away, with the renderer's half modelled at its most
+     * aggressive: the instant main flags `pause: true` the session stops.
+     */
+    async function awayUntilStopped(
+      h: ReturnType<typeof makeHarness>,
+      seconds: number,
+    ): Promise<{ kills: number; killedAtMs: number | null; stoppedAtMs: number | null }> {
+      await h.controller.start();
+      h.window.emit(docsFocus(h.clock.ms));
+      const until = h.clock.ms + seconds * 1000;
+      let killedAtMs: number | null = null;
+      let stoppedAtMs: number | null = null;
+      while (h.clock.ms <= until && stoppedAtMs === null) {
+        h.desk.emit(awayDesk(h.clock.ms));
+        await h.controller.flush();
+        if (killedAtMs === null && h.killer.calls.length > 0) {
+          killedAtMs = h.clock.ms;
+        }
+        if (h.trace.nudges.some((nudge) => nudge.pause === true)) {
+          stoppedAtMs = h.clock.ms;
+          await h.controller.stop();
+        }
+        h.clock.advance(TICK_MS);
+      }
+      return { kills: h.killer.calls.length, killedAtMs, stoppedAtMs };
+    }
+
+    // 3 and 30 are the Settings slider's ends; 15 and 16 straddle
+    // PAUSE_SUSTAIN_AWAY_MS, which is where the ordering used to invert.
+    for (const countdownSec of [3, 10, 15, 16, 20, 30]) {
+      it(`kills once at a ${countdownSec}s fuse, pause on or off`, async () => {
+        const run = async (pauseOnAwayEnabled: boolean): ReturnType<typeof awayUntilStopped> =>
+          awayUntilStopped(
+            makeHarness({ settings: { ...PAUSING, countdownSec, pauseOnAwayEnabled } }),
+            120,
+          );
+
+        // Single variable: the pause switch is the only thing that differs,
+        // and two minutes of away must force-quit exactly once either way.
+        const off = await run(false);
+        expect(off.kills).toBe(1);
+        expect(off.stoppedAtMs).toBeNull();
+
+        const on = await run(true);
+        expect(on.kills).toBe(1);
+        // And the kill landed BEFORE the clock stopped, never the other way.
+        expect(on.killedAtMs).not.toBeNull();
+        expect(on.stoppedAtMs).not.toBeNull();
+        expect(on.killedAtMs ?? 0).toBeLessThan(on.stoppedAtMs ?? 0);
+      });
+    }
+
+    it("holds the pause for the fuse, then stops the clock on the next reading", async () => {
+      // 20 s fuse: the 15 s pause floor is met while the countdown still
+      // burns, so the pause waits for it — and does not wait a moment longer.
+      const h = makeHarness({
+        settings: { ...PAUSING, countdownSec: 20, pauseOnAwayEnabled: true },
+      });
+      const started = h.clock.ms;
+      const run = await awayUntilStopped(h, 120);
+      expect(run.kills).toBe(1);
+      expect((run.killedAtMs ?? 0) - started).toBe(20_000);
+      expect((run.stoppedAtMs ?? 0) - started).toBe(20_000 + TICK_MS);
+    });
+
+    it("waits for a fuse and not a second longer: no kill to displace, no delay", async () => {
+      // The gate is narrow on purpose — it must not become "pause less".
+      // `strictMode: false` + an allowlisted app is on-task even with an empty
+      // chair, so no countdown ever arms and there is nothing to wait for:
+      // the clock still stops on the fifteenth second, at a 30 s Countdown.
+      const h = makeHarness({
+        settings: {
+          ...PAUSING,
+          countdownSec: 30,
+          strictMode: false,
+          pauseOnAwayEnabled: true,
+        },
+      });
+      const started = h.clock.ms;
+      const run = await awayUntilStopped(h, 120);
+      expect(run.kills).toBe(0);
+      // Dead on the floor — not one reading later than without the gate.
+      expect((run.stoppedAtMs ?? 0) - started).toBe(PAUSE_SUSTAIN_AWAY_MS);
+    });
+  });
+
+  /**
+   * THE HEAD WITH THE NUMBER CARRIES THE CONSEQUENCE.
+   *
+   * Every counter above is proportioned against the trained presence head:
+   * 92.5% precision on its `away` call, 4.3% of at-desk frames called `away`.
+   * The model that ships enabled is not that head. `blazeface` is a face
+   * detector with no `away` class at all — `classifyDesk` answers `away`
+   * whenever no usable face is in the frame — so on the repo's own held-out
+   * desk eval 66.7% of at-desk frames come back `away`, at 42.1% precision.
+   *
+   * Those calls are a constant (0.90 occluded, 0.92 - 0.25·p otherwise), not a
+   * score, so no confidence floor separates them from real ones: a study room
+   * with the lamp off reads `away` at 0.90 for as long as the lamp is off.
+   * Fifteen seconds of that used to stop a working student's clock and hand
+   * the blocklist back, on defaults, with nothing opted into.
+   *
+   * So the pause follows the head that earned it and everything else nudges.
+   */
+  describe("only the trained presence head may stop the clock on away", () => {
+    /** What the SHIPPED classifier answers for an evening desk, lamp off. */
+    const darkRoom = (ts: number): DeskSnapshot =>
+      classifyDesk({
+        ts,
+        webcamEnabled: true,
+        frame: { width: 640, height: 480, meanLuma: 8, lumaStd: 5 },
+        faces: [],
+      });
+
+    /** And for a lit room where nothing clears the face-usability checks. */
+    const noUsableFace = (ts: number): DeskSnapshot =>
+      classifyDesk({
+        ts,
+        webcamEnabled: true,
+        frame: { width: 640, height: 480, meanLuma: 90, lumaStd: 40 },
+        faces: [],
+      });
+
+    it("the shipped detector calls both of those away, above every floor there is", () => {
+      expect(DEFAULT_SETTINGS.deskModelId).toBe("blazeface");
+      expect(DEFAULT_SETTINGS.pauseOnAwayEnabled).toBe(true);
+      for (const desk of [darkRoom(0), noUsableFace(0)]) {
+        expect(desk.label).toBe("away");
+        // Clears deskThreshold, clears pauseAwayConfidence, and clears the top
+        // of the Settings slider too — this is why the floor is not the guard.
+        expect(desk.confidence).toBeGreaterThan(DEFAULT_SETTINGS.deskThreshold);
+        expect(desk.confidence).toBeGreaterThan(DEFAULT_SETTINGS.pauseAwayConfidence);
+        expect(desk.confidence).toBeGreaterThanOrEqual(0.9);
+      }
+    });
+
+    for (const [name, desk] of [
+      ["a dark study room", darkRoom],
+      ["a frame with no usable face", noUsableFace],
+    ] as const) {
+      it(`${name} nudges a default install and never stops its clock`, async () => {
+        const h = makeHarness({ plugs: SAMPLE_PLUGS });
+        await h.controller.start();
+        driftFor(h, desk, PAUSE_SUSTAIN_AWAY_MS * 8);
+        await h.controller.flush();
+        // The pull-back is not what was disproportionate: window, overlay and
+        // lamp all still happen, because they cost a glance and undo themselves.
+        expect(h.trace.nudges.map((nudge) => nudge.kind)).toContain("away");
+        expect(h.plugs.onCalls.length).toBeGreaterThan(0);
+        // Two minutes of it, and the clock is still running.
+        expect(pauses(h)).toHaveLength(0);
+      });
+    }
+
+    it("a hand-edited settings.json cannot buy the default install one either", async () => {
+      // Floor on the floor, switch on, camera saying away at 0.90 the whole
+      // time. The gate is the model, so none of that matters.
+      const h = makeHarness({
+        settings: { ...DEFAULT_SETTINGS, pauseAwayConfidence: 0.5, pauseOnAwayEnabled: true },
+      });
+      await h.controller.start();
+      driftFor(h, darkRoom, PAUSE_SUSTAIN_AWAY_MS * 8);
+      await h.controller.flush();
+      expect(pauses(h)).toHaveLength(0);
+    });
+
+    it("switching to the trained head is what turns the same away into a pause", async () => {
+      // Single variable: the identical reading stream, `deskModelId` apart.
+      const h = makeHarness({ settings: PAUSING });
+      await h.controller.start();
+      driftFor(h, darkRoom, PAUSE_SUSTAIN_AWAY_MS + 2_000);
+      await h.controller.flush();
+      expect(pauses(h)).toMatchObject([{ kind: "away" }]);
+    });
+
+    it("and the stub model has not earned it either", async () => {
+      const h = makeHarness({ settings: { ...DEFAULT_SETTINGS, deskModelId: "stub" } });
+      await h.controller.start();
+      driftFor(h, awayDesk, PAUSE_SUSTAIN_AWAY_MS * 8);
+      await h.controller.flush();
+      expect(h.trace.nudges.length).toBeGreaterThan(0);
+      expect(pauses(h)).toHaveLength(0);
+    });
+  });
+
+  it("validates and clamps the pause settings like every other key", () => {
+    const h = makeHarness();
+    expect(h.controller.getSettings().pauseOnAwayEnabled).toBe(true);
+    expect(h.controller.getSettings().pauseOnPhoneEnabled).toBe(false);
+    expect(() => h.controller.setSettings({ pauseOnAwayEnabled: "yes" })).toThrow(
+      /pauseOnAwayEnabled/,
+    );
+    expect(() => h.controller.setSettings({ pauseOnPhoneEnabled: 1 })).toThrow(
+      /pauseOnPhoneEnabled/,
+    );
+    expect(() => h.controller.setSettings({ pauseAwayConfidence: Number.NaN })).toThrow(
+      /pauseAwayConfidence/,
+    );
+    expect(() => h.controller.setSettings({ pausePhoneConfidence: "high" })).toThrow(
+      /pausePhoneConfidence/,
+    );
+
+    expect(h.controller.setSettings({ pauseAwayConfidence: 0.1 }).pauseAwayConfidence).toBe(0.5);
+    expect(h.controller.setSettings({ pauseAwayConfidence: 2 }).pauseAwayConfidence).toBe(0.95);
+    // The weaker head must always need more: phone is pulled above away.
+    const next = h.controller.setSettings({
+      pauseAwayConfidence: 0.9,
+      pausePhoneConfidence: 0.6,
+    });
+    expect(next.pausePhoneConfidence).toBeCloseTo(0.95, 10);
+    expect(next.pausePhoneConfidence).toBeGreaterThan(next.pauseAwayConfidence);
+    expect(h.store.loadSettings().pausePhoneConfidence).toBeCloseTo(0.95, 10);
   });
 });
 

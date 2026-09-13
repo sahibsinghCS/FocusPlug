@@ -54,6 +54,27 @@ describe("shellView", () => {
     expect(shellView({ status: "paused", consoleOpen: true, sessionActive: true })).toBe("console");
   });
 
+  it("has no restart control in the paused console — which is why a drift pause closes it", () => {
+    // A paused clock with the console open stays on the console, and the
+    // console is an instrument panel: `SessionPage` takes `onLock` and nothing
+    // else, so there is no resume button on it and no `pauseNotice` either.
+    // For a pause the student chose that is fine — they know why and they know
+    // where the door is. For one MAIN chose it is a frozen clock, no reason and
+    // nothing to press, which is exactly what a stopped clock must never look
+    // like. So `useSessionTimer.pauseForDrift` clears the console view before
+    // it stops the clock, and the student lands on LockPage, which carries
+    // both `pauseNotice(kind)` and the single restart button.
+    expect(shellView({ status: "paused", consoleOpen: true, sessionActive: true })).toBe("console");
+    expect(shellView({ status: "paused", consoleOpen: false, sessionActive: true })).toBe("lock");
+    const hook = readFileSync(join(RENDERER_SRC, "features/timer/useSessionTimer.ts"), "utf8");
+    const drift = hook.slice(hook.indexOf("const pauseForDrift"));
+    const body = drift.slice(0, drift.indexOf("const resume"));
+    expect(body).toContain("setConsoleView(false)");
+    // And only there: a pause they asked for leaves the view where it was.
+    const chosen = hook.slice(hook.indexOf("const pause = useCallback"));
+    expect(chosen.slice(0, chosen.indexOf("const pauseForDrift"))).not.toContain("setConsoleView");
+  });
+
   it("still shows the console for a session with no plan behind it", () => {
     // The seeded mock scenes (`?scene=live`) and the action smoke drive exactly
     // this: session live, plan timer untouched.

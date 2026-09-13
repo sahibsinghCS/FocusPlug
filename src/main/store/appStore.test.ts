@@ -67,6 +67,66 @@ describe("normalizeSettings forecast keys", () => {
   });
 });
 
+describe("normalizeSettings drift-pause keys", () => {
+  test("falls back to defaults when keys are missing or the wrong type", () => {
+    const settings = normalizeSettings({});
+    assert.equal(settings.pauseOnAwayEnabled, DEFAULT_SETTINGS.pauseOnAwayEnabled);
+    assert.equal(settings.pauseOnPhoneEnabled, DEFAULT_SETTINGS.pauseOnPhoneEnabled);
+    assert.equal(settings.pauseAwayConfidence, DEFAULT_SETTINGS.pauseAwayConfidence);
+    assert.equal(settings.pausePhoneConfidence, DEFAULT_SETTINGS.pausePhoneConfidence);
+
+    const junk = normalizeSettings({
+      pauseOnAwayEnabled: "yes",
+      pauseOnPhoneEnabled: 1,
+      pauseAwayConfidence: Number.NaN,
+      pausePhoneConfidence: "0.9",
+    } as never);
+    assert.equal(junk.pauseOnAwayEnabled, DEFAULT_SETTINGS.pauseOnAwayEnabled);
+    assert.equal(junk.pauseOnPhoneEnabled, DEFAULT_SETTINGS.pauseOnPhoneEnabled);
+    assert.equal(junk.pauseAwayConfidence, DEFAULT_SETTINGS.pauseAwayConfidence);
+    assert.equal(junk.pausePhoneConfidence, DEFAULT_SETTINGS.pausePhoneConfidence);
+  });
+
+  test("keeps the switches exactly as set, in both directions", () => {
+    const on = normalizeSettings({ pauseOnAwayEnabled: true, pauseOnPhoneEnabled: true });
+    assert.equal(on.pauseOnAwayEnabled, true);
+    assert.equal(on.pauseOnPhoneEnabled, true);
+    const off = normalizeSettings({ pauseOnAwayEnabled: false, pauseOnPhoneEnabled: false });
+    assert.equal(off.pauseOnAwayEnabled, false);
+    assert.equal(off.pauseOnPhoneEnabled, false);
+  });
+
+  test("clamps pauseAwayConfidence to [0.50, 0.95]", () => {
+    assert.equal(normalizeSettings({ pauseAwayConfidence: 0 }).pauseAwayConfidence, 0.5);
+    assert.equal(normalizeSettings({ pauseAwayConfidence: 0.8 }).pauseAwayConfidence, 0.8);
+    assert.equal(normalizeSettings({ pauseAwayConfidence: 9 }).pauseAwayConfidence, 0.95);
+  });
+
+  test("the weaker head always needs more: phone is held above away", () => {
+    // Not advice — structure. A hand-edited settings.json must not be able to
+    // make a 50-69%-recall phone call stop the clock on weaker evidence than
+    // the trained presence head (92.5% precision on `away`) needs.
+    const collapsed = normalizeSettings({
+      pauseAwayConfidence: 0.8,
+      pausePhoneConfidence: 0.8,
+    });
+    // Same arithmetic as the clamp, so binary float does not decide the test.
+    assert.equal(collapsed.pausePhoneConfidence, 0.8 + 0.05);
+    const inverted = normalizeSettings({
+      pauseAwayConfidence: 0.9,
+      pausePhoneConfidence: 0.5,
+    });
+    assert.equal(inverted.pausePhoneConfidence, 0.9 + 0.05);
+    assert.equal(normalizeSettings({ pausePhoneConfidence: 2 }).pausePhoneConfidence, 0.99);
+    // A healthy gap is left alone.
+    const healthy = normalizeSettings({
+      pauseAwayConfidence: 0.7,
+      pausePhoneConfidence: 0.95,
+    });
+    assert.equal(healthy.pausePhoneConfidence, 0.95);
+  });
+});
+
 describe("normalizePlugs drops what the protect layer would refuse", () => {
   const lamp = {
     id: "lamp",

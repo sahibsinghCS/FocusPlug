@@ -1,5 +1,6 @@
 import { useRef, type JSX, type ReactNode } from "react";
 import { faceMeta, normalizeFaceId } from "@shared/faces";
+import { pauseNotice } from "@shared/nudge";
 import { FaceErrorBoundary, buildLockFaceProps, faceComponent } from "../features/faces";
 import { DebriefCard } from "../features/focusplan";
 import { formatFaceClock } from "../features/faces/clock";
@@ -45,6 +46,9 @@ export function LockPage(props: { timer: SessionTimer }): JSX.Element {
   const position = timer.position;
   const onBreak = position?.segment.kind === "break";
   const paused = timer.status === "paused";
+  // Stopped by a drift main confirmed, rather than by them. The clock will sit
+  // here until they say otherwise, so the screen owes them the reason.
+  const drift = timer.pausedBy === null ? null : pauseNotice(timer.pausedBy);
   const phase = onBreak ? "break" : "focus";
   const armedPlugs = enabledPlugViews(app.plugs);
   const multiRound = timer.segments.length > 1;
@@ -68,7 +72,13 @@ export function LockPage(props: { timer: SessionTimer }): JSX.Element {
             aria-hidden="true"
           />
           <p className="fp-stencil fp-lock-dim">
-            {paused ? "Paused — lock released" : onBreak ? "Break — lock released" : "Locked"}
+            {drift
+              ? drift.kicker
+              : paused
+                ? "Paused — lock released"
+                : onBreak
+                  ? "Break — lock released"
+                  : "Locked"}
           </p>
         </div>
         <p className="fp-lock-faint font-mono text-[11px] tabular">
@@ -95,12 +105,15 @@ export function LockPage(props: { timer: SessionTimer }): JSX.Element {
         <p
           className="fp-lock-in mx-auto mt-3 max-w-[46ch] shrink-0 pb-2 text-center text-[14px] leading-6 fp-lock-dim"
           style={{ animationDelay: "120ms" }}
+          aria-live="polite"
         >
-          {paused
-            ? "Clock stopped, nothing enforced. Resume when you are back."
-            : onBreak
-              ? "Blocked apps are yours again until the next round."
-              : "Leave the assignment and the fuse starts."}
+          {drift
+            ? drift.line
+            : paused
+              ? "Clock stopped, nothing enforced. Resume when you are back."
+              : onBreak
+                ? "Blocked apps are yours again until the next round."
+                : "Leave the assignment and the fuse starts."}
         </p>
 
         {/* The break is exactly when you want to know how the round went, and
@@ -160,9 +173,22 @@ export function LockPage(props: { timer: SessionTimer }): JSX.Element {
         ) : null}
 
         <div className="fp-lock-bar flex flex-wrap items-center justify-center gap-2">
-          <Quiet onClick={paused ? timer.resume : timer.pause}>
-            {paused ? "Resume" : "Pause"}
-          </Quiet>
+          {/* One obvious way back. A drift-stopped clock makes it the loud
+              button on the bar, because restarting it is the only thing the
+              student is here to do. */}
+          {drift ? (
+            <button
+              type="button"
+              onClick={timer.resume}
+              className="fp-btn fp-lock-btn inline-flex h-14 items-center justify-center gap-2 rounded-[var(--radius-fp)] bg-fp-focus px-6 text-[14px] font-semibold text-black hover:brightness-110"
+            >
+              {drift.action}
+            </button>
+          ) : (
+            <Quiet onClick={paused ? timer.resume : timer.pause}>
+              {paused ? "Resume" : "Pause"}
+            </Quiet>
+          )}
           {/* The one door out of the sealed room that does not end the
               session: the instruments the lock face deliberately hides —
               decision, forecast, sensors, the enforcement chain. */}

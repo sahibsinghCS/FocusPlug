@@ -107,6 +107,60 @@ scenes. Eval images are 3rd-person stock while the runtime webcam is
 1st-person: the bar is met on the pack's own protocol, and BlazeFace's
 face-presence signal is what transfers most directly to selfie-view use.
 
+### Away, on the model that actually ships
+
+The table above is a 3-way accuracy, and one of the three answers is allowed to
+**stop a student's study clock** (`docs/CONTRACTS.md § Drift pause`). For that
+decision the number that matters is not overall accuracy but the precision of
+the `away` call — of the frames a model calls `away`, how many really are — and
+on that measure the two presence models are not close.
+
+Same held-out eval, re-run on the pack with `desk-data-v3-distracted` applied,
+so 790 images rather than the 723 above (67 more `distracted`→`at_desk` eval
+photos; the custom head scores 95.06% overall and 90.23% on `main` there, so
+the table above is if anything the conservative one). `eval.ts` prints both
+lines and stores them under `awayQuality` in `.cache/eval-report.json`:
+
+| the `away` call | custom head | BlazeFace heuristic (**the shipped default**) |
+| --- | --- | --- |
+| precision — of its `away` calls, how many are right | **92.5%** (272/294) | **42.1%** (250/594) |
+| recall — of the real aways, how many it catches | 95.4% | 87.7% |
+| at-desk frames it calls `away` | 4.3% (20/460) | **66.7%** (307/460) |
+| `away` calls clearing the shipped `pauseAwayConfidence` 0.75 | 289, 20 wrong | 590, **340 wrong** |
+| wrong `away` calls the 0.75 floor screens | 2 (of 22) | 4 (of 344) |
+
+```
+FOCUSPLUG_DESK_DATA=/path/to/pack npx tsx --tsconfig tsconfig.node.json \
+  scripts/desk-model/eval.ts
+```
+
+BlazeFace is not a bad model here; it is **not an away model at all**. It is a
+face detector, and `classifyDesk` reports `away` whenever no usable face is in
+the frame — so a dim room, a steep webcam angle, a hand over the lens and a
+head turned down are all the same answer as an empty chair. Worse for a floor:
+that answer is a *constant*, `0.90` for an occluded frame and `0.92 - 0.25·p`
+otherwise, not a score that falls when the model is unsure. 329 of its 344
+wrong `away` calls sit at exactly 0.92. That is why `pauseAwayConfidence`
+screens four of them: it cannot separate calls that were never separated. Nor
+can raising it — 0.92 is the highest confidence `classifyDesk` can produce, so
+the slider's 0.95 ceiling screens every BlazeFace `away` there is. On this
+model the only floor that is safe is the one that switches the feature off.
+
+The floor is not useless; it is aimed elsewhere. It bites when a face *is*
+found and then rejected as unusable — `0.92 - 0.25·p` falls to between 0.67 and
+0.80 for a confident detection at a bad angle or a bad aspect ratio, which is
+the head-down-over-a-notebook case, and those readings are screened. That case
+is not the one that matters here: 340 of the 344 wrong calls are frames the
+detector found no face in at all, and it scores them like an empty room.
+
+So the pause follows the head that earned it. `deskModelMayPauseOnAway`
+(`src/shared/nudge.ts`) lets only `deskModelId: "custom"` carry `pause: true`
+on an `away`, the controller ANDs it into `DriftPolicy.pauseOnAway`, and no
+setting or hand-edited `settings.json` can undo it. On the default install an
+`away` still nudges — window, overlay, lamp — because that costs a glance and
+undoes itself, and pulling someone back who really did just leave is worth a
+42% call. Stopping their clock is not.
+
 ## Attention head (`focused` / `unfocused` / `phone`)
 
 A second head over the **same** feature vector, consulted only when the
@@ -127,7 +181,9 @@ a prompt flaw — looking *into the camera* counted as looking away, but a
 webcam sits on the screen — fixed before the full run. A second batch, the 342
 phone photos of the `desk-data-v3-distracted` release, was labelled the same
 way and merged; an image an earlier run labelled is never sent again. 210
-credits in total. Output: `datasets/desk-attention-labels.csv` (1,919 photos).
+credits in total. Output: `datasets/desk-attention-labels.csv` (1,919
+annotated photos; the file also holds 225 bucket-labelled stock proxies that
+Adaption never saw — see below).
 Near-duplicate photos (dHash within 6 bits) stay on one side of the split,
 which moved 123 train images to eval.
 
@@ -154,15 +210,30 @@ head on any label file, so old and new heads are compared on the same images.
 ### Results — read before quoting anything
 
 Held-out eval. Truth is Adaption's annotation, not a human label. "First head"
-trained on the 1,577 `main` labels; "this head" adds the 342 v3 phone photos.
+trained on the 1,577 `main` labels; "this head" adds the 342 v3 phone photos
+and is still the head that ships. The last two rows are the **new** proxy eval
+set described in the next section; the shipped head never saw any of those
+images either, so they are held out for it in the ordinary way.
 
 | | first head | this head |
 | --- | --- | --- |
 | original 143-image eval · 3-way accuracy | 56.6% | 60.8% — always `focused` is 65.7% |
 | original eval · phone precision / recall / F1 | 42.9% / 50.0% / 46.2% | 30.0% / 50.0% / 37.5% |
-| current 200-image eval · 3-way accuracy | 49.5% | **64.0%** — always `focused` is 48.5% |
-| current eval · phone precision / recall / F1 | 65.8% / 35.2% / 45.9% | 68.1% / 69.0% / **68.5%** |
-| current eval · off task (unfocused or phone) F1 | — | 72.2% |
+| Adaption 200-image eval · 3-way accuracy | 49.5% | **64.0%** — always `focused` is 48.5% |
+| Adaption eval · phone precision / recall / F1 | 65.8% / 35.2% / 45.9% | 68.1% / 69.0% / **68.5%** |
+| Adaption eval · off task (unfocused or phone) F1 | — | 72.2% |
+| proxy 86-image eval · 3-way accuracy | — | 57.0% — always `focused` is **83.7%** |
+| proxy eval · phone precision / recall / F1 | — | 30.0% / 64.3% / 40.9% |
+
+**Every row is a different set of images.** `eval-attention.ts
+--exclude-proxies` scores the Adaption rows (the set every earlier round was
+measured on), `--proxies-only` the proxy rows, and the default now scores all
+286 pooled — 61.9%, always `focused` 59.1%. The pooled number mostly reports
+the mixing ratio of two label sources, so it is not a headline; the script
+prints which set it just scored above the numbers. The 143-image row needs the
+label file as it stood at commit `7b6ada4`
+(`git show 7b6ada4:datasets/desk-attention-labels.csv > /tmp/143.csv`, then
+`--labels /tmp/143.csv`).
 
 **More sensitive, not reliable.** The extra photos doubled how many phones it
 catches in phone-style stock photos, and roughly doubled how often it calls a
@@ -175,8 +246,183 @@ photos, so it only restates how they were chosen.
 It still learns from 3rd-person stock photos while the runtime camera is
 1st-person, where the phone is usually below the frame and the tell is the
 head tilting down. **Claim the pipeline, not phone detection.** Nothing in the
-next section changes that headline; it only narrows the domain gap and
-measures the narrowing honestly.
+next two sections changes that headline; the first is a negative result and
+the second only narrows the domain gap and measures the narrowing honestly.
+
+### Stock attention proxies — folded in, and they did not help
+
+`desk-data-attention-proxies-hq` is 225 free-licensed photographs collected
+against the head's known failure modes and sorted into six buckets by the
+search query that found them. They are **stock proxies, not first-person
+webcam frames** — the release says so itself — so they narrow the domain gap
+the way the rest of the stock pack does, which is to say a little.
+
+| bucket | images (train / eval) | label | why it was collected |
+| --- | --- | --- | --- |
+| `hard_negative_down` | 49 (29 / 20) | `focused` | head down over a notebook, keyboard or calculator — **not** a phone |
+| `webcam_angle` | 46 (27 / 19) | `focused` | frontal desk-cam-ish person at a computer |
+| `lighting` | 44 (26 / 18) | `focused` | desk lamp, dim room, backlight, evening |
+| `posture_focus` | 36 (21 / 15) | `focused` | lean back, chin in hand, glance aside, still at the desk |
+| `phone_low` | 37 (23 / 14) | `phone` | phone low or at the desk — the real failure case |
+| `uncertain` | 13 (6 / 7) | *(no label)* | blur, motion, partial desk scenes |
+
+`hard_negative_down` is the point of the release. A false `phone` is not a
+silent error here: two in a row and `NudgeTracker` fires, so FocusPlug pulls
+its window to the front and switches the lamp on at somebody who was working.
+The product's answer to the numbers below is that the head is allowed to do
+that and no more by default — `pauseOnPhoneEnabled` ships **off**, so a
+`phone` call cannot stop the study clock until the student turns it on, and
+even then it needs five straight readings across thirty seconds above a floor
+kept above the presence head's (`docs/CONTRACTS.md § Drift pause`). The other
+pause, `away`, is the presence head's call and not this one — and it is not on
+by default either, because the presence model that *is* on by default has not
+earned it (§ Away, on the model that actually ships). **A default install
+cannot stop the clock at all.**
+
+**How little that confidence floor actually contributes.** It is the weakest of
+the three guards and the docs should not let it stand in for the others. On the
+pooled 286-image eval the head makes **44** false `phone` calls; the shipped
+`pausePhoneConfidence` of 0.90 screens **39 of them (88.6%)** and lets **5**
+through. The two most confident survivors are exactly the pose this release was
+collected against:
+
+| false `phone`, confidence ≥ 0.90 | truth | confidence |
+| --- | --- | --- |
+| `attention-proxies/hard_negative_down/hard_negative_down_p207756.jpg` | `focused` | 0.9955 |
+| `eval/at_desk/at_desk_p806835.jpg` | `focused` | 0.9932 |
+| `attention-proxies/posture_focus/posture_focus_p7320318.jpg` | `focused` | 0.9515 |
+| `eval/at_desk/main_at_desk_f1f031b4c4fb.jpg` | `focused` | 0.9389 |
+| `eval/at_desk/at_desk_p5301652.jpg` | `unfocused` | 0.9012 |
+
+A floor screens *noise*, and a head down over a notebook is not noise — it is a
+pose a student holds for the whole thirty seconds, at 0.99. So the guard that
+carries this risk is not the floor: it is `pauseOnPhoneEnabled` shipping **off**
+and, if switched on, the five-readings-across-thirty-seconds sustain. Read them
+off the same report the accuracies come from:
+
+```
+FOCUSPLUG_DESK_DATA=/path/to/pack npx tsx --tsconfig tsconfig.node.json \
+  scripts/desk-model/eval-attention.ts
+node -e "const m=require(process.env.FOCUSPLUG_DESK_DATA+'/.cache/attention-eval-report.json').misses.filter(x=>x.predicted==='phone');console.log(m.length,m.filter(x=>x.confidence>=0.9).length)"
+```
+
+Unpack the release into the pack as `attention-proxies/` (beside `train/` and
+`eval/`), then:
+
+```
+# read the release manifest, group, split, append the rows — --dry-run writes nothing
+npx tsx --tsconfig tsconfig.node.json scripts/desk-model/ingest-proxies.ts --dry-run
+npx tsx --tsconfig tsconfig.node.json scripts/desk-model/ingest-proxies.ts
+npx tsx --tsconfig tsconfig.node.json scripts/desk-model/extract-features.ts --shard 0 --of 4
+
+# the shipped head: same config, proxies held out of training
+npx tsx --tsconfig tsconfig.node.json scripts/desk-model/train-attention.ts --hidden 16 --l2 0.03 --slices 745-2025 --exclude-proxies
+# the arm that did not work: drop --exclude-proxies and it trains on them too
+npx tsx --tsconfig tsconfig.node.json scripts/desk-model/train-attention.ts --hidden 16 --l2 0.03 --slices 745-2025 --out /tmp/with-proxies.json
+
+npx tsx --tsconfig tsconfig.node.json scripts/desk-model/eval-attention.ts --exclude-proxies   # the Adaption 200
+npx tsx --tsconfig tsconfig.node.json scripts/desk-model/eval-attention.ts --proxies-only      # the proxy 86
+npx tsx --tsconfig tsconfig.node.json scripts/desk-model/hard-negative-report.ts \
+  --before src/main/desk/model/weights/attention-head.json --after /tmp/with-proxies.json
+```
+
+**How they were folded in.** Rows are appended to
+`datasets/desk-attention-labels.csv` in its existing ten columns — no new
+column, no existing row touched, so every number measured before the ingest
+can still be measured after it. The images live in the pack beside `train/`
+and `eval/` under `attention-proxies/<bucket>/` and are read straight out of
+the CSV by path prefix, the same adapter first-person clips use; they carry
+`bucket: "attention_proxy"`, which `readFeatureRows` skips by default, so the
+presence head never sees them. Near-duplicates are grouped with the same dHash
+rule the stock rows use (8×8, within 6 bits) and the group id **carries the
+bucket** (`apx_<bucket>_<hash>`), so photos from one query cannot straddle the
+split. That check also caught four proxies that are near-duplicates of images
+already in the pack — three `phone_low` copies of `train/distracted/…` and one
+`uncertain` copy of an `eval/at_desk/…` image — and each inherited the split of
+the image it duplicates instead of leaking across it. Of the rest, two groups
+in five went to eval, bucket by bucket: **132 train / 93 eval images (126 / 86
+of them labelled)**, because a token eval share of a new distribution would
+have let the head fit it and then report a number that mostly measured the old
+images.
+
+`person` / `workspace` / `phone` / `gaze` on these rows are **derived from the
+bucket**, not observed, exactly as they are for self-labelled webcam clips, and
+each row's `note` says so and carries its licence, photographer and source URL.
+
+**The result: no.** Same recipe (`--hidden 16 --l2 0.03 --slices 745-2025`),
+same trainer, one variable — the 126 extra labelled train images. Five seeds
+each, because one run of this recipe is a lottery (its early stop picks the
+best epoch on a single 124-sample validation slice, and at seed 42 that was
+epoch 3):
+
+| 3-way accuracy, 5 seeds | without proxies | with proxies |
+| --- | --- | --- |
+| Adaption 200-image eval | 64.0 / 58.5 / 62.5 / 59.0 / 54.5 → **mean 59.7%** | 55.0 / 53.0 / 47.5 / 47.5 / 57.0 → **mean 52.0%** |
+| proxy 86-image eval (always `focused` = 83.7%) | 57.0 / 64.0 / 64.0 / 54.7 / 69.8 → mean 61.9% | 55.8 / 74.4 / 65.1 / 59.3 / 67.4 → mean 64.4% |
+
+Nearly eight points of mean 3-way accuracy lost on the Adaption eval, and the
+two arms barely overlap: the best with-proxies run (57.0%) beats exactly one of
+the five without (54.5%). On the proxies' own distribution they gain about two
+and a half points — well inside a seed spread of eighteen — and both arms sit
+some twenty points *below* always answering `focused` there.
+
+**And the hard negatives specifically did not stop the false phone calls** —
+the 20 held-out `hard_negative_down` images, mean of the same five seeds:
+
+| held-out slice | non-phone images | false `phone` without proxies | with proxies |
+| --- | --- | --- | --- |
+| `hard_negative_down` | 20 | 5.2 (26.0%), range 4–6 | 5.6 (28.0%), range 5–7 |
+| `webcam_angle` | 19 | 6.4 (33.7%) | 5.8 (30.5%) |
+| `lighting` | 18 | 4.6 (25.6%) | 2.0 (11.1%) |
+| `posture_focus` | 15 | 5.8 (38.7%) | 4.2 (28.0%) |
+| Adaption stock | 129 | 30.0 (23.3%) | 32.2 (25.0%) |
+| **all 201 non-phone eval images** | 201 | **52.0** | **49.8** |
+
+Phone recall over the same runs fell 70.1% → 64.7%. So the head calls `phone`
+slightly less often overall, on the hard negatives it does not, and it catches
+fewer real phones — which is a threshold shift, not a model that learned what
+a notebook is.
+
+**Why, most likely.** Two reasons, both visible in the data rather than
+inferred. First, a bucket label is a claim about a search query, and one of
+these buckets disagrees with the vocabulary the rest of the file uses:
+`posture_focus` is "glancing aside, leaning back, at the desk", which is
+exactly Adaption's definition of `unfocused`, and the head trained on the
+proxies calls 8 of those 15 eval images `unfocused` — by the vocabulary the
+other 1,919 rows use, the prediction is the better word and the label is the
+wrong one (`hard-negative-report.ts` prints that breakdown). Second, 103
+of the 126 labelled proxy train rows are `focused`, which pushes the trainer's
+class-balancing weight for `focused` down (0.77 → 0.68) and pins `unfocused` at
+its cap of 4, so the head answers `unfocused` far more often: on the Adaption
+eval its `unfocused` predictions go 41 → 70 out of 200. Adding images labelled
+`focused` made it *less* willing to say `focused`.
+
+**What ships.** Nothing changed. The attention head is still the v3 head,
+byte for byte, and it is now reproducible from the committed CSV with
+`train-attention.ts --hidden 16 --l2 0.03 --slices 745-2025 --exclude-proxies`.
+The 225 rows stay in the file, with their credits, because a negative result
+nobody can re-run is not a result — and because the 86-image proxy eval is a
+genuinely harder held-out set that the shipped head is now measured on.
+
+**Config selection stayed on the train split.** 5-fold CV over the enlarged
+train pool, groups kept together, nine settings, mean balanced accuracy:
+`h32/l2 0.03/full vector` 58.7% ± 5.5, `h16/l2 0.1/slice` 58.2% ± 5.1,
+`h32/l2 0.03/slice` 57.9%, `h32/l2 0.01/slice` 57.8%, `h16/l2 0.03/full` 57.5%,
+`h16/l2 0.03/slice` (shipped) 56.7% ± 6.1, `h16/l2 0.01/slice` 56.4%,
+`h0/l2 0.03/slice` 55.4%, `h0/l2 0.01/slice` 54.3%. The top five sit within 1.2
+points while a single fold swings 5–6, and the one candidate that beat the
+incumbent in all five folds does it by feeding the head the whole 2025-d
+vector — the hand-crafted scene statistics that differ most between 3rd-person
+stock and the 1st-person webcam this head runs on, where no eval here can see
+it. Trained anyway and measured, for the record: 55.5% on the Adaption eval,
+79.1% on the proxy eval (still under that set's 83.7% baseline). Not shipped,
+and the decision was written down before either number existed.
+
+**The proxy eval has one trap of its own.** `pack label distracted as a phone
+detector` scores 100% precision and recall on the proxy rows, and that is
+meaningless: those rows' `pack_label` is `distracted` exactly when the bucket
+is `phone_low`, which is exactly when the label is `phone`. It restates how the
+photos were filed, like the v3 `distracted` baseline before it.
 
 ### First-person capture (`npm run capture:attention`)
 
@@ -309,16 +555,57 @@ say is: the head has seen first-person frames, and it was measured on three
 first-person clips. Anything stronger needs many more clips from many more
 people.
 
+### What this head is allowed to do in the product
+
 It is opt-in by construction: attention only exists with
-`deskModelId: "custom"`, so the default BlazeFace install never nudges on it.
+`deskModelId: "custom"`, so the default BlazeFace install never nudges on it —
+and never stops the clock on it either. Sorted by how much it costs to be
+wrong:
+
+| the head says | on a default install | on `deskModelId: "custom"` |
+| --- | --- | --- |
+| `unfocused` | nothing | nudge only — it can **never** stop the clock, at any setting |
+| `phone` | nothing | nudge; stops the clock only if the student switches `pauseOnPhoneEnabled` on, and then only after 5 readings across 30 s above a floor held above the away floor |
+| `focused` | nothing | clears the drift |
+
+Nothing here is enforcement: the process kill has never taken a desk *attention*
+reading as an input, and a stopped clock releases the lock rather than
+tightening it.
+
+The other drift that can stop a clock, `away`, is the **presence** head's call
+rather than this one, and it lives under the same rule read one level up — not
+"which label", but **which model**. The presence head trained here is right on
+92.5% of its `away` calls, so its `away` may stop a clock and
+`pauseOnAwayEnabled` ships on for it. The `blazeface` detector that ships
+enabled is right on 42.1% of them, and calls `away` on two thirds of the frames
+of somebody sitting right there, so its `away` nudges and nothing more —
+`deskModelMayPauseOnAway` refuses it structurally, at any setting (§ Away, on
+the model that actually ships). **So a default install stops no clocks at all:
+neither head has a number there that pays for it.**
+
+That is the whole of the design, and it is one sentence: *the head with the
+good number is the one trusted with the consequence.* Applied to this page's
+head, it ships `pauseOnPhoneEnabled` off. Applied to the presence head, it
+means the trained one and not the detector everybody actually runs.
+
 For a filmed demo use Settings → When you drift → Test nudge, which fires the
-same nudge path (window forward, overlay, lamp) on demand.
+same nudge path (window forward, overlay, lamp) on demand. Test nudges never
+carry the pause flag — they cannot stop a clock, so nothing about a filmed
+nudge is evidence that the pause works.
 
 ## Licenses / attribution
 
 - MobileNetV2 feature vector — Google, TF Hub graph model, **Apache-2.0**.
 - MediaPipe BlazeFace — already shipped by the app (see desk fixtures
   attribution).
+- Attention proxies (`attention-proxies/`, the `desk-data-attention-proxies-hq`
+  release) — 224 photographs under the **Pexels licence** and 1 in the **public
+  domain** (Wikimedia); NC and ND images were excluded when the set was built.
+  Per-photograph licence, photographer and source URL are committed in
+  `datasets/desk-attention-proxies.csv` and repeated in each row's `note` in
+  `datasets/desk-attention-labels.csv`. As with every other pack, only learned
+  weights ship — and no weights currently ship from these at all, since the
+  head that ships is trained with `--exclude-proxies`.
 - Edinburgh office webcam frames (`nc/`, Fisher et al.) — **CC BY-NC-SA**,
   used for training/eval only in this non-commercial hackathon build; only
   learned weights ship, never the images.
