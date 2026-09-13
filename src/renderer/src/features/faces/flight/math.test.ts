@@ -13,6 +13,7 @@ import {
   greatCirclePoint,
   groundSpeedKmh,
   haversineKm,
+  MAX_CRUISE_KMH,
   remainingKm,
   solarDeclinationDeg,
   subsolar,
@@ -107,12 +108,25 @@ describe("progress, phases, honest strip math", () => {
   });
 
   it("computes remaining km and ground speed from the same remaining clock", () => {
-    const total = haversineKm(NYC.lat, NYC.lon, LON.lat, LON.lon);
+    const dub = { lat: 53.4264, lon: -6.2499 };
+    const edi = { lat: 55.95, lon: -3.3725 };
+    const total = haversineKm(dub.lat, dub.lon, edi.lat, edi.lon);
     const progress = 0.5;
     const remainKm = remainingKm(total, progress);
     expect(remainKm).toBeCloseTo(total * 0.5, 6);
-    const gs = groundSpeedKmh(remainKm, 45 * 60);
-    expect(gs).toBeCloseTo(remainKm / 0.75, 6);
+    const gs = groundSpeedKmh(remainKm, 25 * 60);
+    expect(gs).toBeCloseTo(remainKm / (25 / 60), 6);
+    expect(gs).toBeLessThan(1000);
+  });
+
+  it("caps a 5-minute DUB–EDI hop so a break cannot read 4,032 kph", () => {
+    const total = haversineKm(53.4264, -6.2499, 55.95, -3.3725);
+    const raw = total / (5 / 60);
+    expect(raw).toBeGreaterThan(3900);
+    expect(raw).toBeLessThan(4200);
+    const gs = groundSpeedKmh(total, 5 * 60);
+    expect(gs).toBe(MAX_CRUISE_KMH);
+    expect(gs).toBeLessThan(1000);
   });
 
   it("prints ETA as a real 24h clock in UTC when asked", () => {

@@ -181,16 +181,15 @@ export function rasterGlobe(model: FlightModel, size: number): ImageData {
   return new ImageData(data, size, size);
 }
 
-export function rasterStickerGlobe(size: number): ImageData {
-  const samples = diskSamples(size);
-  const data = new Uint8ClampedArray(size * size * 4);
-  for (const s of samples) {
-    const t = (s.vy + 1) * 0.5;
-    const i = (s.y * size + s.x) * 4;
-    data[i] = 96 + t * 70;
-    data[i + 1] = 108 + t * 40;
-    data[i + 2] = 128 + t * 20;
-    data[i + 3] = 255;
-  }
-  return new ImageData(data, size, size);
+/** Pulled-back Earth so a picker tile reads as a globe, not a zoomed land patch. */
+export function stickerLookModel(model: FlightModel): FlightModel {
+  return {
+    ...model,
+    cameraZoom: 1,
+    totalKm: Math.max(model.totalKm, 20_000),
+  };
+}
+
+export function rasterStickerGlobe(size: number, model: FlightModel): ImageData {
+  return rasterGlobe(stickerLookModel(model), size);
 }

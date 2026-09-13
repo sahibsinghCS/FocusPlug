@@ -1,8 +1,11 @@
-import type { JSX, ReactNode } from "react";
+import { useRef, type JSX, type ReactNode } from "react";
+import { normalizeFaceId } from "@shared/faces";
+import { FaceErrorBoundary, buildLockFaceProps, faceComponent } from "../features/faces";
+import { useHostSize } from "../features/faces/useHostSize";
+import { useLiveFaceNow } from "../features/faces/useLiveFaceNow";
 import { HoldSwitch } from "../features/timer/HoldSwitch";
 import { Ribbon } from "../features/timer/Ribbon";
-import { faceDef } from "../features/timer/faces";
-import { formatReadout, formatSpan, planFocusSec } from "../features/timer/plan";
+import { formatSpan, planFocusSec } from "../features/timer/plan";
 import { positionCaption } from "../features/timer/runtime";
 import type { SessionTimer } from "../features/timer/useSessionTimer";
 import { cn } from "../lib/cn";
@@ -18,12 +21,16 @@ import { IconBolt } from "../lib/icons";
 import { enabledPlugViews } from "../lib/plugsUi";
 import { useAppState } from "../state/AppState";
 import "../features/timer/timer.css";
+import "../features/faces/faces.css";
+
+const LOCK_FACE_FALLBACK = { width: 960, height: 520 };
 
 /**
  * Lock mode. The console gets out of the way and leaves one object running
  * out, whichever one you picked. A break inverts the whole room — black on
  * bone instead of bone on black — so the lock lifting is visible from the
- * doorway without a single hue being involved.
+ * doorway without a single hue being involved. Faces stay night instruments
+ * and sit on that bone table as a mounted plate, not a leftover dark field.
  */
 export function LockPage(props: { timer: SessionTimer }): JSX.Element {
   const app = useAppState();
@@ -38,31 +45,13 @@ export function LockPage(props: { timer: SessionTimer }): JSX.Element {
   const paused = timer.status === "paused";
   const phase = onBreak ? "break" : "focus";
   const armedPlugs = enabledPlugViews(app.plugs);
-  const face = faceDef(timer.face);
-  const progress = position?.segmentProgress ?? 0;
-  const remainingSec = position?.remainingSec ?? 0;
-  const totalSec = position?.segment.seconds ?? timer.plan.focusMin * 60;
   const multiRound = timer.segments.length > 1;
-  // Faces carry their own palette, so a break — which inverts the room — drops
-  // back to the plain readout rather than dragging a night globe onto bone.
-  const showFace = !onBreak;
 
   return (
     <div
       data-phase={phase}
       className="relative flex h-full min-h-0 flex-col overflow-hidden bg-[var(--ground)] text-[color:var(--phase)]"
     >
-      {showFace && face.ambient ? (
-        <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
-          <face.Face
-            progress={progress}
-            remainingSec={remainingSec}
-            totalSec={totalSec}
-            className="h-full w-full"
-          />
-        </div>
-      ) : null}
-
       <header className="fp-drag relative z-10 flex h-[var(--fp-rail-h)] shrink-0 items-center justify-between px-4">
         <div className="flex items-center gap-2">
           <span
@@ -81,45 +70,19 @@ export function LockPage(props: { timer: SessionTimer }): JSX.Element {
         </p>
       </header>
 
-      <main className="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-center px-6">
-        <p
-          className={cn(
-            "fp-stencil fp-lock-in",
-            // The field face lights the middle of the room, so its text has to
-            // sit at full strength to stay legible on top of it.
-            showFace && face.ambient ? "text-[color:var(--phase)]" : "fp-lock-dim",
-          )}
-        >
+      <main className="relative z-10 flex min-h-0 flex-1 flex-col px-6">
+        <p className="fp-stencil fp-lock-in shrink-0 pt-1 fp-lock-dim">
           {positionCaption(position, timer.status)}
         </p>
 
-        {!showFace ? (
-          <p className="fp-readout fp-lock-readout fp-lock-in mt-3" style={{ animationDelay: "60ms" }}>
-            {formatReadout(remainingSec)}
-          </p>
-        ) : face.ambient ? null : (
-          <div
-            className="fp-lock-face fp-lock-in mt-4 flex w-full items-center justify-center"
-            style={{ animationDelay: "60ms" }}
-          >
-            <face.Face
-              progress={progress}
-              remainingSec={remainingSec}
-              totalSec={totalSec}
-              className="h-full w-auto max-w-full"
-            />
-          </div>
-        )}
+        <LockFaceStage timer={timer} />
 
         <p className="sr-only" aria-live="polite">
-          {positionCaption(position, timer.status)}, {formatSpan(remainingSec)} remaining
+          {positionCaption(position, timer.status)}, {formatSpan(position?.remainingSec ?? timer.remainingSec)} remaining
         </p>
 
         <p
-          className={cn(
-            "fp-lock-in mt-6 max-w-[46ch] text-center text-[14px] leading-6",
-            showFace && face.ambient ? "text-[color:var(--phase)]" : "fp-lock-dim",
-          )}
+          className="fp-lock-in mx-auto mt-3 max-w-[46ch] shrink-0 pb-2 text-center text-[14px] leading-6 fp-lock-dim"
           style={{ animationDelay: "120ms" }}
         >
           {paused
@@ -140,8 +103,6 @@ export function LockPage(props: { timer: SessionTimer }): JSX.Element {
             </div>
           </div>
         ) : (
-          // One block: the face already shows the proportion, so this is the
-          // only number worth printing.
           <p className="fp-lock-faint font-mono text-[11px] tabular">
             {formatSpan(timer.remainingSec)} left
           </p>
@@ -175,7 +136,7 @@ export function LockPage(props: { timer: SessionTimer }): JSX.Element {
           </div>
         ) : null}
 
-        <div className="flex flex-wrap items-center justify-center gap-2">
+        <div className="fp-lock-bar flex flex-wrap items-center justify-center gap-2">
           <Quiet onClick={paused ? timer.resume : timer.pause}>
             {paused ? "Resume" : "Pause"}
           </Quiet>
@@ -200,6 +161,41 @@ export function LockPage(props: { timer: SessionTimer }): JSX.Element {
           />
         </div>
       </footer>
+    </div>
+  );
+}
+
+function LockFaceStage(props: { timer: SessionTimer }): JSX.Element {
+  const app = useAppState();
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const size = useHostSize(stageRef, LOCK_FACE_FALLBACK);
+  const faceId = normalizeFaceId(app.settings.faceId);
+  const Face = faceComponent(faceId);
+  const now = useLiveFaceNow();
+  const face = buildLockFaceProps({
+    status: props.timer.status,
+    position: props.timer.position,
+    elapsedSec: props.timer.elapsedSec,
+    remainingSec: props.timer.remainingSec,
+    planFocusMin: props.timer.plan.focusMin,
+    log: app.log,
+    startedAtMs: props.timer.startedAtMs,
+    now,
+    width: size.width,
+    height: size.height,
+  });
+
+  return (
+    <div
+      ref={stageRef}
+      className="fp-lock-stage fp-lock-in relative min-h-0 w-full flex-1"
+      style={{ animationDelay: "60ms" }}
+      data-face={faceId}
+      data-face-paused={face.paused ? "1" : "0"}
+    >
+      <FaceErrorBoundary faceId={faceId}>
+        <Face {...face} />
+      </FaceErrorBoundary>
     </div>
   );
 }

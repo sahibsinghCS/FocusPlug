@@ -109,6 +109,7 @@
   --phase: #f2f1ec;
   --phase-soft: rgba(242, 241, 236, 0.1);
   --phase-glow: rgba(242, 241, 236, 0.16);
+  color-scheme: dark;
 }
 
 /* Break: the room flips. Black on bone, and you can see it across a room. */
@@ -117,6 +118,8 @@
   --phase: #131315;
   --phase-soft: rgba(19, 19, 21, 0.08);
   --phase-glow: rgba(19, 19, 21, 0.12);
+  /* Body stays dark-scheme; without this, UA chrome keeps light-on-light. */
+  color-scheme: light;
 }
 
 [data-phase="done"] {
@@ -124,6 +127,12 @@
   --phase: #f2f1ec;
   --phase-soft: rgba(242, 241, 236, 0.1);
   --phase-glow: rgba(242, 241, 236, 0.2);
+  color-scheme: dark;
+}
+
+/* Lock stencils must follow the room, not the panel's fixed faint token. */
+[data-phase] .fp-stencil {
+  color: color-mix(in srgb, var(--phase) 56%, transparent);
 }
 
 html,

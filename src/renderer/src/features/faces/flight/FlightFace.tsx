@@ -11,6 +11,7 @@ import {
 } from "./math";
 import { buildFlightModel } from "./model";
 import { FlightRoutePicker } from "./RoutePicker";
+import { resolveFlightRoutePicker } from "./routePickerVisibility";
 
 export interface FlightFaceViewProps {
   clock: FlightClock;
@@ -21,6 +22,11 @@ export interface FlightFaceViewProps {
   compact?: boolean;
   onRouteChange?: (next: { dep: string; arr: string }) => void;
   routePickerOpen?: "dep" | "arr" | null;
+  /**
+   * Origin/Arrival boxes. Default false so lock/globe stay unobstructed.
+   * Settings owns the live picker; pass true only on settings-style surfaces.
+   */
+  showRoutePicker?: boolean;
 }
 
 function readSize(el: HTMLCanvasElement): { width: number; height: number } {
@@ -55,7 +61,11 @@ export function FlightFace(props: FlightFaceViewProps): JSX.Element {
         canvas.width = width;
         canvas.height = height;
       }
-      const model = buildFlightModel(current.clock, current.idleOverride);
+      const clock =
+        current.clock.paused || current.clock.reducedMotion
+          ? current.clock
+          : { ...current.clock, now: Date.now() };
+      const model = buildFlightModel(clock, current.idleOverride);
       drawFlightFace({
         ctx,
         width,
@@ -110,6 +120,9 @@ export function FlightFace(props: FlightFaceViewProps): JSX.Element {
 
   const model = buildFlightModel(props.clock, props.idleOverride);
   const variant = props.variant ?? "instrument";
+  const showRoutePicker = resolveFlightRoutePicker({
+    showRoutePicker: props.showRoutePicker,
+  });
   const remain = model.complete ? "0" : formatGrouped(model.remainKm);
   const eta = model.complete ? "ARR" : formatClockHm(model.eta);
   const gs = model.complete ? "0" : formatGrouped(model.gsKmh);
@@ -153,7 +166,7 @@ export function FlightFace(props: FlightFaceViewProps): JSX.Element {
         </div>
       ) : null}
       <canvas ref={canvasRef} role="img" aria-label={label} />
-      {variant === "instrument" ? (
+      {variant === "instrument" && showRoutePicker ? (
         <FlightRoutePicker
           dep={model.dep.code}
           arr={model.arr.code}
