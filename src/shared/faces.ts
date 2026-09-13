@@ -44,7 +44,7 @@ export interface FaceMeta {
   readiness: FaceReadiness;
   /**
    * True only when the face draws its own clearly readable time-left readout:
-   * full strength and at least 15px at lock size, like Readout, Flask and Candle.
+   * full strength and at least 15px at lock size, like Flight, Readout, Flask and Candle.
    * Lock mode adds one beside the caption for every other face, so every timer
    * shows the actual time. A small or faint caption does not count.
    */
@@ -72,7 +72,7 @@ export const FACE_CATALOG: readonly FaceMeta[] = [
     stream: "agent/faces-flight-v2",
     file: "src/renderer/src/features/faces/FlightFace.tsx",
     readiness: FACE_READY.flight ? "ready" : "pending",
-    showsTimeLeft: false,
+    showsTimeLeft: true,
   },
   {
     id: "hourglass",

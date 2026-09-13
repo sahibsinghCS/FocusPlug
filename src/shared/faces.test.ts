@@ -78,7 +78,6 @@ describe("faces catalog", () => {
       expect(typeof entry.showsTimeLeft).toBe("boolean");
     }
     expect(FACE_CATALOG.filter((entry) => !entry.showsTimeLeft).map((entry) => entry.id)).toEqual([
-      "flight",
       "hourglass",
       "movement",
       "line",
@@ -86,6 +85,7 @@ describe("faces catalog", () => {
       "garden",
     ]);
     expect(FACE_CATALOG.filter((entry) => entry.showsTimeLeft).map((entry) => entry.id)).toEqual([
+      "flight",
       "readout",
       "flask",
       "candle",
