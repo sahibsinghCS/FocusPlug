@@ -68,6 +68,10 @@ describe("lock face phase mapping", () => {
     expect(focus.elapsedMs).toBe(525_000);
     expect(focus.remainingMs).toBe(975_000);
     expect(focus.estimateMinutes).toBe(25);
+    expect(focus.sessionProgress).toBe(0.35);
+    expect(focus.sessionElapsedMs).toBe(525_000);
+    expect(focus.sessionRemainingMs).toBe(1_275_000);
+    expect(focus.sessionEstimateMinutes).toBe(30);
     expect(focus.killCount).toBe(1);
     expect(focus.paused).toBe(false);
     expect(focus.sessionId).toBe("lock");
@@ -88,6 +92,10 @@ describe("lock face phase mapping", () => {
     expect(rest.elapsedMs).toBe(120_000);
     expect(rest.remainingMs).toBe(180_000);
     expect(rest.estimateMinutes).toBe(5);
+    expect(rest.sessionProgress).toBe(0.7);
+    expect(rest.sessionElapsedMs).toBe(1_620_000);
+    expect(rest.sessionRemainingMs).toBe(180_000);
+    expect(rest.sessionEstimateMinutes).toBe(30);
   });
 
   it("keeps the lock face in motion even when the timer is paused", () => {

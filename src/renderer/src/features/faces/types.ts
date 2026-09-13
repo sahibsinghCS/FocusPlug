@@ -14,6 +14,14 @@ export interface FaceProps {
   elapsedMs: number;
   remainingMs: number;
   estimateMinutes?: number;
+  /**
+   * Whole-sit 0..1. Flight km / ETA / GS read this (and the session* clock
+   * below) so each lock round is not its own hop. Other faces ignore these.
+   */
+  sessionProgress?: number;
+  sessionElapsedMs?: number;
+  sessionRemainingMs?: number;
+  sessionEstimateMinutes?: number;
   sessionId: string;
   events: FaceEvent[];
   killCount: number;
