@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState, type JSX, type ReactNode } from "react";
+import { useRef, type JSX, type ReactNode } from "react";
 import { normalizeFaceId } from "@shared/faces";
 import { FaceErrorBoundary, buildLockFaceProps, faceComponent } from "../features/faces";
 import { useHostSize } from "../features/faces/useHostSize";
+import { useLiveFaceNow } from "../features/faces/useLiveFaceNow";
 import { HoldSwitch } from "../features/timer/HoldSwitch";
 import { Ribbon } from "../features/timer/Ribbon";
 import { formatSpan, planFocusSec } from "../features/timer/plan";
@@ -162,28 +163,6 @@ export function LockPage(props: { timer: SessionTimer }): JSX.Element {
       </footer>
     </div>
   );
-}
-
-/** Wall clock for faces that paint from `now`, independent of pause. */
-function useLiveFaceNow(): Date {
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => {
-    let frame = 0;
-    let running = true;
-    const tick = (): void => {
-      if (!running) {
-        return;
-      }
-      setNow(new Date());
-      frame = window.requestAnimationFrame(tick);
-    };
-    frame = window.requestAnimationFrame(tick);
-    return () => {
-      running = false;
-      window.cancelAnimationFrame(frame);
-    };
-  }, []);
-  return now;
 }
 
 function LockFaceStage(props: { timer: SessionTimer }): JSX.Element {
