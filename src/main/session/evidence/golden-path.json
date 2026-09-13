@@ -1,7 +1,7 @@
 {
   "name": "golden-path",
   "bar": "Docs→Discord→countdown→kill+plug_off→unlock+plug_on plus Demo Kill cuts plugs",
-  "platform": "linux",
+  "platform": "win32",
   "passed": true,
   "settings": {
     "countdownSec": 10,
@@ -90,6 +90,11 @@
       "ts": 1000250,
       "kind": "decision",
       "detail": "DISTRACTED · Distracted: discord.exe"
+    },
+    {
+      "ts": 1000250,
+      "kind": "adapt",
+      "detail": "Using your 10s setting — no drifts learned from yet"
     },
     {
       "ts": 1000250,

@@ -49,7 +49,7 @@ describe("chrome status labels", () => {
     expect(sessionChrome(live)).toEqual({
       label: "Session",
       detail: "On task",
-      tone: "lime",
+      tone: "focus",
       live: true,
     });
   });
@@ -59,7 +59,7 @@ describe("chrome status labels", () => {
     expect(deskChrome(desk)).toEqual({
       label: "Desk AI",
       detail: "At desk 94%",
-      tone: "lime",
+      tone: "focus",
       live: true,
     });
     expect(deskChrome({ ...desk, webcamEnabled: false })).toEqual({
@@ -78,7 +78,7 @@ describe("chrome status labels", () => {
     expect(plugChrome([lamp])).toEqual({
       label: "Plugs",
       detail: "1 armed",
-      tone: "lime",
+      tone: "focus",
       live: true,
     });
     expect(plugChrome([{ ...lamp, powerOn: false }]).tone).toBe("red");

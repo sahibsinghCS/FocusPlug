@@ -1,5 +1,7 @@
 import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { decodeDataUrl, decodeImageBuffer } from "./frame";
 import type { FrameSource, RgbFrame } from "./types";
 
@@ -87,7 +89,36 @@ export class ScriptedFrameSource implements FrameSource {
 
 class ElectronCameraSource implements FrameSource {
   private window: Electron.BrowserWindow | null = null;
+  private pageDir: string | null = null;
   private started = false;
+
+  /**
+   * getUserMedia only exists in a secure context. A `data:` URL is an opaque
+   * origin (`window.origin === "null"`, `isSecureContext === false`), where
+   * `navigator.mediaDevices` is undefined — so the camera never started and
+   * Desk AI reported `uncertain` forever. `file://` is potentially trustworthy,
+   * so the page gets `mediaDevices` there.
+   */
+  private writePage(): string {
+    const dir = mkdtempSync(join(tmpdir(), "focusplug-cam-"));
+    this.pageDir = dir;
+    const file = join(dir, "camera.html");
+    writeFileSync(file, CAMERA_HTML, "utf8");
+    return file;
+  }
+
+  private cleanupPage(): void {
+    const dir = this.pageDir;
+    this.pageDir = null;
+    if (dir === null) {
+      return;
+    }
+    try {
+      rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
+    } catch {
+      // temp dir, best effort
+    }
+  }
 
   async start(): Promise<void> {
     if (this.started) {
@@ -116,8 +147,15 @@ class ElectronCameraSource implements FrameSource {
     });
     win.webContents.setBackgroundThrottling(false);
     this.window = win;
-    await win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(CAMERA_HTML)}`);
-    await win.webContents.executeJavaScript("window.focusplugStartCam()");
+    try {
+      await win.loadFile(this.writePage());
+      await win.webContents.executeJavaScript("window.focusplugStartCam()");
+    } catch (error) {
+      // Without this the caller retries and every attempt leaks a hidden
+      // window and its renderer process.
+      await this.stop();
+      throw error;
+    }
     this.started = true;
     const deadline = Date.now() + 8000;
     while (Date.now() < deadline) {
@@ -134,6 +172,7 @@ class ElectronCameraSource implements FrameSource {
     const win = this.window;
     this.window = null;
     if (!win || win.isDestroyed()) {
+      this.cleanupPage();
       return;
     }
     try {
@@ -142,6 +181,7 @@ class ElectronCameraSource implements FrameSource {
       // ignore
     }
     win.destroy();
+    this.cleanupPage();
   }
 
   async grab(): Promise<RgbFrame | null> {

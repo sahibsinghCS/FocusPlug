@@ -5,12 +5,14 @@ Gauntlet bar: start a harmless stand-in, kill it via `ProcessKiller.kill(matcher
 ## Command (from repo root)
 
 ```bash
-node --experimental-strip-types --disable-warning=ExperimentalWarning \
-  --import ./src/main/kill/register.mjs \
-  --test src/main/kill/*.test.ts
+npm run test:kill
 ```
 
-Windows (PowerShell), same command. The live stand-in tests copy `sleep` (POSIX) or can be skipped if no sleeper exists; matching + allowlist invariant tests always run against `MemoryProcessHost` and a fake `tasklist`/`taskkill` runner.
+Same on Windows (the script lists the test files explicitly, since PowerShell and
+cmd do not expand `src/main/kill/*.test.ts`). The live stand-in tests copy
+`ping.exe` (Windows) or `sleep` (POSIX) and skip when neither exists; matching +
+allowlist invariant tests always run against `MemoryProcessHost` and a fake
+`tasklist`/`taskkill` runner.
 
 ## What must pass
 

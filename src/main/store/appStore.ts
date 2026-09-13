@@ -179,6 +179,7 @@ export class FocusPlugStore implements Store {
   private readonly lists: ListsJsonStore;
   private readonly settingsPath: string;
   private readonly logPath: string;
+  private readonly modelPath: string;
   private settingsCache: AppSettings | null = null;
   private logCache: SessionEvent[] | null = null;
 
@@ -186,6 +187,7 @@ export class FocusPlugStore implements Store {
     this.lists = new ListsJsonStore(directory);
     this.settingsPath = join(directory, "settings.json");
     this.logPath = join(directory, "session-log.json");
+    this.modelPath = join(directory, "adaptive-model.json");
   }
 
   loadAllowlist(): AppEntry[] {
@@ -242,6 +244,19 @@ export class FocusPlugStore implements Store {
     const loaded = parseSessionLog(readJson(this.logPath));
     this.logCache = loaded;
     return loaded.map((event) => ({ ...event }));
+  }
+
+  /**
+   * The adaptive fuse's learned weights. Kept in its own file: it is derived
+   * data that can always be thrown away and relearned, and losing it must
+   * never take settings or the log with it.
+   */
+  loadAdaptiveModel(): unknown {
+    return readJson(this.modelPath);
+  }
+
+  saveAdaptiveModel(value: unknown): void {
+    writeJsonAtomic(this.modelPath, value);
   }
 
   private persistSettings(): void {

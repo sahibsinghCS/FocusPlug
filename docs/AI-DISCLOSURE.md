@@ -22,8 +22,11 @@ kill. We did not train a new backbone.
 
 Build-time: Cursor Cloud Agents (Grok 4.6) implemented parallel workstreams
 from prompt-pack/ (foundation, UI, window monitor, desk-ai, policy, process
-kill, session wiring, this packaging). ⟦Add any ChatGPT / Copilot / Claude /
-other assistants and what they wrote.⟧
+kill, session wiring, this packaging). Claude Code (Opus 5) then ran the
+Windows-only paths on a real Windows machine and fixed what the Linux-built
+tests could not see: the foreground-window reader, the live process-kill probe,
+and the README stills. ⟦Add any ChatGPT / Copilot / other assistants and what
+they wrote.⟧
 
 ⟦Team: list every contributor.⟧ We did not submit a reskin of a chatbot or a
 cloud vision demo. Original work is the enforcement loop: window match + desk
@@ -46,7 +49,19 @@ presence → fuse → force-quit blocklist apps, never the study PC.
 
 **Fixture / eval (not a user feature):** `npm run test:desk` plus `src/main/desk/fixtures/` (MediaPipe portrait, Unsplash empty interior, synthetic covered/noise frames). See `src/main/desk/fixtures/ATTRIBUTION.txt`.
 
-**Not in the MVP (do not claim on Devpost):** custom-trained student-attention model, cloud Vision API, pose/skeleton tracking, phone camera, smart-plug kill (stretch only).
+**Not in the MVP (do not claim on Devpost):** cloud Vision API, pose/skeleton tracking, phone camera, macOS support.
+
+**Shipped since this doc was first written:**
+
+- **A trained custom desk model** (#23): BlazeFace crops + a MobileNetV2-0.50-160 ImageNet feature vector into a trained MLP head, weights committed under `src/main/desk/model/weights/`, 95.16% on a 723-image held-out split (`docs/CUSTOM-MODEL.md`). It is **opt-in** — `deskModelId` defaults to `blazeface`, so say which model you filmed with. The 95.16% is a held-out *dataset* number; it is not a measurement of live webcam accuracy on your desk.
+- **An adaptive fuse — a second model, learned on-device.** The countdown length is no longer the fixed Settings number: a 17-feature logistic model predicts P(you fix this yourself | this moment, a fuse of N seconds) and picks the shortest fuse still clearing 85%. It trains on labels the app already produces — `cancel_countdown` is a recovery and its timing says *how long you needed*, `kill` is a failure with longer fuses left censored — so **it needs no annotation and no dataset**. Weights live in the user's own data dir; nothing is uploaded, and there is no network call on this path.
+
+  Say this carefully. Two numbers, two meanings:
+  - The **shipped prior** (day one, before it has seen you drift) is fitted on `datasets/focusplug-drifts.csv` — **9,600 simulated drifts from a hand-written sampler**, not people. Held-out log-loss 0.6225 → 0.5600. It recovers the simulator's assumptions and is **not** evidence about students.
+  - `npm run gauntlet:adapt` reports 77.2% right at 8.5 s waited per drift vs the fixed fuse's 69.4% at 9.4 s. That is **a simulation against simulated students**, and the script prints the whole constant-fuse curve so nothing is hidden.
+  - The **per-user** model is the actual claim, and it has no number yet: it only learns from real drifts on a real machine. If you have not run sessions with it, say "it learns on-device" and do not quote an accuracy.
+
+- **LAN smart plugs** — Kasa (local 9999 XOR) and generic HTTP adapters, wired to kill/unlock and Demo Kill, with the study PC hard-denied (`docs/SMART-PLUGS.md`). Claim them as working *only* if you demo them with a plug on your LAN; the app ships with zero plugs configured.
 
 ---
 
@@ -57,7 +72,7 @@ presence → fuse → force-quit blocklist apps, never the study PC.
 | Cursor Cloud Agents / Cursor IDE (Grok 4.6) | Yes — git author `Cursor Agent` on workstream PRs | Scaffold, UI, monitors, policy, killer, session wiring, Hyperbloom docs |
 | GitHub Copilot | ⟦yes/no⟧ | ⟦e.g. inline completions in VS Code⟧ |
 | ChatGPT (specify model) | ⟦yes/no⟧ | ⟦e.g. README outline, not in-product⟧ |
-| Claude / other LLM | ⟦yes/no⟧ | ⟦tasks⟧ |
+| Claude Code (Opus 5) | Yes | Windows verification pass: fixed the Win32 foreground reader (`$pid` collided with PowerShell's constant `$PID`, so the window sensor reported nothing on Windows), added `win32.test.ts` + a live window probe, fixed the process-kill probe stand-in so `tasklist`/`taskkill` are exercised on Windows, generated `docs/screenshots/` |
 | Image / video generators | ⟦yes/no⟧ | ⟦none expected; screenshots should be the real app⟧ |
 | Other APIs (OpenAI, Gemini, Groq, …) | No in the running app | Desk AI is local TFJS only |
 
@@ -95,4 +110,4 @@ presence → fuse → force-quit blocklist apps, never the study PC.
 - [ ] Desk AI described as a **kill input**, not a filter / avatar
 - [ ] Coding assistants listed (Hyperbloom asks what AI tools you used **and how**)
 - [ ] Every teammate named
-- [ ] Stretch ideas (Mac, smart plug) not presented as shipped
+- [ ] Stretch ideas (macOS) not presented as shipped; smart plugs claimed only if demoed on a real LAN plug

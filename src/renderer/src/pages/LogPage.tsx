@@ -106,7 +106,7 @@ export function LogPage(): JSX.Element {
           description={
             newest
               ? `Causal timeline of real session events · cause → countdown → consequence → recovery · latest ${formatClock(newest.event.ts)} · ${formatRelative(newest.event.ts, now)}`
-              : "Causal timeline of real session events · cause → countdown → consequence → recovery · empty until Start session"
+              : "Causal timeline of real session events · cause → countdown → consequence → recovery · empty until you lock a session"
           }
           meta={
             filtered.length === views.length

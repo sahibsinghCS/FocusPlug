@@ -69,7 +69,7 @@ export function LogFilters(props: {
           {STATUS_FILTERS.map((filter) => {
             const count = countStatusFilter(props.views, filter.id);
             const pressed = props.status === filter.id;
-            const tone = filter.id === "error" ? "red" : filter.id === "cancelled" ? "mute" : "lime";
+            const tone = filter.id === "error" ? "red" : filter.id === "cancelled" ? "mute" : "focus";
             return (
               <FilterChip
                 key={filter.id}
@@ -105,7 +105,7 @@ function FilterChip(props: {
   count: number;
   onClick: () => void;
   children: string;
-  tone?: "lime" | "red" | "amber" | "mute";
+  tone?: "focus" | "red" | "warn" | "mute";
 }): JSX.Element {
   return (
     <button
@@ -117,7 +117,7 @@ function FilterChip(props: {
         props.pressed
           ? props.tone
             ? toneChip(props.tone)
-            : "border-fp-lime/35 bg-fp-lime/10 text-fp-lime"
+            : "border-fp-focus/35 bg-fp-focus/10 text-fp-focus"
           : "border-fp-line bg-transparent text-fp-mute hover:bg-fp-hover hover:text-fp-ink",
       )}
     >

@@ -63,6 +63,8 @@ function makeHarness(
     push,
     now: clock.now,
     tickIntervalMs: 0,
+    // Never explore: these cover countdown mechanics, not the adaptive fuse.
+    adaptiveRandom: () => 1,
   });
   return { controller, window, desk, killer, plugs, clock, store, trace };
 }
@@ -493,6 +495,8 @@ describe("SessionController", () => {
       store,
       push,
       tickIntervalMs: 250,
+      // Never explore: these cover countdown mechanics, not the adaptive fuse.
+      adaptiveRandom: () => 1,
     });
     try {
       await controller.start();

@@ -1,5 +1,7 @@
 import { createConnection } from "node:net";
 import { createSocket, type RemoteInfo, type Socket as UdpSocket } from "node:dgram";
+import { networkInterfaces } from "node:os";
+import { KlapPool, klapCredentialsFromEnv } from "./klap.ts";
 import type { PlugDevice } from "../../shared/types.ts";
 import type { PlugHost } from "./types.ts";
 
@@ -69,6 +71,51 @@ export function kasaEncodeUdp(plain: string): Buffer {
 
 export function kasaDecodeUdp(packet: Buffer): string {
   return kasaDecrypt(packet).toString("utf8");
+}
+
+/** Directed broadcast for one interface, e.g. 192.168.1.14/24 → 192.168.1.255. */
+export function subnetBroadcast(address: string, netmask: string): string | null {
+  const host = address.split(".").map(Number);
+  const mask = netmask.split(".").map(Number);
+  if (host.length !== 4 || mask.length !== 4) {
+    return null;
+  }
+  const octets: number[] = [];
+  for (let i = 0; i < 4; i += 1) {
+    const hostOctet = host[i];
+    const maskOctet = mask[i];
+    if (!Number.isInteger(hostOctet) || !Number.isInteger(maskOctet)) {
+      return null;
+    }
+    octets.push(((hostOctet as number) & (maskOctet as number)) | (~(maskOctet as number) & 0xff));
+  }
+  return octets.join(".");
+}
+
+/**
+ * Every local subnet's broadcast address, plus the global one.
+ *
+ * 255.255.255.255 alone leaves the interface choice to the routing table. On a
+ * Windows box with VirtualBox/WSL/Hyper-V adapters that is regularly the wrong
+ * one: the probe answered from 192.168.56.1 (host-only) for a device on the
+ * Wi-Fi subnet, so a real plug is either missed or recorded at an address that
+ * does not reach it.
+ */
+export function broadcastTargets(): string[] {
+  const targets = new Set<string>(["255.255.255.255"]);
+  const interfaces = networkInterfaces();
+  for (const entries of Object.values(interfaces)) {
+    for (const entry of entries ?? []) {
+      if (entry.family !== "IPv4" || entry.internal || !entry.netmask) {
+        continue;
+      }
+      const broadcast = subnetBroadcast(entry.address, entry.netmask);
+      if (broadcast !== null) {
+        targets.add(broadcast);
+      }
+    }
+  }
+  return [...targets];
 }
 
 export function parseKasaSysinfo(body: string): KasaSysinfo {
@@ -189,11 +236,18 @@ export class TcpKasaTransport implements KasaTransport {
       socket.bind(() => {
         try {
           socket.setBroadcast(true);
-          socket.send(request, 0, request.length, KASA_PORT, "255.255.255.255", (error) => {
-            if (error) {
-              finish();
-            }
-          });
+          const targets = broadcastTargets();
+          let sent = 0;
+          for (const target of targets) {
+            socket.send(request, 0, request.length, KASA_PORT, target, (error) => {
+              sent += 1;
+              // Only give up if every target failed; a host-only adapter that
+              // refuses the send must not cancel the real LAN.
+              if (error && sent === targets.length && found.size === 0) {
+                finish();
+              }
+            });
+          }
         } catch {
           finish();
         }
@@ -202,23 +256,76 @@ export class TcpKasaTransport implements KasaTransport {
   }
 }
 
+/**
+ * TP-Link plugs, both dialects.
+ *
+ * Legacy first (unauthenticated XOR on 9999). If the device refuses that -- Tapo
+ * P100/P105/P110/P110M and recent Kasa firmware keep 9999 closed -- fall back to
+ * KLAP on port 80, which needs TP-Link account credentials from the environment.
+ */
 export class KasaPlugHost implements PlugHost {
   readonly protocol = "kasa" as const;
+  private klap: KlapPool | null | undefined;
 
-  constructor(private readonly transport: KasaTransport = new TcpKasaTransport()) {}
+  constructor(
+    private readonly transport: KasaTransport = new TcpKasaTransport(),
+    /** Inject for tests; omitted means "build one from the environment". */
+    klap?: KlapPool | null,
+  ) {
+    this.klap = klap;
+  }
+
+  /** Resolved late so credentials exported after startup still count. */
+  private klapPool(): KlapPool | null {
+    if (this.klap === undefined) {
+      const credentials = klapCredentialsFromEnv();
+      this.klap = credentials === null ? null : new KlapPool(credentials);
+    }
+    return this.klap;
+  }
+
+  private noKlapError(host: string, legacyError: unknown): Error {
+    const detail = legacyError instanceof Error ? legacyError.message : String(legacyError);
+    return new Error(
+      `${host} did not answer the legacy Kasa protocol (${detail}). If this is a Tapo plug ` +
+        `or recent Kasa firmware it speaks KLAP instead: set FOCUSPLUG_TAPO_USERNAME and ` +
+        `FOCUSPLUG_TAPO_PASSWORD to your TP-Link account and try again.`,
+    );
+  }
 
   async setPower(device: PlugDevice, on: boolean): Promise<boolean> {
-    await this.transport.send(device.address.trim(), setRelayPayload(on));
+    const host = device.address.trim();
     try {
-      const info = parseKasaSysinfo(await this.transport.send(device.address.trim(), GET_SYSINFO));
+      await this.transport.send(host, setRelayPayload(on));
+    } catch (legacyError) {
+      const klap = this.klapPool();
+      if (klap === null) {
+        throw this.noKlapError(host, legacyError);
+      }
+      return await klap.setPower(host, on);
+    }
+    try {
+      const info = parseKasaSysinfo(await this.transport.send(host, GET_SYSINFO));
       return relayStateOn(info);
     } catch {
+      // The command went through; only the read-back failed.
       return on;
     }
   }
 
   async query(device: PlugDevice): Promise<boolean | null> {
-    const info = parseKasaSysinfo(await this.transport.send(device.address.trim(), GET_SYSINFO));
+    const host = device.address.trim();
+    let body: string;
+    try {
+      body = await this.transport.send(host, GET_SYSINFO);
+    } catch (legacyError) {
+      const klap = this.klapPool();
+      if (klap === null) {
+        throw this.noKlapError(host, legacyError);
+      }
+      return await klap.query(host);
+    }
+    const info = parseKasaSysinfo(body);
     if (typeof info.relay_state !== "number") {
       return null;
     }
@@ -232,13 +339,19 @@ export class KasaPlugHost implements PlugHost {
     } catch {
       return [];
     }
-    const found: PlugDevice[] = [];
+    const found = new Map<string, PlugDevice>();
     for (const reply of replies) {
       try {
         const info = parseKasaSysinfo(reply.body);
         const name = info.alias?.trim() || info.model?.trim() || `Kasa ${reply.host}`;
-        found.push({
-          id: info.deviceId ? `kasa:${info.deviceId}` : `kasa:${reply.host}`,
+        const id = info.deviceId ? `kasa:${info.deviceId}` : `kasa:${reply.host}`;
+        // One device can answer on several interfaces now that we broadcast to
+        // each subnet; keep one entry per device, not one per route to it.
+        if (found.has(id)) {
+          continue;
+        }
+        found.set(id, {
+          id,
           name,
           protocol: "kasa",
           address: reply.host,
@@ -249,10 +362,13 @@ export class KasaPlugHost implements PlugHost {
         // skip unreadable replies
       }
     }
-    return found;
+    return [...found.values()];
   }
 }
 
-export function createKasaPlugHost(transport?: KasaTransport): KasaPlugHost {
-  return new KasaPlugHost(transport);
+export function createKasaPlugHost(
+  transport?: KasaTransport,
+  klap?: KlapPool | null,
+): KasaPlugHost {
+  return new KasaPlugHost(transport, klap);
 }

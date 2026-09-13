@@ -76,7 +76,7 @@ export function PlugsPage(): JSX.Element {
       {firstRun ? (
         <PlugOnboarding />
       ) : (
-        <Notice tone="amber" title="Never the study PC" role="note">
+        <Notice tone="warn" title="Never the study PC" role="note">
           <p className="font-medium">{STUDY_PC_WARNING}</p>
         </Notice>
       )}
@@ -129,7 +129,7 @@ export function PlugsPage(): JSX.Element {
             {save.state.message}
           </FieldMessage>
         ) : save.state.status === "saved" ? (
-          <p className="text-[11px] text-fp-lime" aria-live="polite">
+          <p className="text-[11px] text-fp-focus" aria-live="polite">
             Plug added — probe it before a session.
           </p>
         ) : null}

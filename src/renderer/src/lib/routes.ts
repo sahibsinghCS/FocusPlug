@@ -10,7 +10,7 @@ export interface RouteDef {
 }
 
 export const ROUTES: readonly RouteDef[] = [
-  { id: "session", hash: "#/", label: "Session", hint: "Live enforcement" },
+  { id: "session", hash: "#/", label: "Session", hint: "Plan and lock" },
   { id: "allowlist", hash: "#/allowlist", label: "Allowlist", hint: "Study apps" },
   { id: "blocklist", hash: "#/blocklist", label: "Blocklist", hint: "Kill targets" },
   { id: "plugs", hash: "#/plugs", label: "Plugs", hint: "Fun outlets" },

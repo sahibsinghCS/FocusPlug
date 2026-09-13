@@ -163,8 +163,8 @@ export function SettingsPage(): JSX.Element {
           <div>
             <p className="fp-section-label">Session face</p>
             <p className="mt-1 text-[12px] text-fp-mute">
-              Immersive timer instrument. Default is Flight. Pending slots stay
-              selectable so parallel streams can replace a file without fighting this picker.
+              The instrument lock mode draws your session on. Pick the one you want on
+              screen for the next hour.
             </p>
           </div>
           <p className="shrink-0 font-mono text-[11px] text-fp-faint">
@@ -232,7 +232,7 @@ export function SettingsPage(): JSX.Element {
         />
 
         {settings.deskModelId === "custom" ? (
-          <Notice tone="amber" title="Custom readiness" role="status">
+          <Notice tone="warn" title="Custom readiness" role="status">
             <p>{readiness.label}</p>
             <p className="mt-1 text-fp-mute">{readiness.detail}</p>
             <p className="mt-1 font-mono text-[11px] text-fp-ink">
@@ -244,7 +244,7 @@ export function SettingsPage(): JSX.Element {
             Always uncertain. Desk-away will not start a kill on presence alone.
           </Notice>
         ) : (
-          <Notice tone="lime" title="BlazeFace" role="status">
+          <Notice tone="focus" title="BlazeFace" role="status">
             Shipped graph is active. Uncertain still never desk-only-kills.
           </Notice>
         )}

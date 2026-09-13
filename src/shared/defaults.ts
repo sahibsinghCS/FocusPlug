@@ -1,5 +1,5 @@
-import { DEFAULT_FACE_ID } from "./faces";
-import { DEFAULT_FLIGHT_ARR, DEFAULT_FLIGHT_DEP } from "./flightRoute";
+import { DEFAULT_FACE_ID } from "./faces.ts";
+import { DEFAULT_FLIGHT_ARR, DEFAULT_FLIGHT_DEP } from "./flightRoute.ts";
 import type { AppSettings, SessionState } from "./ipc";
 import type { AppEntry } from "./types";
 

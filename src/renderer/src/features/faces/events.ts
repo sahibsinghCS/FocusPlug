@@ -140,3 +140,30 @@ export function faceEventsFromLog(
 export function isBurstKind(kind: FaceEventKind): boolean {
   return kind === "countdown" || kind === "kill" || kind === "drift";
 }
+
+/** Timestamp of the most recent "session started" entry, or null when idle.
+ *
+ * Lived in `features/session/model` until the Phase 4 rebuild removed that
+ * module; the faces feature is its only remaining caller, so it owns it now.
+ */
+export function findSessionStartedAt(
+  log: readonly SessionEvent[],
+  sessionActive: boolean,
+): number | null {
+  if (!sessionActive) {
+    return null;
+  }
+  let latest: number | null = null;
+  for (const event of log) {
+    if (event.kind.toLowerCase() !== "session") {
+      continue;
+    }
+    if (!/started/i.test(event.detail)) {
+      continue;
+    }
+    if (latest === null || event.ts > latest) {
+      latest = event.ts;
+    }
+  }
+  return latest;
+}

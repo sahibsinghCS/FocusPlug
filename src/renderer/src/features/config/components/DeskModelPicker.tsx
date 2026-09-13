@@ -46,7 +46,7 @@ export function DeskModelPicker(props: {
             className={cn(
               "rounded-md border px-3 py-2.5 text-left transition disabled:cursor-not-allowed disabled:opacity-40",
               selected
-                ? "border-fp-lime/50 bg-fp-lime/[0.07]"
+                ? "border-fp-focus/50 bg-fp-focus/[0.07]"
                 : "border-fp-line bg-fp-elev hover:bg-fp-hover",
             )}
           >

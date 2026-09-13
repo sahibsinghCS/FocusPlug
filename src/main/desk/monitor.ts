@@ -10,6 +10,8 @@ import {
 import type { FrameSource } from "./types";
 
 export const DEFAULT_DESK_INTERVAL_MS = 250;
+/** Wait between camera start attempts after a failure. */
+export const SOURCE_RETRY_MS = 5000;
 
 export interface DeskMonitorOptions {
   enabled?: boolean;
@@ -33,6 +35,8 @@ export class DeskMonitor implements DeskMonitorContract {
   private running = false;
   private loopGen = 0;
   private sourceStarted = false;
+  private sourceFault: string | null = null;
+  private nextSourceRetryAt = 0;
 
   constructor(options: DeskMonitorOptions = {}) {
     this.enabled = options.enabled ?? true;
@@ -74,9 +78,17 @@ export class DeskMonitor implements DeskMonitorContract {
       return;
     }
     if (enabled && this.running && !this.sourceStarted) {
-      void this.source.start().then(() => {
-        this.sourceStarted = true;
-      });
+      this.nextSourceRetryAt = 0;
+      void this.source.start().then(
+        () => {
+          this.sourceStarted = true;
+        },
+        () => {
+          // Rejecting here used to be an unhandled rejection; ensureReady
+          // retries on the next step and reports the fault once.
+          this.sourceStarted = false;
+        },
+      );
     }
     if (!enabled && this.sourceStarted) {
       this.sourceStarted = false;
@@ -136,12 +148,23 @@ export class DeskMonitor implements DeskMonitorContract {
     if (!this.source) {
       this.source = this.injectedSource ?? (await createDefaultFrameSource());
     }
-    if (this.enabled && !this.sourceStarted) {
+    if (this.enabled && !this.sourceStarted && this.now() >= this.nextSourceRetryAt) {
       try {
         await this.source.start();
         this.sourceStarted = true;
-      } catch {
+        this.sourceFault = null;
+      } catch (error) {
         this.sourceStarted = false;
+        // Back off: ensureReady runs every step, and each attempt builds and
+        // tears down a camera window.
+        this.nextSourceRetryAt = this.now() + SOURCE_RETRY_MS;
+        const message = error instanceof Error ? error.message : String(error);
+        if (message !== this.sourceFault) {
+          this.sourceFault = message;
+          // A silent catch here is indistinguishable from "nobody at the desk":
+          // presence stays `uncertain` and never kills, with no way to tell why.
+          console.error(`Desk camera unavailable, presence stays uncertain: ${message}`);
+        }
       }
     }
   }
