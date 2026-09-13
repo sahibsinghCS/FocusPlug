@@ -1,6 +1,6 @@
 import { CITY_LIGHTS } from "./cities";
 import { coastRings } from "./continents";
-import { rasterGlobe, rasterStickerGlobe } from "./globe";
+import { rasterGlobe, rasterStickerGlobe, stickerLookModel } from "./globe";
 import {
   chartLandFade,
   chartRangeKm,
@@ -34,8 +34,26 @@ export interface DrawFlightInput {
 
 const globeBitmapCache = new Map<string, ImageBitmap | HTMLCanvasElement>();
 
+export function stickerGlobeRadius(width: number, height: number): number {
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    throw new Error("stickerGlobeRadius requires a positive size");
+  }
+  return Math.min(width, height) * 0.48;
+}
+
 function globeKey(model: FlightModel, size: number, variant: FaceVariant): string {
-  if (variant === "sticker") return `sticker:${size}`;
+  const source = variant === "sticker" ? stickerLookModel(model) : model;
+  if (variant === "sticker") {
+    return [
+      "sticker",
+      size.toFixed(0),
+      source.cameraForward[0].toFixed(3),
+      source.cameraForward[1].toFixed(3),
+      source.cameraForward[2].toFixed(3),
+      source.sunLat.toFixed(2),
+      source.sunLon.toFixed(2),
+    ].join("|");
+  }
   return [
     size.toFixed(0),
     model.cameraZoom.toFixed(2),
@@ -69,7 +87,7 @@ function globeLayer(model: FlightModel, size: number, variant: FaceVariant): HTM
   if (hit && "getContext" in hit) {
     return hit;
   }
-  const image = variant === "sticker" ? rasterStickerGlobe(size) : rasterGlobe(model, size);
+  const image = variant === "sticker" ? rasterStickerGlobe(size, model) : rasterGlobe(model, size);
   const canvas = blitImageData(image);
   if (globeBitmapCache.size > 8) {
     globeBitmapCache.clear();
@@ -560,36 +578,41 @@ function drawSticker(
   cy: number,
   radius: number,
 ): void {
-  const globe = globeLayer(model, 256, "sticker");
+  const look = stickerLookModel(model);
+  const globe = globeLayer(look, 256, "sticker");
   ctx.save();
   ctx.beginPath();
   ctx.arc(cx, cy, radius, 0, Math.PI * 2);
   ctx.clip();
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
   ctx.drawImage(globe, cx - radius, cy - radius, radius * 2, radius * 2);
   ctx.restore();
 
-  const a = projectWorld(latLonToUnit(model.dep.lat, model.dep.lon), model, cx, cy, radius);
-  const b = projectWorld(latLonToUnit(model.arr.lat, model.arr.lon), model, cx, cy, radius);
+  const a = projectWorld(latLonToUnit(look.dep.lat, look.dep.lon), look, cx, cy, radius);
+  const b = projectWorld(latLonToUnit(look.arr.lat, look.arr.lon), look, cx, cy, radius);
   const mid = projectWorld(
-    latLonToUnit((model.dep.lat + model.arr.lat) / 2 + 12, (model.dep.lon + model.arr.lon) / 2),
-    model,
+    latLonToUnit((look.dep.lat + look.arr.lat) / 2 + 12, (look.dep.lon + look.arr.lon) / 2),
+    look,
     cx,
     cy,
     radius,
   );
+  const lift = radius * 0.22;
   ctx.beginPath();
   ctx.moveTo(a.x, a.y);
-  ctx.quadraticCurveTo(mid.x, mid.y - 40, b.x, b.y);
+  ctx.quadraticCurveTo(mid.x, mid.y - lift, b.x, b.y);
   ctx.strokeStyle = "#ffb020";
-  ctx.lineWidth = 6;
+  ctx.lineWidth = Math.max(1.6, radius * 0.035);
   ctx.stroke();
 
-  const p = projectWorld(latLonToUnit(model.planeLat, model.planeLon), model, cx, cy, radius);
+  const p = projectWorld(latLonToUnit(look.planeLat, look.planeLon), look, cx, cy, radius);
+  const mark = Math.max(3.2, radius * 0.055);
   ctx.fillStyle = "#ffffff";
   ctx.beginPath();
-  ctx.moveTo(p.x, p.y - 10);
-  ctx.lineTo(p.x + 8, p.y + 8);
-  ctx.lineTo(p.x - 8, p.y + 8);
+  ctx.moveTo(p.x, p.y - mark);
+  ctx.lineTo(p.x + mark * 0.8, p.y + mark * 0.8);
+  ctx.lineTo(p.x - mark * 0.8, p.y + mark * 0.8);
   ctx.closePath();
   ctx.fill();
 }
@@ -601,20 +624,27 @@ export function drawFlightFace(input: DrawFlightInput): void {
   }
   ctx.clearRect(0, 0, width, height);
   fillPanel(ctx, width, height);
+
+  if (variant === "sticker") {
+    const radius = stickerGlobeRadius(width, height);
+    const cx = width * 0.5;
+    const cy = height * 0.5;
+    const halo = ctx.createRadialGradient(cx, cy, radius * 0.72, cx, cy, radius + 6);
+    halo.addColorStop(0, "rgba(26, 32, 48, 0)");
+    halo.addColorStop(1, "rgba(110, 196, 220, 0.22)");
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius + 5, 0, Math.PI * 2);
+    ctx.fillStyle = halo;
+    ctx.fill();
+    drawSticker(ctx, model, cx, cy, radius);
+    return;
+  }
+
   drawScrews(ctx, width, height);
 
   const radius = Math.min(width, height) * 0.38 * phaseScale(model.phase);
   const cx = width * 0.5;
   const cy = height * 0.455;
-
-  if (variant === "sticker") {
-    ctx.beginPath();
-    ctx.arc(cx, cy, radius + 8, 0, Math.PI * 2);
-    ctx.fillStyle = "#1a2030";
-    ctx.fill();
-    drawSticker(ctx, model, cx, cy, radius);
-    return;
-  }
 
   drawBezel(ctx, cx, cy, radius);
   drawBankScale(ctx, cx, cy, radius, model.bank);

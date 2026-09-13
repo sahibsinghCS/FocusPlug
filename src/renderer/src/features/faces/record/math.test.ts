@@ -93,3 +93,15 @@ describe("record seismograph", () => {
     expect(next[0]!.theta).toBeGreaterThanOrEqual(0.4 - 1e-9);
   });
 });
+
+describe("record picker drum", () => {
+  it("fills a short tile and keeps the lock-size drum smaller", async () => {
+    const { layoutRecordDrum } = await import("./RecordFace");
+    const tile = layoutRecordDrum(168, 84);
+    const lock = layoutRecordDrum(960, 300);
+    expect(tile.cx).toBe(84);
+    expect(tile.rx).toBeGreaterThan(lock.rx * 0.84 * (84 / 300));
+    expect(tile.hh / 84).toBeGreaterThan(0.7);
+    expect(lock.cx / 960).toBeCloseTo(0.46, 5);
+  });
+});

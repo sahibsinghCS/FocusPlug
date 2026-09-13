@@ -3,6 +3,8 @@ import type { FaceProps } from "../types";
 import { CITY_LIGHTS } from "./cities";
 import { landCoverage } from "./continents";
 import { latLonToUnit, MAX_CRUISE_KMH } from "./math";
+import { stickerGlobeRadius } from "./draw";
+import { stickerLookModel } from "./globe";
 import { buildFlightModel, projectWorld, seedContrail } from "./model";
 import { DEFAULT_ARR, DEFAULT_DEP, resolveRoute } from "./airports";
 import { toFlightClock } from "./clock";
@@ -58,6 +60,23 @@ describe("flight model", () => {
     expect(pr.visible).toBe(true);
     expect(Math.abs(pr.x - 200)).toBeLessThan(14);
     expect(Math.abs(pr.y - 200)).toBeLessThan(14);
+  });
+
+  it("pulls the sticker back to a full globe that fills a picker tile", () => {
+    const model = buildFlightModel({
+      remaining: 32.5 * 60,
+      estimateMinutes: 50,
+      now: NOW,
+      paused: true,
+      complete: false,
+      reducedMotion: false,
+    });
+    const sticker = stickerLookModel(model);
+    expect(model.cameraZoom).toBeGreaterThan(5);
+    expect(sticker.cameraZoom).toBe(1);
+    expect(sticker.totalKm).toBeGreaterThanOrEqual(20_000);
+    expect(stickerGlobeRadius(168, 84)).toBeCloseTo(40.32, 5);
+    expect(stickerGlobeRadius(168, 84)).toBeGreaterThan(Math.min(168, 84) * 0.38);
   });
 
   it("uses a milder zoom on a long haul and a different orbit angle", () => {

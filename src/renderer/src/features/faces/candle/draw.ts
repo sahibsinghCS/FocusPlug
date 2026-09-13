@@ -1,5 +1,6 @@
 import type { FacePhase } from "@shared/faces";
 import { formatFaceClock } from "../clock";
+import { isFaceThumb } from "../thumb";
 import {
   CANDLE_GEOM,
   buildCandlePose,
@@ -509,5 +510,7 @@ export function drawCandleFace(
   paintSmoke(ctx, pose, clockMs);
 
   ctx.restore();
-  paintMeta(ctx, width, height, pose, input.remainingMs, input.phase);
+  if (!isFaceThumb(height)) {
+    paintMeta(ctx, width, height, pose, input.remainingMs, input.phase);
+  }
 }

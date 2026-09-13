@@ -1,5 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { innerRadius, outerRadius, transferFromProgress } from "./math";
+import { innerRadius, layoutHourglass, outerRadius, transferFromProgress } from "./math";
+
+describe("hourglass tile layout", () => {
+  it("fills a picker tile and keeps lock-size framing", () => {
+    const tile = layoutHourglass(168, 84);
+    const lock = layoutHourglass(960, 300);
+    expect(tile.cx).toBe(84);
+    expect(tile.cy).toBe(42);
+    expect(tile.scale).toBeCloseTo(84 / 2.05, 5);
+    expect(tile.scale * 2.05).toBeCloseTo(84, 5);
+    expect(lock.cy / 300).toBeCloseTo(0.52, 5);
+    expect(lock.scale).toBeGreaterThan(tile.scale);
+  });
+});
 
 describe("hourglass profile", () => {
   it("is bulbous — widest mid-chamber, not a triangle from cap to point", () => {

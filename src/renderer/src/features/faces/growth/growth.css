@@ -7,6 +7,12 @@
   padding: 36px 12px 8px;
 }
 
+.fp-growth-face[data-thumb="1"] {
+  padding: 0;
+  place-items: center;
+  background: #07080c;
+}
+
 .fp-growth {
   display: grid;
   place-items: end center;

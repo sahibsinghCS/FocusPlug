@@ -284,6 +284,12 @@
   display: none;
 }
 
+.fp-setup-face-preview .fp-growth-face {
+  padding: 0;
+  place-items: center;
+  background: #07080c;
+}
+
 @media (max-height: 780px) {
   .fp-setup-face-preview {
     height: 58px;

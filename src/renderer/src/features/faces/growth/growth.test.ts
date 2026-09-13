@@ -9,6 +9,8 @@ import {
 import { GAUNTLET_SESSION_ID, GROWTH_SCENES, parseGrowthScene } from "./scenes";
 import { buildDrawModel, leafPath } from "./svg";
 import { generateGrowthTree, peekGrowthTree, resetGrowthTreeCache, serializeGrowthTree } from "./tree";
+import { GROWTH_VIEWBOX } from "./types";
+import { thumbGrowthViewBox } from "./view";
 
 describe("growth tree is session-seeded and stall-proof", () => {
   it("returns identical geometry for the same sessionId", () => {
@@ -153,6 +155,19 @@ describe("leaves are two quadratic curves scaled by reveal", () => {
     const leafy = full.branches.filter((branch) => branch.leaf);
     expect(leafy.length).toBeGreaterThan(0);
     expect(leafy.every((branch) => branch.leafScale === 1)).toBe(true);
+  });
+});
+
+describe("picker thumb crop", () => {
+  it("frames the pot and wood instead of the empty lock-size sky", () => {
+    resetGrowthTreeCache();
+    const tree = generateGrowthTree("preview");
+    const posed = poseGrowth(tree, 0.35, 0);
+    const view = thumbGrowthViewBox(posed);
+    expect(view.height).toBeLessThan(GROWTH_VIEWBOX.height * 0.72);
+    expect(view.width / view.height).toBeGreaterThan(1.6);
+    expect(view.minY + view.height).toBeGreaterThan(50);
+    expect(view.minY).toBeLessThan(-20);
   });
 });
 
