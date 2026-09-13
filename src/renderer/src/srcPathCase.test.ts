@@ -41,7 +41,7 @@ function groupsThatDifferOnlyByCase(paths: readonly string[]): string[][] {
   }
   return [...byLower.values()]
     .filter((group) => group.length > 1)
-    .map((group) => [...group].sort((a, b) => a.localeCompare(b)));
+    .map((group) => [...group].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)));
 }
 
 describe("src/ path case", () => {
