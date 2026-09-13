@@ -87,7 +87,6 @@ export function FacePicker(props: {
               </span>
             </span>
             <span className="mt-1 block text-[11px] leading-snug text-fp-mute">{face.blurb}</span>
-            <span className="mt-1.5 block font-mono text-[10px] text-fp-faint">{face.stream}</span>
           </button>
         );
       })}

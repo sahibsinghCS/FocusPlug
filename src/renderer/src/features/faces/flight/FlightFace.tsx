@@ -5,6 +5,7 @@ import "./flight.css";
 import { formatGrouped } from "./math";
 import type { FlightMapView } from "./mapView";
 import { buildFlightModel } from "./model";
+import { PLANE_PATH } from "./plane";
 import {
   flightStatusLine,
   formatArriveLocal,
@@ -32,18 +33,27 @@ export interface FlightFaceViewProps {
   showRoutePicker?: boolean;
 }
 
+/** Sharp on scaled displays without paying for a 3× backing store. */
+const MAX_PIXEL_RATIO = 2;
+
+/** The close map drifts a few pixels a second, so 30 fps is plenty. */
+const DRIFT_FRAME_MS = 33;
+
 function readSize(el: HTMLCanvasElement): { width: number; height: number } {
-  const rect = el.getBoundingClientRect();
-  const width = Math.max(8, Math.round(rect.width));
-  const height = Math.max(8, Math.round(rect.height));
-  return { width, height };
+  // Layout size, not getBoundingClientRect: the lock stage rises in on a transform.
+  return { width: Math.max(8, el.clientWidth), height: Math.max(8, el.clientHeight) };
+}
+
+function readPixelRatio(): number {
+  const raw = window.devicePixelRatio;
+  return Number.isFinite(raw) && raw > 0 ? Math.min(MAX_PIXEL_RATIO, Math.max(1, raw)) : 1;
 }
 
 export function FlightFace(props: FlightFaceViewProps): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const propsRef = useRef(props);
   propsRef.current = props;
-  const paintRef = useRef<() => void>(() => undefined);
+  const kickRef = useRef<() => void>(() => undefined);
   const [mapView, setMapView] = useState<FlightMapView>(props.mapView ?? "close");
   const mapViewRef = useRef(mapView);
   mapViewRef.current = mapView;
@@ -66,14 +76,19 @@ export function FlightFace(props: FlightFaceViewProps): JSX.Element {
 
     let frame = 0;
     let running = true;
+    let lastPaint = Number.NEGATIVE_INFINITY;
 
     const paint = (): void => {
       const current = propsRef.current;
       const { width, height } = readSize(canvas);
-      if (canvas.width !== width || canvas.height !== height) {
-        canvas.width = width;
-        canvas.height = height;
+      const ratio = readPixelRatio();
+      const backingWidth = Math.round(width * ratio);
+      const backingHeight = Math.round(height * ratio);
+      if (canvas.width !== backingWidth || canvas.height !== backingHeight) {
+        canvas.width = backingWidth;
+        canvas.height = backingHeight;
       }
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
       const model = buildFlightModel(current.clock, current.idleOverride);
       const view = mapViewRef.current;
       drawFlightFace({
@@ -85,7 +100,9 @@ export function FlightFace(props: FlightFaceViewProps): JSX.Element {
         mapView: view,
         chrome: "overlay",
         timeMs: current.clock.paused || current.clock.reducedMotion ? 0 : performance.now(),
+        pixelRatio: ratio,
       });
+      lastPaint = performance.now();
       canvas.dataset.phase = model.phase;
       canvas.dataset.progress = model.progress.toFixed(3);
       canvas.dataset.complete = model.complete ? "1" : "0";
@@ -93,47 +110,66 @@ export function FlightFace(props: FlightFaceViewProps): JSX.Element {
       canvas.dataset.arr = model.arr.code;
       canvas.dataset.mapView = view;
     };
-    paintRef.current = paint;
+
+    // Only the close map drifts. The whole map, a held clock and picker tiles
+    // have nothing moving between the parent's clock ticks, so they paint on those.
+    const drifting = (): boolean => {
+      const current = propsRef.current;
+      return (
+        (current.variant ?? "instrument") === "instrument" &&
+        mapViewRef.current === "close" &&
+        !current.clock.paused &&
+        !current.clock.reducedMotion
+      );
+    };
 
     const loop = (): void => {
-      if (!running) return;
-      paint();
-      const current = propsRef.current;
-      if (current.clock.paused || current.clock.reducedMotion) {
-        return;
+      frame = 0;
+      if (!running || document.hidden) return;
+      const moving = drifting();
+      if (!moving || performance.now() - lastPaint >= DRIFT_FRAME_MS) {
+        paint();
       }
-      frame = window.requestAnimationFrame(loop);
+      if (moving) {
+        frame = window.requestAnimationFrame(loop);
+      }
+    };
+
+    kickRef.current = () => {
+      if (running && frame === 0) loop();
     };
 
     const onVis = (): void => {
-      if (document.hidden) {
-        window.cancelAnimationFrame(frame);
-        return;
-      }
-      loop();
+      window.cancelAnimationFrame(frame);
+      frame = 0;
+      if (!document.hidden) loop();
     };
 
     const ro = new ResizeObserver(() => {
-      paint();
+      if (running) paint();
     });
     ro.observe(canvas);
     document.addEventListener("visibilitychange", onVis);
     void document.fonts.ready.then(() => {
-      if (running) loop();
+      if (running) paint();
     });
     loop();
 
     return () => {
       running = false;
       window.cancelAnimationFrame(frame);
+      frame = 0;
+      kickRef.current = () => undefined;
       document.removeEventListener("visibilitychange", onVis);
       ro.disconnect();
     };
   }, []);
 
+  // Each render brings a new clock. Repaint a still map with it, and restart
+  // the drift when a pause or break ends (the loop stops while held).
   useEffect(() => {
-    paintRef.current();
-  }, [mapView]);
+    kickRef.current();
+  });
 
   const model = buildFlightModel(props.clock, props.idleOverride);
   const variant = props.variant ?? "instrument";
@@ -251,10 +287,7 @@ export function FlightFace(props: FlightFaceViewProps): JSX.Element {
 function PlaneMark(): JSX.Element {
   return (
     <svg className="fp-flight-plane" viewBox="0 0 80 80" aria-hidden="true">
-      <path
-        fill="#ffffff"
-        d="M40 6c1.4 10 2.4 22 2.4 34.2 0 3.8-.2 7.2-.5 10.2L70 56v5.2L41.6 54.6c-.2 4-.6 7.2-.6 9.2 0 1.4.5 2.8 1.8 3.8L58 74.2V78L40 70.6 22 78v-3.8l15.2-6.6c1.3-1 1.8-2.4 1.8-3.8 0-2-.4-5.2-.6-9.2L10 61.2V56l28.1-5.6c-.3-3-.5-6.4-.5-10.2 0-12.2 1-24.2 2.4-34.2z"
-      />
+      <path fill="#ffffff" d={PLANE_PATH} />
     </svg>
   );
 }
