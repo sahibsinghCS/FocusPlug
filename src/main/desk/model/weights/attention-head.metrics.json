@@ -1,0 +1,79 @@
+{
+  "trainedAt": "2026-09-13T01:31:54.000Z",
+  "config": {
+    "hidden": [
+      16
+    ],
+    "epochs": 400,
+    "lr": 0.001,
+    "batch": 64,
+    "seed": 42,
+    "l2": 0.03,
+    "patience": 60,
+    "valFraction": 0.15,
+    "folds": 0,
+    "fold": 0,
+    "slices": [
+      [
+        745,
+        2025
+      ]
+    ],
+    "arch": [
+      1280,
+      16,
+      3
+    ]
+  },
+  "labelSource": "Adaption Labs Adaptive Data annotations — datasets/desk-attention-labels.csv",
+  "dataset": {
+    "train": 584,
+    "val": 109,
+    "perClass": {
+      "focused": 252,
+      "unfocused": 57,
+      "phone": 275
+    }
+  },
+  "bestEpoch": 19,
+  "bestScore": 0.6520731042007638,
+  "valMetrics": {
+    "total": 109,
+    "correct": 77,
+    "accuracy": 0.7064220183486238,
+    "perClass": {
+      "focused": {
+        "total": 47,
+        "correct": 35,
+        "accuracy": 0.7446808510638298
+      },
+      "unfocused": {
+        "total": 10,
+        "correct": 5,
+        "accuracy": 0.5
+      },
+      "phone": {
+        "total": 52,
+        "correct": 37,
+        "accuracy": 0.7115384615384616
+      }
+    },
+    "confusion": {
+      "focused": {
+        "focused": 35,
+        "unfocused": 6,
+        "phone": 6
+      },
+      "unfocused": {
+        "focused": 3,
+        "unfocused": 5,
+        "phone": 2
+      },
+      "phone": {
+        "focused": 12,
+        "unfocused": 3,
+        "phone": 37
+      }
+    }
+  }
+}

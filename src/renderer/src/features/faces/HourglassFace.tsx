@@ -10,11 +10,12 @@ export function HourglassFace(props: FaceProps): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const extras = stillsExtras();
   const transfer = transferFromProgress(props.progress, props.phase);
+  const freeze = extras.freeze || props.paused === true;
 
   useFaceCanvas(
     canvasRef,
     (ctx, w, h, clockMs) => {
-      paintHourglass(ctx, w, h, props, extras.freeze ? 0 : clockMs);
+      paintHourglass(ctx, w, h, props, freeze ? 0 : clockMs);
     },
     [
       props.progress,
@@ -22,9 +23,9 @@ export function HourglassFace(props: FaceProps): JSX.Element {
       props.elapsedMs,
       props.remainingMs,
       props.sessionId,
-      extras.freeze,
+      freeze,
     ],
-    { freeze: extras.freeze },
+    { freeze, paused: freeze },
   );
 
   return (

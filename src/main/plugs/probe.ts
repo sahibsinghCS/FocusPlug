@@ -1,16 +1,23 @@
 /**
- * Windows / LAN Kasa probe (optional hardware).
+ * Windows / LAN TP-Link plug probe (optional hardware).
  *
- *   npx tsx --tsconfig tsconfig.node.json src/main/plugs/probe.ts --ip 192.168.1.50
- *   npx tsx --tsconfig tsconfig.node.json src/main/plugs/probe.ts --ip 192.168.1.50 --off
- *   npx tsx --tsconfig tsconfig.node.json src/main/plugs/probe.ts --ip 192.168.1.50 --on
- *   npx tsx --tsconfig tsconfig.node.json src/main/plugs/probe.ts --discover
+ *   npm run probe:plugs -- --ip 192.168.1.50
+ *   npm run probe:plugs -- --ip 192.168.1.50 --off
+ *   npm run probe:plugs -- --ip 192.168.1.50 --on
+ *   npm run probe:plugs -- --discover
  *
- * Uses the local TP-Link XOR protocol on TCP/UDP 9999. No Kasa cloud account.
+ * Tries the legacy XOR protocol on 9999 first, then KLAP on 80 for Tapo and
+ * recent Kasa firmware. KLAP needs a TP-Link account in the environment:
+ *
+ *   $env:FOCUSPLUG_TAPO_USERNAME = "you@example.com"
+ *   $env:FOCUSPLUG_TAPO_PASSWORD = "..."
+ *
+ * `--klap-port` points KLAP somewhere other than 80, for `npm run mock:tapo`.
  * Never pass the study PC's address.
  */
 import { inspectControllable } from "./protect.ts";
 import { createKasaPlugHost } from "./kasa.ts";
+import { KlapPool, klapCredentialsFromEnv } from "./klap.ts";
 import type { PlugDevice } from "./types.ts";
 
 function arg(flag: string): string | undefined {
@@ -30,9 +37,21 @@ function line(message: string): void {
 }
 
 async function main(): Promise<void> {
-  line("=== FocusPlug Kasa LAN probe ===");
+  line("=== FocusPlug TP-Link plug probe ===");
   line("Local protocol only. Will not target a device marked study-PC / localhost.");
-  const host = createKasaPlugHost();
+
+  const credentials = klapCredentialsFromEnv();
+  const klapPort = arg("--klap-port");
+  if (credentials === null) {
+    line("KLAP credentials: not set - legacy (9999) plugs only, Tapo will fail");
+  } else {
+    line(`KLAP credentials: ${credentials.username}${klapPort ? ` (port ${klapPort})` : ""}`);
+  }
+  const klap =
+    credentials === null
+      ? null
+      : new KlapPool(credentials, klapPort ? Number(klapPort) : undefined);
+  const host = createKasaPlugHost(undefined, klap);
 
   if (has("--discover")) {
     const found = await host.discover();

@@ -16,6 +16,8 @@ import type {
   ForecastEvent,
   ForecastSnapshot,
   KillResult,
+  NudgeEvent,
+  NudgeKind,
   PlugDevice,
   PlugProtocol,
   PlugSnapshot,
@@ -24,6 +26,7 @@ import type {
   SessionState,
 } from "@shared/ipc";
 import type { AppEntry } from "@shared/types";
+import { DEFAULT_FACE_ID, normalizeFaceId } from "@shared/faces";
 import { DEFAULT_SESSION_STATE, DEFAULT_SETTINGS } from "@shared/defaults";
 import { latchSessionStartedAt } from "../features/session/model";
 import { getApi } from "../lib/api";
@@ -68,9 +71,13 @@ interface AppStateValue {
   error: string | null;
   killResult: KillResult | null;
   countdown: LocalCountdown | null;
+  /** The latest drift nudge from main, until dismissed. */
+  nudge: NudgeEvent | null;
+  dismissNudge: () => void;
   startSession: () => Promise<void>;
   stopSession: () => Promise<void>;
   demoKill: () => Promise<void>;
+  demoNudge: (kind: NudgeKind) => Promise<void>;
   setAllowlist: (entries: AppEntry[]) => Promise<AppLists>;
   setBlocklist: (entries: AppEntry[]) => Promise<AppLists>;
   patchSettings: (patch: Partial<AppSettings>) => Promise<void>;
@@ -125,6 +132,7 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [killResult, setKillResult] = useState<KillResult | null>(null);
   const [localCountdown, setLocalCountdown] = useState<LocalCountdown | null>(null);
+  const [nudge, setNudge] = useState<NudgeEvent | null>(null);
   const localTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const clearLocalTimer = useCallback((): void => {
@@ -181,10 +189,22 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
         }
         setState(nextState);
         setLists(nextLists);
-        setSettings({
+        const settingsWithPlugs = {
           ...nextSettings,
           plugs: listedPlugs,
-        });
+        };
+        const legacyFace = readLegacyFaceId();
+        if (
+          legacyFace &&
+          settingsWithPlugs.faceId === DEFAULT_FACE_ID &&
+          legacyFace !== settingsWithPlugs.faceId
+        ) {
+          settingsWithPlugs.faceId = legacyFace;
+          void api.settingsSet({ faceId: legacyFace }).catch(() => {
+            // Settings persist is best-effort; the in-memory choice still applies.
+          });
+        }
+        setSettings(settingsWithPlugs);
         setLog(nextLog);
         setForecast(nextForecast);
         setReady(true);
@@ -237,6 +257,8 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
       }
     });
 
+    const unsubNudge = api.onNudge(setNudge);
+
     const scene = readUrlScene();
     if (!usingMock && scene.countdown !== null) {
       if (scene.freeze) {
@@ -259,6 +281,7 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
       unsubForecast();
       unsubForecastEvent();
       unsubPolicy();
+      unsubNudge();
       clearLocalTimer();
     };
   }, [api, clearLocalTimer, previewCountdown, usingMock]);
@@ -459,6 +482,17 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
     [api, runWithResult],
   );
 
+  const dismissNudge = useCallback((): void => setNudge(null), []);
+
+  const demoNudge = useCallback(
+    async (kind: NudgeKind): Promise<void> => {
+      await run(async () => {
+        await api.demoNudge(kind);
+      }, "Failed to test the nudge");
+    },
+    [api, run],
+  );
+
   const countdown = useMemo((): LocalCountdown | null => {
     if (state.countdownSec > 0) {
       return {
@@ -491,6 +525,9 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
       error,
       killResult,
       countdown,
+      nudge,
+      dismissNudge,
+      demoNudge,
       startSession,
       stopSession,
       demoKill,
@@ -519,6 +556,9 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
       killResult,
       lists,
       log,
+      nudge,
+      dismissNudge,
+      demoNudge,
       patchSettings,
       plugs,
       previewCountdown,
@@ -542,8 +582,23 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
   return <AppStateContext.Provider value={value}>{props.children}</AppStateContext.Provider>;
 }
 
+const LEGACY_FACE_KEY = "focusplug.face.v1";
+
+function readLegacyFaceId(): ReturnType<typeof normalizeFaceId> | null {
+  try {
+    const raw = window.localStorage.getItem(LEGACY_FACE_KEY);
+    if (!raw) {
+      return null;
+    }
+    window.localStorage.removeItem(LEGACY_FACE_KEY);
+    return normalizeFaceId(raw);
+  } catch {
+    return null;
+  }
+}
+
 export function useAppState(): AppStateValue {
-  const value = useContext(AppStateContext);
+  const value = useOptionalAppState();
   if (!value) {
     throw new Error("useAppState must be used within AppStateProvider");
   }
@@ -552,7 +607,7 @@ export function useAppState(): AppStateValue {
 
 /**
  * Optional variant for components that also render outside the provider
- * (CountdownOverlay in the forecast preview page): null instead of throwing.
+ * (KillOverlay in the forecast preview page): null instead of throwing.
  */
 export function useOptionalAppState(): AppStateValue | null {
   return useContext(AppStateContext);

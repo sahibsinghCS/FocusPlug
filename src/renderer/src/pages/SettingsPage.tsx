@@ -17,6 +17,7 @@ import {
   useSaveState,
 } from "../features/config";
 import { FacePicker } from "../features/faces";
+import { FlightRoutePicker } from "../features/faces/flight/RoutePicker";
 import { useAppState } from "../state/AppState";
 
 export function SettingsPage(): JSX.Element {
@@ -272,8 +273,8 @@ export function SettingsPage(): JSX.Element {
           <div>
             <p className="fp-section-label">Session face</p>
             <p className="mt-1 text-[12px] text-fp-mute">
-              Immersive timer instrument. Default is Flight. Pending slots stay
-              selectable so parallel streams can replace a file without fighting this picker.
+              The instrument lock mode draws your session on. Pick the one you want on
+              screen for the next hour.
             </p>
           </div>
           <p className="shrink-0 font-mono text-[11px] text-fp-faint">
@@ -300,6 +301,85 @@ export function SettingsPage(): JSX.Element {
         ) : null}
       </section>
 
+      <section className="fp-card space-y-3 p-4">
+        <div>
+          <p className="fp-section-label">Flight route</p>
+          <p className="mt-1 text-[12px] text-fp-mute">
+            Origin and arrival for the Flight face. Default is Dublin to Edinburgh.
+            Both ends are user-choosable and persist on the same settings blob.
+          </p>
+        </div>
+        <FlightRoutePicker
+          dep={settings.flightDep}
+          arr={settings.flightArr}
+          layout="settings"
+          onChange={(next) => {
+            void app.patchSettings({ flightDep: next.dep, flightArr: next.arr });
+          }}
+        />
+      </section>
+
+      <section className="fp-card space-y-3 p-4">
+        <div>
+          <p className="fp-section-label">When you drift</p>
+          <p className="mt-1 text-[12px] text-fp-mute">
+            On your phone, looking away, or on a blocked app: FocusPlug comes back to the front
+            with your timer. Phone and looking-away need the custom desk model.
+          </p>
+        </div>
+        <div className="grid gap-2 min-[720px]:grid-cols-2" role="radiogroup" aria-label="Plugs when you drift">
+          {(
+            [
+              ["nudge", "Lamp on", "Enabled plugs switch on to pull you back."],
+              ["cut", "Cut power", "Enabled plugs power off when a blocked app is killed."],
+            ] as const
+          ).map(([id, title, detail]) => {
+            const selected = settings.plugMode === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                onClick={() => {
+                  void app.patchSettings({ plugMode: id });
+                }}
+                className={`fp-btn rounded-[var(--radius-fp)] border px-3 py-2.5 text-left ${
+                  selected ? "border-fp-focus/60 bg-fp-focus/10" : "border-fp-line hover:border-white/25"
+                }`}
+              >
+                <p className="text-[13px] font-medium">{title}</p>
+                <p className="mt-0.5 text-[12px] text-fp-mute">{detail}</p>
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex flex-wrap items-center gap-2 border-t border-fp-line pt-3">
+          <p className="mr-auto text-[12px] text-fp-mute">
+            Test it: click, switch to another window, and the nudge fires in 5 seconds.
+          </p>
+          {(
+            [
+              ["phone", "Test phone nudge"],
+              ["blocked", "Test blocked-app nudge"],
+            ] as const
+          ).map(([kind, label]) => (
+            <button
+              key={kind}
+              type="button"
+              onClick={() => {
+                setTimeout(() => {
+                  void app.demoNudge(kind);
+                }, 5000);
+              }}
+              className="fp-btn h-9 rounded-[var(--radius-fp)] border border-fp-line px-3 text-[12px] font-medium hover:border-white/25"
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </section>
+
       <section className="fp-card space-y-3 p-4" aria-busy={modelSave.saving}>
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -323,7 +403,7 @@ export function SettingsPage(): JSX.Element {
         />
 
         {settings.deskModelId === "custom" ? (
-          <Notice tone="amber" title="Custom readiness" role="status">
+          <Notice tone="warn" title="Custom readiness" role="status">
             <p>{readiness.label}</p>
             <p className="mt-1 text-fp-mute">{readiness.detail}</p>
             <p className="mt-1 font-mono text-[11px] text-fp-ink">
@@ -335,7 +415,7 @@ export function SettingsPage(): JSX.Element {
             Always uncertain. Desk-away will not start a kill on presence alone.
           </Notice>
         ) : (
-          <Notice tone="lime" title="BlazeFace" role="status">
+          <Notice tone="focus" title="BlazeFace" role="status">
             Shipped graph is active. Uncertain still never desk-only-kills.
           </Notice>
         )}

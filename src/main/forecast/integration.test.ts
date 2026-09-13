@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { DEFAULT_SETTINGS } from "../../shared/defaults.ts";
 import type { AppSettings } from "../../shared/ipc.ts";
 import type { FocusSnapshot, PolicyEvent, SessionEvent } from "../../shared/types.ts";
@@ -10,6 +10,7 @@ import type {
   ForecastHook,
   ForecastSnapshot,
 } from "../../shared/forecast/index.ts";
+import { AdaptiveFuse } from "../session/adaptiveFuse.ts";
 import { SessionController } from "../session/controller.ts";
 import { SAMPLE_PLUGS } from "../session/fixtures.ts";
 import {
@@ -64,22 +65,35 @@ function makeHarness(init?: {
   bundledWeights?: boolean;
   /** Replace the hook handed to the controller — used to break its contract. */
   hook?: ForecastHook;
+  /**
+   * Exploration draw for the adaptive fuse. Defaults to `1` — above every
+   * rate, so the personalised fuse is the greedy one and these tests measure
+   * the composition rather than a random probe.
+   */
+  adaptiveRandom?: () => number;
+  /** Spy on the adaptive model's writes — the learning-signal guard uses it. */
+  onSaveAdaptiveModel?: (value: unknown) => void;
 }): Harness {
   const clock = new MutableClock();
   const window = new ScriptedWindowMonitor();
   const desk = new ScriptedDeskMonitor();
   const killer = new RecordingKiller();
   const plugs = new RecordingPlugController(SAMPLE_PLUGS);
-  const store = createMemoryStore({
+  const memory = createMemoryStore({
     plugs: SAMPLE_PLUGS,
     settings: {
       ...DEFAULT_SETTINGS,
       countdownSec: 10,
       strictMode: true,
+      // The golden-path evidence is a cut-mode run (plugs off at the kill,
+      // back on at the unlock); the nudge-mode lamp is a different script.
+      plugMode: "cut",
       ...init?.settings,
       plugs: SAMPLE_PLUGS,
     },
   });
+  const save = init?.onSaveAdaptiveModel;
+  const store = save === undefined ? memory : { ...memory, saveAdaptiveModel: save };
   const { push, trace } = createRecordingPush();
   const fxSnapshots: ForecastSnapshot[] = [];
   const fxEvents: ForecastEvent[] = [];
@@ -114,6 +128,7 @@ function makeHarness(init?: {
     push: forecast === null ? push : withForecast(push, forecast.monitor),
     now: clock.now,
     tickIntervalMs: 0,
+    adaptiveRandom: init?.adaptiveRandom ?? (() => 1),
     ...(init?.hook !== undefined
       ? { forecast: init.hook }
       : forecast === null
@@ -331,6 +346,44 @@ describe("forecast disabled == committed golden path (byte-identical)", () => {
     expect(hostile.killer.calls.length).toBeGreaterThan(0);
   });
 
+  it("the ADAPTIVE half of the never-throw contract holds too", async () => {
+    // The symmetric partner of the test above. `resolveFuse` wraps BOTH models
+    // in one try, and the forecast hook is only one of them — `AdaptiveFuse`
+    // is constructed inside the controller and `fuseFor` is called on the same
+    // kill path with no guard of its own. Until now only the hook was driven
+    // into a throw, so the half of the contract that covers `main`'s model was
+    // asserted by reading the `try` rather than by running it.
+    const bare = makeHarness({ attach: false });
+    await runGoldenScript(bare);
+
+    const spy = vi.spyOn(AdaptiveFuse.prototype, "fuseFor").mockImplementation(() => {
+      throw new Error("adaptive fuse exploded");
+    });
+    let hostile: Harness;
+    try {
+      hostile = makeHarness({ attach: false });
+      await runGoldenScript(hostile); // completing at all proves nothing propagated
+    } finally {
+      spy.mockRestore();
+    }
+
+    // Enforcement is untouched: same events, same fuse, same kill.
+    expect(JSON.stringify(hostile.trace.policies)).toBe(JSON.stringify(bare.trace.policies));
+    expect(hostile.killer.calls.length).toBe(bare.killer.calls.length);
+    expect(hostile.killer.calls.length).toBeGreaterThan(0);
+    const countdown = hostile.trace.policies.find((event) => event.type === "start_countdown");
+    expect(countdown?.type === "start_countdown" && countdown.seconds).toBe(10);
+
+    // The ONE thing that legitimately differs: a `fuseFor` that throws never
+    // records the pending DriftMoment, so `armed()` has nothing to freeze and
+    // the run learns nothing. The enforcement narrative is otherwise identical.
+    const enforcement = (h: Harness): string =>
+      JSON.stringify(h.controller.getLog().filter((event) => event.kind !== "adapt"));
+    expect(enforcement(hostile)).toBe(enforcement(bare));
+    expect(hostile.controller.getLog().some((event) => event.kind === "adapt")).toBe(false);
+    expect(bare.controller.getLog().some((event) => event.kind === "adapt")).toBe(true);
+  });
+
   it("a throwing forecast never perturbs the PolicyEvent stream or kill timing", async () => {
     const bare = makeHarness({ attach: false });
     await runGoldenScript(bare);
@@ -528,8 +581,34 @@ describe("the latch rule — a burning fuse never changes duration mid-burn", ()
     expect(fxTypes(h)).toContain("forecast_miss");
   });
 
-  it("forecastPrearmFuseSec below the floor clamps to 3", async () => {
-    const h = makeHarness({ settings: { forecastPrearmFuseSec: 1 } });
+  it("the pre-arm halves the personal fuse rather than replacing it (20 s → 10 s)", async () => {
+    // A longer personal fuse is not collapsed to `forecastPrearmFuseSec` (5).
+    // Scaling is what keeps adapt's fair-shot contract bent instead of broken:
+    // whoever has earned 20 s still gets twice as long as whoever earned 10.
+    const h = makeHarness({ settings: { countdownSec: 20 } });
+    await rampToPrearm(h);
+
+    h.clock.advance(250);
+    h.window.emit(discordFocus(h.clock.ms));
+    await h.controller.flush();
+    const countdown = h.trace.policies.find((event) => event.type === "start_countdown");
+    expect(countdown?.type === "start_countdown" && countdown.seconds).toBe(10);
+
+    await tickSeconds(h, 9);
+    expect(h.killer.calls.length).toBe(0);
+    await tickSeconds(h, 1);
+    expect(h.killer.calls.length).toBe(1);
+  });
+
+  it("a scaled fuse never lands below MIN_FUSE_SEC", async () => {
+    // INVARIANT CHANGED at the merge, and this is the test that says so.
+    // The pre-arm no longer *replaces* the fuse with `forecastPrearmFuseSec`;
+    // it scales the personalised length (`fuseAuthority.composeFuse`). So the
+    // number that gets clamped is round(personal × 0.5), not the setting:
+    // a 4 s personal fuse would scale to 2 s and is lifted to the 3 s floor.
+    // The setting still floors the forecast's own advisory view at 3, which
+    // is why both readings below agree.
+    const h = makeHarness({ settings: { countdownSec: 4, forecastPrearmFuseSec: 1 } });
     await rampToPrearm(h);
     expect(h.forecast?.getSnapshot()?.effectiveFuseSec).toBe(3);
 
@@ -538,6 +617,93 @@ describe("the latch rule — a burning fuse never changes duration mid-burn", ()
     await h.controller.flush();
     const countdown = h.trace.policies.find((event) => event.type === "start_countdown");
     expect(countdown?.type === "start_countdown" && countdown.seconds).toBe(3);
+  });
+});
+
+describe("the learning-signal guard", () => {
+  /** `AdaptiveFuse.persist` writes the model exactly once per learned drift. */
+  function withSaveSpy(settings?: Partial<AppSettings>): {
+    h: Harness;
+    saved: Array<{ drifts: number }>;
+  } {
+    const saved: Array<{ drifts: number }> = [];
+    const h = makeHarness({
+      ...(settings === undefined ? {} : { settings }),
+      onSaveAdaptiveModel: (value) => saved.push(value as { drifts: number }),
+    });
+    return { h, saved };
+  }
+
+  it("a pre-armed drift is never folded into the adaptive model", async () => {
+    // The trap: a pre-armed fuse is half the length the learner asked for, so
+    // it kills more often through no fault of the user. Learn from it and the
+    // model concludes "this person needs longer", the pre-arm halves the
+    // longer fuse, and the two systems ratchet against each other forever.
+    const { h, saved } = withSaveSpy();
+    await rampToPrearm(h);
+
+    h.clock.advance(250);
+    h.window.emit(discordFocus(h.clock.ms));
+    await h.controller.flush();
+    const countdown = h.trace.policies.find((event) => event.type === "start_countdown");
+    expect(countdown?.type === "start_countdown" && countdown.seconds).toBe(5);
+
+    await tickSeconds(h, 5);
+    expect(h.killer.calls.length).toBe(1);
+    // The kill landed on a fuse the learner did not choose, so it is not
+    // evidence about how long this person needs: nothing was written.
+    expect(saved).toEqual([]);
+    expect(
+      h.controller
+        .getLog()
+        .some((event) => event.kind === "adapt" && event.detail.includes("not learned from")),
+    ).toBe(true);
+  });
+
+  it("an unforecast drift is still learned from — the guard is not a blanket off switch", async () => {
+    const { h, saved } = withSaveSpy();
+    await startOnTask(h);
+    await tickSeconds(h, 20); // ready and calm — no precursors, so no pre-arm
+
+    h.clock.advance(250);
+    h.window.emit(discordFocus(h.clock.ms));
+    await h.controller.flush();
+    const countdown = h.trace.policies.find((event) => event.type === "start_countdown");
+    expect(countdown?.type === "start_countdown" && countdown.seconds).toBe(10);
+    expect(fxTypes(h)).toContain("forecast_miss");
+
+    await tickSeconds(h, 10);
+    expect(h.killer.calls.length).toBe(1);
+    expect(saved.length).toBe(1);
+    expect(saved[0]?.drifts).toBe(1);
+  });
+
+  it("adapt off + forecast off is exactly the Settings fuse", async () => {
+    // Both models silenced by their own switches: 1 s survives untouched —
+    // neither the adaptive floor (3 s) nor a pre-arm can reach it.
+    const previous = process.env.FOCUSPLUG_NO_ADAPT;
+    process.env.FOCUSPLUG_NO_ADAPT = "1";
+    try {
+      const h = makeHarness({ settings: { countdownSec: 1, forecastEnabled: false } });
+      await startOnTask(h);
+      await tickSeconds(h, 20);
+
+      h.clock.advance(250);
+      h.window.emit(discordFocus(h.clock.ms));
+      await h.controller.flush();
+      const countdown = h.trace.policies.find((event) => event.type === "start_countdown");
+      expect(countdown?.type === "start_countdown" && countdown.seconds).toBe(1);
+      expect(h.fxEvents).toEqual([]);
+
+      await tickSeconds(h, 1);
+      expect(h.killer.calls.length).toBe(1);
+    } finally {
+      if (previous === undefined) {
+        delete process.env.FOCUSPLUG_NO_ADAPT;
+      } else {
+        process.env.FOCUSPLUG_NO_ADAPT = previous;
+      }
+    }
   });
 });
 

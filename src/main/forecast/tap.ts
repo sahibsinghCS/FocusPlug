@@ -50,5 +50,9 @@ export function withForecast(base: SessionPush, forecast: ForecastTap): SessionP
       swallow(() => forecast.onDesk(snap));
     },
     sessionEvent: (event) => base.sessionEvent(event),
+    // Not observed by the forecast, but SessionPush owns it, and forwarding is
+    // not optional: production wires `withForecast(push, monitor)`, so a
+    // dropped channel is a crash on the first nudge, not a missing chart.
+    nudge: (event) => base.nudge(event),
   };
 }

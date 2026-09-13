@@ -7,6 +7,7 @@ import type {
   AppSettings,
   DeskMonitor,
   KillResult,
+  NudgeEvent,
   PlugController,
   ProcessKiller,
   SessionState,
@@ -205,6 +206,7 @@ export interface PushTrace {
   focus: FocusSnapshot[];
   desk: DeskSnapshot[];
   events: SessionEvent[];
+  nudges: NudgeEvent[];
 }
 
 export function createRecordingPush(): { push: SessionPush; trace: PushTrace } {
@@ -214,6 +216,7 @@ export function createRecordingPush(): { push: SessionPush; trace: PushTrace } {
     focus: [],
     desk: [],
     events: [],
+    nudges: [],
   };
   return {
     trace,
@@ -236,6 +239,9 @@ export function createRecordingPush(): { push: SessionPush; trace: PushTrace } {
       },
       sessionEvent: (event) => {
         trace.events.push({ ...event });
+      },
+      nudge: (event) => {
+        trace.nudges.push({ ...event });
       },
     },
   };

@@ -13,10 +13,16 @@ import {
   greatCirclePoint,
   groundSpeedKmh,
   haversineKm,
+  MAX_CRUISE_KMH,
   remainingKm,
   solarDeclinationDeg,
   subsolar,
   twilightBand,
+  chartLandFade,
+  chartRangeKm,
+  latLonToUnit,
+  orbitAngleRad,
+  routeCameraZoom,
   wingAttitude,
   wrapLon,
 } from "./math";
@@ -102,12 +108,25 @@ describe("progress, phases, honest strip math", () => {
   });
 
   it("computes remaining km and ground speed from the same remaining clock", () => {
-    const total = haversineKm(NYC.lat, NYC.lon, LON.lat, LON.lon);
+    const dub = { lat: 53.4264, lon: -6.2499 };
+    const edi = { lat: 55.95, lon: -3.3725 };
+    const total = haversineKm(dub.lat, dub.lon, edi.lat, edi.lon);
     const progress = 0.5;
     const remainKm = remainingKm(total, progress);
     expect(remainKm).toBeCloseTo(total * 0.5, 6);
-    const gs = groundSpeedKmh(remainKm, 45 * 60);
-    expect(gs).toBeCloseTo(remainKm / 0.75, 6);
+    const gs = groundSpeedKmh(remainKm, 25 * 60);
+    expect(gs).toBeCloseTo(remainKm / (25 / 60), 6);
+    expect(gs).toBeLessThan(1000);
+  });
+
+  it("caps a 5-minute DUB–EDI hop so a break cannot read 4,032 kph", () => {
+    const total = haversineKm(53.4264, -6.2499, 55.95, -3.3725);
+    const raw = total / (5 / 60);
+    expect(raw).toBeGreaterThan(3900);
+    expect(raw).toBeLessThan(4200);
+    const gs = groundSpeedKmh(total, 5 * 60);
+    expect(gs).toBe(MAX_CRUISE_KMH);
+    expect(gs).toBeLessThan(1000);
   });
 
   it("prints ETA as a real 24h clock in UTC when asked", () => {
@@ -132,5 +151,31 @@ describe("progress, phases, honest strip math", () => {
     const left = wingAttitude(-15, 28);
     expect(left.leftY).toBeGreaterThan(left.rightY);
     expect(wingAttitude(0, 28).drop).toBe(0);
+  });
+
+  it("zooms a DUB–EDI hop much tighter than a JFK–LHR crossing", () => {
+    const shortHop = haversineKm(53.4264, -6.2499, 55.95, -3.3725);
+    const longHaul = haversineKm(NYC.lat, NYC.lon, LON.lat, LON.lon);
+    const close = routeCameraZoom(shortHop, false);
+    const far = routeCameraZoom(longHaul, false);
+    expect(shortHop).toBeLessThan(400);
+    expect(close).toBeGreaterThan(5);
+    expect(far).toBeGreaterThan(2);
+    expect(far).toBeLessThan(close);
+    expect(routeCameraZoom(shortHop, true)).toBeLessThan(close);
+    const look = latLonToUnit(54.6, -5);
+    const range = chartRangeKm(shortHop);
+    expect(range).toBeLessThan(1200);
+    expect(chartLandFade(look, look, range)).toBeCloseTo(1, 5);
+    expect(chartLandFade(latLonToUnit(50.22, 9.71), look, range)).toBeLessThan(0.2);
+    expect(chartLandFade(latLonToUnit(53.43, -6.25), look, range)).toBeGreaterThan(0.85);
+  });
+
+  it("advances orbit from the clock unless frozen or overridden", () => {
+    expect(orbitAngleRad(10_000, 0.4, false)).toBeCloseTo(0.4, 6);
+    expect(orbitAngleRad(10_000, undefined, true)).toBe(0);
+    expect(orbitAngleRad(20_000, undefined, false)).toBeGreaterThan(
+      orbitAngleRad(10_000, undefined, false),
+    );
   });
 });

@@ -4,12 +4,17 @@ import type { ForegroundReader, ForegroundWindow } from "./foreground.ts";
 
 const POLL_MS = 200;
 const RESTART_BACKOFF_MS = [500, 1000, 2000, 5000] as const;
+/** Marks our own stderr diagnostics apart from PowerShell CLIXML noise. */
+const FAULT_PREFIX = "foreground reader: ";
 
 /**
  * Persistent hidden PowerShell process calling GetForegroundWindow / GetWindowText /
  * GetWindowThreadProcessId. Avoids per-tick spawn cost so the monitor can meet a 1s SLA.
- * Note: \`$pid\` is a read-only PowerShell automatic variable (the shell's own process id),
- * so the foreground window's pid lives in \`$procId\` — assigning \`$pid\` throws every tick.
+ *
+ * Locals must not collide with a PowerShell automatic variable (names are
+ * case-insensitive). `$pid` is `$PID` — Constant + AllScope — so `[ref]$pid`
+ * threw "Cannot overwrite variable PID", the catch swallowed it, and every
+ * snapshot came back empty. See `RESERVED_PS_VARIABLES` in win32.test.ts.
  */
 export const FOREGROUND_SCRIPT = `
 $ErrorActionPreference = 'SilentlyContinue'
@@ -31,29 +36,37 @@ public static class FocusPlugFg {
 while ($true) {
   try {
     $hwnd = [FocusPlugFg]::GetForegroundWindow()
-    [uint32]$procId = 0
-    [void][FocusPlugFg]::GetWindowThreadProcessId($hwnd, [ref]$procId)
+    [uint32]$fgPid = 0
+    [void][FocusPlugFg]::GetWindowThreadProcessId($hwnd, [ref]$fgPid)
     $sb = New-Object System.Text.StringBuilder 2048
     [void][FocusPlugFg]::GetWindowText($hwnd, $sb, $sb.Capacity)
     $name = ""
-    if ($procId -ne 0) {
-      $proc = Get-Process -Id $procId -ErrorAction SilentlyContinue
+    if ($fgPid -ne 0) {
+      $proc = Get-Process -Id $fgPid -ErrorAction SilentlyContinue
       if ($proc) { $name = [string]$proc.ProcessName }
     }
     $payload = [ordered]@{
       processName = $name
       windowTitle = $sb.ToString()
-      pid = [int64]$procId
+      pid = [int64]$fgPid
     }
     Write-Output ($payload | ConvertTo-Json -Compress)
   } catch {
+    # Surface the fault once per distinct message: a silent catch here reads as
+    # "no window focused" and hides a broken reader. Console::Error ignores
+    # $ErrorActionPreference.
+    $faultMessage = $_.Exception.Message
+    if ($faultMessage -ne $lastFault) {
+      $lastFault = $faultMessage
+      [Console]::Error.WriteLine("${FAULT_PREFIX}" + $faultMessage)
+    }
     Write-Output '{"processName":"","windowTitle":"","pid":0}'
   }
   Start-Sleep -Milliseconds ${POLL_MS}
 }
 `;
 
-function encodePowerShellCommand(script: string): string {
+export function encodePowerShellCommand(script: string): string {
   return Buffer.from(script, "utf16le").toString("base64");
 }
 
@@ -101,6 +114,7 @@ export class Win32ForegroundReader implements ForegroundReader {
   private child: ChildProcess | null = null;
   private rl: ReadlineInterface | null = null;
   private latest: ForegroundWindow | null = null;
+  private lastFault: string | null = null;
   private wanted = false;
   private restartAttempts = 0;
   private restartTimer: ReturnType<typeof setTimeout> | null = null;
@@ -161,6 +175,19 @@ export class Win32ForegroundReader implements ForegroundReader {
       }
     });
 
+    // stderr must be drained or a full pipe stalls the child. PowerShell also
+    // writes CLIXML progress records here, so only our own line is reported.
+    child.stderr?.on("data", (chunk: Buffer) => {
+      for (const raw of String(chunk).split(/\r?\n/u)) {
+        const text = raw.trim();
+        if (!text.startsWith(FAULT_PREFIX) || text === this.lastFault) {
+          continue;
+        }
+        this.lastFault = text;
+        console.error(text);
+      }
+    });
+
     const onExit = (): void => {
       this.teardownChild();
       this.scheduleRestart();
@@ -170,9 +197,9 @@ export class Win32ForegroundReader implements ForegroundReader {
   }
 
   private teardownChild(): void {
-    // Drop the cached window: with no live child, read() must report "no data"
-    // (monitor treats null as empty focus) instead of replaying the previous
-    // session's foreground window until the fresh child's first real payload.
+    // Drop the cached window with the child that produced it. A restart or a
+    // stopped session must read as empty focus, not replay the previous
+    // session's foreground window under fresh timestamps.
     this.latest = null;
     if (this.rl !== null) {
       this.rl.removeAllListeners();
@@ -180,6 +207,7 @@ export class Win32ForegroundReader implements ForegroundReader {
       this.rl = null;
     }
     if (this.child !== null) {
+      this.child.stderr?.removeAllListeners();
       this.child.removeAllListeners();
       if (!this.child.killed) {
         this.child.kill();

@@ -13,6 +13,7 @@ function recordingBase(calls: string[]): SessionPush {
     focusSnapshot: () => calls.push("base:focusSnapshot"),
     deskSnapshot: () => calls.push("base:deskSnapshot"),
     sessionEvent: () => calls.push("base:sessionEvent"),
+    nudge: () => calls.push("base:nudge"),
   };
 }
 
@@ -60,6 +61,15 @@ describe("withForecast", () => {
     push.sessionEvent(sessionEvent);
 
     expect(calls).toEqual(["base:sessionEvent"]);
+  });
+
+  it("forwards nudge untouched — an unforwarded channel is a crash, not a gap", () => {
+    const calls: string[] = [];
+    const push = withForecast(recordingBase(calls), recordingTap(calls));
+
+    push.nudge({ ts: 1_000, kind: "blocked", app: "discord.exe" });
+
+    expect(calls).toEqual(["base:nudge"]);
   });
 
   it("passes payloads through unchanged", () => {

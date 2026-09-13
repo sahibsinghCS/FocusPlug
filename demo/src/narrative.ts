@@ -59,7 +59,7 @@ export function stageNote(
   if (frame.killed && frame.decision === "ON_TASK") {
     return {
       kicker: "Recovery",
-      tone: "lime",
+      tone: "focus",
       line: "Allowlisted window plus desk presence — the session unlocked itself. No dialog, no override, no streak to rebuild.",
     };
   }
@@ -87,14 +87,14 @@ export function stageNote(
   }
   return {
     kicker: "On task",
-    tone: "lime",
+    tone: "focus",
     line: "Steady dwell on the assignment, desk presence solid. The blue bars are the signals actively holding risk down.",
   };
 }
 
 /** Log-style label for one forecast event, matching the console's timeline. */
 export function eventTone(event: ForecastEvent): Tone {
-  if (event.type === "forecast_hit") return "lime";
+  if (event.type === "forecast_hit") return "focus";
   if (event.type === "forecast_miss" || event.type === "forecast_prearm") return "red";
   if (event.type === "forecast_nudge") return "amber";
   return "mute";

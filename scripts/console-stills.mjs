@@ -4,14 +4,28 @@ import puppeteer from "puppeteer-core";
 import { resolveChrome } from "./lib/chrome.mjs";
 import { startPreview } from "./lib/preview-server.mjs";
 
-const OUT = resolve(process.argv[2] ?? "src/renderer/src/features/chrome/evidence");
-const PREFIX = process.argv[3] ?? "after";
+/**
+ * One still per route of the shell, for reviewing page chrome: the same nav,
+ * status tokens and empty/error language everywhere.
+ *
+ *   npm run console:stills [outDir] [prefix]
+ *
+ * Routes come from src/renderer/src/lib/routes.ts and are rendered by
+ * Shell.tsx; the seeded `?scene=` states come from lib/urlScene.ts. `#/`
+ * renders the plan when no session is active and the live console when one is,
+ * which is why it appears twice below. Deeper session states (pre-arm, away,
+ * recovered) belong to scripts/session-stills.mjs.
+ */
+
+const OUT = resolve(process.argv[2] ?? "src/renderer/src/features/session/evidence");
+const PREFIX = process.argv[3] ?? "shell";
 
 const SCENES = [
-  { name: "session-idle", path: "/#/" },
-  { name: "session-live", path: "/#/?scene=live" },
+  { name: "session-setup", path: "/#/" },
+  { name: "session-live", path: "/#/?scene=live", settleMs: 900 },
   { name: "session-overlay", path: "/#/?scene=distracted&countdown=8&freeze=1" },
   { name: "allowlist", path: "/#/allowlist" },
+  { name: "blocklist", path: "/#/blocklist" },
   { name: "plugs", path: "/#/plugs?scene=live" },
   { name: "settings", path: "/#/settings" },
   { name: "log-empty", path: "/#/log" },
@@ -23,8 +37,8 @@ await mkdir(OUT, { recursive: true });
 // puppeteer-core ships no browser and nothing else starts the preview server,
 // so this script owns both. Chrome is resolved first: a missing browser should
 // fail before Vite is spawned. Set CONSOLE_STILLS_BASE to screenshot a server
-// you started yourself (`npm run renderer:preview`), and CHROME_PATH if
-// Chrome is not on a standard path for this OS.
+// you started yourself (`npm run preview:renderer`), and CHROME_PATH if Chrome
+// is not on a standard path for this OS.
 const CHROME = resolveChrome();
 const preview = await startPreview({
   config: "scripts/renderer-preview.vite.ts",
@@ -53,7 +67,7 @@ try {
     });
     await page.goto(`${BASE}${scene.path}`, { waitUntil: "networkidle0", timeout: 30_000 });
     await page.waitForSelector("#root", { timeout: 15_000 });
-    await new Promise((resolveWait) => setTimeout(resolveWait, 700));
+    await new Promise((resolveWait) => setTimeout(resolveWait, scene.settleMs ?? 700));
     const file = resolve(OUT, `${PREFIX}-${scene.name}-1280x800.png`);
     await page.screenshot({ path: file, type: "png" });
     console.log(file);

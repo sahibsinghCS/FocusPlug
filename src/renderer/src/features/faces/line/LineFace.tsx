@@ -24,7 +24,8 @@ export function LineFace(props: FaceProps): JSX.Element {
   const train = pointAtProgress(path, props.progress);
   const passed = passedStations(stations, props.progress);
   const upcoming = nextStation(stations, props.progress);
-  const pulse = props.freeze ? 0.7 : 0.55 + 0.45 * Math.abs(Math.sin(props.nowMs / 280));
+  const pulse =
+    props.freeze || props.paused ? 0.7 : 0.55 + 0.45 * Math.abs(Math.sin(props.nowMs / 280));
 
   const mapped = path.map((pt) => toView(pt.x, pt.y));
   const d = mapped

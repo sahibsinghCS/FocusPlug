@@ -25,7 +25,7 @@ export function LiveDesk(props: { session: LiveSession }): JSX.Element {
         <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-fp-faint">
           Live Desk AI
         </p>
-        {running ? <Chip tone="lime">Camera on</Chip> : null}
+        {running ? <Chip tone="focus">Camera on</Chip> : null}
         {busy ? <Chip tone="amber">Starting</Chip> : null}
         {session.status === "denied" ? <Chip tone="mute">Permission declined</Chip> : null}
         {session.status === "unsupported" ? <Chip tone="mute">Unavailable here</Chip> : null}

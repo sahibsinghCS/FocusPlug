@@ -28,6 +28,8 @@ export interface SessionRuntimeOptions {
   plugs?: PlugController;
   now?: () => number;
   tickIntervalMs?: number;
+  /** Brings the app window to the front when the session nudges. */
+  revealWindow?: () => void;
 }
 
 function createStoreBackedPlugs(
@@ -50,6 +52,11 @@ interface BuiltSessionRuntime {
  * blocklist killer, the frozen PlugController (Kasa/HTTP/mock), and the
  * Focus Forecast observer — its tap wraps the push (SessionPush itself is
  * unchanged) and its hook rides SessionControllerOptions.forecast.
+ *
+ * The controller owns the other half of the fuse authority: it builds its own
+ * AdaptiveFuse over the same store (the learned model lives beside the
+ * settings in the user's data dir), and composes the two — personalised base
+ * length, scaled by the forecast's pre-arm. See `fuseAuthority.ts`.
  */
 function buildSessionRuntime(options: SessionRuntimeOptions): BuiltSessionRuntime {
   const store = options.store ?? createAppStore(options.userDataDir);
@@ -97,6 +104,7 @@ function buildSessionRuntime(options: SessionRuntimeOptions): BuiltSessionRuntim
     now: options.now,
     tickIntervalMs: options.tickIntervalMs,
     forecast: forecast.hook,
+    revealWindow: options.revealWindow,
   };
   return { session: new SessionController(controllerOptions), forecast };
 }

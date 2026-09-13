@@ -99,7 +99,7 @@ export function parseSoloFaceId(raw: string | null): SoloFaceId | null {
   if (raw === "bar") {
     return "bar";
   }
-  if (raw === "movement" || raw === "line" || raw === "record") {
+  if (raw === "movement" || raw === "line") {
     return raw;
   }
   return null;
@@ -121,7 +121,7 @@ export function parseFaceUrl(search: string, hash: string): FaceUrl {
   if (!sceneRaw && face === "line") {
     scene = "rounds";
   }
-  if (!sceneRaw && (face === "record" || face === "bar")) {
+  if (!sceneRaw && face === "bar") {
     scene = "artifact";
   }
   return { face, scene, solo, freeze };

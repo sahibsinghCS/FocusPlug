@@ -507,7 +507,7 @@
     {
       "name": "trained custom model calls the face fixture at_desk with real confidence",
       "pass": true,
-      "detail": "{\"ts\":3000,\"label\":\"at_desk\",\"confidence\":0.9971059585928542,\"webcamEnabled\":true}"
+      "detail": "{\"ts\":3000,\"label\":\"at_desk\",\"confidence\":0.9971059585928542,\"webcamEnabled\":true,\"attention\":{\"label\":\"phone\",\"confidence\":0.8367520781485507}}"
     }
   ],
   "verdict": "PASS"

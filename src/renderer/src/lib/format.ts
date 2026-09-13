@@ -1,4 +1,5 @@
 import type {
+  AttentionLabel,
   Decision,
   DeskLabel,
   DeskModelId,
@@ -9,7 +10,13 @@ import type {
 import type { PlugView } from "./plugsUi";
 import { plugKillNote as plugKillNoteFromViews, summarizePlugs } from "./plugsUi";
 
-export type Tone = "lime" | "red" | "amber" | "mute";
+/**
+ * Console tone vocabulary. `focus`/`red`/`warn`/`mute` are the monochrome
+ * register every surface shares; `amber` is the forecast's own step before
+ * red — pre-armed, fuse shortened, nothing dead yet — and has to read apart
+ * from red at a glance or the warning is wasted (see --color-fp-amber).
+ */
+export type Tone = "focus" | "red" | "warn" | "amber" | "mute";
 
 export function decisionLabel(decision: Decision): string {
   if (decision === "ON_TASK") return "On task";
@@ -19,9 +26,9 @@ export function decisionLabel(decision: Decision): string {
 }
 
 export function decisionTone(decision: Decision): Tone {
-  if (decision === "ON_TASK") return "lime";
+  if (decision === "ON_TASK") return "focus";
   if (decision === "DISTRACTED") return "red";
-  if (decision === "AWAY") return "amber";
+  if (decision === "AWAY") return "warn";
   return "mute";
 }
 
@@ -31,9 +38,15 @@ export function deskLabel(label: DeskLabel): string {
   return "Uncertain";
 }
 
+export function attentionLabel(label: AttentionLabel): string {
+  if (label === "phone") return "On phone";
+  if (label === "unfocused") return "Unfocused";
+  return "Focused";
+}
+
 export function deskTone(label: DeskLabel): Tone {
-  if (label === "at_desk") return "lime";
-  if (label === "away") return "amber";
+  if (label === "at_desk") return "focus";
+  if (label === "away") return "warn";
   return "mute";
 }
 
@@ -48,9 +61,9 @@ export function focusFlag(focus: FocusSnapshot | null): {
     return { label: "Blocked", tone: "red" };
   }
   if (focus.matchedAllow) {
-    return { label: "Allowlisted", tone: "lime" };
+    return { label: "Allowlisted", tone: "focus" };
   }
-  return { label: "Unmatched", tone: "amber" };
+  return { label: "Unmatched", tone: "warn" };
 }
 
 export function formatConfidence(value: number): string {
@@ -99,6 +112,7 @@ export function windowSecondary(focus: FocusSnapshot | null): string {
 
 export function deskPrimary(desk: DeskSnapshot | null): string {
   if (!desk) return "Desk AI standby";
+  if (desk.label === "at_desk" && desk.attention) return attentionLabel(desk.attention.label);
   return deskLabel(desk.label);
 }
 
@@ -154,6 +168,15 @@ export function deskChrome(desk: DeskSnapshot | null): ChromeStatus {
   if (!desk.webcamEnabled) {
     return { label: "Desk AI", detail: "Webcam off", tone: "mute", live: false };
   }
+  if (desk.label === "at_desk" && desk.attention) {
+    const focused = desk.attention.label === "focused";
+    return {
+      label: "Desk AI",
+      detail: `${attentionLabel(desk.attention.label)} ${formatConfidence(desk.attention.confidence)}`,
+      tone: focused ? "focus" : "warn",
+      live: focused,
+    };
+  }
   return {
     label: "Desk AI",
     detail: `${deskLabel(desk.label)} ${formatConfidence(desk.confidence)}`,
@@ -175,7 +198,7 @@ export function plugChrome(plugs: readonly PlugView[]): ChromeStatus {
   return {
     label: "Plugs",
     detail: `${armed.length} armed`,
-    tone: allOff ? "red" : on > 0 ? "lime" : "amber",
+    tone: allOff ? "red" : on > 0 ? "focus" : "warn",
     live: on > 0,
   };
 }

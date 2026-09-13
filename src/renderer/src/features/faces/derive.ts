@@ -1,7 +1,6 @@
 import type { FacePhase, FaceProps, FaceRound, FaceSource } from "./instrument";
 import { DEFAULT_FACE_DURATION_MS } from "./instrument";
-import { clamp01, faceEventsFromLog } from "./events";
-import { findSessionStartedAt } from "../session/model";
+import { clamp01, faceEventsFromLog, findSessionStartedAt } from "./events";
 
 function hashId(value: string): string {
   let hash = 2166136261;

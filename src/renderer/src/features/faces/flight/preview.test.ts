@@ -13,6 +13,21 @@ describe("flight preview query", () => {
     expect(parsed.freeze).toBe(true);
     expect(parsed.variant).toBe("instrument");
     expect(parsed.estimateMinutes).toBe(80);
+    expect(parsed.settings.dep).toBeUndefined();
+    expect(parsed.picker).toBeNull();
+    expect(parsed.mapView).toBe("close");
+  });
+
+  it("selects the whole-map view when asked", () => {
+    const parsed = parseFlightPreview("map=route&progress=0.46&freeze=1");
+    expect(parsed.mapView).toBe("route");
+  });
+
+  it("reads an explicit route and an open picker without inventing JFK", () => {
+    const parsed = parseFlightPreview("dep=DUB&arr=EDI&picker=dep&freeze=1");
+    expect(parsed.settings.dep).toBe("DUB");
+    expect(parsed.settings.arr).toBe("EDI");
+    expect(parsed.picker).toBe("dep");
   });
 
   it("selects the sticker baseline when asked", () => {

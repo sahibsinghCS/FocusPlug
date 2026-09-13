@@ -13,6 +13,7 @@ All workstreams MUST implement / consume these. Do not invent parallel APIs.
 ## Types (`src/shared/types.ts`)
 ```ts
 export type DeskLabel = "at_desk" | "away" | "uncertain";
+export type AttentionLabel = "focused" | "unfocused" | "phone";
 export type Decision = "ON_TASK" | "DISTRACTED" | "AWAY" | "IDLE";
 export type DeskModelId = "stub" | "blazeface" | "custom";
 export type PlugProtocol = "kasa" | "http" | "mock";
@@ -33,11 +34,18 @@ export interface FocusSnapshot {
   blockEntryId?: string;
 }
 
+export interface DeskAttention {
+  label: AttentionLabel;
+  confidence: number; // 0..1
+}
+
 export interface DeskSnapshot {
   ts: number;
   label: DeskLabel;
   confidence: number; // 0..1
   webcamEnabled: boolean;
+  /** only while at_desk, and only from a model with an attention head */
+  attention?: DeskAttention;
 }
 
 /** RGB frame — same shape as src/main/desk `RgbFrame`, plus Float32 tensors. */
@@ -51,6 +59,8 @@ export interface DeskFrame {
 export interface DeskModelOutput {
   label: DeskLabel;
   confidence: number; // 0..1
+  /** optional: focused / unfocused / phone, only when label is at_desk */
+  attention?: DeskAttention;
   /** optional debug faces */
   faces?: Array<{ probability: number; box: { x0: number; y0: number; x1: number; y1: number } }>;
 }
@@ -112,7 +122,9 @@ Persisted by `Store.loadSettings` / `saveSettings` — one settings blob, not a 
 
 - `countdownSec`, `deskThreshold`, `strictMode`, `webcamEnabled` (Phase 1)
 - `deskModelId`: `"stub" | "blazeface" | "custom"` (default `"blazeface"` so a later factory wiring keeps today’s Desk AI)
-- `faceId`: immersive session face (`flight` | `hourglass` | `readout` | `descent` | `movement` | `record` | `circuit` | `line` | `orbit` | `growth` | `flask` | `garden` | `candle`). Default `flight`. Union lives in `src/shared/faces.ts` — not in the frozen Types block. Retired: Column / Grid / Eclipse / Field. Do not revive Eclipse or Field; Garden is the sunrise face; Candle is the melting-wax face.
+- `faceId`: immersive session face (`flight` | `hourglass` | `readout` | `movement` | `line` | `growth` | `flask` | `garden` | `candle`). Default `flight`. Union lives in `src/shared/faces.ts` — not in the frozen Types block. Retired: Column / Grid / Eclipse / Field, and Descent / Record / Circuit / Orbit (removed 2026-09-13); a saved retired id falls back to `flight`. Do not revive Eclipse or Field; Garden is the sunrise face; Candle is the melting-wax face.
+- `flightDep` / `flightArr`: curated IATA codes for the Flight face origin and arrival. Default `DUB` → `EDI`. Same settings blob — not a second store.
+- `plugMode`: `"nudge" | "cut"` (default `"nudge"`). `nudge`: when you drift (phone, looking away, blocked app) enabled plugs switch **on** — a lamp that pulls you back — and the policy's `plug_off` / `plug_on` are not executed. `cut`: the original enforcer, `plug_off` on kill and `plug_on` on unlock. Union lives in `src/shared/nudge.ts`.
 - `plugs`: `PlugDevice[]` (default `[]`)
 
 `isStudyPc` is the literal `false`. Persistence MUST drop any device that is not explicitly `isStudyPc: false`. Never persist a study-PC plug.

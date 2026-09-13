@@ -1,4 +1,5 @@
 export type DeskLabel = "at_desk" | "away" | "uncertain";
+export type AttentionLabel = "focused" | "unfocused" | "phone";
 export type Decision = "ON_TASK" | "DISTRACTED" | "AWAY" | "IDLE";
 export type DeskModelId = "stub" | "blazeface" | "custom";
 export type PlugProtocol = "kasa" | "http" | "mock";
@@ -19,11 +20,18 @@ export interface FocusSnapshot {
   blockEntryId?: string;
 }
 
+export interface DeskAttention {
+  label: AttentionLabel;
+  confidence: number; // 0..1
+}
+
 export interface DeskSnapshot {
   ts: number;
   label: DeskLabel;
   confidence: number; // 0..1
   webcamEnabled: boolean;
+  /** only while at_desk, and only from a model with an attention head */
+  attention?: DeskAttention;
 }
 
 /** RGB frame — same shape as src/main/desk `RgbFrame`, plus Float32 tensors. */
@@ -37,6 +45,8 @@ export interface DeskFrame {
 export interface DeskModelOutput {
   label: DeskLabel;
   confidence: number; // 0..1
+  /** optional: focused / unfocused / phone, only when label is at_desk */
+  attention?: DeskAttention;
   /** optional debug faces */
   faces?: Array<{ probability: number; box: { x0: number; y0: number; x1: number; y1: number } }>;
 }

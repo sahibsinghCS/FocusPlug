@@ -1,10 +1,11 @@
-# Flight face stills
+# Flight face stills — simple map
 
-1280×800 captures for the gauntlet. Before = flat arc sticker. After = instrument.
+1280×800 captures for the gauntlet.
+
+- BEFORE = laggy globe / bezel instrument.
+- AFTER = low-poly close map, whole-map toggle, session remaining clock.
 
 ```bash
 npx vite --config scripts/renderer-preview.vite.ts
 node scripts/flight-stills.mjs
 ```
-
-Pinned UTC: `2026-09-12T16:00:00Z` (day Atlantic) and `2026-09-12T02:00:00Z` (night lights).

@@ -4,13 +4,12 @@ import { DEFAULT_SETTINGS } from "@shared/defaults";
 import type { ForecastEvent, SessionState } from "@shared/ipc";
 import { FORECAST_BASIS, FORECAST_PARAM_COUNT } from "@shared/forecast";
 import "../../index.css";
-import { CountdownOverlay } from "../../components/CountdownOverlay";
 import { Chip } from "../../components/ui";
 import { cn } from "../../lib/cn";
+import { KillOverlay } from "../kill/KillOverlay";
 import { DecisionHero } from "../session/DecisionHero";
 import { SessionClock } from "../session/SessionClock";
 import { sessionClockView } from "../session/model";
-import "../session/session.css";
 import { ForecastPanel } from "./ForecastPanel";
 import { NudgeToast } from "./NudgeToast";
 import { describeForecastEvent, overlayLeadSec, prearmPlate } from "./model";
@@ -153,7 +152,7 @@ function Preview(): JSX.Element {
             FocusPlug · Focus Forecast
           </p>
           <Chip tone="amber">Replay</Chip>
-          <Chip tone="lime">On-device</Chip>
+          <Chip tone="focus">On-device</Chip>
           <p className="ml-auto font-mono text-[12px] text-fp-mute tabular">
             t +{frame.t}s / {replay.durationSec}s
           </p>
@@ -271,7 +270,7 @@ function Preview(): JSX.Element {
       <NudgeToast event={nudgeEvent} snapshot={frame.snapshot} greyApp={greyApp} frozen />
 
       {frame.countdownSec > 0 ? (
-        <CountdownOverlay
+        <KillOverlay
           seconds={frame.countdownSec}
           total={frame.snapshot.effectiveFuseSec}
           reason={frame.detail}

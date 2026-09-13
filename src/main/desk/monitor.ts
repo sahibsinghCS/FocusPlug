@@ -10,6 +10,8 @@ import {
 import type { FrameSource } from "./types";
 
 export const DEFAULT_DESK_INTERVAL_MS = 250;
+/** Wait between camera start attempts after a failure. */
+export const SOURCE_RETRY_MS = 5000;
 
 /** Multiplier on `intervalMs` for retry backoff after model/camera failures. */
 const ERROR_BACKOFF_MULTIPLIER = 8;
@@ -42,7 +44,8 @@ export class DeskMonitor implements DeskMonitorContract {
   private running = false;
   private loopGen = 0;
   private sourceStarted = false;
-  private sourceRetryAt = 0;
+  private sourceFault: string | null = null;
+  private nextSourceRetryAt = 0;
   private sourceStartEpoch = 0;
 
   constructor(options: DeskMonitorOptions = {}) {
@@ -87,6 +90,11 @@ export class DeskMonitor implements DeskMonitorContract {
     // Enabling never starts the camera here: ensureReady() is the single
     // owner of source.start(), so the loop's next tick (≤ intervalMs away)
     // picks it up instead of racing a second start against the loop's own.
+    // Clearing the backoff is all this path does, so a user who re-enables
+    // the webcam is not made to wait out a failed camera's retry window.
+    if (enabled) {
+      this.nextSourceRetryAt = 0;
+    }
     if (!enabled && this.sourceStarted) {
       this.sourceStarted = false;
       void this.source.stop();
@@ -158,16 +166,25 @@ export class DeskMonitor implements DeskMonitorContract {
     if (!this.source) {
       this.source = this.injectedSource ?? (await createDefaultFrameSource());
     }
-    if (this.enabled && !this.sourceStarted && this.now() >= this.sourceRetryAt) {
+    if (this.enabled && !this.sourceStarted && this.now() >= this.nextSourceRetryAt) {
       const gen = this.loopGen;
       const epoch = ++this.sourceStartEpoch;
       try {
         await this.source.start();
       } catch (error) {
-        console.error("Desk camera start failed:", errorMessage(error));
-        this.sourceRetryAt = this.now() + this.intervalMs * ERROR_BACKOFF_MULTIPLIER;
+        // Back off: ensureReady runs every step, and each attempt builds and
+        // tears down a camera window.
+        this.nextSourceRetryAt = this.now() + SOURCE_RETRY_MS;
+        const message = errorMessage(error);
+        if (message !== this.sourceFault) {
+          this.sourceFault = message;
+          // A silent catch here is indistinguishable from "nobody at the desk":
+          // presence stays `uncertain` and never kills, with no way to tell why.
+          console.error(`Desk camera unavailable, presence stays uncertain: ${message}`);
+        }
         return;
       }
+      this.sourceFault = null;
       // A newer start claimed the shared source while this warm-up was in
       // flight (stop + restart mid-warm-up): its continuation owns the
       // stop/started decision — a stale stop here would kill the new

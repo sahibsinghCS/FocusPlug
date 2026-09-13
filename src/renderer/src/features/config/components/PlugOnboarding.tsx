@@ -6,7 +6,7 @@ import { Notice } from "./Notice";
 export function PlugOnboarding(): JSX.Element {
   return (
     <div className="space-y-3">
-      <Notice tone="amber" title="Never the study PC" role="note">
+      <Notice tone="warn" title="Never the study PC" role="note">
         <p className="font-medium">{STUDY_PC_WARNING}</p>
         <p className="mt-1 text-fp-mute">
           Fun outlets only: RGB lamp, speaker, a game-PC PSU on a different socket. Persistence

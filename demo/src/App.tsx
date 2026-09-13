@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState, type JSX } from "react";
 import { DEFAULT_ALLOWLIST, DEFAULT_BLOCKLIST } from "@shared/defaults";
 import type { ForecastEvent, SessionState } from "@shared/ipc";
-import { CountdownOverlay } from "@renderer/components/CountdownOverlay";
 import { Chip, StatusPill } from "@renderer/components/ui";
 import { cn } from "@renderer/lib/cn";
 import { deskChrome, plugChrome, sessionChrome } from "@renderer/lib/format";
@@ -12,6 +11,7 @@ import {
   overlayLeadSec,
   prearmPlate,
 } from "@renderer/features/forecast/model";
+import { KillOverlay } from "@renderer/features/kill/KillOverlay";
 import { DecisionHero } from "@renderer/features/session/DecisionHero";
 import { SensorRail } from "@renderer/features/session/SensorRail";
 import { SessionClock } from "@renderer/features/session/SessionClock";
@@ -22,7 +22,6 @@ import {
   windowSensor,
   type SensorCardView,
 } from "@renderer/features/session/model";
-import "@renderer/features/session/session.css";
 import "@renderer/features/forecast/forecast.css";
 import { LiveDesk } from "./components/LiveDesk";
 import { EventFeed, StageCard } from "./components/Narration";
@@ -41,7 +40,7 @@ import { buildDemoTimeline } from "./timeline";
  * The judge-facing page. It owns layout and transport and nothing else: every
  * number on screen comes out of `DemoPipeline`, and every instrument is the
  * console's own component (`ForecastPanel`, `DecisionHero`, `SessionClock`,
- * `SensorRail`, `NudgeToast`, `CountdownOverlay`) rendered against the same
+ * `SensorRail`, `NudgeToast`, `KillOverlay`) rendered against the same
  * `ForecastSnapshot` / `SessionState` shapes the Electron app pushes over IPC.
  */
 
@@ -199,7 +198,7 @@ function Header(props: {
         <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-fp-faint">
           FocusPlug · Focus Forecast
         </p>
-        <Chip tone="lime">Browser demo</Chip>
+        <Chip tone="focus">Browser demo</Chip>
         <Chip tone="mute">On-device</Chip>
         <Chip tone="mute">No network</Chip>
         <div className="ml-auto flex items-center gap-1" role="tablist" aria-label="Demo mode">
@@ -399,7 +398,7 @@ function Stage(props: {
       />
 
       {frame.countdownSec > 0 ? (
-        <CountdownOverlay
+        <KillOverlay
           seconds={frame.countdownSec}
           total={frame.fuseTotalSec}
           reason={frame.detail}

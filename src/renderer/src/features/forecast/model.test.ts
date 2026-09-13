@@ -73,7 +73,7 @@ const allEvents = replayEvents(replay, replay.frames.length - 1);
 
 describe("band mapping", () => {
   it("maps calm/elevated/prearm to ok/warn/danger tones", () => {
-    expect(bandTone("calm")).toBe("lime");
+    expect(bandTone("calm")).toBe("focus");
     expect(bandTone("elevated")).toBe("amber");
     expect(bandTone("prearm")).toBe("red");
     expect(bandLabel("prearm")).toBe("Pre-armed");

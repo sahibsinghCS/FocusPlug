@@ -1,5 +1,7 @@
 import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { decodeDataUrl, decodeImageBuffer } from "./frame";
 import type { FrameSource, RgbFrame } from "./types";
 
@@ -17,15 +19,25 @@ const CAMERA_HTML = `<!DOCTYPE html>
       const canvas = document.getElementById("c");
       const ctx = canvas.getContext("2d");
       let stream = null;
-      window.focusplugStartCam = async () => {
+      window.focusplugStartCam = async (deviceId) => {
+        if (stream) {
+          stream.getTracks().forEach((track) => track.stop());
+          stream = null;
+        }
+        const size = { width: { ideal: 640 }, height: { ideal: 480 } };
         stream = await navigator.mediaDevices.getUserMedia({
           audio: false,
-          video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" },
+          video: deviceId ? { ...size, deviceId: { exact: deviceId } } : { ...size, facingMode: "user" },
         });
         video.srcObject = stream;
         await video.play();
-        return true;
+        const track = stream.getVideoTracks()[0];
+        return track ? track.label : "";
       };
+      window.focusplugListCams = async () =>
+        (await navigator.mediaDevices.enumerateDevices())
+          .filter((device) => device.kind === "videoinput")
+          .map((device) => ({ deviceId: device.deviceId, label: device.label }));
       window.focusplugGrabFrame = () => {
         if (!video || video.readyState < 2 || video.videoWidth < 2) return null;
         canvas.width = video.videoWidth;
@@ -48,6 +60,41 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
+}
+
+export interface CameraInput {
+  deviceId: string;
+  label: string;
+}
+
+/**
+ * Virtual cameras stream a placeholder when nothing feeds them — DroidCam with
+ * no phone connected is a black frame — and presence then reads `uncertain`
+ * forever. They often enumerate before the built-in webcam.
+ */
+const VIRTUAL_CAMERA =
+  /droidcam|\bobs\b|virtual|manycam|xsplit|snap camera|nvidia broadcast|mmhmm|camo|epoccam|iriun/i;
+
+/**
+ * Which camera to reopen on, or null to keep the one already open.
+ * `preferred` (FOCUSPLUG_CAMERA) is a label substring and always wins; otherwise
+ * a virtual default is swapped for the first real camera, if there is one.
+ */
+export function pickCameraDeviceId(
+  inputs: readonly CameraInput[],
+  openedLabel: string,
+  preferred?: string,
+): string | null {
+  const wanted = preferred?.trim().toLowerCase();
+  if (wanted) {
+    const match = inputs.find((input) => input.label.toLowerCase().includes(wanted));
+    return match && match.label !== openedLabel ? match.deviceId : null;
+  }
+  if (!VIRTUAL_CAMERA.test(openedLabel)) {
+    return null;
+  }
+  const real = inputs.find((input) => input.label.length > 0 && !VIRTUAL_CAMERA.test(input.label));
+  return real ? real.deviceId : null;
 }
 
 export class NullFrameSource implements FrameSource {
@@ -87,8 +134,37 @@ export class ScriptedFrameSource implements FrameSource {
 
 export class ElectronCameraSource implements FrameSource {
   private window: Electron.BrowserWindow | null = null;
+  private pageDir: string | null = null;
   private started = false;
   private startPromise: Promise<void> | null = null;
+
+  /**
+   * getUserMedia only exists in a secure context. A `data:` URL is an opaque
+   * origin (`window.origin === "null"`, `isSecureContext === false`), where
+   * `navigator.mediaDevices` is undefined — so the camera never started and
+   * Desk AI reported `uncertain` forever. `file://` is potentially trustworthy,
+   * so the page gets `mediaDevices` there.
+   */
+  private writePage(): string {
+    const dir = mkdtempSync(join(tmpdir(), "focusplug-cam-"));
+    this.pageDir = dir;
+    const file = join(dir, "camera.html");
+    writeFileSync(file, CAMERA_HTML, "utf8");
+    return file;
+  }
+
+  private cleanupPage(): void {
+    const dir = this.pageDir;
+    this.pageDir = null;
+    if (dir === null) {
+      return;
+    }
+    try {
+      rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
+    } catch {
+      // temp dir, best effort
+    }
+  }
 
   async start(): Promise<void> {
     if (this.started) {
@@ -98,14 +174,14 @@ export class ElectronCameraSource implements FrameSource {
     // window would acquire the webcam too, and only the last `this.window`
     // assignment is tracked — the other window leaks with the camera held.
     if (!this.startPromise) {
-      this.startPromise = this.openCamera().finally(() => {
+      this.startPromise = this.warmUp().finally(() => {
         this.startPromise = null;
       });
     }
     return this.startPromise;
   }
 
-  private async openCamera(): Promise<void> {
+  private async warmUp(): Promise<void> {
     const electron = await import("electron");
     const { BrowserWindow, app, session } = electron;
     if (!app.isReady()) {
@@ -130,15 +206,13 @@ export class ElectronCameraSource implements FrameSource {
     win.webContents.setBackgroundThrottling(false);
     this.window = win;
     try {
-      await win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(CAMERA_HTML)}`);
-      await win.webContents.executeJavaScript("window.focusplugStartCam()");
+      await win.loadFile(this.writePage());
+      await this.openCamera(win);
     } catch (error) {
       // Camera acquisition failed (no webcam, device busy, OS privacy deny):
-      // destroy the hidden window so retries do not leak a renderer per attempt.
-      this.window = null;
-      if (!win.isDestroyed()) {
-        win.destroy();
-      }
+      // tear the hidden window down so retries do not leak a renderer process
+      // — and the temp page directory with it — on every attempt.
+      await this.stop();
       throw error;
     }
     this.started = true;
@@ -152,11 +226,33 @@ export class ElectronCameraSource implements FrameSource {
     }
   }
 
+  /**
+   * Open the default camera, then switch if it is a virtual one. Camera labels
+   * are only exposed once a stream has been granted, so this cannot be decided
+   * before the first open.
+   */
+  private async openCamera(win: Electron.BrowserWindow): Promise<void> {
+    let label = (await win.webContents.executeJavaScript(
+      "window.focusplugStartCam(null)",
+    )) as string;
+    const inputs = (await win.webContents.executeJavaScript(
+      "window.focusplugListCams()",
+    )) as CameraInput[];
+    const pick = pickCameraDeviceId(inputs, label, process.env["FOCUSPLUG_CAMERA"]);
+    if (pick !== null) {
+      label = (await win.webContents.executeJavaScript(
+        `window.focusplugStartCam(${JSON.stringify(pick)})`,
+      )) as string;
+    }
+    console.info(`Desk camera: ${label || "unnamed device"}`);
+  }
+
   async stop(): Promise<void> {
     this.started = false;
     const win = this.window;
     this.window = null;
     if (!win || win.isDestroyed()) {
+      this.cleanupPage();
       return;
     }
     try {
@@ -165,6 +261,7 @@ export class ElectronCameraSource implements FrameSource {
       // ignore
     }
     win.destroy();
+    this.cleanupPage();
   }
 
   async grab(): Promise<RgbFrame | null> {

@@ -147,7 +147,10 @@ describe("FOREGROUND_SCRIPT", () => {
   test("never uses the read-only $pid automatic variable", () => {
     // $pid/$PID is a PowerShell automatic variable (ReadOnly, AllScope, case-insensitive);
     // assigning it throws every tick, degrading the sensor to the empty fallback payload.
+    // Both sides of the merge found this bug and renamed the out-param differently;
+    // `$fgPid` is the name that shipped (src/main/window/win32.ts), and
+    // win32.test.ts pins it too — keep the two in step if it is ever renamed again.
     assert.doesNotMatch(FOREGROUND_SCRIPT, /\$pid\b/i);
-    assert.match(FOREGROUND_SCRIPT, /\[ref\]\$procId/);
+    assert.match(FOREGROUND_SCRIPT, /\[ref\]\$fgPid\b/);
   });
 });

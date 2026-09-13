@@ -1,34 +1,31 @@
-# Flight face gauntlet
+# Flight face — simple map gauntlet
 
-Bar: at **1280×800**, a fresh harsh critic does a blind before/after of the Flight face and **selects the new still**. WIN only if the after reads as a **photographed flight instrument at a real local time** — not a flat arc sticker on a sphere.
+Bar: at **1280×800**, a fresh harsh critic does a blind before/after of the Flight face and **selects the new still**. WIN only if AFTER is the simple in-flight plate Timmy asked for — low-poly terrain, centered plane, huge session remaining clock, cheap draw — and beats the laggy globe.
 
 ## Owns
 
 - `src/renderer/src/features/faces/FlightFace.tsx` (FaceHost registry slot)
 - `src/renderer/src/features/faces/flight/**`
-- `FACE_READY.flight` in `src/shared/faces.ts`
-- `src/renderer/face.html` / `src/renderer/src/face-main.tsx` (stills harness that mounts the registry `FlightFace`)
+- Settings route picker stays on Settings. Lock never shows Origin/Arrival boxes.
 
-Does **not** fork FaceHost or FacePicker. Session already maps `faceId: "flight"` through `FACE_COMPONENTS`.
+Does **not** fork FaceHost or FacePicker. Does **not** touch `src/main`, `src/shared/types.ts`, `docs/CONTRACTS.md`.
 
 ## Must read without zoom
 
-1. **Terminator from real UTC** — day = warm pale gold, night = deep indigo, thin cyan twilight. Subsolar lat≈declination, lon≈(12−utcHours)×15.
-2. **City lights** only on the night side (1px, alpha ∝ night depth).
-3. **Banked aircraft** into the great-circle heading change, clamp ±25°.
-4. **Decaying contrail** (~90s), taper width/alpha; thinner at cruise.
-5. **Slow globe, plane near center** — no 6× zoom crop.
-6. **Monospace strip**: dep/arr, km remaining, ETA clock, ground speed from `estimateMinutes` / `remaining`.
-7. **Climb / cruise / descent** (first 8% / last 12%); complete pulls back and sets the destination name.
+1. **Session remaining** — the big clock is the sit they chose (`remainingMs` / session remaining), not a fake 10h flight.
+2. **Close map** — low-poly / flat geometric terrain + river, centered plane silhouette, IN FLIGHT + phase.
+3. **Whole-map toggle** — zoomed-out route so you can see how far you have gone.
+4. **Bottom strip** — progress, distance left, ground speed (plausible, **< 1000 kph**), studied, arrives.
+5. **Butter-smooth** — canvas 2D, cached terrain, no per-pixel globe / terminator / city lights.
 
 ## Linux / CI
 
 ```bash
-npm test -- src/renderer/src/features/faces
-npm run typecheck
+npm test -- src/renderer/src/features/faces/flight src/shared/flightRoute.test.ts
+npx tsc --noEmit -p tsconfig.web.json
 ```
 
-Stills (browser preview, frozen UTC):
+Stills:
 
 ```bash
 npx vite --config scripts/renderer-preview.vite.ts
@@ -37,8 +34,8 @@ node scripts/flight-stills.mjs
 
 ## Hard fail
 
-- Critic prefers the sticker / flat-arc still
-- Terminator ignores UTC or is a hard cartoon split
-- Strip numbers are decorative (fake 850 km/h, fake ETA)
-- Plane is a sticker on a zoomed disc
-- `faceComponent("flight")` is still the pending stub
+- Critic prefers the laggy globe / bezel instrument
+- Remaining clock is a decorative 10h hop instead of the session
+- No way to switch close vs whole-map
+- Ground speed ≥ 1000 kph
+- Lock shows Origin/Arrival picker boxes

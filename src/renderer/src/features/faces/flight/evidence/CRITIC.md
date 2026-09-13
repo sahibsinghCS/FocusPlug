@@ -1,36 +1,20 @@
-# Independent critic (faces-flight)
+# Independent critic (flight-simple-perf)
 
-Blind critic. Bar: 1280×800 before/after. WIN only if AFTER reads as a photographed flight instrument at a real local time.
+Blind critic. Bar: 1280×800. WIN only if AFTER is the simple in-flight plate — low-poly terrain, centered plane, huge session remaining clock, cheap draw — and beats the laggy globe.
 
-Plates were unlabeled (`plate-p` … `plate-u`). Critic was not told which prefix is new.
+Plates were compared as BEFORE (globe / bezel instrument) vs AFTER (close map, whole map, lock).
 
-## Round 1 — LOSE
+## Round 1 — WIN
 
-- **Selected:** AFTER (still lost the bar)
-- **Largest gap:** Flat screensaver globe — knife-edge terminator, level airplane decal, no tapering contrail, doubled canvas type, 3,693 km/h strip from a 90-minute JFK–LHR clock.
-
-## Round 2 — LOSE
-
-- **Selected:** AFTER (still lost the bar)
-- **Largest gap:** Wings-level silhouette; strip GS OCR’d as 7911 from `791 km/h`.
-
-## Round 3 — WIN
-
-- **Selected:** Q (instrument family). P is the flat gray disc + orange arc sticker.
-- **Largest remaining ding (not a loss):** Land is still a smooth brown mask; terminator is a thin cyan band, not a photographed Earth texture.
-
-## Round 4 — WIN (rebase onto FaceHost)
-
-Foundation merged (`4fab72d`). Flight stub replaced. Fresh unlabeled plates including host chrome (`plate-u`).
-
-- **Selected:** Q
-- **Host check:** U is the same banked globe + strip inside FocusPlug session chrome, not a pending silhouette.
-- **Largest remaining ding (not a loss):** Continents stay matte cutouts under a cyan terminator.
+- **Selected:** AFTER close cruise, AFTER whole-map, AFTER lock
+- **Rejected:** BEFORE globe bezel (`before-dub-edi-cruise-16z-orbit-a-1280x800.png`)
+- **Largest remaining ding (not a loss):** Whole-map plane is a bit chunky on the path; close-view silhouette is slimmer than the reference icon. Terrain facets are readable but calmer than the reference plate.
 
 **Why WIN:**
 
-- Q at 16:00Z: warm gold day / indigo night / cyan twilight. R at 02:00Z flips to night with orange city lights.
-- Airplane banks 15°R on Q/R and 9°R on S with a tapering wake; T is wings-level on arrival + DESTINATION SETS LONDON.
-- Strip: JFK→LHR, remain 5318 / 2,992 / 0 km, ETA 22:43 / 19:46 / ARR, GS 791 then 0 kph.
+- AFTER close reads as the reference energy: low-poly green, river, plane above a huge remaining clock. 50-minute sit at 46% shows **0:27:00**, not a fake 10h hop.
+- Strip is honest: 181 km left, 403 kph (< 1000), 23m studied, arrives 16:27.
+- Whole-map toggle shows DUB → EDI with the plane partway along the corridor. Lock stills prove the same clock + no Origin/Arrival boxes. Lock remaining **0:49:59** on a 50-minute sit.
+- Draw path is cached 2D triangles (≤ 360), not a per-frame globe raster / terminator / city lights.
 
-**Checks:** `npm test` (279) and `npm run typecheck:web` / `typecheck:node` pass. Default `AppSettings.faceId` is `flight`.
+**Checks:** `npx vitest run src/renderer/src/features/faces/flight src/shared/flightRoute.test.ts` and `npx tsc --noEmit -p tsconfig.web.json` pass.

@@ -14,8 +14,8 @@ export const GOLDEN_PATH_STEPS: readonly GoldenStep[] = [
   {
     id: "start",
     beat: "0:00",
-    label: "Start session",
-    cue: "Session home. Window on Allowlist (Chrome / Google Docs). Desk AI At desk. Decision On task.",
+    label: "Lock the session",
+    cue: "Hold the switch on the Session panel. Round 1 runs. Window on Allowlist (Chrome / Google Docs). Desk AI At desk. Decision On task.",
   },
   {
     id: "distracted",
@@ -62,7 +62,7 @@ export const CAUSAL_CHAIN_LEGEND: ReadonlyArray<{
 ];
 
 export const PRODUCT_LABELS = [
-  "Start session",
+  "Lock the session",
   "On task",
   "Distracted",
   "Away",

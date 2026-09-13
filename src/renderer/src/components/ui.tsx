@@ -33,7 +33,7 @@ export function Toggle(props: {
       onClick={() => props.onChange(!props.checked)}
       className={cn(
         "fp-btn relative h-5 w-9 shrink-0 rounded-full disabled:cursor-not-allowed disabled:opacity-40",
-        props.checked ? "bg-fp-lime" : "bg-[#3f4654]",
+        props.checked ? "bg-fp-focus" : "bg-[#3f4654]",
       )}
     >
       <span
@@ -59,7 +59,7 @@ export function PrimaryButton(props: {
       disabled={props.disabled}
       onClick={props.onClick}
       className={cn(
-        "fp-btn inline-flex h-8 items-center justify-center rounded-md bg-fp-lime px-3 text-[13px] font-semibold text-fp-mark-ink shadow-fp-lime hover:bg-[#e2ff6a] disabled:cursor-not-allowed disabled:opacity-40",
+        "fp-btn inline-flex h-8 items-center justify-center rounded-md bg-fp-focus px-3 text-[13px] font-semibold text-fp-mark-ink shadow-fp-focus hover:bg-[#e2ff6a] disabled:cursor-not-allowed disabled:opacity-40",
         props.className,
       )}
     >
@@ -222,7 +222,8 @@ export function StatusPill(props: {
   const body = (
     <>
       <Led tone={props.tone} live={props.live} />
-      <span className="hidden text-[10px] font-semibold uppercase tracking-[0.14em] text-fp-faint sm:inline">
+      {/* Below 1100px the labels would push the pills over the page tabs; the dot and value stay. */}
+      <span className="hidden text-[10px] font-semibold uppercase tracking-[0.14em] text-fp-faint min-[1100px]:inline">
         {props.label}
       </span>
       <span className="max-w-[9rem] truncate font-mono text-[11px] text-fp-ink tabular">
@@ -243,6 +244,7 @@ export function StatusPill(props: {
         onClick={props.onClick}
         className={classes}
         aria-label={`${props.label}: ${props.detail}`}
+        data-tip={props.label}
       >
         {body}
       </button>

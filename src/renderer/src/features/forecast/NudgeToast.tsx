@@ -15,7 +15,7 @@ export interface NudgeToastEvent {
 
 /**
  * The nudge — the zero-enforcement intervention. Auto-dismisses after 8 s and
- * sits BELOW the CountdownOverlay (z-40 vs z-50): the kill overlay is never
+ * sits BELOW the KillOverlay (z-40 vs z-50): the kill overlay is never
  * obstructed by a suggestion.
  */
 export function NudgeToast(props: {

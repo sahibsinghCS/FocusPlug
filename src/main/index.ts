@@ -25,6 +25,34 @@ let quitting = false;
 /** Bound so a hung plug/kill drain cannot hold the quit forever. */
 const STOP_ON_QUIT_TIMEOUT_MS = 5000;
 
+/**
+ * A nudge brings FocusPlug back to the front. Windows refuses focus() from a
+ * background app, so pin the window on top while focusing it, and flash the
+ * taskbar button in case focus is still denied.
+ */
+function revealMainWindow(): void {
+  const win = mainWindow;
+  if (win === null || win.isDestroyed()) {
+    return;
+  }
+  if (win.isMinimized()) {
+    win.restore();
+  }
+  win.show();
+  win.setAlwaysOnTop(true);
+  win.moveTop();
+  win.focus();
+  if (!win.isFocused()) {
+    win.flashFrame(true);
+    win.once("focus", () => win.flashFrame(false));
+  }
+  setTimeout(() => {
+    if (!win.isDestroyed()) {
+      win.setAlwaysOnTop(false);
+    }
+  }, 1500);
+}
+
 function broadcast(channel: string, payload: unknown): void {
   for (const win of BrowserWindow.getAllWindows()) {
     if (!win.isDestroyed() && !win.webContents.isDestroyed()) {
@@ -40,6 +68,7 @@ function createElectronPush(): SessionPush {
     focusSnapshot: (snap) => broadcast(IPC_PUSH.FOCUS_SNAPSHOT, snap),
     deskSnapshot: (snap) => broadcast(IPC_PUSH.DESK_SNAPSHOT, snap),
     sessionEvent: (event) => broadcast(IPC_PUSH.SESSION_EVENT, event),
+    nudge: (event) => broadcast(IPC_PUSH.NUDGE, event),
   };
 }
 
@@ -95,6 +124,9 @@ function registerIpc(
     return snap;
   });
   ipcMain.handle(IPC_INVOKE.DEMO_KILL, async () => controller.demoKill());
+  ipcMain.handle(IPC_INVOKE.DEMO_NUDGE, async (_event, kind: unknown) =>
+    controller.demoNudge(kind),
+  );
   ipcMain.handle(IPC_INVOKE.FORECAST_GET_STATE, () => forecast.getSnapshot());
 }
 
@@ -157,12 +189,7 @@ if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
   app.on("second-instance", () => {
-    if (mainWindow !== null && !mainWindow.isDestroyed()) {
-      if (mainWindow.isMinimized()) {
-        mainWindow.restore();
-      }
-      mainWindow.focus();
-    }
+    revealMainWindow();
   });
 
   app
@@ -173,6 +200,7 @@ if (!app.requestSingleInstanceLock()) {
         userDataDir: app.getPath("userData"),
         push: createElectronPush(),
         forecastPush: createForecastElectronPush(),
+        revealWindow: revealMainWindow,
       });
       session = runtime.session;
       registerIpc(runtime.session, runtime.plugs, runtime.forecast);

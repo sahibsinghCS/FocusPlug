@@ -139,7 +139,7 @@ export function ListPage(props: ListPageProps): JSX.Element {
             {message}
           </FieldMessage>
         ) : save.state.status === "saved" ? (
-          <p className="mt-1 text-[11px] text-fp-lime" aria-live="polite">
+          <p className="mt-1 text-[11px] text-fp-focus" aria-live="polite">
             Added
           </p>
         ) : save.state.status === "error" ? (
@@ -167,7 +167,7 @@ export function ListPage(props: ListPageProps): JSX.Element {
               key={entry.id}
               entry={entry}
               kind={props.kind}
-              accent={isAllow ? "lime" : "red"}
+              accent={isAllow ? "focus" : "red"}
               busy={rowBusy === entry.id}
               onToggle={async (enabled) => {
                 setRowBusy(entry.id);

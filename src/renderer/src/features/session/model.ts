@@ -60,7 +60,7 @@ export function decisionHeroCopy(decision: Decision, detail: string): DecisionHe
       decision,
       headline: "ON TASK",
       verb: "Armed",
-      tone: "lime",
+      tone: "focus",
       explanation: detail.trim().length > 0 ? detail : "Allowlisted focus and desk presence.",
     };
   }
@@ -78,7 +78,7 @@ export function decisionHeroCopy(decision: Decision, detail: string): DecisionHe
       decision,
       headline: "AWAY",
       verb: "Chair empty",
-      tone: "amber",
+      tone: "warn",
       explanation: detail.trim().length > 0 ? detail : "High-confidence desk absence.",
     };
   }
@@ -245,7 +245,7 @@ export function windowSensor(
       title,
       body,
       meta: "Allowlisted",
-      tone: "lime",
+      tone: "focus",
       live: true,
       empty: false,
       href: "#/allowlist",
@@ -257,7 +257,7 @@ export function windowSensor(
     title,
     body,
     meta: "Unmatched",
-    tone: "amber",
+    tone: "warn",
     live: true,
     empty: false,
     href: "#/allowlist",
@@ -282,7 +282,7 @@ export function deskSensor(desk: DeskSnapshot | null, modelId: DeskModelId): Sen
   const title = deskLabel(desk.label);
   const confidence = formatConfidence(desk.confidence);
   const webcam = desk.webcamEnabled ? "Webcam on" : "Webcam off";
-  const tone: Tone = desk.label === "at_desk" ? "lime" : desk.label === "away" ? "amber" : "mute";
+  const tone: Tone = desk.label === "at_desk" ? "focus" : desk.label === "away" ? "warn" : "mute";
   return {
     id: "desk",
     label: "Desk AI",
@@ -318,7 +318,7 @@ export function plugsSensor(plugs: readonly PlugView[]): SensorCardView {
       title: "None armed",
       body: "Outlets exist but Demo Kill will not cut them.",
       meta: plugStatusLine(plugs),
-      tone: "amber",
+      tone: "warn",
       live: false,
       empty: false,
       href: "#/plugs",
@@ -333,7 +333,7 @@ export function plugsSensor(plugs: readonly PlugView[]): SensorCardView {
     title: cut ? "Cut" : on ? "Power on" : plugStatusLine(plugs),
     body: `${names} — never the study PC`,
     meta: plugStatusLine(plugs),
-    tone: cut ? "red" : on ? "lime" : "amber",
+    tone: cut ? "red" : on ? "focus" : "warn",
     live: on,
     empty: false,
     href: "#/plugs",
@@ -463,19 +463,10 @@ export function stageHint(stage: TimelineStage): string {
   return "Unlock when back on task";
 }
 
-export function overlayConsequenceLines(plugs: readonly PlugView[]): {
-  apps: string;
-  plugs: string;
-} {
-  const armed = enabledPlugViews(plugs);
-  return {
-    apps: "Blocked apps will be force-quit",
-    plugs:
-      armed.length > 0
-        ? `Armed plugs will be cut (${armed.map((plug) => plug.name).join(", ")})`
-        : "No plugs armed — apps still die; study PC is never cut",
-  };
-}
+/*
+ * `overlayConsequenceLines` used to live here. The kill overlay moved into its
+ * own feature and took it with it — see features/kill/consequence.ts. One copy.
+ */
 
 /**
  * The overlay is a local preview (Settings "Preview overlay" or the
@@ -494,7 +485,7 @@ export function overlayAction(preview: boolean): { hint: string; label: string }
     };
   }
   return {
-    hint: "Return to an allowlisted app + at desk to cancel · Esc does not dismiss",
+    hint: "Back to an allowlisted app, at your desk, and this cancels · Esc does not dismiss",
     label: "Demo Kill — skip wait",
   };
 }

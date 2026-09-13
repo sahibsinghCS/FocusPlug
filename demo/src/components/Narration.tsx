@@ -48,7 +48,7 @@ function describePolicyEvent(event: PolicyEvent): FeedRow | null {
     };
   }
   if (event.type === "cancel_countdown") {
-    return { ts: 0, label: "cancel_countdown · recovered in time", tone: "lime", source: "policy" };
+    return { ts: 0, label: "cancel_countdown · recovered in time", tone: "focus", source: "policy" };
   }
   if (event.type === "kill") {
     return {
@@ -59,7 +59,7 @@ function describePolicyEvent(event: PolicyEvent): FeedRow | null {
     };
   }
   if (event.type === "unlock") {
-    return { ts: 0, label: "unlock · back on task", tone: "lime", source: "policy" };
+    return { ts: 0, label: "unlock · back on task", tone: "focus", source: "policy" };
   }
   return null;
 }

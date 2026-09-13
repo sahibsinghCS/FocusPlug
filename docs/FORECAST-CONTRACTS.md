@@ -179,6 +179,15 @@ export function stepEscalation(
 export function effectiveFuseSec(state: EscalationState, settings: EscalationSettings): number | null;
 ```
 
+> **`effectiveFuseSec` is advisory, not the authority.** It is the forecast's own
+> view of the fuse — what the pre-arm chip renders — and `forecastPrearmFuseSec`
+> still floors it. The number the policy engine actually burns is composed in
+> `src/main/session/fuseAuthority.ts` from AdaptiveFuse's personalised length:
+> `prearmed ? clamp(round(personal × 0.5), MIN_FUSE_SEC, personal) : personal`.
+> The two agree whenever the personal length equals the Settings fuse (every
+> install until the adaptive model has learned something) and can differ after
+> that. See [RECONCILIATION.md](RECONCILIATION.md).
+
 ## 2. IPC additions — `src/shared/ipc.ts` (exact strings)
 
 ```ts

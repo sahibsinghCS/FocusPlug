@@ -1,4 +1,5 @@
-import { DEFAULT_FACE_ID } from "./faces";
+import { DEFAULT_FACE_ID } from "./faces.ts";
+import { DEFAULT_FLIGHT_ARR, DEFAULT_FLIGHT_DEP } from "./flightRoute.ts";
 import type { AppSettings, SessionState } from "./ipc";
 import type { AppEntry } from "./types";
 
@@ -111,6 +112,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   webcamEnabled: true,
   deskModelId: "blazeface",
   faceId: DEFAULT_FACE_ID,
+  flightDep: DEFAULT_FLIGHT_DEP,
+  flightArr: DEFAULT_FLIGHT_ARR,
+  plugMode: "nudge",
   plugs: [],
   forecastEnabled: true,
   forecastPrearmEnabled: true,

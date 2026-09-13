@@ -159,8 +159,8 @@ export function InternalsPanel(props: {
         <p
           className={cn(
             "font-mono text-[12px]",
-            receipt.tone === "lime"
-              ? "text-fp-lime"
+            receipt.tone === "focus"
+              ? "text-fp-focus"
               : receipt.tone === "red"
                 ? "text-fp-red"
                 : "text-fp-amber",

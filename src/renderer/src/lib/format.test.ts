@@ -49,9 +49,27 @@ describe("chrome status labels", () => {
     expect(sessionChrome(live)).toEqual({
       label: "Session",
       detail: "On task",
-      tone: "lime",
+      tone: "focus",
       live: true,
     });
+  });
+
+  it("shows attention in place of at-desk when the model reports it", () => {
+    expect(deskChrome({ ...desk, attention: { label: "phone", confidence: 0.84 } })).toEqual({
+      label: "Desk AI",
+      detail: "On phone 84%",
+      tone: "warn",
+      live: false,
+    });
+    expect(deskChrome({ ...desk, attention: { label: "focused", confidence: 0.9 } })).toEqual({
+      label: "Desk AI",
+      detail: "Focused 90%",
+      tone: "focus",
+      live: true,
+    });
+    expect(
+      deskChrome({ ...desk, label: "away", attention: { label: "unfocused", confidence: 0.7 } }).detail,
+    ).toBe("Away 94%");
   });
 
   it("labels desk AI standby, live, and webcam-off", () => {
@@ -59,7 +77,7 @@ describe("chrome status labels", () => {
     expect(deskChrome(desk)).toEqual({
       label: "Desk AI",
       detail: "At desk 94%",
-      tone: "lime",
+      tone: "focus",
       live: true,
     });
     expect(deskChrome({ ...desk, webcamEnabled: false })).toEqual({
@@ -78,7 +96,7 @@ describe("chrome status labels", () => {
     expect(plugChrome([lamp])).toEqual({
       label: "Plugs",
       detail: "1 armed",
-      tone: "lime",
+      tone: "focus",
       live: true,
     });
     expect(plugChrome([{ ...lamp, powerOn: false }]).tone).toBe("red");

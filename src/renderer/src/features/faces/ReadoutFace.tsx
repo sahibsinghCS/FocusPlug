@@ -8,9 +8,9 @@ export function ReadoutFace(props: FaceProps): JSX.Element {
   const progress = clamp01(props.progress);
   const elapsed = formatFaceClock(props.elapsedMs);
   const remaining = formatFaceClock(props.remainingMs);
-  const phaseLabel = props.phase === "focus" ? "FOCUS" : props.phase === "break" ? "FUSE" : "STANDBY";
+  const phaseLabel = props.phase === "focus" ? "FOCUS" : props.phase === "break" ? "BREAK" : "STANDBY";
   const primary = props.phase === "break" ? remaining : elapsed;
-  const primaryHint = props.phase === "break" ? "Remaining on fuse" : "Elapsed this session";
+  const primaryHint = props.phase === "break" ? "Remaining on break" : "Elapsed this session";
   const secondary = props.phase === "break" ? elapsed : remaining;
   const secondaryHint = props.phase === "break" ? "Elapsed" : "Remaining on block";
 

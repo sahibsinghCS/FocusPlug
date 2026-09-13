@@ -1,54 +1,13 @@
-import {
-  Component,
-  useEffect,
-  useRef,
-  useState,
-  type JSX,
-  type ReactNode,
-  type RefObject,
-} from "react";
+import { Component, useRef, type JSX, type ReactNode } from "react";
 import { FACE_CATALOG, faceMeta, type FaceId } from "@shared/faces";
 import { cn } from "../../lib/cn";
 import { FacePicker } from "./FacePicker";
 import { faceComponent } from "./registry";
 import type { FaceProps } from "./types";
+import { useHostSize } from "./useHostSize";
 import "./faces.css";
 
-const FALLBACK_SIZE = { width: 960, height: 300 };
-
-function useHostSize(ref: RefObject<HTMLElement | null>): { width: number; height: number } {
-  const [size, setSize] = useState(FALLBACK_SIZE);
-
-  useEffect(() => {
-    const node = ref.current;
-    if (!node || typeof ResizeObserver === "undefined") {
-      return;
-    }
-    const apply = (width: number, height: number): void => {
-      const nextWidth = Math.max(1, Math.round(width));
-      const nextHeight = Math.max(1, Math.round(height));
-      setSize((current) =>
-        current.width === nextWidth && current.height === nextHeight
-          ? current
-          : { width: nextWidth, height: nextHeight },
-      );
-    };
-    apply(node.clientWidth, node.clientHeight);
-    const observer = new ResizeObserver((entries) => {
-      const box = entries[0]?.contentRect;
-      if (!box) {
-        return;
-      }
-      apply(box.width, box.height);
-    });
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [ref]);
-
-  return size;
-}
-
-class FaceErrorBoundary extends Component<
+export class FaceErrorBoundary extends Component<
   { faceId: FaceId; children: ReactNode },
   { error: string | null; faceId: FaceId }
 > {

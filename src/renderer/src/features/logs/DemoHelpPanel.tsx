@@ -40,7 +40,7 @@ export function DemoHelpPanel(props: {
               className={cn(
                 "mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border text-[10px]",
                 step.seen
-                  ? "border-fp-lime/40 bg-fp-lime/15 text-fp-lime"
+                  ? "border-fp-focus/40 bg-fp-focus/15 text-fp-focus"
                   : "border-fp-line text-fp-faint",
               )}
               aria-hidden="true"

@@ -58,7 +58,7 @@ function digString(root: Record<string, unknown>, ...path: string[]): string | n
 export function bandTone(band: ForecastBand): Tone {
   if (band === "prearm") return "red";
   if (band === "elevated") return "amber";
-  return "lime";
+  return "focus";
 }
 
 export function bandLabel(band: ForecastBand): string {
@@ -192,7 +192,7 @@ export function receiptLine(events: readonly ForecastEvent[]): ReceiptView | nul
       view = {
         icon: "✔",
         text: `called it ${formatLeadSec(event.leadSec)} s early`,
-        tone: "lime",
+        tone: "focus",
         ts: event.ts,
       };
     } else if (event.type === "forecast_miss") {
@@ -218,7 +218,7 @@ export function formatLeadSec(leadSec: number): string {
 }
 
 /**
- * Lead seconds for the CountdownOverlay receipt line — the newest
+ * Lead seconds for the KillOverlay receipt line — the newest
  * `forecast_hit` recent enough to belong to the burning fuse.
  */
 export function overlayLeadSec(

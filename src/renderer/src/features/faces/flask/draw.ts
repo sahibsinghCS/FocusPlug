@@ -1,5 +1,6 @@
 import { formatFaceClock } from "../clock";
 import type { FacePhase } from "@shared/faces";
+import { isFaceThumb } from "../thumb";
 import {
   FLASK_GEOM,
   bezierPoint,
@@ -571,5 +572,7 @@ export function drawFlaskFace(
   }
 
   ctx.restore();
-  paintMeta(ctx, width, height, fill, input.remainingMs, leaking, input.phase);
+  if (!isFaceThumb(height)) {
+    paintMeta(ctx, width, height, fill, input.remainingMs, leaking, input.phase);
+  }
 }

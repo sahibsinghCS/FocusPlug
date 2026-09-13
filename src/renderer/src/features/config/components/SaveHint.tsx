@@ -14,7 +14,7 @@ export function SaveHint(props: { state: SaveStatus; savedLabel?: string }): JSX
   }
   if (props.state.status === "saved") {
     return (
-      <p className="text-[11px] text-fp-lime" aria-live="polite">
+      <p className="text-[11px] text-fp-focus" aria-live="polite">
         {props.savedLabel ?? "Saved"}
       </p>
     );

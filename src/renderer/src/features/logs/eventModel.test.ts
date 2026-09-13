@@ -37,7 +37,7 @@ describe("presentLog", () => {
 
     const unlock = views.find((view) => view.kind === "unlock");
     expect(unlock?.title).toBe("Unlocked");
-    expect(unlock?.tone).toBe("lime");
+    expect(unlock?.tone).toBe("focus");
     expect(unlock?.stage).toBe("recovery");
 
     const demo = views.find((view) => view.kind === "demo");
@@ -80,7 +80,7 @@ describe("presentLog", () => {
     expect(views[0]?.kindLabel).toBe("Countdown");
     expect(views[1]?.kindLabel).toBe("Window");
     expect(views[2]?.title).toBe("At desk");
-    expect(views[2]?.tone).toBe("lime");
+    expect(views[2]?.tone).toBe("focus");
     expect(views[2]?.detail).toBe("at_desk · 94%");
   });
 });
@@ -173,7 +173,7 @@ describe("groupLogEvents", () => {
 
 describe("golden path", () => {
   it("uses real product labels and no invented runtime metrics", () => {
-    expect(PRODUCT_LABELS).toContain("Start session");
+    expect(PRODUCT_LABELS).toContain("Lock the session");
     expect(PRODUCT_LABELS).toContain("On task");
     expect(PRODUCT_LABELS).toContain("Demo Kill");
     expect(GOLDEN_PATH_STEPS.every((step) => /\d/.test(step.beat))).toBe(true);

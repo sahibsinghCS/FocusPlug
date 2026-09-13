@@ -12,8 +12,8 @@ import {
   findSessionStartedAt,
   formatElapsed,
   latchSessionStartedAt,
+  isEnforcementEvent,
   overlayAction,
-  overlayConsequenceLines,
   plugsSensor,
   resolveAppName,
   sessionClockView,
@@ -143,7 +143,7 @@ describe("sensors", () => {
     expect(live.title).toBe("At desk");
     expect(live.body).toContain("94%");
     expect(live.meta).toBe("BlazeFace");
-    expect(live.tone).toBe("lime");
+    expect(live.tone).toBe("focus");
   });
 
   it("reports enabled plug state without fabricating outlets", () => {
@@ -156,7 +156,7 @@ describe("sensors", () => {
     expect(armed.empty).toBe(false);
     expect(armed.body).toContain("Desk lamp");
     expect(armed.body).toContain("never the study PC");
-    expect(armed.tone).toBe("lime");
+    expect(armed.tone).toBe("focus");
   });
 });
 
@@ -184,6 +184,19 @@ describe("timeline preview", () => {
     expect(classifySessionEvent({ ts: 6, kind: "countdown", detail: "cancel_countdown" })).toBe(
       "recovery",
     );
+  });
+
+  it("files a forecast pre-arm as a cause and keeps it in the timeline", () => {
+    // The forecast is what explains the fuse being short, so it has to sit in
+    // the cause band next to the drift it predicted, not be filtered out.
+    const prearm: SessionEvent = {
+      ts: 7,
+      kind: "forecast",
+      detail: "forecast_prearm · risk 0.91 · fuse 10s -> 5s",
+    };
+    expect(classifySessionEvent(prearm)).toBe("cause");
+    expect(isEnforcementEvent(prearm)).toBe(true);
+    expect(buildTimelinePreview([prearm]).events).toHaveLength(1);
   });
 
   it("builds a preview from real events and ignores list-editor noise", () => {
@@ -220,16 +233,8 @@ describe("timeline preview", () => {
   });
 });
 
-describe("overlay consequence", () => {
-  it("names app kill and plug cut explicitly", () => {
-    const armed = overlayConsequenceLines([lamp]);
-    expect(armed.apps).toBe("Blocked apps will be force-quit");
-    expect(armed.plugs).toContain("Desk lamp");
-    const none = overlayConsequenceLines([]);
-    expect(none.plugs).toMatch(/No plugs armed/);
-    expect(none.plugs).toMatch(/study PC is never cut/);
-  });
-});
+// `overlayConsequenceLines` now lives in features/kill/consequence.ts and is
+// covered by features/kill/consequence.test.ts.
 
 describe("overlay preview action", () => {
   it("treats the overlay as a local preview only when main reports no live fuse", () => {

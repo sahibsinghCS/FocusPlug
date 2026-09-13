@@ -2,26 +2,26 @@ import type { JSX, ReactNode } from "react";
 import { cn } from "../../../lib/cn";
 
 export function Notice(props: {
-  tone: "amber" | "red" | "lime" | "mute";
+  tone: "warn" | "red" | "focus" | "mute";
   title?: string;
   children: ReactNode;
   role?: "note" | "alert" | "status";
 }): JSX.Element {
   const palette =
-    props.tone === "amber"
-      ? "border-fp-amber/40 bg-fp-amber/[0.08]"
+    props.tone === "warn"
+      ? "border-fp-warn/40 bg-fp-warn/[0.08]"
       : props.tone === "red"
         ? "border-fp-red/35 bg-fp-red/[0.08]"
-        : props.tone === "lime"
-          ? "border-fp-lime/30 bg-fp-lime/[0.06]"
+        : props.tone === "focus"
+          ? "border-fp-focus/30 bg-fp-focus/[0.06]"
           : "border-fp-line bg-fp-panel";
   const titleColor =
-    props.tone === "amber"
-      ? "text-fp-amber"
+    props.tone === "warn"
+      ? "text-fp-warn"
       : props.tone === "red"
         ? "text-fp-red"
-        : props.tone === "lime"
-          ? "text-fp-lime"
+        : props.tone === "focus"
+          ? "text-fp-focus"
           : "text-fp-faint";
   return (
     <aside className={cn("rounded-lg border px-3 py-2.5", palette)} role={props.role ?? "note"}>

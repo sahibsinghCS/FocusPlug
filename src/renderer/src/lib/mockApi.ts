@@ -21,7 +21,9 @@ import {
   type SessionState,
 } from "@shared/ipc";
 import { isFaceId } from "@shared/faces";
+import { isFlightIata, normalizeFlightPair } from "@shared/flightRoute";
 import { isDeskModelId } from "./plugsUi";
+import { isPlugMode, type NudgeEvent, type NudgeKind } from "@shared/nudge";
 import { readUrlScene } from "./urlScene";
 import { describeForecastEvent } from "../features/forecast/model";
 import {
@@ -174,6 +176,8 @@ function loadStoredSettings(): AppSettings {
         : DEFAULT_SETTINGS.webcamEnabled,
     deskModelId: isDeskModelId(record.deskModelId) ? record.deskModelId : DEFAULT_SETTINGS.deskModelId,
     faceId: isFaceId(record.faceId) ? record.faceId : DEFAULT_SETTINGS.faceId,
+    ...normalizeFlightPair(record.flightDep, record.flightArr),
+    plugMode: isPlugMode(record.plugMode) ? record.plugMode : DEFAULT_SETTINGS.plugMode,
     forecastEnabled:
       typeof record.forecastEnabled === "boolean"
         ? record.forecastEnabled
@@ -243,6 +247,14 @@ export function createMockApi(): FocusPlugApi {
   const focusBus = createBus<FocusSnapshot>();
   const deskBus = createBus<DeskSnapshot>();
   const logBus = createBus<SessionEvent>();
+  const nudgeBus = createBus<NudgeEvent>();
+
+  // Preview hook: run `__focusplugNudge("phone")` in the console to see a nudge without Electron.
+  if (typeof window !== "undefined") {
+    (window as unknown as { __focusplugNudge?: (kind: NudgeKind, app?: string) => void }).__focusplugNudge =
+      (kind, app) => nudgeBus.emit({ ts: now(), kind, ...(app ? { app } : {}) });
+  }
+
   const forecastBus = createBus<ForecastSnapshot>();
   const forecastEventBus = createBus<ForecastEvent>();
 
@@ -533,6 +545,12 @@ export function createMockApi(): FocusPlugApi {
       if (patch.faceId !== undefined && !isFaceId(patch.faceId)) {
         throw new Error("faceId must be a known session face");
       }
+      if (patch.flightDep !== undefined && !isFlightIata(patch.flightDep)) {
+        throw new Error("flightDep must be a curated IATA code");
+      }
+      if (patch.flightArr !== undefined && !isFlightIata(patch.flightArr)) {
+        throw new Error("flightArr must be a curated IATA code");
+      }
       if (patch.plugs) {
         for (const plug of patch.plugs) {
           if (plug.isStudyPc !== false) {
@@ -545,6 +563,10 @@ export function createMockApi(): FocusPlugApi {
         ...settings,
         ...patch,
         plugs: clonePlugs(patch.plugs ?? settings.plugs),
+        ...normalizeFlightPair(
+          patch.flightDep ?? settings.flightDep,
+          patch.flightArr ?? settings.flightArr,
+        ),
       };
       persistSettings();
       if (settings.forecastEnabled !== forecastWasEnabled) {
@@ -649,12 +671,17 @@ export function createMockApi(): FocusPlugApi {
       appendLog("kill", "Demo Kill · discord.exe");
       return result;
     },
+    demoNudge: async (kind) => {
+      appendLog("demo", `Test nudge · ${kind}`);
+      nudgeBus.emit({ ts: now(), kind });
+    },
     forecastGetState: async () => forecastSnap,
     onSessionState: (cb) => sessionBus.on(cb),
     onPolicyEvent: (cb) => policyBus.on(cb),
     onFocusSnapshot: (cb) => focusBus.on(cb),
     onDeskSnapshot: (cb) => deskBus.on(cb),
     onSessionEvent: (cb) => logBus.on(cb),
+    onNudge: (cb) => nudgeBus.on(cb),
     onForecastSnapshot: (cb) => forecastBus.on(cb),
     onForecastEvent: (cb) => forecastEventBus.on(cb),
   };

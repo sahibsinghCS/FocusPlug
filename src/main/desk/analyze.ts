@@ -86,6 +86,10 @@ export async function analyzeDeskFrame(options: {
         label: inference.label,
         confidence: inference.confidence,
         webcamEnabled: true,
+        // Contract: attention is only reported alongside at_desk.
+        ...(inference.label === "at_desk" && inference.attention
+          ? { attention: { ...inference.attention } }
+          : {}),
       },
       debug,
     };

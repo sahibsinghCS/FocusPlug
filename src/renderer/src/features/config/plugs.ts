@@ -169,7 +169,7 @@ export function formatProbe(snap: PlugSnapshot): string {
 export function plugStateLabel(plug: PlugView): {
   online: string;
   power: string;
-  tone: "lime" | "red" | "amber" | "mute";
+  tone: "focus" | "red" | "warn" | "mute";
 } {
   if (!plug.probed) {
     return { online: "Not tested", power: "—", tone: "mute" };
@@ -181,10 +181,10 @@ export function plugStateLabel(plug: PlugView): {
     return { online: "Offline", power: plug.powerOn === false ? "Power off" : "Unknown", tone: "mute" };
   }
   if (plug.powerOn === true) {
-    return { online: "Online", power: "Power on", tone: "lime" };
+    return { online: "Online", power: "Power on", tone: "focus" };
   }
   if (plug.powerOn === false) {
     return { online: "Online", power: "Power off", tone: "red" };
   }
-  return { online: "Online", power: "Unknown", tone: "amber" };
+  return { online: "Online", power: "Unknown", tone: "warn" };
 }

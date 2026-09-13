@@ -5,6 +5,7 @@ import { extractDeskFeatures } from "../../src/main/desk/model/your-model";
 import {
   dataRoot,
   featureShardFile,
+  featureShardFiles,
   loadPackLabels,
   mapLabel,
   type FeatureRow,
@@ -37,9 +38,11 @@ async function main(): Promise<void> {
   const root = dataRoot();
   const outFile = featureShardFile(shard, of);
 
+  // Any shard's cache counts: a pack update can move items between shards, and
+  // an image already extracted elsewhere must not be extracted again.
   const done = new Set<string>();
-  if (existsSync(outFile)) {
-    for (const line of readFileSync(outFile, "utf8").split("\n")) {
+  for (const file of featureShardFiles()) {
+    for (const line of readFileSync(file, "utf8").split("\n")) {
       const trimmed = line.trim();
       if (trimmed) {
         done.add((JSON.parse(trimmed) as FeatureRow).path);

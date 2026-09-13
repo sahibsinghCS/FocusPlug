@@ -1,5 +1,5 @@
-import { useEffect, useState, type JSX } from "react";
-import { deskChrome, formatHmClock, plugChrome, sessionChrome } from "../lib/format";
+import type { JSX } from "react";
+import { deskChrome, plugChrome, sessionChrome } from "../lib/format";
 import { navigate } from "../lib/routes";
 import { useAppState } from "../state/AppState";
 import { StatusPill } from "./ui";
@@ -39,17 +39,4 @@ export function StatusCluster(): JSX.Element {
       />
     </div>
   );
-}
-
-export function useClock(): string {
-  const [now, setNow] = useState(() => formatHmClock(Date.now()));
-
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      setNow(formatHmClock(Date.now()));
-    }, 1000);
-    return () => window.clearInterval(id);
-  }, []);
-
-  return now;
 }
