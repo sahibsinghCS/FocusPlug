@@ -18,7 +18,7 @@ import type {
 
 export type { FaceId, FacePhase } from "./faces";
 export type { ForecastBand, ForecastEvent, ForecastSnapshot } from "./forecast/types";
-export type { NudgeEvent, NudgeKind, PlugMode } from "./nudge";
+export type { DeskDrift, NudgeEvent, NudgeKind, PauseKind, PlugMode } from "./nudge";
 export type {
   FocusPlanLedger,
   FocusPlanState,
@@ -117,6 +117,40 @@ export interface AppSettings {
   forecastPrearmRisk: number;
   /** Shortened fuse while pre-armed. Clamped [3, 600]; runtime caps at countdownSec. */
   forecastPrearmFuseSec: number;
+  /**
+   * Stop the study clock when the presence head confirms they walked off.
+   *
+   * On by default, because time out of the room is not study time and the
+   * presence head trained in this repo is right on 92.5% of the frames it
+   * calls `away` (89.44% 3-way on the diverse-stock slice).
+   *
+   * A preference, NOT a capability. It can only act on a presence model whose
+   * `away` has earned a stopped clock — `deskModelMayPauseOnAway`, which today
+   * means `deskModelId: "custom"` alone. The shipped `blazeface` default is a
+   * face detector with no `away` class: it answers `away` for any frame with
+   * no usable face, is right on 42.1% of those calls and does it to 66.7% of
+   * the at-desk frames in the repo's own held-out eval. There an `away`
+   * nudges and never stops the clock, whatever this is set to.
+   */
+  pauseOnAwayEnabled: boolean;
+  /**
+   * Stop the study clock when the attention head confirms a phone. OFF by
+   * default, and switchable on its own, because that head is the weak one
+   * (50-69% phone recall, ~17% of non-phone photos called "phone") and pausing
+   * a student who is working is the worst failure this feature has.
+   */
+  pauseOnPhoneEnabled: boolean;
+  /**
+   * Presence-head floor for an away pause. Clamped [0.50, 0.95].
+   *
+   * A floor is a guard only where confidence is a score. It is one on the
+   * trained head; it is not one on `blazeface`, whose `away` confidence is the
+   * constant 0.90/0.92 — which is why the model gate above, and not this
+   * number, is what keeps a default install's clock running.
+   */
+  pauseAwayConfidence: number;
+  /** Attention-head floor for a phone pause. Clamped [0.50, 0.99], >= away + 0.05. */
+  pausePhoneConfidence: number;
   /** Focus Plan master switch. Off reproduces today's screens exactly. */
   focusPlanEnabled: boolean;
   /** Let progression raise or lower the target. Off keeps the measurement

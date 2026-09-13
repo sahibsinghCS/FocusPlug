@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { DESK_FEATURE_VERSION } from "../../src/main/desk/model/your-model";
+import { ATTENTION_PROXY_BUCKET } from "./attention-proxies";
 import { FIRST_PERSON_BUCKET } from "./first-person";
 
 /**
@@ -81,15 +82,26 @@ export function featureShardFiles(): string[] {
     .map((name) => join(dir, name));
 }
 
+/**
+ * Buckets that exist for the ATTENTION head alone: first-person webcam clips
+ * and the stock attention proxies. Neither is in the pack's `labels.json`, and
+ * neither may reach the presence head.
+ */
+export const ATTENTION_ONLY_BUCKETS: ReadonlySet<string> = new Set([
+  FIRST_PERSON_BUCKET,
+  ATTENTION_PROXY_BUCKET,
+]);
+
 export interface ReadFeatureRowsOptions {
   /**
-   * First-person webcam captures (`bucket: "first_person"`) are EXCLUDED by
-   * default. The presence head, its eval and every diagnostic in this folder
-   * were trained and measured without them, and appending rows to the shared
-   * feature cache must not silently move their numbers. The attention trainer
-   * and the attention eval opt in.
+   * Attention-only rows (`bucket` in `ATTENTION_ONLY_BUCKETS`: first-person
+   * webcam captures and stock attention proxies) are EXCLUDED by default. The
+   * presence head, its eval and every diagnostic in this folder were trained
+   * and measured without them, and appending rows to the shared feature cache
+   * must not silently move their numbers. The attention trainer and the
+   * attention eval opt in.
    */
-  includeFirstPerson?: boolean;
+  includeAttentionOnly?: boolean;
 }
 
 export function readFeatureRows(
@@ -105,7 +117,7 @@ export function readFeatureRows(
         continue;
       }
       const row = JSON.parse(trimmed) as FeatureRow;
-      if (options.includeFirstPerson !== true && row.bucket === FIRST_PERSON_BUCKET) {
+      if (options.includeAttentionOnly !== true && ATTENTION_ONLY_BUCKETS.has(row.bucket)) {
         continue;
       }
       if (!seen.has(row.path)) {

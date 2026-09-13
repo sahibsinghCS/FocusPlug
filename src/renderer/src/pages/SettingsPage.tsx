@@ -2,6 +2,7 @@ import { useState, type JSX } from "react";
 import { FACE_CATALOG, type FaceId } from "@shared/faces";
 import { FORECAST_PARAM_COUNT } from "@shared/forecast";
 import type { DeskModelId } from "@shared/ipc";
+import { deskModelMayPauseOnAway } from "@shared/nudge";
 import { Field, GhostButton, Toggle } from "../components/ui";
 import { pageCopy } from "../lib/routes";
 import {
@@ -31,6 +32,12 @@ export function SettingsPage(): JSX.Element {
   const [faceError, setFaceError] = useState<string | null>(null);
   const readiness = customReadiness();
   const focusPlan = useFocusPlan();
+  /**
+   * Whether the presence model they are running has earned a stopped clock.
+   * The switch below is a preference and is stored either way; this is what
+   * decides whether it can do anything, so the card has to say so.
+   */
+  const awayPauseEarned = deskModelMayPauseOnAway(settings.deskModelId);
 
   async function onFace(id: FaceId): Promise<void> {
     if (id === settings.faceId || faceSave.saving) {
@@ -86,7 +93,7 @@ export function SettingsPage(): JSX.Element {
       <section className="fp-card space-y-4 p-4">
         <Field
           label="Countdown"
-          hint="Seconds between distracted/away and force-quit. Cancels if you return to an allowlisted app."
+          hint="Seconds between distracted/away and force-quit. Cancels if you return to an allowlisted app. Stopping the clock when you leave waits for this countdown, so a longer fuse delays that pause rather than cancelling the force-quit."
         >
           <div className="flex items-center gap-3">
             <input
@@ -274,6 +281,120 @@ export function SettingsPage(): JSX.Element {
       <section className="fp-card space-y-4 p-4">
         <div className="flex items-center justify-between gap-4">
           <div>
+            <p className="text-[13px] font-medium">Stop the clock when you leave</p>
+            <p className="mt-0.5 text-[12px] text-fp-mute">
+              Fifteen unbroken seconds of away and the Pomodoro clock pauses — and stays paused
+              until you start it again, so time out of the room is not study time. The force-quit
+              always goes first: while a countdown is burning the clock waits for it, so setting
+              Countdown above fifteen seconds delays this pause and never cancels the kill. Only
+              the desk model trained in this repo is allowed to stop your clock: on the held-out
+              eval it is right 92% of the times it says away.
+            </p>
+          </div>
+          <Toggle
+            checked={settings.pauseOnAwayEnabled}
+            onChange={(next) => {
+              void app.patchSettings({ pauseOnAwayEnabled: next });
+            }}
+            label="Stop the clock when you leave"
+          />
+        </div>
+
+        {awayPauseEarned ? null : (
+          <Notice tone="warn" title="Nudge only on this desk model" role="status">
+            {settings.deskModelId === "blazeface" ? (
+              <p>
+                BlazeFace is a face detector, not an away model — it answers &ldquo;away&rdquo; for
+                any frame it cannot find a face in, so a dim room, a bad angle or a head turned
+                down reads as an empty chair. On the held-out eval it is right 42% of the times it
+                says away, against 92% for the trained model, and it says it about two thirds of
+                the frames of someone sitting right there.
+              </p>
+            ) : (
+              <p>
+                The stub model is a fixture: it answers uncertain to everything and has no eval
+                behind it, so nothing it says is allowed to stop a clock.
+              </p>
+            )}
+            <p className="mt-1">
+              So leaving your desk still pulls you back — window, overlay, lamp — and never stops
+              your clock here, whatever this switch says. Set <b>Desk model</b> to
+              <span className="font-mono"> custom</span> below and the switch takes effect.
+            </p>
+          </Notice>
+        )}
+
+        <div className="flex items-center justify-between gap-4 border-t border-fp-line pt-4">
+          <div>
+            <p className="text-[13px] font-medium">Stop the clock on your phone</p>
+            <p className="mt-0.5 text-[12px] text-fp-mute">
+              Off by default, on purpose. The attention model catches 50-69% of phones and calls
+              about 17% of phone-free photos &ldquo;phone&rdquo;, and pausing someone who is
+              working is the worst thing this can do. On, it needs thirty unbroken seconds
+              rather than fifteen, and the higher floor below. It still nudges either way.
+            </p>
+          </div>
+          <Toggle
+            checked={settings.pauseOnPhoneEnabled}
+            onChange={(next) => {
+              void app.patchSettings({ pauseOnPhoneEnabled: next });
+            }}
+            label="Stop the clock on your phone"
+          />
+        </div>
+
+        <Field
+          label="Away pause floor"
+          hint="Presence confidence every one of those readings must clear before the clock stops."
+        >
+          <div className="flex items-center gap-3">
+            <input
+              type="range"
+              min={0.5}
+              max={0.95}
+              step={0.01}
+              aria-label="Away pause confidence floor"
+              value={settings.pauseAwayConfidence}
+              disabled={!settings.pauseOnAwayEnabled}
+              onChange={(event) => {
+                void app.patchSettings({ pauseAwayConfidence: Number(event.target.value) });
+              }}
+              className="h-1 flex-1 accent-fp-amber disabled:opacity-40"
+            />
+            <span className="w-12 font-mono text-[13px] tabular">
+              {Math.round(settings.pauseAwayConfidence * 100)}%
+            </span>
+          </div>
+        </Field>
+
+        <Field
+          label="Phone pause floor"
+          hint="Attention confidence for a phone pause. Kept at least 5 points above the away floor — the weaker model always has to be surer."
+        >
+          <div className="flex items-center gap-3">
+            <input
+              type="range"
+              min={0.5}
+              max={0.99}
+              step={0.01}
+              aria-label="Phone pause confidence floor"
+              value={settings.pausePhoneConfidence}
+              disabled={!settings.pauseOnPhoneEnabled}
+              onChange={(event) => {
+                void app.patchSettings({ pausePhoneConfidence: Number(event.target.value) });
+              }}
+              className="h-1 flex-1 accent-fp-red disabled:opacity-40"
+            />
+            <span className="w-12 font-mono text-[13px] tabular">
+              {Math.round(settings.pausePhoneConfidence * 100)}%
+            </span>
+          </div>
+        </Field>
+      </section>
+
+      <section className="fp-card space-y-4 p-4">
+        <div className="flex items-center justify-between gap-4">
+          <div>
             <p className="text-[13px] font-medium">Focus Plan</p>
             <p className="mt-0.5 text-[12px] text-fp-mute">
               Recommends a round length before you start, debriefs it after, and tracks one
@@ -433,6 +554,7 @@ export function SettingsPage(): JSX.Element {
           {(
             [
               ["phone", "Test phone nudge"],
+              ["away", "Test away nudge"],
               ["blocked", "Test blocked-app nudge"],
             ] as const
           ).map(([kind, label]) => (

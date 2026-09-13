@@ -203,6 +203,24 @@ function loadStoredSettings(): AppSettings {
       Number.isFinite(record.forecastPrearmFuseSec)
         ? record.forecastPrearmFuseSec
         : DEFAULT_SETTINGS.forecastPrearmFuseSec,
+    pauseOnAwayEnabled:
+      typeof record.pauseOnAwayEnabled === "boolean"
+        ? record.pauseOnAwayEnabled
+        : DEFAULT_SETTINGS.pauseOnAwayEnabled,
+    pauseOnPhoneEnabled:
+      typeof record.pauseOnPhoneEnabled === "boolean"
+        ? record.pauseOnPhoneEnabled
+        : DEFAULT_SETTINGS.pauseOnPhoneEnabled,
+    pauseAwayConfidence:
+      typeof record.pauseAwayConfidence === "number" &&
+      Number.isFinite(record.pauseAwayConfidence)
+        ? record.pauseAwayConfidence
+        : DEFAULT_SETTINGS.pauseAwayConfidence,
+    pausePhoneConfidence:
+      typeof record.pausePhoneConfidence === "number" &&
+      Number.isFinite(record.pausePhoneConfidence)
+        ? record.pausePhoneConfidence
+        : DEFAULT_SETTINGS.pausePhoneConfidence,
     focusPlanEnabled:
       typeof record.focusPlanEnabled === "boolean"
         ? record.focusPlanEnabled
@@ -261,10 +279,16 @@ export function createMockApi(): FocusPlugApi {
   const logBus = createBus<SessionEvent>();
   const nudgeBus = createBus<NudgeEvent>();
 
-  // Preview hook: run `__focusplugNudge("phone")` in the console to see a nudge without Electron.
+  // Preview hook: run `__focusplugNudge("away")` in the console to see a nudge
+  // without Electron, or `__focusplugNudge("away", undefined, true)` to see the
+  // one that stops the clock.
   if (typeof window !== "undefined") {
-    (window as unknown as { __focusplugNudge?: (kind: NudgeKind, app?: string) => void }).__focusplugNudge =
-      (kind, app) => nudgeBus.emit({ ts: now(), kind, ...(app ? { app } : {}) });
+    (
+      window as unknown as {
+        __focusplugNudge?: (kind: NudgeKind, app?: string, pause?: boolean) => void;
+      }
+    ).__focusplugNudge = (kind, app, pause) =>
+      nudgeBus.emit({ ts: now(), kind, ...(app ? { app } : {}), ...(pause ? { pause: true } : {}) });
   }
 
   const forecastBus = createBus<ForecastSnapshot>();

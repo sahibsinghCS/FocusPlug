@@ -48,6 +48,26 @@ KLAP / generic HTTP), and a session log that keeps the causal chain. The study
 PC is hard-denied at the plug layer and cannot be powered off. Demo Kill skips
 the fuse for filming.
 
+One consequence is subtraction rather than force. Fifteen unbroken seconds of
+`away` **stops the study clock**, and it stays stopped until the student presses
+*Start the clock again* — time out of the room is not study time. Which model
+said `away` decides whether that is allowed: the presence head trained here is
+right on 92.5% of its `away` calls, the shipped BlazeFace detector on 42.1% of
+them (it has no `away` class — it answers `away` for any frame with no usable
+face, including two thirds of the at-desk frames in our own eval). So the pause
+needs `deskModelId: "custom"`, structurally, and **a default install stops no
+clocks**: leaving the room nudges there and nothing more. The same rule for a
+**phone** runs on the attention head and therefore ships **off** even on the
+custom model, needing five readings across thirty seconds above a higher floor
+when it is switched on. `unfocused` can never stop the clock at any setting. A stopped clock releases the
+lock exactly as the Pause button does — nothing is enforced and the camera is
+released while it sits there — so this is the one place the app is deliberately
+*less* aggressive, and the rule is tuned to miss rather than to fire wrongly.
+Because a stopped clock stops the session, and a stopped session throws away a
+burning fuse, the pause is also **held while a kill countdown burns**: the
+force-quit goes first at every Countdown setting, not just at the shipped 10 s
+one. Rule, floors, the fuse gate and defaults: `docs/CONTRACTS.md § Drift pause`.
+
 ## The fuse authority (the one design decision of the merge)
 
 `main` shipped the adaptive fuse; this branch shipped the forecast pre-arm.
@@ -114,7 +134,17 @@ work. Rationale for all of the above: `docs/RECONCILIATION.md`.
   56.6% and the shipped head 60.8%, both under the 65.7% always-`focused`
   baseline; on the current 200-image eval 64.0% (phone F1 68.5%) vs a 48.5%
   baseline, at the cost of calling "phone" on ~17% of non-phone photos. Claim
-  the pipeline, never phone detection.
+  the pipeline, never phone detection. Held out on a third set as well now — the
+  86 labelled eval images of 225 stock proxies collected against its known
+  failure modes — where it scores 57.0% against an always-`focused` baseline of
+  **83.7%**. **Training** on the other 126 was tried and rejected: five seeds
+  each, nearly 8 points of mean 3-way accuracy lost on the Adaption eval and no
+  reduction in false `phone` calls on the hard-negative "head down over a
+  notebook" slice. Nothing ships from them and the head is unchanged byte for
+  byte; the rows and the negative result are committed so it can be re-run.
+  This is the head the product trusts least, and the defaults say so: it
+  nudges, and it cannot stop the study clock unless the student switches that
+  on.
 - **Reused, not trained here** — MediaPipe BlazeFace (default desk path) and
   MobileNetV2 α0.50/160 ImageNet features. Both local, CPU, no network.
 

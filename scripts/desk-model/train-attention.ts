@@ -35,6 +35,7 @@ import {
   duplicatePathWarning,
   isFirstPersonRow,
 } from "./first-person";
+import { isAttentionProxyRow } from "./attention-proxies";
 
 /**
  * Trainer for the attention head: focused / unfocused / phone.
@@ -53,6 +54,16 @@ import {
  * change that, and their defaults (1, off, off) leave behaviour exactly as it
  * was. Their `group` is the clip id, so the group-aware validation split below
  * already refuses to put frames of one clip on both sides.
+ *
+ * PROXY ROWS. The 225 stock attention proxies sit in the same CSV too, with
+ * their bucket in the `group` id. `--exclude-proxies` / `--proxies-only`
+ * select them. **The shipped head is trained with `--exclude-proxies`**: on
+ * five seeds, training on them cost about 8 points of 3-way accuracy on the
+ * Adaption eval and did not reduce false `phone` calls on the hard negatives
+ * (docs/CUSTOM-MODEL.md). The rows stay in the file because a negative result
+ * nobody can re-run is not a result.
+ *
+ *   ... train-attention.ts --hidden 16 --l2 0.03 --slices 745-2025 --exclude-proxies   # the shipped head
  */
 
 function repoRoot(): string {
@@ -107,6 +118,17 @@ const config = {
   firstPersonWeight: numberArg("--first-person-weight", 1),
   excludeFirstPerson: process.argv.includes("--exclude-first-person"),
   firstPersonOnly: process.argv.includes("--first-person-only"),
+  /**
+   * Stock attention proxies (`attention-proxies/`), whose label is the search
+   * query that found them rather than an annotation of the photo. Training on
+   * them cost ~8 points of 3-way accuracy on the Adaption eval across five
+   * seeds, so **the shipped head is trained with `--exclude-proxies`** and
+   * this flag is how that head is reproduced from the committed CSV. The
+   * default is still "train on every row in the file"; nothing filters itself
+   * out quietly.
+   */
+  excludeProxies: process.argv.includes("--exclude-proxies"),
+  proxiesOnly: process.argv.includes("--proxies-only"),
   labels: stringArg("--labels", attentionLabelsFile()),
   out: stringArg(
     "--out",
@@ -134,10 +156,18 @@ async function main(): Promise<void> {
       row.split === "train" &&
       (labels as string[]).includes(row.attention) &&
       (config.excludeFirstPerson ? !isFirstPersonRow(row) : true) &&
-      (config.firstPersonOnly ? isFirstPersonRow(row) : true),
+      (config.firstPersonOnly ? isFirstPersonRow(row) : true) &&
+      (config.excludeProxies ? !isAttentionProxyRow(row) : true) &&
+      (config.proxiesOnly ? isAttentionProxyRow(row) : true),
+  );
+  const proxyTrain = annotations.filter(isAttentionProxyRow).length;
+  console.log(
+    proxyTrain === 0
+      ? `stock attention proxies: none in the train pool${config.excludeProxies ? " (--exclude-proxies)" : ""}`
+      : `stock attention proxies: ${proxyTrain} of ${annotations.length} train row(s) are bucket-labelled proxies, not annotations`,
   );
   const features = new Map(
-    readFeatureRows(undefined, { includeFirstPerson: true }).map((row) => [row.path, row]),
+    readFeatureRows(undefined, { includeAttentionOnly: true }).map((row) => [row.path, row]),
   );
   const pairs = annotations
     .map((label) => ({ label, row: features.get(label.path) }))
@@ -277,6 +307,9 @@ async function main(): Promise<void> {
       perClass: Object.fromEntries(labels.map((label, y) => [label, classCounts.get(y) ?? 0])),
       // Frames are not samples: one webcam clip is one independent group.
       firstPerson: { train: firstPersonTrain, val: firstPersonVal, weight: config.firstPersonWeight },
+      // Bucket-labelled stock proxies in the pool this head was fitted on.
+      // Zero on the shipped head, and the flag that made it zero.
+      proxies: { train: proxyTrain, excluded: config.excludeProxies },
     },
     bestEpoch: best.epoch,
     bestScore: best.score,

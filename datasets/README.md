@@ -156,32 +156,53 @@ a title-aware on-task signal.
 
 # The desk attention labels
 
-`desk-attention-labels.csv` — 1,919 photos from the desk-data pack's `main`
-bucket, each annotated by **Adaption Labs' Adaptive Data** (multimodal
-`datasets.run`, one fixed instruction) in two runs: the 1,577 photos of
-`desk-data-v2-full` (160 credits plus a 10-credit pilot) and the 342 phone
-photos added by `desk-data-v3-distracted` (40 credits). No images are in this
-file or this repo; `path` points into those releases. Made and exported by
-`scripts/desk-model/adaption-label.py`; trained on by
-`scripts/desk-model/train-attention.ts`.
+`desk-attention-labels.csv` — 2,144 photos, in two populations that do not
+share a labelling method.
+
+**1,919 Adaption rows.** Photos from the desk-data pack's `main` bucket, each
+annotated by **Adaption Labs' Adaptive Data** (multimodal `datasets.run`, one
+fixed instruction) in two runs: the 1,577 photos of `desk-data-v2-full` (160
+credits plus a 10-credit pilot) and the 342 phone photos added by
+`desk-data-v3-distracted` (40 credits). Made and exported by
+`scripts/desk-model/adaption-label.py`.
+
+**225 stock attention proxies.** The `desk-data-attention-proxies-hq` release
+(`path` starts `attention-proxies/`), appended by
+`scripts/desk-model/ingest-proxies.ts`. Nobody annotated these image by image:
+the release sorted them into six buckets by the search query that found them,
+and the bucket is the label — `hard_negative_down` / `webcam_angle` /
+`lighting` / `posture_focus` → `focused`, `phone_low` → `phone`, `uncertain` →
+no label. They are **free-licensed stock photographs, not first-person webcam
+frames**, so their per-image credit rides in `note` and the release's full
+manifest is committed beside this file as `desk-attention-proxies.csv`
+(licence, credit, source URL, sha256, query, alt text — 224 Pexels, 1 public
+domain).
+
+No images are in this file or this repo; `path` points into those releases.
+Trained on by `scripts/desk-model/train-attention.ts`.
 
 | Column | Meaning |
 | --- | --- |
 | `path` | Pack-relative image path. |
 | `split` | `train` / `eval`. Near-duplicate groups share a split, and a group touching a pack eval image is eval. |
-| `group` | Near-duplicate group id (dHash within 6 bits). |
-| `attention` | `focused` / `unfocused` / `phone` — the attention head's target. Empty when the photo is not a usable example: no person, gaze unclear, or looking into the camera. |
-| `person`, `workspace`, `phone`, `gaze`, `note` | Adaption's raw answer. |
-| `pack_label` | The pack's original label, kept for comparison only. |
+| `group` | Near-duplicate group id (dHash within 6 bits). Proxy groups carry their bucket: `apx_<bucket>_<hash>`. |
+| `attention` | `focused` / `unfocused` / `phone` — the attention head's target. Empty when the photo is not a usable example: no person, gaze unclear, looking into the camera, or an `uncertain` proxy. |
+| `person`, `workspace`, `phone`, `gaze`, `note` | Adaption's raw answer — **except on proxy rows**, where they are derived from the bucket and `note` says so and carries the credit. |
+| `pack_label` | The pack's original label (`at_desk` / `away` / `distracted` / `uncertain`), kept for comparison only. On proxy rows it is the release's own suggested label, in that same vocabulary. |
 
 | | focused | unfocused | phone | no label |
 | --- | --- | --- | --- | --- |
-| train | 299 | 67 | 327 | 714 |
-| eval | 97 | 32 | 71 | 312 |
+| train | 402 | 67 | 350 | 720 |
+| eval | 169 | 32 | 85 | 319 |
+| ↳ of which proxies, train | 103 | 0 | 23 | 6 |
+| ↳ of which proxies, eval | 72 | 0 | 14 | 7 |
 
-**Truth here is a model's reading of a photo, not a human label.** The pilot's
-100 answers were checked against a contact sheet of the images and described
-them accurately, with a few borderline calls; nobody has audited all 1,577.
-Treat scores against this file as agreement with Adaption, and see
-`docs/CUSTOM-MODEL.md` for what the head trained on it can and cannot do.
+**Truth here is a model's reading of a photo, or a search query's, and never a
+human label.** The Adaption pilot's 100 answers were checked against a contact
+sheet of the images and described them accurately, with a few borderline
+calls; nobody has audited all 1,577. The proxy rows are weaker still: a bucket
+label is a claim about a query, so some `posture_focus` photos would read as
+`unfocused` to a person. Treat scores against this file as agreement with
+Adaption and with the release's own sorting, and see `docs/CUSTOM-MODEL.md`
+for what the head trained on it can and cannot do.
 

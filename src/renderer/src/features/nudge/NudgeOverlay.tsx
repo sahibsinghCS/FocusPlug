@@ -1,6 +1,6 @@
 import { useEffect, useRef, type JSX } from "react";
 import type { NudgeEvent, NudgeKind, PlanRevision } from "@shared/ipc";
-import { nudgeCopy } from "@shared/nudge";
+import { isPauseKind, nudgeCopy, pauseNotice } from "@shared/nudge";
 import type { RunPosition } from "../timer/runtime";
 import { nudgeTiming } from "./timing";
 
@@ -10,6 +10,7 @@ export const NUDGE_VISIBLE_MS = 12_000;
 const KICKER: Record<NudgeKind, string> = {
   phone: "On your phone",
   unfocused: "Drifting",
+  away: "Away from your desk",
   blocked: "Blocked app",
 };
 
@@ -50,6 +51,13 @@ export function NudgeOverlay(props: {
 
   const timing = nudgeTiming(props.position);
   const copy = nudgeCopy({ kind: props.nudge.kind, app: props.nudge.app, ...timing });
+  // Main confirmed this one hard enough to stop the clock. Saying so here and
+  // on the paused lock screen behind it is deliberate: a timer that stopped
+  // without explaining itself reads as a bug.
+  const stopped =
+    props.nudge.pause === true && isPauseKind(props.nudge.kind)
+      ? pauseNotice(props.nudge.kind)
+      : null;
 
   return (
     <div
@@ -82,6 +90,9 @@ export function NudgeOverlay(props: {
         <p id="fp-nudge-line" className="mt-6 text-[19px] font-medium text-zinc-100" aria-live="polite">
           {copy.line}
         </p>
+        {stopped ? (
+          <p className="mt-4 text-[14px] leading-5 text-zinc-300">{stopped.line}</p>
+        ) : null}
         {props.revision ? (
           <p className="mt-4 text-[14px] leading-5 text-zinc-400">{props.revision.copy.line}</p>
         ) : null}
@@ -91,7 +102,7 @@ export function NudgeOverlay(props: {
           onClick={onDismiss}
           className="fp-btn mt-8 inline-flex h-11 min-w-[220px] items-center justify-center rounded-[var(--radius-fp)] bg-fp-focus px-5 text-[13px] font-semibold uppercase tracking-[0.14em] text-black hover:brightness-110"
         >
-          Back to it
+          {stopped ? "Got it" : "Back to it"}
         </button>
       </div>
     </div>
