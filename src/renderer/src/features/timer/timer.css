@@ -137,6 +137,8 @@
  * is the object, not a leftover canvas.
  */
 [data-phase="break"] .fp-lock-stage {
+  /* Tailwind w-full is 100% of the flex column; margins then overflow and clip. */
+  width: auto;
   margin-inline: clamp(16px, 6vw, 72px);
   padding: 11px;
   border-radius: 18px;
