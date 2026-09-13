@@ -28,7 +28,8 @@ const LOCK_FACE_FALLBACK = { width: 960, height: 520 };
  * Lock mode. The console gets out of the way and leaves one object running
  * out, whichever one you picked. A break inverts the whole room — black on
  * bone instead of bone on black — so the lock lifting is visible from the
- * doorway without a single hue being involved.
+ * doorway without a single hue being involved. Faces stay night instruments
+ * and sit on that bone table as a mounted plate, not a leftover dark field.
  */
 export function LockPage(props: { timer: SessionTimer }): JSX.Element {
   const app = useAppState();
@@ -134,7 +135,7 @@ export function LockPage(props: { timer: SessionTimer }): JSX.Element {
           </div>
         ) : null}
 
-        <div className="flex flex-wrap items-center justify-center gap-2">
+        <div className="fp-lock-bar flex flex-wrap items-center justify-center gap-2">
           <Quiet onClick={paused ? timer.resume : timer.pause}>
             {paused ? "Resume" : "Pause"}
           </Quiet>
