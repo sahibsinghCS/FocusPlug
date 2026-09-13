@@ -1,5 +1,3 @@
-import type { VisualPhase } from "./visual";
-
 export function clampProgress(progress: number): number {
   if (!Number.isFinite(progress)) {
     return 0;
@@ -61,10 +59,4 @@ export function prefersReducedMotion(): boolean {
     return false;
   }
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
-
-export function phaseAccent(phase: VisualPhase): "calm" | "hot" | "done" {
-  if (phase === "fuse" || phase === "kill") return "hot";
-  if (phase === "complete") return "done";
-  return "calm";
 }

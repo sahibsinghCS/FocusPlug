@@ -1,6 +1,6 @@
 import type { Decision, SessionEvent } from "@shared/ipc";
 
-/** Internal view model for Movement / Line / Record. Host still uses FaceProps. */
+/** Internal view model for Movement / Line. Host still uses FaceProps. */
 export type InstrumentPhase = "idle" | "focus" | "break" | "countdown" | "ended";
 
 export type FaceEventSeverity = "low" | "medium" | "high";
@@ -37,7 +37,7 @@ export interface FaceRound {
   kind: "focus" | "break";
 }
 
-export type MidFaceId = "movement" | "line" | "record";
+export type MidFaceId = "movement" | "line";
 
 export type LineStationMode = "auto" | "thirds" | "plain";
 
@@ -75,4 +75,4 @@ export interface FaceSource {
 
 export const DEFAULT_FACE_DURATION_MS = 25 * 60 * 1000;
 
-export const MID_FACE_IDS: readonly MidFaceId[] = ["movement", "line", "record"];
+export const MID_FACE_IDS: readonly MidFaceId[] = ["movement", "line"];

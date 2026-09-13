@@ -1,6 +1,7 @@
 import { useRef, type JSX, type ReactNode } from "react";
-import { normalizeFaceId } from "@shared/faces";
+import { faceMeta, normalizeFaceId } from "@shared/faces";
 import { FaceErrorBoundary, buildLockFaceProps, faceComponent } from "../features/faces";
+import { formatFaceClock } from "../features/faces/clock";
 import { useHostSize } from "../features/faces/useHostSize";
 import { useLiveFaceNow } from "../features/faces/useLiveFaceNow";
 import { HoldSwitch } from "../features/timer/HoldSwitch";
@@ -46,6 +47,9 @@ export function LockPage(props: { timer: SessionTimer }): JSX.Element {
   const phase = onBreak ? "break" : "focus";
   const armedPlugs = enabledPlugViews(app.plugs);
   const multiRound = timer.segments.length > 1;
+  // Immersive faces that draw no clock of their own still owe you the number.
+  const lockFace = faceMeta(normalizeFaceId(app.settings.faceId));
+  const timeLeftSec = position?.remainingSec ?? timer.remainingSec;
 
   return (
     <div
@@ -71,9 +75,14 @@ export function LockPage(props: { timer: SessionTimer }): JSX.Element {
       </header>
 
       <main className="relative z-10 flex min-h-0 flex-1 flex-col px-6">
-        <p className="fp-stencil fp-lock-in shrink-0 pt-1 fp-lock-dim">
-          {positionCaption(position, timer.status)}
-        </p>
+        <div className="flex shrink-0 items-baseline justify-between gap-4 pt-1">
+          <p className="fp-stencil fp-lock-in fp-lock-dim">{positionCaption(position, timer.status)}</p>
+          {lockFace.showsTimeLeft ? null : (
+            <p className="fp-lock-clock fp-lock-in font-mono tabular" data-lock-clock="" aria-hidden="true">
+              {formatFaceClock(timeLeftSec * 1000)}
+            </p>
+          )}
+        </div>
 
         <LockFaceStage timer={timer} />
 

@@ -14,23 +14,28 @@ import {
 } from "./faces";
 
 describe("faces catalog", () => {
-  it("owns the thirteen live FaceIds and refuses retired names", () => {
+  it("owns the nine live FaceIds and refuses retired names", () => {
     expect([...FACE_IDS]).toEqual([
       "flight",
       "hourglass",
       "readout",
-      "descent",
       "movement",
-      "record",
-      "circuit",
       "line",
-      "orbit",
       "growth",
       "flask",
       "garden",
       "candle",
     ]);
-    expect([...RETIRED_FACE_IDS]).toEqual(["column", "grid", "eclipse", "field"]);
+    expect([...RETIRED_FACE_IDS]).toEqual([
+      "column",
+      "grid",
+      "eclipse",
+      "field",
+      "descent",
+      "record",
+      "circuit",
+      "orbit",
+    ]);
     for (const id of RETIRED_FACE_IDS) {
       expect(isFaceId(id)).toBe(false);
       expect(isRetiredFaceId(id)).toBe(true);
@@ -62,13 +67,28 @@ describe("faces catalog", () => {
     expect(faceMeta("hourglass").stream).toBe("agent/faces-hourglass-v2");
     expect(faceMeta("readout").file).toContain("ReadoutFace.tsx");
     expect(faceMeta("flight").readiness).toBe("ready");
-    expect(faceMeta("descent").readiness).toBe("ready");
-    expect(faceMeta("orbit").readiness).toBe("ready");
-    expect(faceMeta("circuit").readiness).toBe("ready");
-    expect(FACE_READY.descent).toBe(true);
-    expect(FACE_READY.orbit).toBe(true);
-    expect(FACE_READY.circuit).toBe(true);
+    expect(faceMeta("movement").readiness).toBe("ready");
+    expect(faceMeta("line").readiness).toBe("ready");
     expect(normalizeFaceId("not-a-face")).toBe("flight");
-    expect(normalizeFaceId("orbit")).toBe("orbit");
+    expect(normalizeFaceId("line")).toBe("line");
+  });
+
+  it("marks which faces draw their own time left, so lock mode adds it to the rest", () => {
+    for (const entry of FACE_CATALOG) {
+      expect(typeof entry.showsTimeLeft).toBe("boolean");
+    }
+    expect(FACE_CATALOG.filter((entry) => !entry.showsTimeLeft).map((entry) => entry.id)).toEqual([
+      "flight",
+      "hourglass",
+      "movement",
+      "line",
+      "growth",
+      "garden",
+    ]);
+    expect(FACE_CATALOG.filter((entry) => entry.showsTimeLeft).map((entry) => entry.id)).toEqual([
+      "readout",
+      "flask",
+      "candle",
+    ]);
   });
 });

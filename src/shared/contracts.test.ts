@@ -79,7 +79,8 @@ describe("Phase 2 contracts", () => {
     expect(isFaceId("hourglass")).toBe(true);
     expect(isFaceId("column")).toBe(false);
     expect(normalizeFaceId("eclipse")).toBe("flight");
-    expect(FACE_IDS).toHaveLength(13);
+    expect(FACE_IDS).toHaveLength(9);
+    expect(normalizeFaceId("circuit")).toBe("flight");
     expect(isFaceId("flask")).toBe(true);
     expect(isFaceId("garden")).toBe(true);
     expect(isFaceId("candle")).toBe(true);

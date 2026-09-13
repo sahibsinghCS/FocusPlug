@@ -4,12 +4,8 @@ export const FACE_IDS = [
   "flight",
   "hourglass",
   "readout",
-  "descent",
   "movement",
-  "record",
-  "circuit",
   "line",
-  "orbit",
   "growth",
   "flask",
   "garden",
@@ -22,8 +18,21 @@ export type FacePhase = "focus" | "break" | "idle";
 
 export type FaceReadiness = "ready" | "pending";
 
-/** Retired names — never add these to FaceId. */
-export const RETIRED_FACE_IDS = ["column", "grid", "eclipse", "field"] as const;
+/**
+ * Retired names — never add these to FaceId. A saved setting that still names
+ * one falls back to the default face. Descent, Record, Circuit and Orbit were
+ * removed from the picker on 2026-09-13.
+ */
+export const RETIRED_FACE_IDS = [
+  "column",
+  "grid",
+  "eclipse",
+  "field",
+  "descent",
+  "record",
+  "circuit",
+  "orbit",
+] as const;
 export type RetiredFaceId = (typeof RETIRED_FACE_IDS)[number];
 
 export interface FaceMeta {
@@ -33,6 +42,13 @@ export interface FaceMeta {
   stream: string;
   file: string;
   readiness: FaceReadiness;
+  /**
+   * True only when the face draws its own clearly readable time-left readout:
+   * full strength and at least 15px at lock size, like Readout, Flask and Candle.
+   * Lock mode adds one beside the caption for every other face, so every timer
+   * shows the actual time. A small or faint caption does not count.
+   */
+  showsTimeLeft: boolean;
 }
 
 /** Flight is the default once marked ready. */
@@ -40,12 +56,8 @@ export const FACE_READY: Readonly<Record<FaceId, boolean>> = {
   flight: true,
   hourglass: true,
   readout: true,
-  descent: true,
   movement: true,
-  record: true,
-  circuit: true,
   line: true,
-  orbit: true,
   growth: true,
   flask: true,
   garden: true,
@@ -60,6 +72,7 @@ export const FACE_CATALOG: readonly FaceMeta[] = [
     stream: "agent/faces-flight-v2",
     file: "src/renderer/src/features/faces/FlightFace.tsx",
     readiness: FACE_READY.flight ? "ready" : "pending",
+    showsTimeLeft: false,
   },
   {
     id: "hourglass",
@@ -68,6 +81,7 @@ export const FACE_CATALOG: readonly FaceMeta[] = [
     stream: "agent/faces-hourglass-v2",
     file: "src/renderer/src/features/faces/HourglassFace.tsx",
     readiness: FACE_READY.hourglass ? "ready" : "pending",
+    showsTimeLeft: false,
   },
   {
     id: "readout",
@@ -76,14 +90,7 @@ export const FACE_CATALOG: readonly FaceMeta[] = [
     stream: "agent/faces-foundation",
     file: "src/renderer/src/features/faces/ReadoutFace.tsx",
     readiness: FACE_READY.readout ? "ready" : "pending",
-  },
-  {
-    id: "descent",
-    title: "Descent",
-    blurb: "Deep-sea timer. Progress sinks sunlight → abyssal.",
-    stream: "agent/faces-descent",
-    file: "src/renderer/src/features/faces/DescentFace.tsx",
-    readiness: FACE_READY.descent ? "ready" : "pending",
+    showsTimeLeft: true,
   },
   {
     id: "movement",
@@ -92,22 +99,7 @@ export const FACE_CATALOG: readonly FaceMeta[] = [
     stream: "agent/faces-mid",
     file: "src/renderer/src/features/faces/MovementFace.tsx",
     readiness: FACE_READY.movement ? "ready" : "pending",
-  },
-  {
-    id: "record",
-    title: "Record",
-    blurb: "Paper-drum seismograph — an artifact of attention.",
-    stream: "agent/faces-mid",
-    file: "src/renderer/src/features/faces/RecordFace.tsx",
-    readiness: FACE_READY.record ? "ready" : "pending",
-  },
-  {
-    id: "circuit",
-    title: "Circuit",
-    blurb: "Session fuse plate. Current charges the kill rail.",
-    stream: "agent/faces-circuit",
-    file: "src/renderer/src/features/faces/CircuitFace.tsx",
-    readiness: FACE_READY.circuit ? "ready" : "pending",
+    showsTimeLeft: false,
   },
   {
     id: "line",
@@ -116,14 +108,7 @@ export const FACE_CATALOG: readonly FaceMeta[] = [
     stream: "agent/faces-mid",
     file: "src/renderer/src/features/faces/LineFace.tsx",
     readiness: FACE_READY.line ? "ready" : "pending",
-  },
-  {
-    id: "orbit",
-    title: "Orbit",
-    blurb: "Five bodies, integer turns. Alignment is the lock.",
-    stream: "agent/faces-orbit",
-    file: "src/renderer/src/features/faces/OrbitFace.tsx",
-    readiness: FACE_READY.orbit ? "ready" : "pending",
+    showsTimeLeft: false,
   },
   {
     id: "growth",
@@ -132,6 +117,7 @@ export const FACE_CATALOG: readonly FaceMeta[] = [
     stream: "agent/faces-growth",
     file: "src/renderer/src/features/faces/GrowthFace.tsx",
     readiness: FACE_READY.growth ? "ready" : "pending",
+    showsTimeLeft: false,
   },
   {
     id: "flask",
@@ -140,6 +126,7 @@ export const FACE_CATALOG: readonly FaceMeta[] = [
     stream: "agent/faces-flask",
     file: "src/renderer/src/features/faces/FlaskFace.tsx",
     readiness: FACE_READY.flask ? "ready" : "pending",
+    showsTimeLeft: true,
   },
   {
     id: "garden",
@@ -148,6 +135,7 @@ export const FACE_CATALOG: readonly FaceMeta[] = [
     stream: "agent/faces-garden",
     file: "src/renderer/src/features/faces/GardenFace.tsx",
     readiness: FACE_READY.garden ? "ready" : "pending",
+    showsTimeLeft: false,
   },
   {
     id: "candle",
@@ -156,6 +144,7 @@ export const FACE_CATALOG: readonly FaceMeta[] = [
     stream: "agent/faces-candle",
     file: "src/renderer/src/features/faces/CandleFace.tsx",
     readiness: FACE_READY.candle ? "ready" : "pending",
+    showsTimeLeft: true,
   },
 ];
 

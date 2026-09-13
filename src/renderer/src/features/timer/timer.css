@@ -258,3 +258,11 @@
 .fp-lock-in {
   animation: fp-rise 420ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
 }
+
+/* Time left beside the lock caption, for faces that draw no clock of their own. */
+.fp-lock-clock {
+  font-size: clamp(22px, 2.6vw, 34px);
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: var(--phase);
+}
