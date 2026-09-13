@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { SessionEvent } from "@shared/ipc";
 import type { RunPosition } from "../timer/runtime";
-import { buildLockFaceProps, lockFacePhase } from "./lockProps";
+import { buildLockFaceProps, lockFacePhase, sessionLogSince } from "./lockProps";
 
 const focusPosition: RunPosition = {
   segment: {
@@ -59,6 +59,7 @@ describe("lock face phase mapping", () => {
       remainingSec: 1275,
       planFocusMin: 25,
       log,
+      startedAtMs: 1000,
       now,
       width: 1280,
       height: 720,
@@ -70,7 +71,7 @@ describe("lock face phase mapping", () => {
     expect(focus.estimateMinutes).toBe(25);
     expect(focus.killCount).toBe(1);
     expect(focus.paused).toBe(false);
-    expect(focus.sessionId).toBe("lock");
+    expect(focus.sessionId).toBe("sess-1000");
 
     const rest = buildLockFaceProps({
       status: "running",
@@ -79,6 +80,7 @@ describe("lock face phase mapping", () => {
       remainingSec: 180,
       planFocusMin: 25,
       log,
+      startedAtMs: 1000,
       now,
       width: 1280,
       height: 720,
@@ -98,11 +100,65 @@ describe("lock face phase mapping", () => {
       remainingSec: 1275,
       planFocusMin: 25,
       log: [],
+      startedAtMs: 1_700_000_000_000,
       now: new Date("2026-09-12T12:00:00Z"),
       width: 800,
       height: 600,
     });
     expect(face.phase).toBe("focus");
     expect(face.paused).toBe(false);
+    expect(face.sessionId).toBe("sess-1700000000000");
+  });
+
+  it("does not count kills logged before the session start", () => {
+    const startedAtMs = 50_000;
+    const leaked: SessionEvent[] = [
+      { ts: 1_000, kind: "kill", detail: "blocked_focus · killed discord.exe" },
+      { ts: 40_000, kind: "demo", detail: "Demo Kill · killed discord.exe" },
+      { ts: 49_999, kind: "kill", detail: "one millisecond too old" },
+      { ts: 50_000, kind: "session", detail: "Session started" },
+      { ts: 51_000, kind: "kill", detail: "blocked_focus · killed steam.exe" },
+    ];
+
+    expect(sessionLogSince(leaked, startedAtMs)).toEqual([
+      { ts: 50_000, kind: "session", detail: "Session started" },
+      { ts: 51_000, kind: "kill", detail: "blocked_focus · killed steam.exe" },
+    ]);
+    expect(sessionLogSince(leaked, null)).toEqual([]);
+
+    const face = buildLockFaceProps({
+      status: "running",
+      position: focusPosition,
+      elapsedSec: 1,
+      remainingSec: 1499,
+      planFocusMin: 25,
+      log: leaked,
+      startedAtMs,
+      now: new Date("2026-09-12T12:00:00Z"),
+      width: 1280,
+      height: 720,
+    });
+    expect(face.killCount).toBe(1);
+    expect(face.events).toHaveLength(2);
+    expect(face.events.some((event) => event.kind === "kill" && event.ts < startedAtMs)).toBe(
+      false,
+    );
+    expect(face.sessionId).toBe("sess-50000");
+
+    const nextSession = buildLockFaceProps({
+      status: "running",
+      position: focusPosition,
+      elapsedSec: 1,
+      remainingSec: 1499,
+      planFocusMin: 25,
+      log: leaked,
+      startedAtMs: 80_000,
+      now: new Date("2026-09-12T12:00:00Z"),
+      width: 1280,
+      height: 720,
+    });
+    expect(nextSession.killCount).toBe(0);
+    expect(nextSession.sessionId).toBe("sess-80000");
+    expect(nextSession.sessionId).not.toBe(face.sessionId);
   });
 });

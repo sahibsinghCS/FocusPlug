@@ -199,6 +199,7 @@ function LockFaceStage(props: { timer: SessionTimer }): JSX.Element {
     remainingSec: props.timer.remainingSec,
     planFocusMin: props.timer.plan.focusMin,
     log: app.log,
+    startedAtMs: props.timer.startedAtMs,
     now,
     width: size.width,
     height: size.height,

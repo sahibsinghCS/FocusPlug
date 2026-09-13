@@ -28,6 +28,11 @@ export interface SessionTimer {
   elapsedSec: number;
   /** Wall-clock finish, projected from what is left. `null` before you commit. */
   endsAtMs: number | null;
+  /**
+   * Wall-clock when `start()` ran. Survives pause/resume so lock faces can
+   * ignore persisted log from earlier sessions. `null` on the setup screen.
+   */
+  startedAtMs: number | null;
   remainingSec: number;
   /** Focus time actually served — a skipped round does not count as work. */
   workedSec: number;
@@ -90,6 +95,7 @@ export function useSessionTimer(options: {
 }): SessionTimer {
   const [plan, setPlanState] = useState<TimerPlan>(loadPlan);
   const [status, setStatus] = useState<RunStatus>("setup");
+  const [startedAtMs, setStartedAtMs] = useState<number | null>(null);
   const [anchorMs, setAnchorMs] = useState<number | null>(null);
   const [bankedSec, setBankedSec] = useState(0);
   const [skippedFocusSec, setSkippedFocusSec] = useState(0);
@@ -158,6 +164,7 @@ export function useSessionTimer(options: {
 
   const start = useCallback((): void => {
     const now = Date.now();
+    setStartedAtMs(now);
     setBankedSec(0);
     setSkippedFocusSec(0);
     setAnchorMs(now);
@@ -203,6 +210,7 @@ export function useSessionTimer(options: {
 
   const end = useCallback((): void => {
     setStatus("setup");
+    setStartedAtMs(null);
     setAnchorMs(null);
     setBankedSec(0);
     setSkippedFocusSec(0);
@@ -221,6 +229,7 @@ export function useSessionTimer(options: {
     position,
     elapsedSec,
     endsAtMs,
+    startedAtMs,
     remainingSec,
     workedSec,
     armed,
