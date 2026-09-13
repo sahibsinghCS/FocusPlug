@@ -1,0 +1,148 @@
+@import "../../src/renderer/src/index.css";
+
+/* Tailwind v4 detects sources from the entry stylesheet's directory, so the
+   console components this page reuses have to be named explicitly — without
+   this the demo would ship a stylesheet missing half the console's classes. */
+@source "../../src/renderer/src";
+@source "./";
+
+/* Demo-only chrome. Everything else is the console's own token set
+   (--color-fp-*, .fp-card, .fp-btn, .fp-control) imported above. */
+
+/* ── The model internals have to stay readable ─────────────────────────────
+   `InternalsPanel` lays the calibration readout beside the term-group strip
+   and lets the readout ellipse when the two cannot both fit. Inside the app
+   that is a fair trade — the full string is one hover away and the strip was
+   16 cells wide when the layout was drawn. Here it is not: the shipped head
+   has 24 term groups, whose 475 px strip squeezes the readout to 248 px, and
+   `logit +5.26 → σ(a·z+b) a=0.70 b=−3.41 → risk 0.57` needs 330 px — so the
+   demo was chopping "→ risk 0.57", the one number the line exists to show, on
+   a page whose whole claim is that the model is legible. Nobody hovers a
+   screenshot.
+
+   The width comes out of the demo's own page, not out of the instrument:
+   RiskMeter caps its gauge and sparkline at 280 px (`max-w-[280px]`), so the
+   0.8fr column it sits in was carrying ~100 px of dead air at 1240 px+. These
+   rules are scoped to the panel's own ARIA label and to the readout's title
+   text (`calibrationLine()`, whose shape is pinned by model.test.ts), so they
+   move with the component instead of hanging off a utility class. */
+
+/* Never an ellipsis, at any width: below the two-column breakpoints the
+   readout wraps at a space rather than losing its payoff. */
+section[aria-label="Focus Forecast"] p[title^="logit "] {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+/* Hand the gauge column its natural cap and give the rest to the internals. */
+@media (min-width: 1100px) {
+  section[aria-label="Focus Forecast"] > div:has(svg[aria-label^="Drift risk"]) {
+    grid-template-columns: minmax(230px, 17.5rem) minmax(0, 1fr);
+  }
+}
+
+/* Under 1240 px the internals column cannot hold both readouts side by side.
+   Stack them: the calibration line then owns the full column width. */
+@media (min-width: 700px) and (max-width: 1239.98px) {
+  section[aria-label="Focus Forecast"] div:has(> div > p[title^="logit "]) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* At 1240 px and up — the still frame and every judge laptop — the console's
+   side-by-side arrangement holds, with a floor under the readout so the whole
+   line fits and the term strip keeps its natural single row. */
+@media (min-width: 1240px) {
+  section[aria-label="Focus Forecast"] div:has(> div > p[title^="logit "]) {
+    grid-template-columns: minmax(23rem, 1fr) auto;
+  }
+}
+
+/* Same argument, smaller stakes: four sensor cards across 1192 px leave the
+   meta and title lines a few pixels short ("325-PARAM LOGISTIC · ON…"). Let
+   them take a second line instead of an ellipsis — this page is read, not
+   hovered. */
+section[aria-label="Live sensors"] article > div:first-child {
+  flex-wrap: wrap;
+}
+
+/* Every meta on its own line, not just the two that overflow — otherwise the
+   four card titles stop sharing a baseline across the rail. */
+section[aria-label="Live sensors"] article > div:first-child > p:last-child {
+  flex-basis: 100%;
+}
+
+section[aria-label="Live sensors"] .truncate {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.fp-demo-scrub {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 99px;
+  background: linear-gradient(
+    to right,
+    var(--color-fp-lime) 0%,
+    var(--color-fp-lime) var(--fp-demo-progress, 0%),
+    #232a37 var(--fp-demo-progress, 0%),
+    #232a37 100%
+  );
+}
+
+.fp-demo-scrub::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 13px;
+  height: 13px;
+  border-radius: 99px;
+  background: var(--color-fp-ink);
+  border: 2px solid var(--color-fp-bg);
+  box-shadow: 0 0 0 1px var(--color-fp-line-strong);
+  cursor: pointer;
+}
+
+.fp-demo-scrub::-moz-range-thumb {
+  width: 13px;
+  height: 13px;
+  border-radius: 99px;
+  background: var(--color-fp-ink);
+  border: 2px solid var(--color-fp-bg);
+  cursor: pointer;
+}
+
+/* Mirrored webcam preview — a judge waving at the lens should see themselves
+   move the same way they do in a mirror. */
+.fp-demo-cam {
+  transform: scaleX(-1);
+  background: #05060a;
+}
+
+.fp-demo-mark[data-active="true"] {
+  border-color: color-mix(in srgb, var(--color-fp-lime) 45%, transparent);
+  background: color-mix(in srgb, var(--color-fp-lime) 12%, transparent);
+  color: var(--color-fp-ink);
+}
+
+@keyframes fp-demo-rec {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+
+.fp-demo-rec {
+  animation: fp-demo-rec 1.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fp-demo-rec {
+    animation: none;
+  }
+}

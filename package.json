@@ -20,9 +20,10 @@
     "test:plugs": "vitest run src/main/plugs",
     "gauntlet:plugs": "tsx --tsconfig tsconfig.node.json src/main/plugs/gauntlet.ts",
     "probe:plugs": "tsx --tsconfig tsconfig.node.json src/main/plugs/probe.ts",
-    "typecheck": "npm run check:contracts && npm run typecheck:node && npm run typecheck:web",
+    "typecheck": "npm run check:contracts && npm run typecheck:node && npm run typecheck:web && npm run typecheck:demo",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json",
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json",
+    "typecheck:demo": "tsc --noEmit -p demo/tsconfig.json",
     "check:contracts": "node scripts/check-contracts.mjs",
     "test:window": "node --experimental-strip-types --disable-warning=ExperimentalWarning --import ./src/main/kill/register.mjs --test src/main/window/match.test.ts src/main/window/monitor.test.ts src/main/store/lists.test.ts",
     "probe:window": "node --experimental-strip-types src/main/window/probe.ts",
@@ -50,7 +51,14 @@
     "forecast:eval:holdout": "node --max-old-space-size=8192 --import tsx scripts/forecast/eval.ts --holdout",
     "forecast:power": "npm run forecast:evalset && npm run forecast:eval:holdout",
     "test:forecast": "vitest run src/shared/forecast src/main/forecast src/renderer/src/features/forecast",
-    "forecast:preview": "vite --config scripts/forecast-preview.vite.ts"
+    "forecast:preview": "vite --config scripts/forecast-preview.vite.ts",
+    "demo:dev": "vite --config demo/vite.config.ts",
+    "demo:build": "vite build --config demo/vite.config.ts",
+    "demo:preview": "vite preview --config demo/vite.config.ts",
+    "demo:test": "vitest run --config demo/vitest.config.ts",
+    "demo:stills": "node scripts/demo-stills.mjs",
+    "demo:verify": "npm run typecheck:demo && npm run demo:test && npm run demo:build && npm run demo:stills",
+    "forecast:holdout:bakeoff": "node --max-old-space-size=12288 --import tsx scripts/forecast/holdout-bakeoff.ts"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",
