@@ -124,40 +124,59 @@ Adaptive Data's multimodal run with one fixed instruction, and got back per
 image: is a person visible, are they at a workspace, is a phone in use, and
 where are they looking. A 100-image pilot was checked by eye first. It caught
 a prompt flaw — looking *into the camera* counted as looking away, but a
-webcam sits on the screen — fixed before the full run. 170 credits in total.
-Output: `datasets/desk-attention-labels.csv`. Near-duplicate photos (dHash
-within 6 bits) stay on one side of the split, which moved 122 train images to
-eval.
+webcam sits on the screen — fixed before the full run. A second batch, the 342
+phone photos of the `desk-data-v3-distracted` release, was labelled the same
+way and merged; an image an earlier run labelled is never sent again. 210
+credits in total. Output: `datasets/desk-attention-labels.csv` (1,919 photos).
+Near-duplicate photos (dHash within 6 bits) stay on one side of the split,
+which moved 123 train images to eval.
 
 ```
 python scripts/desk-model/adaption-label.py build  --name main
 python scripts/desk-model/adaption-label.py submit --name main --go   # spends credits
 python scripts/desk-model/adaption-label.py fetch  --name main
-python scripts/desk-model/adaption-label.py export --name main
-npx tsx --tsconfig tsconfig.node.json scripts/desk-model/train-attention.ts --hidden 16 --l2 0.01 --slices 745-2025
+python scripts/desk-model/adaption-label.py build  --name v3 --exclude-run main   # after applying desk-data-v3-distracted
+python scripts/desk-model/adaption-label.py submit --name v3 --go
+python scripts/desk-model/adaption-label.py fetch  --name v3
+python scripts/desk-model/adaption-label.py export --name main v3
+npx tsx --tsconfig tsconfig.node.json scripts/desk-model/train-attention.ts --hidden 16 --l2 0.03 --slices 745-2025
 npx tsx --tsconfig tsconfig.node.json scripts/desk-model/eval-attention.ts
 ```
 
-The config was picked from a 12-run sweep scored on the validation slice only
-(hidden 0 / 16 × three L2 strengths × full vector vs MobileNet slice).
+The config was picked by 5-fold cross-validation on the train split only
+(`--folds 5 --fold i`, near-duplicate groups kept together; 9 settings: hidden
+0 / 16 / 32 × L2 × MobileNet slice vs full vector). Best: 59.2% mean
+balanced accuracy, ±2.9 points across folds. A single validation slice swung
+±6 points between folds, which is how the first head's 70.6% validation
+became 56.6% held-out. `eval-attention.ts --weights … --labels …` scores any
+head on any label file, so old and new heads are compared on the same images.
 
 ### Results — read before quoting anything
 
-Held-out eval, 143 images. Truth is Adaption's annotation, not a human label.
+Held-out eval. Truth is Adaption's annotation, not a human label. "First head"
+trained on the 1,577 `main` labels; "this head" adds the 342 v3 phone photos.
 
-| | |
-| --- | --- |
-| 3-way accuracy | **56.6%** — below always answering `focused` (65.7%) |
-| phone detection | precision 42.9% · recall 50.0% · F1 46.2% (18 phones) |
-| off task (unfocused or phone) | precision 45.2% · recall 67.3% · F1 54.1% |
-| the pack's own `distracted` label, as a phone detector | F1 60.0% |
+| | first head | this head |
+| --- | --- | --- |
+| original 143-image eval · 3-way accuracy | 56.6% | 60.8% — always `focused` is 65.7% |
+| original eval · phone precision / recall / F1 | 42.9% / 50.0% / 46.2% | 30.0% / 50.0% / 37.5% |
+| current 200-image eval · 3-way accuracy | 49.5% | **64.0%** — always `focused` is 48.5% |
+| current eval · phone precision / recall / F1 | 65.8% / 35.2% / 45.9% | 68.1% / 69.0% / **68.5%** |
+| current eval · off task (unfocused or phone) F1 | — | 72.2% |
 
-**This head is not reliable yet.** Validation said 70.6%, but it held 68
-images (9 unfocused, 13 phone) — too few to choose a model, and the drop to
-56.6% is that selection noise. It also learns from 3rd-person stock photos
-while the runtime camera is 1st-person. Claim the pipeline, not phone
-detection. The data that would fix it is the actual webcam: a minute focused
-and a minute on the phone label themselves.
+**More sensitive, not reliable.** The extra photos doubled how many phones it
+catches in phone-style stock photos, and roughly doubled how often it calls a
+non-phone photo "phone" (about 17% of them, up from 10%). On the original,
+harder images it is no better at phones and still below always answering
+`focused`. The pack's `distracted` label scores F1 86.7% as a "detector" on the
+current eval, but that is not a model: those photos were collected as phone
+photos, so it only restates how they were chosen.
+
+It still learns from 3rd-person stock photos while the runtime camera is
+1st-person, where the phone is usually below the frame and the tell is the
+head tilting down. Claim the pipeline, not phone detection. The data that would
+fix it is the actual webcam: a minute focused and a minute on the phone label
+themselves.
 
 It is opt-in by construction: attention only exists with
 `deskModelId: "custom"`, so the default BlazeFace install never nudges on it.

@@ -1,5 +1,5 @@
 {
-  "ranAt": "2026-09-12T23:06:48.461Z",
+  "ranAt": "2026-09-13T01:34:24.445Z",
   "model": "blazeface",
   "backend": "cpu",
   "unitChecks": [
@@ -507,7 +507,7 @@
     {
       "name": "trained custom model calls the face fixture at_desk with real confidence",
       "pass": true,
-      "detail": "{\"ts\":3000,\"label\":\"at_desk\",\"confidence\":0.9971059585928542,\"webcamEnabled\":true,\"attention\":{\"label\":\"unfocused\",\"confidence\":0.5490196549244827}}"
+      "detail": "{\"ts\":3000,\"label\":\"at_desk\",\"confidence\":0.9971059585928542,\"webcamEnabled\":true,\"attention\":{\"label\":\"phone\",\"confidence\":0.8367520781485507}}"
     }
   ],
   "verdict": "PASS"

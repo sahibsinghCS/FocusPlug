@@ -156,11 +156,12 @@ a title-aware on-task signal.
 
 # The desk attention labels
 
-`desk-attention-labels.csv` — 1,577 photos from the desk-data pack's `main`
+`desk-attention-labels.csv` — 1,919 photos from the desk-data pack's `main`
 bucket, each annotated by **Adaption Labs' Adaptive Data** (multimodal
-`datasets.run`, one fixed instruction, 160 credits plus a 10-credit pilot).
-No images are in this file or this repo; `path` points into the
-`desk-data-v2-full` release. Made and exported by
+`datasets.run`, one fixed instruction) in two runs: the 1,577 photos of
+`desk-data-v2-full` (160 credits plus a 10-credit pilot) and the 342 phone
+photos added by `desk-data-v3-distracted` (40 credits). No images are in this
+file or this repo; `path` points into those releases. Made and exported by
 `scripts/desk-model/adaption-label.py`; trained on by
 `scripts/desk-model/train-attention.ts`.
 
@@ -175,8 +176,8 @@ No images are in this file or this repo; `path` points into the
 
 | | focused | unfocused | phone | no label |
 | --- | --- | --- | --- | --- |
-| train | 296 | 65 | 89 | 683 |
-| eval | 94 | 31 | 18 | 301 |
+| train | 299 | 67 | 327 | 714 |
+| eval | 97 | 32 | 71 | 312 |
 
 **Truth here is a model's reading of a photo, not a human label.** The pilot's
 100 answers were checked against a contact sheet of the images and described

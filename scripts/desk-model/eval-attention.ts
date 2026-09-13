@@ -7,6 +7,7 @@ import {
 } from "../../src/main/desk/model/your-model";
 import { deskRoot } from "../../src/main/desk/assets";
 import {
+  attentionLabelsFile,
   cacheDir,
   formatMetrics,
   readAttentionLabels,
@@ -50,15 +51,22 @@ function formatBinary(name: string, value: Binary): string {
   return `${name}: precision ${(value.precision * 100).toFixed(1)}% · recall ${(value.recall * 100).toFixed(1)}% · F1 ${(value.f1 * 100).toFixed(1)}% (${value.support} positives)`;
 }
 
+function stringArg(flag: string, fallback: string): string {
+  const index = process.argv.indexOf(flag);
+  return index >= 0 && process.argv[index + 1] ? (process.argv[index + 1] as string) : fallback;
+}
+
 async function main(): Promise<void> {
-  const file = join(deskRoot(), "model", "weights", "attention-head.json");
+  // --weights / --labels let an old head be scored on a new split, and vice versa.
+  const file = stringArg("--weights", join(deskRoot(), "model", "weights", "attention-head.json"));
+  const labelsFile = stringArg("--labels", attentionLabelsFile());
   const weights = loadDeskHeadWeights(file, ATTENTION_HEAD_LABELS);
   if (!weights) {
     throw new Error("attention-head.json not found — run train-attention.ts first");
   }
   const labels = [...ATTENTION_HEAD_LABELS] as string[];
   const features = new Map(readFeatureRows().map((row) => [row.path, row]));
-  const rows = readAttentionLabels()
+  const rows = readAttentionLabels(labelsFile)
     .filter((row) => row.split === "eval" && labels.includes(row.attention))
     .flatMap((label) => {
       const feature = features.get(label.path);

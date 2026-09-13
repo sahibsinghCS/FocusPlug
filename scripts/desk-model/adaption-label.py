@@ -11,6 +11,8 @@ actually in it; `train-attention.ts` then fits an on-device head on the answers.
     python scripts/desk-model/adaption-label.py submit --name main            # upload + free estimate
     python scripts/desk-model/adaption-label.py submit --name main --go       # spends credits
     python scripts/desk-model/adaption-label.py fetch  --name main            # poll, download, parse
+    python scripts/desk-model/adaption-label.py build  --name v3 --exclude-run main   # only new images
+    python scripts/desk-model/adaption-label.py export --name main v3         # merge runs into the CSV
 
 Offline and developer-run, like scripts/adaption-upload.py. The Electron app
 never calls Adaption and never reads the key: only the trained weights ship.
@@ -97,6 +99,14 @@ def cmd_build(args: argparse.Namespace) -> None:
     root = data_root()
     pack = json.loads((root / "labels.json").read_text(encoding="utf-8"))
     items = [item for item in pack["items"] if item["bucket"] in args.bucket]
+    # Never pay twice: skip images an earlier run already labelled.
+    labelled = {
+        json.loads(line)["id"]
+        for run in args.exclude_run
+        for line in (work_dir(run) / "labels.jsonl").read_text(encoding="utf-8").splitlines()
+        if line
+    }
+    items = [item for item in items if opaque_id(item["path"]) not in labelled]
     if args.limit:
         items = random.Random(args.seed).sample(items, min(args.limit, len(items)))
 
@@ -282,7 +292,14 @@ def cmd_export(args: argparse.Namespace) -> None:
     import csv
 
     root = data_root()
-    entries = [json.loads(line) for line in (work_dir(args.name) / "labels.jsonl").read_text().splitlines() if line]
+    # Later runs win for an image labelled twice.
+    by_id: dict[str, dict] = {}
+    for name in args.name:
+        for line in (work_dir(name) / "labels.jsonl").read_text(encoding="utf-8").splitlines():
+            if line:
+                entry = json.loads(line)
+                by_id[entry["id"]] = entry
+    entries = list(by_id.values())
     hashes = [dhash(root / entry["path"]) for entry in entries]
     parent = list(range(len(entries)))
 
@@ -333,13 +350,14 @@ def main() -> int:
     build.add_argument("--bucket", nargs="+", default=["main"])
     build.add_argument("--limit", type=int, default=0)
     build.add_argument("--seed", type=int, default=7)
+    build.add_argument("--exclude-run", nargs="*", default=[], help="skip images these runs already labelled")
     submit = sub.add_parser("submit")
     submit.add_argument("--name", required=True)
     submit.add_argument("--go", action="store_true", help="start the job; without it only the free estimate runs")
     fetch = sub.add_parser("fetch")
     fetch.add_argument("--name", required=True)
     export = sub.add_parser("export")
-    export.add_argument("--name", required=True)
+    export.add_argument("--name", required=True, nargs="+", help="one or more runs to merge")
     args = parser.parse_args()
     {"build": cmd_build, "submit": cmd_submit, "fetch": cmd_fetch, "export": cmd_export}[args.command](args)
     return 0

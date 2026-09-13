@@ -66,6 +66,13 @@ const config = {
   l2: numberArg("--l2", 0.001),
   patience: numberArg("--patience", 60),
   valFraction: numberArg("--val", 0.15),
+  /**
+   * Cross-validation: with `--folds K`, groups are dealt into K folds and fold
+   * `--fold i` is the validation slice. Pick settings on the mean over folds;
+   * one small validation slice is too noisy to choose a model on.
+   */
+  folds: numberArg("--folds", 0),
+  fold: numberArg("--fold", 0),
   /** Feature ranges to train on, e.g. "745-2025" = the MobileNet embedding alone. */
   slices: ((): Array<[number, number]> | null => {
     const parsed = stringArg("--slices", "")
@@ -157,7 +164,9 @@ async function main(): Promise<void> {
   for (const cls of [...groupsByClass.keys()].sort()) {
     const mixed = shuffled(groupsByClass.get(cls) ?? [], rand);
     const valCount = Math.max(1, Math.round(mixed.length * config.valFraction));
-    mixed.forEach((members, index) => (index < valCount ? valSamples : trainSamples).push(...members));
+    const inVal = (index: number): boolean =>
+      config.folds > 1 ? index % config.folds === config.fold : index < valCount;
+    mixed.forEach((members, index) => (inVal(index) ? valSamples : trainSamples).push(...members));
   }
 
   const classCounts = new Map<number, number>();
