@@ -6,7 +6,16 @@ import {
   formatStudied,
   studiedSeconds,
 } from "./remain";
-import { bezierPoint, FLIGHT_DRAW_TRIANGLES_MAX, buildTerrainMesh, hashRouteSeed, ROUTE_PATH } from "./terrain";
+import {
+  bezierPoint,
+  buildTerrainMesh,
+  CLOSE_PAD,
+  CLOSE_RIVER,
+  CLOSE_RIVER_TAIL,
+  FLIGHT_DRAW_TRIANGLES_MAX,
+  hashRouteSeed,
+  ROUTE_PATH,
+} from "./terrain";
 
 describe("session remaining clock", () => {
   it("prints the sit they chose as H:MM:SS, not a fake 10h hop", () => {
@@ -32,9 +41,27 @@ describe("session remaining clock", () => {
 });
 
 describe("map view", () => {
-  it("keeps the whole-map path under the remaining clock", () => {
+  it("keeps the whole-map route between the stepped-up clock and the stats strip", () => {
     for (let i = 0; i <= 20; i += 1) {
-      expect(bezierPoint(ROUTE_PATH, i / 20).y).toBeGreaterThan(0.58);
+      const y = bezierPoint(ROUTE_PATH, i / 20).y;
+      expect(y).toBeGreaterThan(0.38);
+      expect(y).toBeLessThan(0.62);
+    }
+  });
+
+  it("keeps the close river clear of the plane, the clock and the stats", () => {
+    // Screen fraction of the padded close layer, the way drawFlightFace blits it.
+    const toScreen = (v: number): number => v * (1 + 2 * CLOSE_PAD) - CLOSE_PAD;
+    for (const curve of [CLOSE_RIVER, CLOSE_RIVER_TAIL]) {
+      for (let i = 0; i <= 40; i += 1) {
+        const p = bezierPoint(curve, i / 40);
+        const x = toScreen(p.x);
+        const y = toScreen(p.y);
+        if (y > 0.2) {
+          expect(x).toBeLessThan(0.24);
+        }
+        expect(y).toBeLessThan(0.7);
+      }
     }
   });
 
@@ -55,6 +82,23 @@ describe("cheap terrain", () => {
     expect(route.triangles.length).toBeLessThanOrEqual(FLIGHT_DRAW_TRIANGLES_MAX);
     expect(close.river.length).toBeGreaterThan(10);
     expect(route.river.length).toBeGreaterThan(10);
+  });
+
+  it("keeps a straight frame: border vertices sit on the edges", () => {
+    const width = 640;
+    const height = 400;
+    const mesh = buildTerrainMesh(width, height, hashRouteSeed("DUB", "EDI"), "route");
+    const verts = [...new Set(mesh.triangles.flatMap((t) => [t.a, t.b, t.c]))];
+    expect(verts.filter((v) => v.x === 0)).toHaveLength(mesh.rows + 1);
+    expect(verts.filter((v) => v.x === width)).toHaveLength(mesh.rows + 1);
+    expect(verts.filter((v) => v.y === 0)).toHaveLength(mesh.cols + 1);
+    expect(verts.filter((v) => v.y === height)).toHaveLength(mesh.cols + 1);
+    for (const v of verts) {
+      expect(v.x).toBeGreaterThanOrEqual(0);
+      expect(v.x).toBeLessThanOrEqual(width);
+      expect(v.y).toBeGreaterThanOrEqual(0);
+      expect(v.y).toBeLessThanOrEqual(height);
+    }
   });
 
   it("is deterministic for a route seed", () => {

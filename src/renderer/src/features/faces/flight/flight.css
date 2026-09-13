@@ -7,6 +7,8 @@
   width: 100%;
   height: 100%;
   overflow: hidden;
+  /* Type below sizes against this stage, not the window: cqw / cqh. */
+  container-type: size;
   background: #0b0d0c;
   color: #f4f4f2;
   font-family: Geist, "Segoe UI Variable", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
@@ -33,12 +35,16 @@
 
 .fp-flight-plane {
   position: absolute;
-  top: 8%;
+  top: 7%;
   left: 50%;
   z-index: 2;
-  width: clamp(68px, 9vw, 104px);
-  height: clamp(68px, 9vw, 104px);
+  /* Sized by the stage height so it always ends above the status line at 27%. */
+  height: clamp(44px, 17%, 100px);
+  width: auto;
+  aspect-ratio: 1;
   transform: translateX(-50%);
+  /* Hard shadow on the ground, the same corner as the canvas plane's. */
+  filter: drop-shadow(9px 14px 0 rgba(6, 10, 6, 0.3));
   pointer-events: none;
 }
 
@@ -67,7 +73,8 @@
   font-stretch: 112%;
   letter-spacing: -0.045em;
   line-height: 0.88;
-  font-size: clamp(52px, 11vw, 120px);
+  /* Height counts too, so a short stage never pushes the clock into the rail. */
+  font-size: clamp(52px, min(11cqw, 22cqh), 120px);
   color: #f7f7f4;
   text-shadow: 0 8px 28px rgba(8, 12, 8, 0.35);
 }
@@ -233,13 +240,12 @@
 }
 
 .fp-flight.is-compact .fp-flight-remain {
-  font-size: clamp(32px, 8vw, 52px);
+  font-size: clamp(32px, min(8cqw, 14cqh), 52px);
 }
 
 .fp-flight.is-compact .fp-flight-plane {
-  top: 6%;
-  width: 56px;
-  height: 56px;
+  top: 5%;
+  height: clamp(36px, 16%, 60px);
 }
 
 .fp-flight.is-compact .fp-flight-status {
@@ -267,6 +273,38 @@
   min-height: 28px;
   padding: 0 12px;
   font-size: 11px;
+}
+
+/*
+ * Whole map: the route is the picture. The clock steps up to the top, and the
+ * DUB–EDI rail goes, because the route itself shows how far you have flown.
+ */
+.fp-flight[data-map-view="route"] .fp-flight-status {
+  top: 8%;
+}
+
+.fp-flight[data-map-view="route"] .fp-flight-hero {
+  top: 13%;
+}
+
+.fp-flight[data-map-view="route"] .fp-flight-remain {
+  font-size: clamp(40px, min(7cqw, 15cqh), 84px);
+}
+
+.fp-flight[data-map-view="route"] .fp-flight-progress {
+  display: none;
+}
+
+.fp-flight.is-compact[data-map-view="route"] .fp-flight-status {
+  top: 6%;
+}
+
+.fp-flight.is-compact[data-map-view="route"] .fp-flight-hero {
+  top: 11%;
+}
+
+.fp-flight.is-compact[data-map-view="route"] .fp-flight-remain {
+  font-size: clamp(28px, min(6cqw, 11cqh), 40px);
 }
 
 .fp-flight-route {

@@ -31,39 +31,55 @@ export interface Bezier4 {
   y3: number;
 }
 
-/** Close-in river: right-hand valley like the reference plate. */
+/**
+ * The close map is painted this much larger on every side, so its slow drift
+ * never shows an edge. Close-map curves below are in that padded layer's
+ * fractions: screen = layer * (1 + 2 * CLOSE_PAD) - CLOSE_PAD.
+ */
+export const CLOSE_PAD = 0.12;
+
+/**
+ * Close-in river. It enters at the top left, bends down the left side and
+ * leaves through the left edge above the progress rail, so it never runs
+ * behind the plane, the clock or the stats. On screen that is roughly
+ * (0.34, -0.06) → (0.13, 0.32) → (-0.08, 0.64).
+ */
 export const CLOSE_RIVER: Bezier4 = {
-  x0: 0.74,
-  y0: -0.08,
-  x1: 0.86,
-  y1: 0.2,
-  x2: 0.58,
-  y2: 0.4,
-  x3: 0.7,
-  y3: 0.56,
+  x0: 0.371,
+  y0: 0.048,
+  x1: 0.339,
+  y1: 0.177,
+  x2: 0.177,
+  y2: 0.226,
+  x3: 0.202,
+  y3: 0.355,
 };
 
 export const CLOSE_RIVER_TAIL: Bezier4 = {
-  x0: 0.7,
-  y0: 0.56,
-  x1: 0.84,
-  y1: 0.7,
-  x2: 0.62,
-  y2: 0.9,
-  x3: 0.72,
-  y3: 1.12,
+  x0: 0.202,
+  y0: 0.355,
+  x1: 0.226,
+  y1: 0.468,
+  x2: 0.113,
+  y2: 0.5,
+  x3: 0.032,
+  y3: 0.613,
 };
 
-/** Whole-route corridor stays below the remaining clock. */
+/**
+ * Whole-map route. The clock steps up to the top on this view, so the arc
+ * gets the middle: below the clock and far enough above the stats strip to
+ * leave room for the airport codes under each end.
+ */
 export const ROUTE_PATH: Bezier4 = {
   x0: 0.1,
-  y0: 0.7,
-  x1: 0.34,
-  y1: 0.62,
+  y0: 0.58,
+  x1: 0.36,
+  y1: 0.4,
   x2: 0.64,
-  y2: 0.62,
+  y2: 0.4,
   x3: 0.9,
-  y3: 0.68,
+  y3: 0.55,
 };
 
 const CLOSE_COLS = 11;
@@ -182,8 +198,12 @@ export function buildTerrainMesh(
     for (let col = 0; col <= cols; col += 1) {
       const nx = col / cols;
       const ny = row / rows;
-      const jx = (hash32(col, row, seed) - 0.5) * (0.72 / cols);
-      const jy = (hash32(col, row, seed + 7) - 0.5) * (0.72 / rows);
+      // Border vertices only slide along their edge, so the map has a straight
+      // frame instead of dark notches where the ground shows through.
+      const edgeX = col === 0 || col === cols;
+      const edgeY = row === 0 || row === rows;
+      const jx = edgeX ? 0 : (hash32(col, row, seed) - 0.5) * (0.72 / cols);
+      const jy = edgeY ? 0 : (hash32(col, row, seed + 7) - 0.5) * (0.72 / rows);
       const h = fbm((nx + jx) * scale, (ny + jy) * scale, seed);
       verts.push({
         x: (nx + jx) * width,
@@ -266,6 +286,11 @@ export function routePoint(progress: number, width: number, height: number): {
     y: p.y * height,
     heading: Math.atan2(tan.x, -tan.y),
   };
+}
+
+/** The whole-map route as a polyline in pixels, `steps + 1` points from departure to arrival. */
+export function sampleRoute(width: number, height: number, steps: number): Array<{ x: number; y: number }> {
+  return sampleBezier(ROUTE_PATH, steps).map((p) => ({ x: p.x * width, y: p.y * height }));
 }
 
 export function hashRouteSeed(dep: string, arr: string): number {

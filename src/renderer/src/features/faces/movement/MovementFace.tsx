@@ -73,8 +73,8 @@ function paintMovement(
     return;
   }
 
-  ctx.fillStyle = "#0c0e13";
-  ctx.fillRect(-80, -80, 1160, 1160);
+  // No square backdrop: the chamber fades to near-black at its rim and sits on
+  // the stage ground, so lock mode shows no lighter box around the movement.
   const chamber = ctx.createRadialGradient(500, 520, 80, 500, 520, 520);
   chamber.addColorStop(0, "#2a3038");
   chamber.addColorStop(0.55, "#161a20");

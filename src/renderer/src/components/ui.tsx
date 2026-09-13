@@ -222,7 +222,8 @@ export function StatusPill(props: {
   const body = (
     <>
       <Led tone={props.tone} live={props.live} />
-      <span className="hidden text-[10px] font-semibold uppercase tracking-[0.14em] text-fp-faint sm:inline">
+      {/* Below 1100px the labels would push the pills over the page tabs; the dot and value stay. */}
+      <span className="hidden text-[10px] font-semibold uppercase tracking-[0.14em] text-fp-faint min-[1100px]:inline">
         {props.label}
       </span>
       <span className="max-w-[9rem] truncate font-mono text-[11px] text-fp-ink tabular">
@@ -243,6 +244,7 @@ export function StatusPill(props: {
         onClick={props.onClick}
         className={classes}
         aria-label={`${props.label}: ${props.detail}`}
+        data-tip={props.label}
       >
         {body}
       </button>
