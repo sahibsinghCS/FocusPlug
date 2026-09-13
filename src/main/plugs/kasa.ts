@@ -3,6 +3,7 @@ import { createSocket, type RemoteInfo, type Socket as UdpSocket } from "node:dg
 import { networkInterfaces } from "node:os";
 import { KlapPool, klapCredentialsFromEnv } from "./klap.ts";
 import type { PlugDevice } from "../../shared/types.ts";
+import { hostnameFromAddress } from "./protect.ts";
 import type { PlugHost } from "./types.ts";
 
 /** TP-Link Smart Home LAN port. Local XOR protocol — no cloud account. */
@@ -137,6 +138,23 @@ export function relayStateOn(info: KasaSysinfo): boolean {
 
 function setRelayPayload(on: boolean): string {
   return JSON.stringify({ system: { set_relay_state: { state: on ? 1 : 0 } } });
+}
+
+/** Throw unless a set_relay_state reply acknowledges the switch with err_code 0. */
+export function assertSetRelayAck(body: string): void {
+  let errCode: unknown;
+  try {
+    const parsed: unknown = JSON.parse(body);
+    errCode = (parsed as { system?: { set_relay_state?: { err_code?: unknown } } }).system
+      ?.set_relay_state?.err_code;
+  } catch {
+    throw new Error("Kasa set_relay_state reply was not JSON");
+  }
+  if (errCode !== 0) {
+    throw new Error(
+      `Kasa set_relay_state failed (err_code ${typeof errCode === "number" ? errCode : "missing"})`,
+    );
+  }
 }
 
 export class TcpKasaTransport implements KasaTransport {
@@ -294,9 +312,12 @@ export class KasaPlugHost implements PlugHost {
   }
 
   async setPower(device: PlugDevice, on: boolean): Promise<boolean> {
-    const host = device.address.trim();
+    // Same parse as the protect layer, so the host we dial can never diverge
+    // from the host the loopback hard-deny inspected.
+    const host = hostnameFromAddress(device.address);
+    let ack: string;
     try {
-      await this.transport.send(host, setRelayPayload(on));
+      ack = await this.transport.send(host, setRelayPayload(on));
     } catch (legacyError) {
       const klap = this.klapPool();
       if (klap === null) {
@@ -304,17 +325,22 @@ export class KasaPlugHost implements PlugHost {
       }
       return await klap.setPower(host, on);
     }
+    // The device answered the legacy protocol; a refusal there is a real
+    // failure, not a reason to retry over KLAP — surface it instead of
+    // reporting a switch that never happened.
+    assertSetRelayAck(ack);
     try {
       const info = parseKasaSysinfo(await this.transport.send(host, GET_SYSINFO));
       return relayStateOn(info);
     } catch {
-      // The command went through; only the read-back failed.
+      // Device ACKed the relay change (err_code 0); verification is best-effort.
       return on;
     }
   }
 
   async query(device: PlugDevice): Promise<boolean | null> {
-    const host = device.address.trim();
+    // Same parse as the protect layer — see setPower.
+    const host = hostnameFromAddress(device.address);
     let body: string;
     try {
       body = await this.transport.send(host, GET_SYSINFO);

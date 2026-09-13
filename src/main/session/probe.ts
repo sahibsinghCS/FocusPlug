@@ -22,6 +22,7 @@ import { join } from "node:path";
 import { createAppStore } from "../store/appStore.ts";
 import { createPlatformForegroundReader } from "../window/index.ts";
 import { createSessionRuntime } from "./runtime.ts";
+import { DEFAULT_SETTINGS } from "../../shared/defaults.ts";
 import { DEFAULT_FACE_ID } from "../../shared/faces.ts";
 import { DEFAULT_FLIGHT_ARR, DEFAULT_FLIGHT_DEP } from "../../shared/flightRoute.ts";
 import type { SessionState } from "../../shared/ipc.ts";
@@ -82,6 +83,7 @@ async function main(): Promise<void> {
     { id: "none", name: "no real target", match: ["fp_probe_never_matches"], enabled: true },
   ]);
   store.saveSettings({
+    ...DEFAULT_SETTINGS,
     countdownSec: 3,
     deskThreshold: 0.6,
     strictMode: false, // window path only — Desk AI has npm run test:desk
@@ -92,6 +94,10 @@ async function main(): Promise<void> {
     flightArr: DEFAULT_FLIGHT_ARR,
     plugMode: "cut",
     plugs: [],
+    // Window path only: the forecast has its own suites, and a pre-arm would
+    // scale the very fuse this probe measures.
+    forecastEnabled: false,
+    forecastPrearmEnabled: false,
   });
 
   const states: SessionState[] = [];

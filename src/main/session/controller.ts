@@ -1,6 +1,7 @@
 import { DEFAULT_SESSION_STATE } from "../../shared/defaults.ts";
 import { isFaceId } from "../../shared/faces.ts";
 import { isFlightIata } from "../../shared/flightRoute.ts";
+import type { ForecastHook } from "../../shared/forecast/index.ts";
 import { isNudgeKind, isPlugMode, type NudgeEvent, type NudgeKind } from "../../shared/nudge.ts";
 import { REASONS } from "../../shared/policy/constants.ts";
 import {
@@ -15,8 +16,14 @@ import {
   type SessionState,
   type WindowMonitor,
 } from "../../shared/ipc.ts";
-import { enabledFunPlugIds, PolicyEngine, type PolicyEngineInput } from "../../shared/policy/index.ts";
+import {
+  enabledFunPlugIds,
+  plugEventFor,
+  PolicyEngine,
+  type PolicyEngineInput,
+} from "../../shared/policy/index.ts";
 import { AdaptiveFuse } from "./adaptiveFuse.ts";
+import { composeFuse } from "./fuseAuthority.ts";
 import { NudgeTracker } from "./nudge.ts";
 import type {
   AppEntry,
@@ -28,7 +35,7 @@ import type {
   PolicyEvent,
   SessionEvent,
 } from "../../shared/types.ts";
-import { createPlugController, SettingsPlugStore } from "../plugs/index.ts";
+import { assertControllable, createPlugController, SettingsPlugStore } from "../plugs/index.ts";
 import {
   cloneSettings,
   isDeskModelId,
@@ -70,8 +77,32 @@ export interface SessionControllerOptions {
   now?: () => number;
   /** Policy/countdown loop interval. `0` disables the timer (tests drive `flush`). */
   tickIntervalMs?: number;
+  /**
+   * Focus Forecast advisory seam. Called once per evaluateOnce on the
+   * active-session path; a non-null return is the pre-arm signal, which
+   * SCALES the adaptive fuse toward the floor (see `fuseAuthority.ts`) and
+   * touches nothing else. Absent ⇒ the adaptive fuse alone, as on `main`.
+   */
+  forecast?: ForecastHook;
   /** Bring the app window to the front for a nudge. Absent in tests and headless runs. */
   revealWindow?: () => void;
+}
+
+/** One evaluate's answer from the fuse authority — see `resolveFuse`. */
+interface ResolvedFuse {
+  /** The composed countdown handed to the policy engine, in seconds. */
+  seconds: number;
+  /** AdaptiveFuse's personalised length before the pre-arm scaled it. */
+  personalSec: number;
+  /** True when the Focus Forecast had pre-armed as this fuse was resolved. */
+  prearmed: boolean;
+  /** True when a model, not the raw Settings value, chose `seconds`. */
+  modelChosen: boolean;
+}
+
+/** The fuse when nothing has an opinion: the Settings value, unmodelled. */
+function settingsFuse(seconds: number): ResolvedFuse {
+  return { seconds, personalSec: seconds, prearmed: false, modelChosen: false };
 }
 
 function cloneState(state: SessionState): SessionState {
@@ -184,6 +215,42 @@ function requirePatch(value: unknown): Partial<AppSettings> {
     }
     patch.plugs = record.plugs.map((item, index) => requirePlugDevice(item, `plugs[${index}]`));
   }
+  if ("forecastEnabled" in record) {
+    if (typeof record.forecastEnabled !== "boolean") {
+      throw new Error("forecastEnabled must be a boolean");
+    }
+    patch.forecastEnabled = record.forecastEnabled;
+  }
+  if ("forecastPrearmEnabled" in record) {
+    if (typeof record.forecastPrearmEnabled !== "boolean") {
+      throw new Error("forecastPrearmEnabled must be a boolean");
+    }
+    patch.forecastPrearmEnabled = record.forecastPrearmEnabled;
+  }
+  if ("forecastNudgeRisk" in record) {
+    if (typeof record.forecastNudgeRisk !== "number" || !Number.isFinite(record.forecastNudgeRisk)) {
+      throw new Error("forecastNudgeRisk must be a finite number");
+    }
+    patch.forecastNudgeRisk = record.forecastNudgeRisk;
+  }
+  if ("forecastPrearmRisk" in record) {
+    if (
+      typeof record.forecastPrearmRisk !== "number" ||
+      !Number.isFinite(record.forecastPrearmRisk)
+    ) {
+      throw new Error("forecastPrearmRisk must be a finite number");
+    }
+    patch.forecastPrearmRisk = record.forecastPrearmRisk;
+  }
+  if ("forecastPrearmFuseSec" in record) {
+    if (
+      typeof record.forecastPrearmFuseSec !== "number" ||
+      !Number.isFinite(record.forecastPrearmFuseSec)
+    ) {
+      throw new Error("forecastPrearmFuseSec must be a finite number");
+    }
+    patch.forecastPrearmFuseSec = record.forecastPrearmFuseSec;
+  }
   return patch;
 }
 
@@ -194,6 +261,9 @@ function requirePlugDevice(value: unknown, label = "plug"): PlugDevice {
       `${label} must be a PlugDevice with isStudyPc=false (study PC plugs are forbidden)`,
     );
   }
+  // Same hard-deny as PLUGS_ADD — the SETTINGS_SET route must never persist
+  // a device the protect layer would refuse to command.
+  assertControllable(plug);
   return plug;
 }
 
@@ -224,6 +294,7 @@ export class SessionController {
   private readonly policyFactory: () => PolicyEngineSeam;
   private readonly now: () => number;
   private readonly tickIntervalMs: number;
+  private readonly forecast: ForecastHook | null;
   private readonly revealWindow: (() => void) | undefined;
   private readonly nudges = new NudgeTracker();
 
@@ -236,9 +307,15 @@ export class SessionController {
   private countdownStartedAt: number | null = null;
   private countdownDurationSec = 0;
   private lastLoggedDecision: SessionState["decision"] | null = null;
+  /** Demo Kill cut plugs / dropped the engine lock — restore on next on-task. */
+  private demoPlugsCut = false;
   private timer: ReturnType<typeof setInterval> | null = null;
   private queue: Promise<void> = Promise.resolve();
   private readonly adaptive: AdaptiveFuse;
+  /** The composed fuse this evaluate resolved — consumed when a countdown arms. */
+  private lastFuse: ResolvedFuse = settingsFuse(0);
+  /** Non-null exactly while a countdown burns. THE LATCH — see `resolveFuse`. */
+  private fuseLatch: ResolvedFuse | null = null;
 
   constructor(options: SessionControllerOptions) {
     this.windowMonitor = options.windowMonitor;
@@ -259,6 +336,7 @@ export class SessionController {
     this.policyFactory = options.policyFactory ?? (() => new PolicyEngine());
     this.now = options.now ?? Date.now;
     this.tickIntervalMs = options.tickIntervalMs ?? DEFAULT_SESSION_TICK_MS;
+    this.forecast = options.forecast ?? null;
     this.adaptive = new AdaptiveFuse({
       store: options.store,
       random: options.adaptiveRandom,
@@ -277,6 +355,12 @@ export class SessionController {
     this.adaptive.startSession(this.now());
     this.clearFuse();
     this.lastLoggedDecision = null;
+    this.demoPlugsCut = false;
+    // Drop the previous session's snapshots — buildPolicyInput re-stamps ts,
+    // so stale focus/desk data would look current and could arm (or with a
+    // 0s fuse, fire) enforcement before either monitor emits.
+    this.focus = null;
+    this.desk = null;
     this.state = {
       ...cloneState(DEFAULT_SESSION_STATE),
       sessionActive: true,
@@ -318,11 +402,14 @@ export class SessionController {
   }
 
   async stop(): Promise<SessionState> {
-    this.generation += 1;
-    this.sessionActive = false;
     this.stopTicker();
     this.windowMonitor.stop();
     this.deskMonitor.stop();
+    // Drain in-flight evaluation before flipping inactive so a mid-flight
+    // kill finishes with its paired plug_off and logs before "Session stopped".
+    await this.flush();
+    this.generation += 1;
+    this.sessionActive = false;
     this.clearFuse();
 
     const idleInput = this.buildPolicyInput(false);
@@ -337,6 +424,7 @@ export class SessionController {
       }
     }
     this.policy = this.policyFactory();
+    this.demoPlugsCut = false;
     // Stopping mid-countdown is not the user recovering — discard, never learn.
     this.adaptive.stopSession();
     this.state = {
@@ -496,6 +584,14 @@ export class SessionController {
 
   async demoKill(): Promise<KillResult> {
     this.clearFuse();
+    // clearFuse only resets the displayed countdown — replace the engine too,
+    // or a policy fuse armed before Demo Kill keeps burning invisibly and
+    // fires a second kill + plug_off with no countdown on screen.
+    this.policy = this.policyFactory();
+    // The replaced engine may have been `locked`, and the demo cut below is a
+    // session-owned path the fresh engine knows nothing about — remember to
+    // restore on the next on-task return or the plugs stay stranded OFF.
+    this.demoPlugsCut = this.sessionActive;
     const matchers = demoKillMatchers(this.store.loadBlocklist(), this.focus);
     const event: PolicyEvent = {
       type: "kill",
@@ -547,8 +643,16 @@ export class SessionController {
     }
     const gen = this.generation;
     const settings = this.loadSettings();
-    const input = this.buildPolicyInput(true, settings);
-    const events = this.policy.step(input);
+    const fuse = this.resolveFuse(settings);
+    this.lastFuse = fuse;
+    // The engine checks fuse expiry against the live countdownSec, so the
+    // displayed countdown must be retimed to whatever the authority says —
+    // which, while a fuse burns, is the latched value.
+    if (this.countdownStartedAt !== null) {
+      this.countdownDurationSec = fuse.seconds;
+    }
+    const input = this.buildPolicyInput(true, settings, fuse.seconds);
+    const events = this.withDemoRecovery(this.policy.step(input), input);
     if (this.generation !== gen || !this.sessionActive) {
       return;
     }
@@ -570,19 +674,149 @@ export class SessionController {
     this.publishState();
   }
 
+  /**
+   * THE ONE FUSE AUTHORITY — the single place `countdownSec` is decided.
+   *
+   * AdaptiveFuse answers "how long does this person need?" and the Focus
+   * Forecast answers "is a drift coming?". They compose rather than compete:
+   * the adaptive fuse sets a personalised base length and a pre-arm scales it
+   * toward the floor (`fuseAuthority.ts`), so a slow recoverer still gets more
+   * time than a fast one under pre-arm.
+   *
+   * Two invariants live here, and both are about enforcement, not accuracy:
+   *
+   * 1. THE LATCH. Once a countdown is burning, neither model may change its
+   *    length. Both are still *ticked* every evaluate — the adaptive fuse
+   *    tracks the moment and `beforeStep` is where the forecast closes its
+   *    1 Hz frames, so skipping the calls would silently stop the observer —
+   *    but their answers are discarded in favour of the latched value. A
+   *    settings change still retimes a plain Settings fuse (today's
+   *    behaviour); it cannot stretch one a model chose.
+   *
+   * 2. NEVER THROW. The whole composed computation sits inside this try. It
+   *    is the one place two learned models reach the deterministic kill path:
+   *    if either threw, `evaluateOnce` would die before `policy.step` and
+   *    enforcement would stop entirely — no status, no countdown, no kill.
+   *    Swallowing here makes "exceptions never propagate" a property of the
+   *    enforcement core rather than of the current implementations.
+   */
+  private resolveFuse(settings: AppSettings): ResolvedFuse {
+    const latch = this.fuseLatch;
+    const fallback: ResolvedFuse =
+      latch !== null && latch.modelChosen ? { ...latch } : settingsFuse(settings.countdownSec);
+    try {
+      const ts = this.now();
+      const personalSec = this.adaptive.fuseFor(
+        { focus: this.focus, desk: this.desk },
+        settings.countdownSec,
+        ts,
+      );
+      // The hook's number is the forecast's own view of the fuse; all this
+      // authority takes from it is the pre-arm STATE. A non-null return while
+      // a countdown burns is the forecast's own latch, which the controller's
+      // latch below already outranks.
+      const prearmed = (this.forecast?.beforeStep(ts, personalSec) ?? null) !== null;
+      if (latch !== null) {
+        return fallback;
+      }
+      return {
+        seconds: composeFuse({ personalSec, prearmed }),
+        personalSec,
+        prearmed,
+        // A model owns this fuse when the forecast shortened it or the
+        // adaptive fuse moved it off the Settings value. Only those are
+        // frozen mid-burn; a plain Settings fuse still follows Settings.
+        modelChosen: prearmed || personalSec !== settings.countdownSec,
+      };
+    } catch {
+      return fallback;
+    }
+  }
+
+  /**
+   * Demo Kill cuts plugs on a session-owned path and replaces the policy
+   * engine, discarding any `locked` state — the fresh engine sees an on-task
+   * return with nothing to recover, so it would never emit the unlock +
+   * plug_on pair and the plugs would stay stranded OFF. Until the engine owns
+   * recovery again (its own kill re-locks it, or it emits unlock), inject the
+   * standard pair ahead of the ON_TASK status.
+   */
+  private withDemoRecovery(
+    events: PolicyEvent[],
+    input: PolicyEngineInput,
+  ): PolicyEvent[] {
+    if (!this.demoPlugsCut) {
+      return events;
+    }
+    if (events.some((event) => event.type === "unlock" || event.type === "kill")) {
+      this.demoPlugsCut = false;
+      return events;
+    }
+    if (!events.some((event) => event.type === "status" && event.decision === "ON_TASK")) {
+      return events;
+    }
+    this.demoPlugsCut = false;
+    const injected: PolicyEvent[] = [{ type: "unlock" }];
+    const plugOn = plugEventFor("plug_on", input, REASONS.unlock);
+    if (plugOn !== null) {
+      injected.push(plugOn);
+    }
+    return [...injected, ...events];
+  }
+
   private async applyPolicyEvent(event: PolicyEvent): Promise<void> {
     switch (event.type) {
       case "start_countdown": {
         const armedAt = this.now();
+        const fuse = this.lastFuse;
         this.countdownStartedAt = armedAt;
         this.countdownDurationSec = event.seconds;
-        const choice = this.adaptive.armed(event.seconds, armedAt);
+        // THE LATCH closes here: from now until clearFuse, `resolveFuse`
+        // answers with this value and stops listening to either model.
+        this.fuseLatch = { ...fuse, seconds: event.seconds };
+        /*
+         * THE LEARNING-SIGNAL TRAP.
+         *
+         * AdaptiveFuse learns cancel = positive, kill = negative. A pre-armed
+         * fuse is half the length the learner asked for, so it kills more
+         * often through no fault of the user. Left alone the model reads that
+         * as "this person needs longer", lengthens the personal fuse, the
+         * pre-arm halves the longer fuse, and the two systems ratchet against
+         * each other for the rest of the install's life.
+         *
+         * Of the two fixes in docs/RECONCILIATION.md, RECORDING the granted
+         * fuse is already done by `main`: `armed(seconds)` stamps the fuse
+         * actually handed out onto the DriftMoment, `fuseLength`/`fuseOverN`
+         * are features, and `examplesFor` censors every candidate longer than
+         * a kill's fuse. That handles the fuse-length confound — but not the
+         * SELECTION one: a pre-arm fires on high-risk moments, and with no
+         * pre-arm feature the model charges their low recovery rate to the
+         * person. Adding that feature means a new FEATURE_NAMES entry, a new
+         * prior weight and a FEATURE_LAYOUT bump across src/shared/adapt,
+         * which discards every model already on disk.
+         *
+         * Excluding is one `if` and touches nothing shared, so we exclude:
+         * skip `armed`, and the drift never becomes an ActiveDrift, so the
+         * later `recovered`/`killed` are no-ops (see adaptiveFuse.test.ts,
+         * "does not learn anything from a countdown that was never armed").
+         * The honest statement is that the fuse this drift was given is not
+         * the fuse the learner chose, so its outcome does not measure what
+         * the learner is trying to measure.
+         */
+        const choice = fuse.prearmed ? null : this.adaptive.armed(event.seconds, armedAt);
         this.appendLog(
           "countdown",
           `start_countdown · ${event.reason} · ${event.seconds}s`,
         );
         if (choice !== null) {
           this.appendLog("adapt", choice.reason);
+        }
+        if (fuse.prearmed) {
+          this.appendLog(
+            "adapt",
+            `${event.seconds}s — forecast pre-armed, scaled from your ` +
+              `${fuse.personalSec}s · not learned from`,
+          );
         }
         if (event.reason === REASONS.blockedFocus) {
           this.nudges.blocked(armedAt);
@@ -736,7 +970,11 @@ export class SessionController {
     }
   }
 
-  private buildPolicyInput(sessionActive: boolean, settings?: AppSettings): PolicyEngineInput {
+  private buildPolicyInput(
+    sessionActive: boolean,
+    settings?: AppSettings,
+    fuseSec: number | null = null,
+  ): PolicyEngineInput {
     const resolved = settings ?? this.loadSettings();
     const ts = this.now();
     const focus =
@@ -747,12 +985,11 @@ export class SessionController {
       sessionActive,
       focus,
       desk,
-      // The adaptive fuse decides how long they get. It falls back to the
-      // Settings value whenever it has nothing to say, so a cold install and
-      // an idle tick both behave exactly as they did before.
-      countdownSec: sessionActive
-        ? this.adaptive.fuseFor({ focus, desk }, resolved.countdownSec, ts)
-        : resolved.countdownSec,
+      // ONE fuse authority. `resolveFuse` composes the adaptive fuse's
+      // personalised length with the forecast's pre-arm and hands the answer
+      // in; the idle path (session stopping) has no fuse to compose and falls
+      // back to the Settings value, exactly as before.
+      countdownSec: fuseSec ?? resolved.countdownSec,
       deskThreshold: resolved.deskThreshold,
       strictMode: resolved.strictMode,
       enabledPlugIds: funPlugIds,
@@ -776,6 +1013,10 @@ export class SessionController {
   private clearFuse(): void {
     this.countdownStartedAt = null;
     this.countdownDurationSec = 0;
+    // Releasing the latch is part of clearing the fuse: every path that stops
+    // a countdown (recovery, kill, Demo Kill, start, stop) goes through here,
+    // so the next drift is free to ask both models again.
+    this.fuseLatch = null;
   }
 
   private startTicker(gen: number): void {

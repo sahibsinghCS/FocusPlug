@@ -20,6 +20,7 @@ import type {
   PlugProtocol,
   SessionEvent,
 } from "../../shared/types.ts";
+import { isControllable } from "../plugs/protect.ts";
 import { ListsJsonStore } from "./lists.ts";
 
 const MAX_SESSION_LOG = 1000;
@@ -98,6 +99,15 @@ export function normalizePlugDevice(raw: unknown): PlugDevice | null {
   };
 }
 
+/**
+ * Load path for the plug array. Drops anything the protect layer would refuse
+ * to command, not just malformed records: the SETTINGS_SET and PLUGS_ADD
+ * routes both hard-deny those, so a legacy or hand-edited settings.json is the
+ * only way one gets on disk — and if it survived the read, the renderer's
+ * whole-array `persistPlugs` write would throw on every subsequent toggle of
+ * ANY plug, with no in-app way to remove the offender. Dropping on load makes
+ * a poisoned file self-heal on first read instead.
+ */
 export function normalizePlugs(raw: unknown): PlugDevice[] {
   if (!Array.isArray(raw)) {
     return DEFAULT_SETTINGS.plugs.map((plug) => ({ ...plug }));
@@ -106,7 +116,7 @@ export function normalizePlugs(raw: unknown): PlugDevice[] {
   const plugs: PlugDevice[] = [];
   for (const item of raw) {
     const plug = normalizePlugDevice(item);
-    if (plug === null || seen.has(plug.id)) {
+    if (plug === null || seen.has(plug.id) || !isControllable(plug)) {
       continue;
     }
     seen.add(plug.id);
@@ -129,6 +139,21 @@ export function normalizeSettings(raw: Partial<AppSettings> | null | undefined):
   const thresholdRaw = isFiniteNumber(raw?.deskThreshold)
     ? raw.deskThreshold
     : DEFAULT_SETTINGS.deskThreshold;
+  const nudgeRiskRaw = isFiniteNumber(raw?.forecastNudgeRisk)
+    ? raw.forecastNudgeRisk
+    : DEFAULT_SETTINGS.forecastNudgeRisk;
+  const prearmRiskRaw = isFiniteNumber(raw?.forecastPrearmRisk)
+    ? raw.forecastPrearmRisk
+    : DEFAULT_SETTINGS.forecastPrearmRisk;
+  const prearmFuseRaw = isFiniteNumber(raw?.forecastPrearmFuseSec)
+    ? raw.forecastPrearmFuseSec
+    : DEFAULT_SETTINGS.forecastPrearmFuseSec;
+  const forecastNudgeRisk = Math.min(0.9, Math.max(0.05, nudgeRiskRaw));
+  // Pre-arm must sit meaningfully above the nudge threshold or the bands collapse.
+  const forecastPrearmRisk = Math.max(
+    Math.min(0.95, Math.max(0.1, prearmRiskRaw)),
+    forecastNudgeRisk + 0.05,
+  );
   return {
     countdownSec: Math.min(600, Math.max(0, Math.round(countdownRaw))),
     deskThreshold: Math.min(1, Math.max(0, thresholdRaw)),
@@ -142,6 +167,17 @@ export function normalizeSettings(raw: Partial<AppSettings> | null | undefined):
     ...normalizeFlightPair(raw?.flightDep, raw?.flightArr),
     plugMode: isPlugMode(raw?.plugMode) ? raw.plugMode : DEFAULT_SETTINGS.plugMode,
     plugs: normalizePlugs(raw?.plugs),
+    forecastEnabled:
+      typeof raw?.forecastEnabled === "boolean"
+        ? raw.forecastEnabled
+        : DEFAULT_SETTINGS.forecastEnabled,
+    forecastPrearmEnabled:
+      typeof raw?.forecastPrearmEnabled === "boolean"
+        ? raw.forecastPrearmEnabled
+        : DEFAULT_SETTINGS.forecastPrearmEnabled,
+    forecastNudgeRisk,
+    forecastPrearmRisk,
+    forecastPrearmFuseSec: Math.min(600, Math.max(3, Math.round(prearmFuseRaw))),
   };
 }
 

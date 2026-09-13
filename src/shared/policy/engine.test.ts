@@ -664,6 +664,53 @@ describe("gauntlet: return cancels", () => {
       ],
     },
     {
+      name: "strict: locked refuses to unlock on Chrome alone while away/uncertain; needs desk too",
+      steps: [
+        {
+          ts: T0,
+          focus: discord(T0),
+          desk: present(T0),
+          expect: { decision: "DISTRACTED", includes: ["start_countdown"] },
+        },
+        {
+          ts: T0 + 10 * SEC,
+          focus: discord(T0 + 10 * SEC),
+          desk: present(T0 + 10 * SEC),
+          expect: { decision: "DISTRACTED", includes: ["kill"] },
+        },
+        {
+          ts: T0 + 12 * SEC,
+          focus: chrome(T0 + 12 * SEC),
+          desk: away(T0 + 12 * SEC, 0.95),
+          expect: {
+            decision: "AWAY",
+            events: ["status"],
+            excludes: ["unlock", "kill", "start_countdown", "cancel_countdown"],
+          },
+        },
+        {
+          ts: T0 + 14 * SEC,
+          focus: chrome(T0 + 14 * SEC),
+          desk: uncertainDesk(T0 + 14 * SEC),
+          expect: {
+            decision: "IDLE",
+            events: ["status"],
+            excludes: ["unlock", "kill", "start_countdown"],
+          },
+        },
+        {
+          ts: T0 + 16 * SEC,
+          focus: chrome(T0 + 16 * SEC),
+          desk: present(T0 + 16 * SEC),
+          expect: {
+            decision: "ON_TASK",
+            events: ["unlock", "status"],
+            excludes: ["kill", "cancel_countdown"],
+          },
+        },
+      ],
+    },
+    {
       name: "cancel then a new distraction starts a fresh 10s countdown (old timer discarded)",
       steps: [
         {
@@ -1459,6 +1506,61 @@ describe("gauntlet: plug_off / plug_on", () => {
             plugOnIds: PLUGS,
             plugOnReason: REASONS.unlock,
             excludes: ["kill", "plug_off", "cancel_countdown"],
+          },
+        },
+      ],
+    },
+    {
+      name: "locked + Chrome while away/uncertain does not plug_on; unlock at desk does",
+      enabledPlugIds: PLUGS,
+      plugsArmed: true,
+      steps: [
+        {
+          ts: T0,
+          focus: discord(T0),
+          desk: present(T0),
+          expect: { decision: "DISTRACTED", includes: ["start_countdown"] },
+        },
+        {
+          ts: T0 + 10 * SEC,
+          focus: discord(T0 + 10 * SEC),
+          desk: present(T0 + 10 * SEC),
+          expect: {
+            decision: "DISTRACTED",
+            includes: ["kill", "plug_off"],
+            plugOffIds: PLUGS,
+          },
+        },
+        {
+          ts: T0 + 12 * SEC,
+          focus: chrome(T0 + 12 * SEC),
+          desk: away(T0 + 12 * SEC, 0.95),
+          expect: {
+            decision: "AWAY",
+            events: ["status"],
+            excludes: ["unlock", "plug_on", "plug_off", "kill", "start_countdown"],
+          },
+        },
+        {
+          ts: T0 + 14 * SEC,
+          focus: chrome(T0 + 14 * SEC),
+          desk: uncertainDesk(T0 + 14 * SEC),
+          expect: {
+            decision: "IDLE",
+            events: ["status"],
+            excludes: ["unlock", "plug_on", "plug_off"],
+          },
+        },
+        {
+          ts: T0 + 16 * SEC,
+          focus: chrome(T0 + 16 * SEC),
+          desk: present(T0 + 16 * SEC),
+          expect: {
+            decision: "ON_TASK",
+            events: ["unlock", "plug_on", "status"],
+            plugOnIds: PLUGS,
+            plugOnReason: REASONS.unlock,
+            excludes: ["kill", "plug_off"],
           },
         },
       ],

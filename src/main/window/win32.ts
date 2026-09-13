@@ -197,6 +197,10 @@ export class Win32ForegroundReader implements ForegroundReader {
   }
 
   private teardownChild(): void {
+    // Drop the cached window with the child that produced it. A restart or a
+    // stopped session must read as empty focus, not replay the previous
+    // session's foreground window under fresh timestamps.
+    this.latest = null;
     if (this.rl !== null) {
       this.rl.removeAllListeners();
       this.rl.close();

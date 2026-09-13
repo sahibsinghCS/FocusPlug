@@ -19,7 +19,7 @@
 
 import { chooseFuse, FUSE_CANDIDATES, MAX_FUSE_SEC } from "./fuse";
 import { createModel, type AdaptiveModel } from "./model";
-import { HABITS, momentFor, population, type Student } from "./population";
+import { HABITS, momentFor, population, rng, type Student } from "./population";
 import { observeDrift } from "./train";
 
 const STUDENTS = 120;
@@ -28,6 +28,15 @@ const TRAIN_DRIFTS = 12;
 const SHIPPED_FUSE = 10;
 /** Past this, nobody was coming back on their own anyway. */
 const PATIENCE_SEC = MAX_FUSE_SEC;
+/**
+ * The adaptive fuse PROBES: `chooseFuse` spends a fraction of early drifts on a
+ * deliberately generous fuse to find out what this person can do. That draw is
+ * `Math.random` in production, which is right there and wrong here — unseeded,
+ * this gauntlet printed 75.8%–78.0% across runs, so any figure quoted from it
+ * was a sample rather than a result. The population generator is already
+ * seeded; seeding the probe too makes the whole comparison reproducible.
+ */
+const PROBE_SEED = 20260911;
 
 interface Cost {
   /** Decisions that matched what the student would actually have done. */
@@ -92,6 +101,7 @@ function runAdaptive(students: readonly Student[]): { cost: Cost; byHabit: Map<s
   const cost = emptyCost();
   const byHabit = new Map<string, Cost>();
   const base = Date.now();
+  const random = rng(PROBE_SEED);
 
   for (const student of students) {
     let model: AdaptiveModel = createModel();
@@ -100,7 +110,7 @@ function runAdaptive(students: readonly Student[]): { cost: Cost; byHabit: Map<s
     student.drifts.forEach((drift, index) => {
       const at = base + index * 60_000;
       const moment = momentFor(drift, at, SHIPPED_FUSE, history);
-      const choice = chooseFuse(model, moment, SHIPPED_FUSE);
+      const choice = chooseFuse(model, moment, SHIPPED_FUSE, { random });
       const latent = drift.latentRecoverySec;
       const observed = latent !== null && latent <= choice.seconds ? latent : null;
 

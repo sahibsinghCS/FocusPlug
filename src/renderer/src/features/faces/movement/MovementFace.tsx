@@ -2,7 +2,7 @@ import { useMemo, useRef, type JSX } from "react";
 import type { FaceProps } from "../instrument";
 import { useFaceCanvas } from "../useFaceCanvas";
 import { formatRemain } from "../derive";
-import { gearAngles } from "./math";
+import { gearAngles, movementClock, type MovementClockBase } from "./math";
 import {
   drawBalance,
   drawBluedScrew,
@@ -21,6 +21,7 @@ import {
 export function MovementFace(props: FaceProps): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sprites = useRef<Map<string, HTMLCanvasElement> | null>(null);
+  const timeBase = useRef<MovementClockBase | null>(null);
   const layout = useMemo(() => layoutGears(), []);
 
   useFaceCanvas(
@@ -32,8 +33,9 @@ export function MovementFace(props: FaceProps): JSX.Element {
           sprites.current.set(spec.id, makeGearSprite(spec));
         }
       }
-      const elapsedSec = props.elapsedMs / 1000 + (props.freeze ? 0 : clockMs / 1000);
-      paintMovement(ctx, w, h, props, elapsedSec, layout, sprites.current);
+      const clock = movementClock(props.elapsedMs, props.freeze ? 0 : clockMs, timeBase.current);
+      timeBase.current = clock.base;
+      paintMovement(ctx, w, h, props, clock.elapsedSec, layout, sprites.current);
     },
     [props.elapsedMs, props.progress, props.phase, props.remainingMs, props.sessionId, props.freeze],
     { freeze: props.freeze, paused: props.paused },

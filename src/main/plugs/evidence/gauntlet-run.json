@@ -1,17 +1,17 @@
 {
   "bar": "Mock off→on; protect rejects study-PC; unknown id errors cleanly; zero-plug boot",
+  "regenerate": "npm run gauntlet:plugs",
   "passed": true,
-  "ts": 1789130560046,
   "steps": [
     {
       "name": "mock-off",
       "ok": true,
-      "detail": "[{\"ts\":1789130560045,\"deviceId\":\"lamp\",\"online\":true,\"powerOn\":false}]"
+      "detail": "[{\"deviceId\":\"lamp\",\"online\":true,\"powerOn\":false}]"
     },
     {
       "name": "mock-on",
       "ok": true,
-      "detail": "[{\"ts\":1789130560045,\"deviceId\":\"lamp\",\"online\":true,\"powerOn\":true}]"
+      "detail": "[{\"deviceId\":\"lamp\",\"online\":true,\"powerOn\":true}]"
     },
     {
       "name": "protect-study-pc",

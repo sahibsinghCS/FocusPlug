@@ -53,6 +53,7 @@ export function LockPage(props: { timer: SessionTimer }): JSX.Element {
 
   return (
     <div
+      id="fp-lock"
       data-phase={phase}
       className="relative flex h-full min-h-0 flex-col overflow-hidden bg-[var(--ground)] text-[color:var(--phase)]"
     >
@@ -148,6 +149,15 @@ export function LockPage(props: { timer: SessionTimer }): JSX.Element {
         <div className="fp-lock-bar flex flex-wrap items-center justify-center gap-2">
           <Quiet onClick={paused ? timer.resume : timer.pause}>
             {paused ? "Resume" : "Pause"}
+          </Quiet>
+          {/* The one door out of the sealed room that does not end the
+              session: the instruments the lock face deliberately hides —
+              decision, forecast, sensors, the enforcement chain. */}
+          <Quiet
+            onClick={timer.openConsole}
+            tip="Leave the full-screen face for the instruments. The session keeps running and stays armed."
+          >
+            Console
           </Quiet>
           {multiRound ? (
             <Quiet onClick={timer.skip}>{onBreak ? "Skip break" : "Skip round"}</Quiet>

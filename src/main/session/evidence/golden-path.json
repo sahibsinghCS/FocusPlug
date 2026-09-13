@@ -1,7 +1,7 @@
 {
   "name": "golden-path",
   "bar": "Docs→Discord→countdown→kill+plug_off→unlock+plug_on plus Demo Kill cuts plugs",
-  "platform": "win32",
+  "platform": "linux",
   "passed": true,
   "settings": {
     "countdownSec": 10,
@@ -30,7 +30,12 @@
         "enabled": true,
         "isStudyPc": false
       }
-    ]
+    ],
+    "forecastEnabled": true,
+    "forecastPrearmEnabled": true,
+    "forecastNudgeRisk": 0.5,
+    "forecastPrearmRisk": 0.65,
+    "forecastPrearmFuseSec": 5
   },
   "policyEventTypes": [
     "status",

@@ -65,6 +65,8 @@ export const DESK_HEAD_LABELS = ["at_desk", "away", "uncertain"] as const;
 export const ATTENTION_HEAD_LABELS = ["focused", "unfocused", "phone"] as const;
 export type AttentionHeadLabel = (typeof ATTENTION_HEAD_LABELS)[number];
 export const ATTENTION_HEAD_RELATIVE_PATH = join("model", "weights", "attention-head.json");
+/** Feature-layout version stamped by `scripts/desk-model/train-attention.ts`. */
+export const ATTENTION_HEAD_FEATURE_VERSION = 2;
 
 const THUMB_SIDE = 64;
 const GRID_SIDE = 8;
@@ -415,7 +417,11 @@ async function getEmbedModel(): Promise<GraphModel> {
       const dir = join(deskRoot(), "models", "blazeface");
       embedModel = await loadGraphModel(filesystemGraphModelHandler(dir));
       return embedModel;
-    })();
+    })().catch((error: unknown) => {
+      // Don't cache a rejected load — let the next attempt retry.
+      embedModelPromise = null;
+      throw error;
+    });
   }
   return embedModelPromise;
 }
@@ -434,7 +440,11 @@ async function getSceneModel(): Promise<GraphModel> {
       const dir = join(deskRoot(), MOBILENET_DIR);
       sceneModel = await loadGraphModel(filesystemGraphModelHandler(dir));
       return sceneModel;
-    })();
+    })().catch((error: unknown) => {
+      // Don't cache a rejected load — let the next attempt retry.
+      sceneModelPromise = null;
+      throw error;
+    });
   }
   return sceneModelPromise;
 }
@@ -523,9 +533,31 @@ function isLayer(value: unknown): value is DeskHeadLayer {
   );
 }
 
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function sameLabels(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((label, index) => label === b[index]);
+}
+
+/**
+ * Feature-layout version a head's weights must declare, per head. Both heads
+ * read the same v4 vector, but each is written by its own trainer and the
+ * attention trainer stamps its own artifact version — so the expected value
+ * is looked up from the label set rather than assumed. Keep each constant in
+ * lockstep with the script that writes the file.
+ */
+function expectedFeatureVersion(labels: readonly string[]): number {
+  return sameLabels(labels, ATTENTION_HEAD_LABELS)
+    ? ATTENTION_HEAD_FEATURE_VERSION
+    : DESK_FEATURE_VERSION;
+}
+
 export function parseDeskHeadWeights(
   jsonText: string,
   labels: readonly string[] = DESK_HEAD_LABELS,
+  expectedVersion: number = expectedFeatureVersion(labels),
 ): DeskHeadWeights | null {
   let parsed: unknown;
   try {
@@ -551,8 +583,53 @@ export function parseDeskHeadWeights(
   }
   // Content checks: a corrupt-but-parseable file must degrade to the safe
   // uncertain fallback, never to a fabricated label.
+  if (weights.version !== expectedVersion) {
+    // A head trained against an older/different feature layout would map the
+    // wrong inputs to confident logits — reject it rather than fabricate.
+    return null;
+  }
   if (weights.mean.length !== weights.featureDim || weights.std.length !== weights.featureDim) {
     return null;
+  }
+  if (!weights.mean.every(isFiniteNumber) || !weights.std.every(isFiniteNumber)) {
+    return null;
+  }
+  if (weights.inputSlices !== undefined) {
+    if (!Array.isArray(weights.inputSlices)) {
+      return null;
+    }
+    for (const slice of weights.inputSlices) {
+      if (!Array.isArray(slice) || slice.length !== 2) {
+        return null;
+      }
+      const [start, end] = slice;
+      if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end <= start) {
+        return null;
+      }
+    }
+  }
+  // The head's first layer consumes the standardized features plus, when a
+  // codebook is present, its retrieval features (min-dist + softmin per class).
+  let inputDim = weights.featureDim;
+  if (weights.codebook !== undefined) {
+    if (!Array.isArray(weights.codebook) || weights.codebook.length === 0) {
+      return null;
+    }
+    for (const centroids of weights.codebook) {
+      if (!Array.isArray(centroids) || centroids.length === 0) {
+        return null;
+      }
+      for (const centroid of centroids) {
+        if (
+          !Array.isArray(centroid) ||
+          centroid.length !== weights.featureDim ||
+          !centroid.every(isFiniteNumber)
+        ) {
+          return null;
+        }
+      }
+    }
+    inputDim += 2 * weights.codebook.length;
   }
   const lastLayer = weights.layers[weights.layers.length - 1];
   if (!lastLayer || lastLayer.b.length !== labels.length) {
@@ -562,6 +639,18 @@ export function parseDeskHeadWeights(
     if (layer.w.length !== layer.b.length || layer.b.length === 0) {
       return null;
     }
+    if (!layer.b.every(isFiniteNumber)) {
+      return null;
+    }
+    // Row widths must chain: layer input = previous layer's output. A short
+    // row would otherwise be zero-padded by deskHeadPredict into well-formed
+    // but meaningless logits.
+    for (const row of layer.w) {
+      if (!Array.isArray(row) || row.length !== inputDim || !row.every(isFiniteNumber)) {
+        return null;
+      }
+    }
+    inputDim = layer.b.length;
   }
   return weights;
 }
@@ -569,9 +658,10 @@ export function parseDeskHeadWeights(
 export function loadDeskHeadWeights(
   file: string = join(deskRoot(), DESK_HEAD_RELATIVE_PATH),
   labels: readonly string[] = DESK_HEAD_LABELS,
+  expectedVersion: number = expectedFeatureVersion(labels),
 ): DeskHeadWeights | null {
   try {
-    return parseDeskHeadWeights(readFileSync(file, "utf8"), labels);
+    return parseDeskHeadWeights(readFileSync(file, "utf8"), labels, expectedVersion);
   } catch {
     return null;
   }
@@ -663,7 +753,6 @@ export class YourModel implements DeskModel {
   readonly id = "custom";
   private weights: DeskHeadWeights | null = null;
   private attentionWeights: DeskHeadWeights | null = null;
-  private weightsLoaded = false;
   private readonly weightsFile: string | undefined;
   private readonly attentionWeightsFile: string | undefined;
 
@@ -674,16 +763,22 @@ export class YourModel implements DeskModel {
   }
 
   async init(): Promise<void> {
-    if (!this.weightsLoaded) {
+    if (!this.weights) {
+      // A null load may be a transient read failure (e.g. antivirus briefly
+      // locking the file) — retry on the next init() instead of latching the
+      // no-weights fallback for the process lifetime.
       this.weights = this.weightsFile
         ? loadDeskHeadWeights(this.weightsFile)
         : loadDeskHeadWeights();
-      // Optional: without an attention head the model reports presence only.
+    }
+    if (!this.attentionWeights) {
+      // Optional second head: without it the model reports presence only.
+      // Same retry-on-null rule as the presence head — a transient read
+      // failure must not latch "no attention" for the process lifetime.
       this.attentionWeights = loadDeskHeadWeights(
         this.attentionWeightsFile ?? join(deskRoot(), ATTENTION_HEAD_RELATIVE_PATH),
         ATTENTION_HEAD_LABELS,
       );
-      this.weightsLoaded = true;
     }
     if (this.weights) {
       // Warm the shared detector so the first real frame is fast.

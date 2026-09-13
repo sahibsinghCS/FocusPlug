@@ -12,6 +12,8 @@ import {
   type DeskSnapshot,
   type FocusPlugApi,
   type FocusSnapshot,
+  type ForecastEvent,
+  type ForecastSnapshot,
   type KillResult,
   type PlugDevice,
   type PolicyEvent,
@@ -23,6 +25,12 @@ import { isFlightIata, normalizeFlightPair } from "@shared/flightRoute";
 import { isDeskModelId } from "./plugsUi";
 import { isPlugMode, type NudgeEvent, type NudgeKind } from "@shared/nudge";
 import { readUrlScene } from "./urlScene";
+import { describeForecastEvent } from "../features/forecast/model";
+import {
+  buildForecastReplay,
+  type ForecastReplay,
+  type ReplayFrame,
+} from "../features/forecast/replay";
 import { goldenSessionEvents } from "../features/logs/fixtures";
 
 function cloneEntries(entries: AppEntry[]): AppEntry[] {
@@ -170,6 +178,27 @@ function loadStoredSettings(): AppSettings {
     faceId: isFaceId(record.faceId) ? record.faceId : DEFAULT_SETTINGS.faceId,
     ...normalizeFlightPair(record.flightDep, record.flightArr),
     plugMode: isPlugMode(record.plugMode) ? record.plugMode : DEFAULT_SETTINGS.plugMode,
+    forecastEnabled:
+      typeof record.forecastEnabled === "boolean"
+        ? record.forecastEnabled
+        : DEFAULT_SETTINGS.forecastEnabled,
+    forecastPrearmEnabled:
+      typeof record.forecastPrearmEnabled === "boolean"
+        ? record.forecastPrearmEnabled
+        : DEFAULT_SETTINGS.forecastPrearmEnabled,
+    forecastNudgeRisk:
+      typeof record.forecastNudgeRisk === "number" && Number.isFinite(record.forecastNudgeRisk)
+        ? record.forecastNudgeRisk
+        : DEFAULT_SETTINGS.forecastNudgeRisk,
+    forecastPrearmRisk:
+      typeof record.forecastPrearmRisk === "number" && Number.isFinite(record.forecastPrearmRisk)
+        ? record.forecastPrearmRisk
+        : DEFAULT_SETTINGS.forecastPrearmRisk,
+    forecastPrearmFuseSec:
+      typeof record.forecastPrearmFuseSec === "number" &&
+      Number.isFinite(record.forecastPrearmFuseSec)
+        ? record.forecastPrearmFuseSec
+        : DEFAULT_SETTINGS.forecastPrearmFuseSec,
     plugs,
   };
 }
@@ -224,6 +253,141 @@ export function createMockApi(): FocusPlugApi {
   if (typeof window !== "undefined") {
     (window as unknown as { __focusplugNudge?: (kind: NudgeKind, app?: string) => void }).__focusplugNudge =
       (kind, app) => nudgeBus.emit({ ts: now(), kind, ...(app ? { app } : {}) });
+  }
+
+  const forecastBus = createBus<ForecastSnapshot>();
+  const forecastEventBus = createBus<ForecastEvent>();
+
+  // The forecast side of the mock is the deterministic scripted replay —
+  // the same shared core (ring → features → GLM → escalation) the main
+  // process runs, so browser dev/stills show real attributions and a real
+  // receipt, not canned numbers. The replay drives the whole live-session
+  // story: calm → flicking → nudge → pre-arm → Discord → 5 s fuse → kill.
+  let forecastSnap: ForecastSnapshot | null = null;
+  let forecastTimer: ReturnType<typeof setInterval> | null = null;
+  let replay: ForecastReplay | null = null;
+  let replayIndex = 0;
+  let prevFrame: ReplayFrame | null = null;
+
+  function readForecastFrame(): number | null {
+    const hash = window.location.hash;
+    const hashQuery = hash.includes("?") ? hash.slice(hash.indexOf("?") + 1) : "";
+    const raw =
+      new URLSearchParams(window.location.search).get("fct") ??
+      new URLSearchParams(hashQuery).get("fct");
+    if (!raw) {
+      return null;
+    }
+    const parsed = Number.parseInt(raw, 10);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+  }
+
+  function applyReplayFrame(frame: ReplayFrame, silent = false): void {
+    const prev = prevFrame;
+    prevFrame = frame;
+    if (silent) {
+      // Frozen scenes stay visually static: fill the forecast panel (snapshot
+      // history + events) without touching session state or the log.
+      for (const event of frame.events) {
+        forecastEventBus.emit(event);
+      }
+      forecastSnap = frame.snapshot;
+      forecastBus.emit(frame.snapshot);
+      return;
+    }
+    patchState({
+      sessionActive: true,
+      focus: frame.focus,
+      desk: frame.desk,
+      decision: frame.decision,
+      countdownSec: frame.countdownSec,
+      detail: frame.detail,
+    });
+    if (prev && frame.decision !== prev.decision) {
+      appendLog("decision", `${frame.decision} · ${frame.detail}`);
+    }
+    if ((prev?.countdownSec ?? 0) === 0 && frame.countdownSec > 0) {
+      policyBus.emit({
+        type: "start_countdown",
+        reason: frame.detail,
+        seconds: frame.countdownSec,
+      });
+      appendLog("policy", `start_countdown · ${frame.detail} · ${frame.countdownSec}s`);
+    }
+    if ((prev?.countdownSec ?? 0) > 0 && frame.countdownSec === 0) {
+      policyBus.emit({ type: "kill", targets: ["discord.exe"], reason: "Distracted: Discord" });
+      cutEnabledPlugs("Distracted: Discord");
+      appendLog("kill", "Force-quit Discord (mock fuse elapsed)");
+    }
+    if (prev && prev.decision === "DISTRACTED" && frame.decision === "ON_TASK") {
+      policyBus.emit({ type: "unlock" });
+      appendLog("unlock", "Unlocked — back on task");
+    }
+    for (const event of frame.events) {
+      forecastEventBus.emit(event);
+      appendLog("forecast", describeForecastEvent(event));
+    }
+    forecastSnap = frame.snapshot;
+    forecastBus.emit(frame.snapshot);
+  }
+
+  function stepForecast(silent = false): void {
+    if (!replay) {
+      return;
+    }
+    const frame = replay.frames[replayIndex];
+    if (!frame) {
+      // Script over — hold the final calm state.
+      if (forecastTimer !== null) {
+        clearInterval(forecastTimer);
+        forecastTimer = null;
+      }
+      return;
+    }
+    replayIndex += 1;
+    applyReplayFrame(frame, silent);
+  }
+
+  function stopForecastTick(): void {
+    if (forecastTimer !== null) {
+      clearInterval(forecastTimer);
+      forecastTimer = null;
+    }
+    replay = null;
+    replayIndex = 0;
+    prevFrame = null;
+    forecastSnap = null;
+  }
+
+  function startForecastTick(): void {
+    stopForecastTick();
+    if (!settings.forecastEnabled || !state.sessionActive) {
+      return;
+    }
+    if (scene.countdown !== null || (scene.scene !== "default" && scene.scene !== "live")) {
+      // URL countdown / distracted / away / golden scenes own their session
+      // state and fixture logs — no replay on top of them.
+      return;
+    }
+    replay = buildForecastReplay(now());
+    if (scene.freeze) {
+      // Fast-forward the forecast (only) to the requested frame (?fct=<sec>)
+      // and hold — the scene's session state stays exactly as scripted.
+      const target = Math.min(readForecastFrame() ?? 40, replay.frames.length - 1);
+      forecastTimer = setInterval(() => {
+        if (replayIndex > target) {
+          if (forecastTimer !== null) {
+            clearInterval(forecastTimer);
+            forecastTimer = null;
+          }
+          return;
+        }
+        stepForecast(true);
+      }, 25);
+      return;
+    }
+    stepForecast();
+    forecastTimer = setInterval(stepForecast, 1000);
   }
 
   function lists(): AppLists {
@@ -347,10 +511,12 @@ export function createMockApi(): FocusPlugApi {
       });
       appendLog("session", "Session started");
       policyBus.emit({ type: "status", decision: "ON_TASK", detail: state.detail });
+      startForecastTick();
       return state;
     },
     sessionStop: async () => {
       stopCountdownTick();
+      stopForecastTick();
       publishState({
         ...DEFAULT_SESSION_STATE,
         focus: state.focus,
@@ -392,6 +558,7 @@ export function createMockApi(): FocusPlugApi {
           }
         }
       }
+      const forecastWasEnabled = settings.forecastEnabled;
       settings = {
         ...settings,
         ...patch,
@@ -402,6 +569,13 @@ export function createMockApi(): FocusPlugApi {
         ),
       };
       persistSettings();
+      if (settings.forecastEnabled !== forecastWasEnabled) {
+        if (settings.forecastEnabled) {
+          startForecastTick();
+        } else {
+          stopForecastTick();
+        }
+      }
       if (patch.webcamEnabled !== undefined && state.desk) {
         patchState({
           desk: { ...state.desk, webcamEnabled: patch.webcamEnabled, ts: now() },
@@ -497,17 +671,24 @@ export function createMockApi(): FocusPlugApi {
       appendLog("kill", "Demo Kill · discord.exe");
       return result;
     },
+    demoNudge: async (kind) => {
+      appendLog("demo", `Test nudge · ${kind}`);
+      nudgeBus.emit({ ts: now(), kind });
+    },
+    forecastGetState: async () => forecastSnap,
     onSessionState: (cb) => sessionBus.on(cb),
     onPolicyEvent: (cb) => policyBus.on(cb),
     onFocusSnapshot: (cb) => focusBus.on(cb),
     onDeskSnapshot: (cb) => deskBus.on(cb),
     onSessionEvent: (cb) => logBus.on(cb),
     onNudge: (cb) => nudgeBus.on(cb),
-    demoNudge: async (kind) => {
-      appendLog("demo", `Test nudge · ${kind}`);
-      nudgeBus.emit({ ts: now(), kind });
-    },
+    onForecastSnapshot: (cb) => forecastBus.on(cb),
+    onForecastEvent: (cb) => forecastEventBus.on(cb),
   };
+
+  if (state.sessionActive) {
+    startForecastTick();
+  }
 
   return api;
 }

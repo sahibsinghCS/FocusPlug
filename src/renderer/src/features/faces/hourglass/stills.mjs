@@ -1,6 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import puppeteer from "puppeteer-core";
+import { resolveChrome } from "../../../../../../scripts/lib/chrome.mjs";
 
 const BASE = process.env.SESSION_STILLS_BASE ?? "http://127.0.0.1:5173";
 const OUT = resolve(process.argv[2] ?? "src/renderer/src/features/faces/hourglass/evidence");
@@ -17,7 +18,7 @@ const SCENES = [
 await mkdir(OUT, { recursive: true });
 
 const browser = await puppeteer.launch({
-  executablePath: process.env.CHROME_PATH ?? "/usr/local/bin/google-chrome",
+  executablePath: resolveChrome(),
   headless: "new",
   args: [
     "--no-sandbox",

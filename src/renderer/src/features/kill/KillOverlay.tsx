@@ -1,4 +1,4 @@
-import { useRef, type JSX } from "react";
+import { useEffect, useRef, type JSX } from "react";
 import type { SessionState } from "@shared/ipc";
 import { IconBolt } from "../../lib/icons";
 import {
@@ -9,6 +9,9 @@ import {
   windowPrimary,
 } from "../../lib/format";
 import { enabledPlugViews, type PlugView } from "../../lib/plugsUi";
+import { formatLeadSec, overlayLeadSec } from "../forecast/model";
+import { overlayAction } from "../session/model";
+import { useOptionalAppState } from "../../state/AppState";
 import { overlayConsequenceLines } from "./consequence";
 import { useOverlayFocus } from "./useOverlayFocus";
 
@@ -18,7 +21,16 @@ interface KillOverlayProps {
   reason: string;
   state: SessionState;
   plugs?: readonly PlugView[];
+  /** Local preview (no live fuse in main): the only action is a benign close. */
+  preview: boolean;
+  /**
+   * Forecast receipt: seconds of warning before this fuse. Omit to derive it
+   * from the app-state forecast ledger; null suppresses the line.
+   */
+  forecastLeadSec?: number | null;
   onDemoKill: () => void;
+  /** Escape-to-close, bound only when `preview` is true. */
+  onDismiss?: () => void;
 }
 
 /**
@@ -30,6 +42,22 @@ export function KillOverlay(props: KillOverlayProps): JSX.Element {
   const rootRef = useRef<HTMLDivElement>(null);
   useOverlayFocus(rootRef, true);
 
+  // A real fuse deliberately ignores Esc; a preview must let it close.
+  const { preview, onDismiss } = props;
+  useEffect(() => {
+    if (!preview || onDismiss === undefined) {
+      return;
+    }
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onDismiss();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [preview, onDismiss]);
+
   const total = Math.max(props.total, props.seconds, 1);
   const progress = props.seconds / total;
   const windowText = windowPrimary(props.state.focus);
@@ -39,6 +67,17 @@ export function KillOverlay(props: KillOverlayProps): JSX.Element {
   const plugs = props.plugs ?? [];
   const armed = enabledPlugViews(plugs);
   const consequence = overlayConsequenceLines(plugs);
+  const action = overlayAction(props.preview);
+
+  // The receipt: prop wins; otherwise read the forecast ledger when rendered
+  // inside the provider. A preview fuse never claims a forecast call.
+  const app = useOptionalAppState();
+  const leadSec =
+    props.forecastLeadSec !== undefined
+      ? props.forecastLeadSec
+      : props.preview || !app
+        ? null
+        : overlayLeadSec(app.forecastEvents, Date.now());
 
   return (
     <div
@@ -93,6 +132,12 @@ export function KillOverlay(props: KillOverlayProps): JSX.Element {
           {props.reason}
         </p>
 
+        {leadSec !== null ? (
+          <p className="mt-2 rounded-md border border-fp-amber/45 bg-fp-amber/10 px-3 py-1 text-center font-mono text-[13px] text-fp-amber">
+            ✔ Forecast pre-armed {formatLeadSec(leadSec)} s before this fuse
+          </p>
+        ) : null}
+
         <div
           id="fp-overlay-consequence"
           className="mt-5 grid w-full max-w-3xl gap-2 min-[720px]:grid-cols-2"
@@ -104,16 +149,28 @@ export function KillOverlay(props: KillOverlayProps): JSX.Element {
 
       <div className="relative z-10 flex shrink-0 flex-col items-center gap-3 px-6 pb-7">
         <p className="font-mono text-[11.5px] uppercase tracking-[0.2em] text-zinc-400">
-          Back to an allowlisted app, at your desk, and this cancels · Esc does not dismiss
+          {action.hint}
         </p>
-        <button
-          type="button"
-          onClick={props.onDemoKill}
-          className="fp-btn inline-flex h-11 min-w-[260px] items-center justify-center gap-2 rounded-[var(--radius-fp)] bg-fp-red px-5 text-[13px] font-semibold uppercase tracking-[0.14em] text-white shadow-[0_0_32px_rgba(255,59,88,0.4)] hover:bg-[#ff5a72]"
-        >
-          <IconBolt className="h-4 w-4" />
-          Demo Kill — skip wait
-        </button>
+        {props.preview ? (
+          // A preview fuse kills nothing, so its only button must not look or
+          // read like the one that does.
+          <button
+            type="button"
+            onClick={props.onDismiss}
+            className="fp-btn inline-flex h-11 min-w-[260px] items-center justify-center gap-2 rounded-[var(--radius-fp)] border border-white/25 bg-black/45 px-5 text-[13px] font-semibold uppercase tracking-[0.14em] text-white hover:bg-white/10"
+          >
+            {action.label}
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={props.onDemoKill}
+            className="fp-btn inline-flex h-11 min-w-[260px] items-center justify-center gap-2 rounded-[var(--radius-fp)] bg-fp-red px-5 text-[13px] font-semibold uppercase tracking-[0.14em] text-white shadow-[0_0_32px_rgba(255,59,88,0.4)] hover:bg-[#ff5a72]"
+          >
+            <IconBolt className="h-4 w-4" />
+            {action.label}
+          </button>
+        )}
       </div>
     </div>
   );

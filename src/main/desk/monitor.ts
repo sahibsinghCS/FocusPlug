@@ -13,6 +13,15 @@ export const DEFAULT_DESK_INTERVAL_MS = 250;
 /** Wait between camera start attempts after a failure. */
 export const SOURCE_RETRY_MS = 5000;
 
+/** Multiplier on `intervalMs` for retry backoff after model/camera failures. */
+const ERROR_BACKOFF_MULTIPLIER = 8;
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error && error.message.trim().length > 0
+    ? error.message
+    : String(error);
+}
+
 export interface DeskMonitorOptions {
   enabled?: boolean;
   intervalMs?: number;
@@ -37,6 +46,7 @@ export class DeskMonitor implements DeskMonitorContract {
   private sourceStarted = false;
   private sourceFault: string | null = null;
   private nextSourceRetryAt = 0;
+  private sourceStartEpoch = 0;
 
   constructor(options: DeskMonitorOptions = {}) {
     this.enabled = options.enabled ?? true;
@@ -77,18 +87,13 @@ export class DeskMonitor implements DeskMonitorContract {
     if (!this.source) {
       return;
     }
-    if (enabled && this.running && !this.sourceStarted) {
+    // Enabling never starts the camera here: ensureReady() is the single
+    // owner of source.start(), so the loop's next tick (≤ intervalMs away)
+    // picks it up instead of racing a second start against the loop's own.
+    // Clearing the backoff is all this path does, so a user who re-enables
+    // the webcam is not made to wait out a failed camera's retry window.
+    if (enabled) {
       this.nextSourceRetryAt = 0;
-      void this.source.start().then(
-        () => {
-          this.sourceStarted = true;
-        },
-        () => {
-          // Rejecting here used to be an unhandled rejection; ensureReady
-          // retries on the next step and reports the fault once.
-          this.sourceStarted = false;
-        },
-      );
     }
     if (!enabled && this.sourceStarted) {
       this.sourceStarted = false;
@@ -134,9 +139,22 @@ export class DeskMonitor implements DeskMonitorContract {
   }
 
   private async runLoop(gen: number): Promise<void> {
-    await this.ensureReady();
     while (this.running && this.loopGen === gen) {
-      await this.step();
+      try {
+        await this.step();
+      } catch (error) {
+        // Model/source init failed: emit a safe uncertain snapshot and retry
+        // with backoff instead of letting the loop die on the rejection.
+        console.error("Desk monitor step failed:", errorMessage(error));
+        this.callback?.({
+          ts: this.now(),
+          label: "uncertain",
+          confidence: 0,
+          webcamEnabled: this.enabled,
+        });
+        await delay(this.intervalMs * ERROR_BACKOFF_MULTIPLIER);
+        continue;
+      }
       await delay(this.intervalMs);
     }
   }
@@ -149,23 +167,38 @@ export class DeskMonitor implements DeskMonitorContract {
       this.source = this.injectedSource ?? (await createDefaultFrameSource());
     }
     if (this.enabled && !this.sourceStarted && this.now() >= this.nextSourceRetryAt) {
+      const gen = this.loopGen;
+      const epoch = ++this.sourceStartEpoch;
       try {
         await this.source.start();
-        this.sourceStarted = true;
-        this.sourceFault = null;
       } catch (error) {
-        this.sourceStarted = false;
         // Back off: ensureReady runs every step, and each attempt builds and
         // tears down a camera window.
         this.nextSourceRetryAt = this.now() + SOURCE_RETRY_MS;
-        const message = error instanceof Error ? error.message : String(error);
+        const message = errorMessage(error);
         if (message !== this.sourceFault) {
           this.sourceFault = message;
           // A silent catch here is indistinguishable from "nobody at the desk":
           // presence stays `uncertain` and never kills, with no way to tell why.
           console.error(`Desk camera unavailable, presence stays uncertain: ${message}`);
         }
+        return;
       }
+      this.sourceFault = null;
+      // A newer start claimed the shared source while this warm-up was in
+      // flight (stop + restart mid-warm-up): its continuation owns the
+      // stop/started decision — a stale stop here would kill the new
+      // session's camera while sourceStarted stays true, blinding desk AI.
+      if (this.sourceStartEpoch !== epoch) {
+        return;
+      }
+      // Stopped or disabled during camera warm-up: shut the camera back down
+      // instead of leaving the webcam captured with no loop to stop it.
+      if (this.loopGen !== gen || !this.enabled) {
+        void this.source.stop();
+        return;
+      }
+      this.sourceStarted = true;
     }
   }
 }

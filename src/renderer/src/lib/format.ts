@@ -10,7 +10,13 @@ import type {
 import type { PlugView } from "./plugsUi";
 import { plugKillNote as plugKillNoteFromViews, summarizePlugs } from "./plugsUi";
 
-export type Tone = "focus" | "red" | "warn" | "mute";
+/**
+ * Console tone vocabulary. `focus`/`red`/`warn`/`mute` are the monochrome
+ * register every surface shares; `amber` is the forecast's own step before
+ * red — pre-armed, fuse shortened, nothing dead yet — and has to read apart
+ * from red at a glance or the warning is wasted (see --color-fp-amber).
+ */
+export type Tone = "focus" | "red" | "warn" | "amber" | "mute";
 
 export function decisionLabel(decision: Decision): string {
   if (decision === "ON_TASK") return "On task";

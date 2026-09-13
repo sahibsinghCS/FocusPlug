@@ -4,33 +4,76 @@ Paste the **filled** sections into Devpost’s “AI Tools Disclosure” field. 
 
 Keep two stories distinct:
 
-1. **In-product ML** — Desk AI is a policy input (kill / no-kill).
-2. **Build-time assistants** — coding agents used to write this repo.
+1. **In-product ML** — **four models trained in this repo** (the Focus Forecast risk head, the adaptive fuse, the custom desk head, the attention head) plus two reused pretrained backbones. Every one of them is a policy input: kill / no-kill / how long the fuse burns / whether to nudge.
+2. **Build-time assistants** — coding agents that wrote this repo, and the one labelling service we bought annotations from.
 
-Do not list a tool you did not use. Bracketed `⟦ ⟧` lines are blanks for the submitting team.
+Do not list a tool you did not use. Do not disclaim a model this repo actually trained: all four are committed, reproducible, and have printed numbers. Bracketed `⟦ ⟧` lines are blanks for the submitting team.
 
 ---
 
 ## 1. One-paragraph paste (edit, then copy)
 
 ```
-FocusPlug’s load-bearing model is on-device MediaPipe BlazeFace (TensorFlow.js,
-CPU backend) on the local webcam. It labels at_desk / away / uncertain with a
-confidence score; the session policy uses those labels to start or refuse a
-kill countdown. Frames are not uploaded. Uncertain never triggers a desk-only
-kill. We did not train a new backbone.
+FocusPlug ships four models we trained ourselves. All of them run on-device.
+
+(1) Focus Forecast — a 937-parameter tanh MLP (mlp24-36-1: 24 behavioral
+features → 36 hidden units → 1 logit, Platt-calibrated) that scores drift risk
+once a second off the local telemetry ring, nudges at 0.50, and pre-arms the
+enforcement fuse at 0.65 before any rule has been broken. Trained offline
+in-repo by `npm run forecast:pipeline` on behavior streams from our own session
+simulator, then scored on a disjoint 900-session / 1,230-onset corpus:
+lead≥20s AUC 0.9330 against the 0.9259 logistic baseline this repo's own CI
+gate enforces, 70.8% of drifts warned within 30s, median lead 16s. Both the
+training and the evaluation sessions are SIMULATED — no student data was
+collected, bought or scraped.
+
+(2) The adaptive fuse — a 17-feature logistic model that learns online, per
+install, how long THIS person needs to self-correct, and picks the shortest
+fuse still clearing an 85% predicted recovery. It needs no dataset: the app's
+own outcomes are the labels (a cancelled countdown is a recovery and its timing
+says how long you needed; a kill is a failure). Weights stay in the user's data
+dir; nothing is uploaded. The two fuse models compose rather than compete —
+adapt sets a personalised length, a pre-arm halves it, floor 3s.
+
+(3) Desk head (deskModelId: "custom") — a 64-32 MLP we trained on the
+desk-data-v2 image pack over a stacked feature vector: MediaPipe BlazeFace
+across four crops, a MobileNetV2 ImageNet feature vector, and hand-crafted
+luma / color / gradient descriptors. 95.16% held-out 3-way accuracy on 723
+images, against 46.89% for the BlazeFace heuristic baseline. Only the learned
+weights ship; the training images never do. It is opt-in — the default desk
+model is BlazeFace plus heuristics.
+
+(4) Attention head (focused / unfocused / phone) — a 16-unit head on the same
+feature vector, trained on 1,919 desk photos annotated by Adaption Labs'
+Adaptive Data. It is what raises a nudge when someone is at the desk but on
+their phone. It is NOT reliable yet and we say so on the page: 60.8% on the
+original 143-image eval, under the 65.7% you get by always answering "focused"
+(the first head scored 56.6%); 64.0% on the current 200-image eval, phone F1
+68.5%, while calling "phone" on ~17% of non-phone photos. We claim the
+pipeline, not phone detection.
+
+Reused, not trained by us: MediaPipe BlazeFace (face detection) and MobileNetV2
+alpha-0.50 (ImageNet features, Apache-2.0). Both run locally under
+TensorFlow.js on the CPU backend. Webcam frames are never uploaded, there is no
+hosted inference anywhere in the app, and "uncertain" never triggers a
+desk-only kill.
 
 Build-time: Cursor Cloud Agents (Grok 4.6) implemented parallel workstreams
 from prompt-pack/ (foundation, UI, window monitor, desk-ai, policy, process
-kill, session wiring, this packaging). Claude Code (Opus 5) then ran the
+kill, session wiring, this packaging). Claude Code (Opus 5) ran the
 Windows-only paths on a real Windows machine and fixed what the Linux-built
-tests could not see: the foreground-window reader, the live process-kill probe,
-and the README stills. ⟦Add any ChatGPT / Copilot / other assistants and what
-they wrote.⟧
+tests could not see (the foreground-window reader, the live process-kill
+probe, the README stills), built the Focus Forecast pipeline and the browser
+demo, and merged the two fuse models into one authority. Adaption Labs'
+Adaptive Data produced the attention-head labels (210 credits) and is an
+optional, off-by-default augmentation path for the forecast dataset — the
+shipped forecast weights were trained without it. ⟦Add any ChatGPT / Copilot /
+other assistants and what they wrote.⟧
 
 ⟦Team: list every contributor.⟧ We did not submit a reskin of a chatbot or a
-cloud vision demo. Original work is the enforcement loop: window match + desk
-presence → fuse → force-quit blocklist apps, never the study PC.
+cloud vision demo. Original work is the enforcement loop and the forecast that
+front-runs it: window match + desk presence → risk → pre-armed fuse →
+force-quit blocklist apps, never the study PC.
 ```
 
 ---
@@ -39,30 +82,40 @@ presence → fuse → force-quit blocklist apps, never the study PC.
 
 | Piece | What we used | Role in the product |
 | --- | --- | --- |
-| Face detector | MediaPipe **BlazeFace** via `@tensorflow-models/blazeface` + `@tensorflow/tfjs-core` (CPU) | Webcam frames → face box / probability / landmarks |
-| Runtime | Local Electron main process, model files under `src/main/desk/models/blazeface/` | No hosted inference API |
-| Classifier | `src/main/desk/classify.ts` | Maps detector output + occlusion stats → `DeskSnapshot` `{ at_desk \| away \| uncertain, confidence }` |
+| **Forecast head — trained here** | `mlp24-36-1`: 937-param tanh MLP, 24 features → 36 hidden → 1 logit + Platt calibration. `src/shared/forecast/weights.json` | Risk 0..1 at 1 Hz → nudge at 0.50, pre-arm at 0.65. Its only authority over enforcement is **shortening** `countdownSec`, never lengthening it |
+| **Forecast training data** | Our own simulator (`scripts/forecast/simulate.ts`): 240 synthetic sessions to train; a disjoint 900-session / 1 230-onset / 1.58 M-frame corpus to score | Fully synthetic, generated on the machine. No student data was collected, bought or scraped |
+| **Adaptive fuse — trained here, on-device** | 17-feature logistic over `src/shared/adapt`, fitted prior + online per-install updates. Weights in the user's data dir (`adaptive-model.json`) | Picks the personalised fuse length that clears `RECOVERY_TARGET` 0.85. Labels are the app's own outcomes; no annotation, no upload, no network |
+| **Fuse authority** | `src/main/session/fuseAuthority.ts`, pure | `prearmed ? clamp(round(personal × 0.5), 3, personal) : personal`. One number reaches the policy engine; the engine itself is untouched by either model |
+| **Desk head — trained here** | 64-32 MLP over BlazeFace (4 crops) + MobileNetV2 + hand-crafted descriptors. `src/main/desk/model/weights/desk-head.json` (~1.7 MB) | Opt-in `deskModelId: "custom"`. 95.16% held-out 3-way vs 46.89% for the heuristic baseline. Caveats in `docs/CUSTOM-MODEL.md` |
+| **Attention head — trained here** | 16-unit head on the same 1280-d slice. `src/main/desk/model/weights/attention-head.json`, labels `datasets/desk-attention-labels.csv` (Adaption Labs) | `focused` / `unfocused` / `phone`, consulted only when presence says `at_desk`. Drives the nudge, never a kill on its own. **Below the always-`focused` baseline on the original eval — see § 2a** |
+| Face detector — **pretrained, reused** | MediaPipe **BlazeFace** via `@tensorflow-models/blazeface` + `@tensorflow/tfjs-core` (CPU) | Webcam frames → face box / probability / landmarks. The default desk path, and a feature source for the trained heads |
+| Scene backbone — **pretrained, reused** | MobileNetV2 alpha 0.50 / 160 px ImageNet feature vector (TF Hub graph model, Apache-2.0), committed under `src/main/desk/model/weights/mobilenet/` | 1280-d scene vector into the desk and attention heads |
+| Heuristic classifier | `src/main/desk/classify.ts` | Default `blazeface` path: detector output + occlusion stats → `DeskSnapshot` `{ at_desk \| away \| uncertain, confidence }` |
+| Runtime | Local Electron main process; weights under `src/main/desk/models/`, `src/main/desk/model/weights/`, `src/shared/forecast/` | No hosted inference API. The browser demo runs the same `weights.json` in-tab |
 | Policy | Pure `PolicyEngine` | High-conf **away** can start a kill fuse on blocklist apps. **Uncertain** or webcam-off cannot desk-only kill. Strict on-task = allowlisted window **and** at-desk |
-| Data leaving the device | None for vision | Frames stay local |
+| Data leaving the device | None | Frames stay local, the forecast is local, the fuse model is local, no telemetry |
 
-**Why this counts for AI/ML Integration (20%):** without Desk AI, walking away with Discord in the background would not be enforceable. The model is not a “smart webcam widget.”
+**Why this counts for AI/ML Integration (20%):** the models decide the kill. Without Desk AI, walking away with Discord in the background is unenforceable; without the forecast, the fuse only starts after the violation; without the adaptive fuse, everyone gets the same ten seconds whether or not ten seconds is enough for them. None of it is a “smart webcam widget”.
 
-**Fixture / eval (not a user feature):** `npm run test:desk` plus `src/main/desk/fixtures/` (MediaPipe portrait, Unsplash empty interior, synthetic covered/noise frames). See `src/main/desk/fixtures/ATTRIBUTION.txt`.
+**Reproduce, offline, no keys:** `npm run forecast:pipeline` regenerates the forecast weights and their eval report end to end (~7.5 min, deterministic under `--seed`). `npm run gauntlet:adapt` re-runs the adaptive-fuse simulation. The desk and attention heads reproduce from `scripts/desk-model/` once `FOCUSPLUG_DESK_DATA` points at the released image pack — see `docs/CUSTOM-MODEL.md`. Fixture check for the vision path: `npm run test:desk` plus `src/main/desk/fixtures/` (MediaPipe portrait, Unsplash empty interior, synthetic covered/noise frames), attribution in `src/main/desk/fixtures/ATTRIBUTION.txt`.
 
-**Not in the MVP (do not claim on Devpost):** cloud Vision API, pose/skeleton tracking, phone camera, macOS support.
+### 2a. Say these carefully — the numbers that are easy to overclaim
 
-**Shipped since this doc was first written:**
+- **The forecast is simulated end to end.** Training streams and the 900-session evaluation corpus both come from our sampler. Say “held out on a disjoint simulated corpus”, never “held out on students”. What *is* real: the disjoint seed namespace, the three published contamination barriers, the session-clustered bootstrap CIs, and the CI gate that fails the build if a plain logistic regression on the same features beats the shipped head.
+- **The adaptive fuse has two numbers with two meanings.** The shipped prior is fitted on `datasets/focusplug-drifts.csv` — **9,600 simulated drifts from a hand-written sampler**, held-out log-loss 0.6225 → 0.5600 — and it recovers the simulator's assumptions, not students'. `npm run gauntlet:adapt` reports 77.5% recovered at 8.4 s waited vs the constant fuse's 69.4% at 9.4 s, again against simulated students, and the script prints the whole constant-fuse curve so nothing is hidden. Those two figures are reproducible — the probe draw is seeded (`PROBE_SEED`), because unseeded it moved between 75.8% and 78.0% run to run and anything quoted from it was a sample, not a result. The **per-user** model is the actual claim and it has no number yet: if you have not run sessions with it, say “it learns on-device” and quote no accuracy.
+- **95.16% is a dataset number, not your webcam.** It is 3-way accuracy on a held-out split of 3rd-person stock imagery, while the runtime camera is 1st-person. The Edinburgh (`nc`) slice is temporally interleaved with its training split, so quote the diverse-scene figure, 89.44%, when a judge pushes. And say which desk model you filmed with: `deskModelId` defaults to `blazeface`.
+- **The attention head is not a phone detector.** Original 143-image eval: first head 56.6%, shipped head 60.8%, always-`focused` baseline **65.7%** — the head is *below* the baseline there. Current 200-image eval: 64.0% (phone F1 68.5%) against a 48.5% baseline, at the cost of calling “phone” on about 17% of non-phone photos. It ships because the *pipeline* is real and opt-in, and because it only ever raises a nudge. Say “the pipeline”, never “it detects your phone”. The Settings → Test nudge buttons are demo triggers, like Demo Kill.
+- **The browser demo cannot enforce anything.** `dist/demo/index.html` runs the real weights, features, escalation reducer and policy engine, and then *renders* the kill decision. A browser tab cannot force-quit a process or cut a plug; the Windows app is what executes. The page says so in its own footer, and so should you.
+- **Smart plugs ship but boot with none configured.** Kasa (local 9999 XOR), Tapo (KLAP) and generic HTTP adapters are wired to kill, unlock, nudge and Demo Kill, with the study PC hard-denied (`docs/SMART-PLUGS.md`). CI verifies them against mocks and loopback. Claim hardware only if you demoed a plug on your LAN.
 
-- **Nudges and an attention head.** A sustained phone or looking-away reading, or a blocked app, brings FocusPlug to the front with the timer and a motivational line, and in plug mode `nudge` (the default) switches enabled plugs on. Phone / looking-away come from a second head on the custom desk model, trained on labels **Adaption Labs' Adaptive Data** produced by looking at the desk-data pack's stock photos. That head is **not reliable yet**. Retrained with 342 more Adaption-labelled phone photos it scores 64.0% on a 200-image held-out set (phone F1 68.5%), but on the original hard images it is still below the always-"focused" baseline (60.8% vs 65.7%) and calls "phone" on non-phone photos more often (`docs/CUSTOM-MODEL.md`). Say "the pipeline", never "it detects your phone". The Settings → Test nudge buttons are demo triggers, like Demo Kill.
-- **A trained custom desk model** (#23): BlazeFace crops + a MobileNetV2-0.50-160 ImageNet feature vector into a trained MLP head, weights committed under `src/main/desk/model/weights/`, 95.16% on a 723-image held-out split (`docs/CUSTOM-MODEL.md`). It is **opt-in** — `deskModelId` defaults to `blazeface`, so say which model you filmed with. The 95.16% is a held-out *dataset* number; it is not a measurement of live webcam accuracy on your desk.
-- **An adaptive fuse — a second model, learned on-device.** The countdown length is no longer the fixed Settings number: a 17-feature logistic model predicts P(you fix this yourself | this moment, a fuse of N seconds) and picks the shortest fuse still clearing 85%. It trains on labels the app already produces — `cancel_countdown` is a recovery and its timing says *how long you needed*, `kill` is a failure with longer fuses left censored — so **it needs no annotation and no dataset**. Weights live in the user's own data dir; nothing is uploaded, and there is no network call on this path.
+### 2b. Adaption Labs — two separate uses, one of them shipped
 
-  Say this carefully. Two numbers, two meanings:
-  - The **shipped prior** (day one, before it has seen you drift) is fitted on `datasets/focusplug-drifts.csv` — **9,600 simulated drifts from a hand-written sampler**, not people. Held-out log-loss 0.6225 → 0.5600. It recovers the simulator's assumptions and is **not** evidence about students.
-  - `npm run gauntlet:adapt` reports 77.2% right at 8.5 s waited per drift vs the fixed fuse's 69.4% at 9.4 s. That is **a simulation against simulated students**, and the script prints the whole constant-fuse curve so nothing is hidden.
-  - The **per-user** model is the actual claim, and it has no number yet: it only learns from real drifts on a real machine. If you have not run sessions with it, say "it learns on-device" and do not quote an accuracy.
+| Use | Shipped? | Detail |
+| --- | --- | --- |
+| **Attention-head labels** | **Yes — in the committed weights** | `scripts/desk-model/adaption-label.py` sent 1,919 desk photos (downscaled, filenames hidden because they carry the pack's own label) to Adaptive Data's multimodal run with one fixed instruction; a 100-image pilot was eyeballed first and caught a prompt flaw. 210 credits. Output: `datasets/desk-attention-labels.csv`. Truth for that head is Adaption's annotation, not a human label — say so |
+| **Forecast dataset augmentation** | **No** | `npm run forecast:data -- --adaption` can upload only the TRAIN-split seed; eval rows never leave the machine. The committed report carries `"mode": "offline"` and `adaptionMergedRows: 0` — the shipped weights were trained without it. A live key test on 2026-09-12 returned HTTP 403; the pipeline printed one WARN, fell back to local augmentation and exited 0. `docs/FORECAST.md § Adaption Labs integration` |
 
-- **LAN smart plugs** — Kasa (local 9999 XOR) and generic HTTP adapters, wired to kill/unlock and Demo Kill, with the study PC hard-denied (`docs/SMART-PLUGS.md`). Claim them as working *only* if you demo them with a plug on your LAN; the app ships with zero plugs configured.
+**Not in the MVP (do not claim on Devpost):** cloud Vision API, pose or skeleton tracking, phone camera, macOS support, any hosted inference. No data was collected from users or teammates either — the forecast and fuse corpora are synthetic, and the desk pack is licensed third-party imagery of people (§4), which is a licence obligation, not a privacy-free claim.
 
 ---
 
@@ -71,24 +124,34 @@ presence → fuse → force-quit blocklist apps, never the study PC.
 | Tool | Used? | How (be specific) |
 | --- | --- | --- |
 | Cursor Cloud Agents / Cursor IDE (Grok 4.6) | Yes — git author `Cursor Agent` on workstream PRs | Scaffold, UI, monitors, policy, killer, session wiring, Hyperbloom docs |
+| Claude Code (Opus 5) | Yes | Windows verification pass (fixed the Win32 foreground reader — `$pid` collided with PowerShell's constant `$PID`, so the window sensor reported nothing on Windows — added `win32.test.ts` + a live window probe, fixed the process-kill probe stand-in, generated `docs/screenshots/`); the Focus Forecast pipeline, model and browser demo; the adaptive-fuse wiring; the fuse-authority merge of the two |
+| Adaption Labs — Adaptive Data | Yes, build-time only | Annotated 1,919 desk photos for the attention head (§ 2b). Optional, off-by-default augmentation path for the forecast dataset, not used for the shipped weights |
 | GitHub Copilot | ⟦yes/no⟧ | ⟦e.g. inline completions in VS Code⟧ |
 | ChatGPT (specify model) | ⟦yes/no⟧ | ⟦e.g. README outline, not in-product⟧ |
-| Claude Code (Opus 5) | Yes | Windows verification pass: fixed the Win32 foreground reader (`$pid` collided with PowerShell's constant `$PID`, so the window sensor reported nothing on Windows), added `win32.test.ts` + a live window probe, fixed the process-kill probe stand-in so `tasklist`/`taskkill` are exercised on Windows, generated `docs/screenshots/` |
-| Image / video generators | ⟦yes/no⟧ | ⟦none expected; screenshots should be the real app⟧ |
-| Other APIs (OpenAI, Gemini, Groq, …) | No in the running app | Desk AI is local TFJS only |
+| Image / video generators | ⟦yes/no⟧ | ⟦the demo intro montage was assembled with HyperFrames from real captures — name anything generated⟧ |
+| Other APIs (OpenAI, Gemini, Groq, …) | No in the running app | On-device TFJS + plain arithmetic only. The only external services in the repo are the two Adaption Labs paths in § 2b, both build-time |
 
 ---
 
 ## 4. Datasets, weights, third-party assets
 
-| Asset | Source | Use |
+| Asset | Source / licence | Use |
 | --- | --- | --- |
-| BlazeFace graph | TensorFlow Hub / MediaPipe (`tensorflow/blazeface`), vendored in-repo | On-device detect |
+| BlazeFace graph | TensorFlow Hub / MediaPipe (`tensorflow/blazeface`), vendored in-repo | On-device detect (default desk path + trained-head features) |
+| MobileNetV2 feature vector (alpha 0.50, 160 px) | Google, TF Hub graph model, **Apache-2.0**, vendored in-repo | Scene features into the desk and attention heads |
+| `desk-data-v2-full` pack, `main` bucket (diverse stock imagery) | FocusPlug GitHub release, 3 500 labeled frames, **never committed** | Train / eval the desk head |
+| `desk-data-v2-full` pack, `nc` bucket (Edinburgh office webcam frames, Fisher et al.) | **CC BY-NC-SA** — non-commercial use only, fine for this hackathon build; **never committed**, only learned weights ship | Train / eval the desk head |
+| `desk-data-v3-distracted` release (342 phone photos) | FocusPlug GitHub release, **never committed** | Retrain the attention head |
+| `datasets/desk-attention-labels.csv` | Adaption Labs Adaptive Data annotations of those photos (model-labelled, not human) | Attention-head training labels |
+| `src/main/desk/model/weights/attention-head.json` + `.metrics.json` | Trained in-repo by `scripts/desk-model/train-attention.ts` | On-device focused / unfocused / phone head, with its own metrics file |
+| Forecast corpus | Generated by `scripts/forecast/simulate.ts` — synthetic, no third-party data, gitignored under `data/forecast/` | Train / eval the forecast head |
+| `datasets/focusplug-drifts.csv` | 9,600 drifts from our own sampler — synthetic | Fit the adaptive fuse's shipped prior |
+| `src/renderer/src/assets/land.json` | Natural Earth 1:110m coastlines (public domain), regenerated by `scripts/build-land.mjs` | The Flight face's globe — bundled, so no map tiles and no API key |
 | `face.jpg` | MediaPipe public portrait test asset | Desk-ai gauntlet fixture |
 | `empty.jpg` | Unsplash interior photo (see ATTRIBUTION) | Away / no-face fixture |
 | `covered.jpg` / `noise.jpg` | Synthetic ffmpeg frames | Occlusion / sensor-static |
-| `datasets/desk-attention-labels.csv` | Adaption Labs Adaptive Data annotations of desk-data pack photos (model-labelled, not human) | Attention head training labels |
-| `model/weights/attention-head.json` | Trained in-repo by `scripts/desk-model/train-attention.ts` | On-device focused / unfocused / phone head |
+
+> We thank the University of Edinburgh for the use of the low resolution video and ground truth data.
 
 ---
 
@@ -108,9 +171,17 @@ presence → fuse → force-quit blocklist apps, never the study PC.
 ## 6. Pre-submit checklist
 
 - [ ] Paragraph in §1 matches tools you actually used
-- [ ] No claim of training BlazeFace from scratch
+- [ ] **All four** trained models named — forecast, adaptive fuse, desk head, attention head — with the numbers this repo actually prints (0.9330 lead≥20 s AUC; 77.5% / 8.4 s; 95.16% 3-way; 60.8% vs a 65.7% baseline)
+- [ ] Nothing this repo trained is described as third-party or "just an API"
+- [ ] Pretrained backbones (BlazeFace, MobileNetV2) called reused, not trained — no claim of training either from scratch
+- [ ] Forecast said to be trained **and evaluated on simulated sessions**; the adaptive fuse's prior said to be simulated too
+- [ ] Desk-head caveats from `docs/CUSTOM-MODEL.md` not dropped (the `nc` split is temporally interleaved; eval imagery is 3rd-person, runtime is 1st-person)
+- [ ] Attention head presented as a pipeline that is not reliable yet, with the below-baseline number said out loud — never as phone detection
+- [ ] Adaption Labs split correctly: labels **shipped** in the attention head; forecast augmentation **not used** for the shipped weights
+- [ ] Edinburgh `nc/` data credited and its CC BY-NC-SA / non-commercial limit stated
 - [ ] No claim that webcam frames are uploaded
-- [ ] Desk AI described as a **kill input**, not a filter / avatar
+- [ ] Desk AI described as a **kill input**, not a filter / avatar; the forecast as a **fuse-length input**, not an autonomous killer
+- [ ] The browser demo described as rendering the kill decision, not executing it
 - [ ] Coding assistants listed (Hyperbloom asks what AI tools you used **and how**)
 - [ ] Every teammate named
 - [ ] Stretch ideas (macOS) not presented as shipped; smart plugs claimed only if demoed on a real LAN plug

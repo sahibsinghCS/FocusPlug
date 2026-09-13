@@ -1,4 +1,5 @@
 import type { FaceId } from "./faces";
+import type { ForecastEvent, ForecastSnapshot } from "./forecast/types";
 import type { NudgeEvent, NudgeKind, PlugMode } from "./nudge";
 import type {
   AppEntry,
@@ -15,6 +16,7 @@ import type {
 } from "./types";
 
 export type { FaceId, FacePhase } from "./faces";
+export type { ForecastBand, ForecastEvent, ForecastSnapshot } from "./forecast/types";
 export type { NudgeEvent, NudgeKind, PlugMode } from "./nudge";
 export type {
   AppEntry,
@@ -56,6 +58,7 @@ export const IPC_INVOKE = {
   PLUGS_TEST: "focusplug:plugs:test",
   DEMO_KILL: "focusplug:demo:kill",
   DEMO_NUDGE: "focusplug:demo:nudge",
+  FORECAST_GET_STATE: "focusplug:forecast:getState",
 } as const;
 
 /** Main → renderer push (event) channels. */
@@ -66,6 +69,8 @@ export const IPC_PUSH = {
   DESK_SNAPSHOT: "focusplug:desk:snapshot",
   SESSION_EVENT: "focusplug:log:event",
   NUDGE: "focusplug:session:nudge",
+  FORECAST_SNAPSHOT: "focusplug:forecast:snapshot",
+  FORECAST_EVENT: "focusplug:forecast:event",
 } as const;
 
 export type IpcInvokeChannel = (typeof IPC_INVOKE)[keyof typeof IPC_INVOKE];
@@ -86,6 +91,16 @@ export interface AppSettings {
   /** What enabled plugs do when you drift: `nudge` switches them on, `cut` powers off on kill. Default nudge. */
   plugMode: PlugMode;
   plugs: PlugDevice[];
+  /** Focus Forecast master switch. Off reproduces today's behavior exactly. */
+  forecastEnabled: boolean;
+  /** Allow pre-arm to shorten the fuse. Off is nudge-only, zero enforcement risk. */
+  forecastPrearmEnabled: boolean;
+  /** Smoothed-risk threshold for the nudge toast. Clamped [0.05, 0.90]. */
+  forecastNudgeRisk: number;
+  /** Smoothed-risk threshold for pre-arm. Clamped [0.10, 0.95], >= nudge + 0.05. */
+  forecastPrearmRisk: number;
+  /** Shortened fuse while pre-armed. Clamped [3, 600]; runtime caps at countdownSec. */
+  forecastPrearmFuseSec: number;
 }
 
 export interface SessionState {
@@ -126,6 +141,7 @@ export interface IpcInvokeChannelMap {
   "focusplug:plugs:test": { args: [deviceId: string]; result: PlugSnapshot };
   "focusplug:demo:kill": { args: []; result: KillResult };
   "focusplug:demo:nudge": { args: [kind: NudgeKind]; result: void };
+  "focusplug:forecast:getState": { args: []; result: ForecastSnapshot | null };
 }
 
 export interface IpcPushChannelMap {
@@ -135,6 +151,8 @@ export interface IpcPushChannelMap {
   "focusplug:desk:snapshot": DeskSnapshot;
   "focusplug:log:event": SessionEvent;
   "focusplug:session:nudge": NudgeEvent;
+  "focusplug:forecast:snapshot": ForecastSnapshot;
+  "focusplug:forecast:event": ForecastEvent;
 }
 
 /** Preload API exposed on `window.focusplug`. */
@@ -158,12 +176,15 @@ export interface FocusPlugApi {
   demoKill(): Promise<KillResult>;
   /** Fire a nudge now (window forward, overlay, lamp in nudge mode) — for demos. */
   demoNudge(kind: NudgeKind): Promise<void>;
+  forecastGetState(): Promise<ForecastSnapshot | null>;
   onSessionState(cb: (state: SessionState) => void): () => void;
   onPolicyEvent(cb: (event: PolicyEvent) => void): () => void;
   onFocusSnapshot(cb: (snap: FocusSnapshot) => void): () => void;
   onDeskSnapshot(cb: (snap: DeskSnapshot) => void): () => void;
   onSessionEvent(cb: (event: SessionEvent) => void): () => void;
   onNudge(cb: (event: NudgeEvent) => void): () => void;
+  onForecastSnapshot(cb: (snap: ForecastSnapshot) => void): () => void;
+  onForecastEvent(cb: (event: ForecastEvent) => void): () => void;
 }
 
 export interface WindowMonitor {

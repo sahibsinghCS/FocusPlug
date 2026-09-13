@@ -12,6 +12,7 @@ export default defineConfig({
     include: [
       "src/shared/**/*.test.ts",
       "src/main/session/**/*.test.ts",
+      "src/main/forecast/**/*.test.ts",
       "src/main/desk/**/*.test.ts",
       "src/main/plugs/**/*.test.ts",
       "src/renderer/src/**/*.test.ts",

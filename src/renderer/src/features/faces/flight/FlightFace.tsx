@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type JSX } from "react";
 import type { FlightClock } from "./clock";
 import { drawFlightFace, type FaceVariant } from "./draw";
 import "./flight.css";
+import { createFlightLoop, type FlightLoop } from "./loop";
 import { formatGrouped } from "./math";
 import type { FlightMapView } from "./mapView";
 import { buildFlightModel } from "./model";
@@ -52,8 +53,8 @@ function readPixelRatio(): number {
 export function FlightFace(props: FlightFaceViewProps): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const propsRef = useRef(props);
+  const loopRef = useRef<FlightLoop | null>(null);
   propsRef.current = props;
-  const kickRef = useRef<() => void>(() => undefined);
   const [mapView, setMapView] = useState<FlightMapView>(props.mapView ?? "close");
   const mapViewRef = useRef(mapView);
   mapViewRef.current = mapView;
@@ -74,8 +75,7 @@ export function FlightFace(props: FlightFaceViewProps): JSX.Element {
       throw new Error("FlightFace could not create a 2D context");
     }
 
-    let frame = 0;
-    let running = true;
+    // The loop object owns the frame handle; this only throttles the drift.
     let lastPaint = Number.NEGATIVE_INFINITY;
 
     const paint = (): void => {
@@ -123,52 +123,55 @@ export function FlightFace(props: FlightFaceViewProps): JSX.Element {
       );
     };
 
-    const loop = (): void => {
-      frame = 0;
-      if (!running || document.hidden) return;
-      const moving = drifting();
-      if (!moving || performance.now() - lastPaint >= DRIFT_FRAME_MS) {
-        paint();
-      }
-      if (moving) {
-        frame = window.requestAnimationFrame(loop);
-      }
-    };
-
-    kickRef.current = () => {
-      if (running && frame === 0) loop();
-    };
+    const loop = createFlightLoop({
+      // A still map paints on demand; a drifting one is capped at ~30 fps.
+      paint: () => {
+        if (document.hidden) {
+          return;
+        }
+        if (!drifting() || performance.now() - lastPaint >= DRIFT_FRAME_MS) {
+          paint();
+        }
+      },
+      // Only the close instrument map animates between the parent's ticks.
+      isStatic: () => document.hidden || !drifting(),
+      request: (callback) => window.requestAnimationFrame(callback),
+      cancel: (handle) => window.cancelAnimationFrame(handle),
+    });
+    loopRef.current = loop;
 
     const onVis = (): void => {
-      window.cancelAnimationFrame(frame);
-      frame = 0;
-      if (!document.hidden) loop();
+      if (document.hidden) {
+        loop.suspend();
+        return;
+      }
+      loop.kick();
     };
 
     const ro = new ResizeObserver(() => {
-      if (running) paint();
+      loop.kick();
     });
     ro.observe(canvas);
     document.addEventListener("visibilitychange", onVis);
     void document.fonts.ready.then(() => {
-      if (running) paint();
+      loop.kick();
     });
-    loop();
+    loop.kick();
 
     return () => {
-      running = false;
-      window.cancelAnimationFrame(frame);
-      frame = 0;
-      kickRef.current = () => undefined;
+      loopRef.current = null;
+      loop.stop();
       document.removeEventListener("visibilitychange", onVis);
       ro.disconnect();
     };
   }, []);
 
   // Each render brings a new clock. Repaint a still map with it, and restart
-  // the drift when a pause or break ends (the loop stops while held).
+  // the drift when a pause, break or reduced-motion hold ends — the loop parks
+  // itself while held, and `kick` is a no-op while a frame is already pending,
+  // so this can never stack a second rAF chain.
   useEffect(() => {
-    kickRef.current();
+    loopRef.current?.kick();
   });
 
   const model = buildFlightModel(props.clock, props.idleOverride);

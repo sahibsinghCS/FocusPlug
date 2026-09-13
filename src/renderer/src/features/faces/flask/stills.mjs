@@ -1,11 +1,12 @@
 import { mkdir } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { resolve } from "node:path";
+import { resolveChrome } from "../../../../../../scripts/lib/chrome.mjs";
 
 const BASE = process.env.FLASK_STILLS_BASE ?? "http://127.0.0.1:5178";
 const OUT = resolve(process.argv[2] ?? "src/renderer/src/features/faces/flask/evidence");
 const PREFIX = process.argv[3] ?? "after";
-const CHROME = process.env.CHROME_PATH ?? "/usr/bin/google-chrome";
+const CHROME = resolveChrome();
 
 const SCENES = [
   { name: "leak-062", path: "/?scene=leak&progress=0.62&still=1" },

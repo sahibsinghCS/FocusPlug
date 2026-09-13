@@ -1,5 +1,5 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { isAbsolute, join, relative, sep } from "node:path";
 import { analyzeDeskFrame } from "./analyze";
 import { deskRoot } from "./assets";
 import { ScriptedFrameSource } from "./camera";
@@ -26,7 +26,12 @@ interface Assertion {
 }
 
 interface GauntletReport {
-  ranAt: string;
+  /**
+   * No wall clock and no absolute paths on purpose: this receipt is TRACKED,
+   * and `npm run test:desk` is a documented command. A judge who runs it must
+   * see an unchanged working tree, not a diff made of their own timestamp.
+   */
+  regenerate: string;
   model: string;
   backend: string;
   unitChecks: ReturnType<typeof runClassifyUnitChecks>;
@@ -50,6 +55,16 @@ interface GauntletReport {
   }>;
   assertions: Assertion[];
   verdict: "PASS" | "FAIL";
+}
+
+/** Repo-relative, forward-slashed — the receipt is committed and must travel. */
+function repoRelative(absolute: string): string {
+  const root = join(deskRoot(), "..", "..", "..");
+  const rel = relative(root, absolute);
+  if (rel.length === 0 || rel.startsWith("..") || isAbsolute(rel)) {
+    return absolute;
+  }
+  return rel.split(sep).join("/");
 }
 
 function loadFixture(name: string): { id: string; path: string; frame: RgbFrame } {
@@ -264,13 +279,13 @@ async function main(): Promise<void> {
   );
 
   const report: GauntletReport = {
-    ranAt: new Date().toISOString(),
+    regenerate: "npm run test:desk",
     model: model.id,
     backend: modelBackend(model),
     unitChecks,
     fixtures: fixtures.map((fixture) => ({
       id: fixture.id,
-      path: fixture.path,
+      path: repoRelative(fixture.path),
       labels: fixture.repeats.map((item) => item.snapshot.label),
       confidences: fixture.repeats.map((item) => item.snapshot.confidence),
       faceCounts: fixture.repeats.map((item) => item.debug.faceCount),

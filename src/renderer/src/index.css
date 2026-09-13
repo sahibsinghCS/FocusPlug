@@ -80,6 +80,18 @@
   --color-fp-warn: #9fa6b2;
   --color-fp-red: #ff3b3b;
 
+  /*
+   * The forecast's own register. Red is still the only colour that means a
+   * kill; amber is the one step before it — pre-armed, fuse shortened, nothing
+   * dead yet — and it has to be told apart from red at a glance or the whole
+   * warning is wasted. Lime and blue are held as aliases (bone and the grey-
+   * blue absent tone) so surfaces that still name them stay monochrome instead
+   * of silently losing their colour to an undefined token.
+   */
+  --color-fp-amber: #e8a13c;
+  --color-fp-lime: var(--color-fp-ink);
+  --color-fp-blue: var(--color-fp-warn);
+
   --shadow-fp-pop: 0 18px 44px rgba(0, 0, 0, 0.6);
   --shadow-fp-lift: 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 12px 28px rgba(0, 0, 0, 0.4);
 
@@ -484,5 +496,31 @@ button {
 
   .fp-btn:active:not(:disabled) {
     transform: none;
+  }
+}
+
+
+/*
+ * The fuse readout, ticking down. Lived in features/session/session.css until
+ * the Phase 4 rebuild removed that file; the session clock is its only caller.
+ */
+@keyframes fp-session-fuse-pop {
+  from {
+    transform: scale(1.06);
+    opacity: 0.8;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.fp-session-fuse-num {
+  animation: fp-session-fuse-pop 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fp-session-fuse-num {
+    animation: none;
   }
 }

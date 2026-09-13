@@ -116,6 +116,11 @@ export const DEFAULT_SETTINGS: AppSettings = {
   flightArr: DEFAULT_FLIGHT_ARR,
   plugMode: "nudge",
   plugs: [],
+  forecastEnabled: true,
+  forecastPrearmEnabled: true,
+  forecastNudgeRisk: 0.5,
+  forecastPrearmRisk: 0.65,
+  forecastPrearmFuseSec: 5,
 };
 
 export const DEFAULT_SESSION_STATE: SessionState = {

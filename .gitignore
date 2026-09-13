@@ -2,6 +2,7 @@ node_modules/
 dist/
 out/
 build/
+data/
 *.tsbuildinfo
 .env
 .env.*
@@ -12,6 +13,13 @@ Thumbs.db
 .idea/
 .vscode/
 *.local
+
+# Browser demo (demo/, `npm run demo:build`). The bundle lands in dist/, which
+# is already ignored above; these keep a Vite cache from ever being committed
+# if the demo root gains its own package.json. The stills in demo/evidence are
+# tracked on purpose — they are the gauntlet's receipt.
+demo/node_modules/
+demo/.vite/
 
 # Regenerable: `npm run dataset:adapt`. The CSV is committed; the JSONL duplicates it.
 datasets/*.jsonl

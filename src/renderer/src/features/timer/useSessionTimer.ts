@@ -37,11 +37,19 @@ export interface SessionTimer {
   /** Focus time actually served — a skipped round does not count as work. */
   workedSec: number;
   armed: boolean;
+  /**
+   * The viewer stepped out of lock mode to the live console. The session keeps
+   * running and enforcement stays armed — this is a view, not a lifecycle
+   * state, which is why it is forced back off outside a live plan.
+   */
+  consoleOpen: boolean;
   start: () => void;
   pause: () => void;
   resume: () => void;
   skip: () => void;
   end: () => void;
+  openConsole: () => void;
+  closeConsole: () => void;
 }
 
 export function loadPlan(): TimerPlan {
@@ -99,6 +107,7 @@ export function useSessionTimer(options: {
   const [anchorMs, setAnchorMs] = useState<number | null>(null);
   const [bankedSec, setBankedSec] = useState(0);
   const [skippedFocusSec, setSkippedFocusSec] = useState(0);
+  const [consoleView, setConsoleView] = useState(false);
   const [nowMs, setNowMs] = useState(() => Date.now());
 
   const segments = useMemo(() => planSegments(plan), [plan]);
@@ -167,6 +176,9 @@ export function useSessionTimer(options: {
     setStartedAtMs(now);
     setBankedSec(0);
     setSkippedFocusSec(0);
+    // Throwing the switch always lands in lock mode, whatever you were
+    // looking at when the last session ended.
+    setConsoleView(false);
     setAnchorMs(now);
     setNowMs(now);
     setStatus("running");
@@ -214,8 +226,20 @@ export function useSessionTimer(options: {
     setAnchorMs(null);
     setBankedSec(0);
     setSkippedFocusSec(0);
+    setConsoleView(false);
   }, []);
 
+  const openConsole = useCallback((): void => {
+    setConsoleView(true);
+  }, []);
+
+  const closeConsole = useCallback((): void => {
+    setConsoleView(false);
+  }, []);
+
+  // A view, not a lifecycle state: the plan being live is what makes it real,
+  // so setup and the finish screen can never be "console".
+  const consoleOpen = (status === "running" || status === "paused") && consoleView;
   const remainingSec = Math.max(0, totalSec - elapsedSec);
   const workedSec = Math.max(0, focusSecondsDone(segments, elapsedSec) - skippedFocusSec);
   // Projected from what is left, so a pause pushes the finish back honestly.
@@ -233,10 +257,13 @@ export function useSessionTimer(options: {
     remainingSec,
     workedSec,
     armed,
+    consoleOpen,
     start,
     pause,
     resume,
     skip,
     end,
+    openConsole,
+    closeConsole,
   };
 }

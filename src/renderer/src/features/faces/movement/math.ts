@@ -76,6 +76,30 @@ export function gearAngles(elapsedSec: number): GearAngles {
   };
 }
 
+export interface MovementClockBase {
+  elapsedMs: number;
+  clockMs: number;
+}
+
+/**
+ * Single time base for the live train. Session elapsed already advances one
+ * second per wall second, so the rAF clock may only contribute its delta
+ * since the current elapsed tick — adding raw clockMs on top would run the
+ * movement at 2x and lurch ~4 beats every time elapsed increments.
+ */
+export function movementClock(
+  elapsedMs: number,
+  clockMs: number,
+  base: MovementClockBase | null,
+): { elapsedSec: number; base: MovementClockBase | null } {
+  if (clockMs <= 0) {
+    // Stills and pre-rAF paints carry no live clock to blend in.
+    return { elapsedSec: elapsedMs / 1000, base };
+  }
+  const next = base !== null && base.elapsedMs === elapsedMs ? base : { elapsedMs, clockMs };
+  return { elapsedSec: elapsedMs / 1000 + (clockMs - next.clockMs) / 1000, base: next };
+}
+
 /** Remaining wind (horological): dense coils at session start, relaxing as time elapses. */
 export function springTurns(progress: number): number {
   const wind = 1 - clamp(progress, 0, 1);

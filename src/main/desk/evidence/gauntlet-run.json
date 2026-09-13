@@ -1,5 +1,5 @@
 {
-  "ranAt": "2026-09-13T01:34:24.445Z",
+  "regenerate": "npm run test:desk",
   "model": "blazeface",
   "backend": "cpu",
   "unitChecks": [
@@ -112,7 +112,7 @@
   "fixtures": [
     {
       "id": "face",
-      "path": "C:\\Users\\SS\\FocusPlug\\src\\main\\desk\\fixtures\\face.jpg",
+      "path": "src/main/desk/fixtures/face.jpg",
       "labels": [
         "at_desk",
         "at_desk",
@@ -154,7 +154,7 @@
     },
     {
       "id": "covered",
-      "path": "C:\\Users\\SS\\FocusPlug\\src\\main\\desk\\fixtures\\covered.jpg",
+      "path": "src/main/desk/fixtures/covered.jpg",
       "labels": [
         "away",
         "away",
@@ -196,7 +196,7 @@
     },
     {
       "id": "empty",
-      "path": "C:\\Users\\SS\\FocusPlug\\src\\main\\desk\\fixtures\\empty.jpg",
+      "path": "src/main/desk/fixtures/empty.jpg",
       "labels": [
         "away",
         "away",
@@ -238,7 +238,7 @@
     },
     {
       "id": "noise",
-      "path": "C:\\Users\\SS\\FocusPlug\\src\\main\\desk\\fixtures\\noise.jpg",
+      "path": "src/main/desk/fixtures/noise.jpg",
       "labels": [
         "away",
         "away",

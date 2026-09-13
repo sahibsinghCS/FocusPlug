@@ -13,6 +13,8 @@ import type {
   AppLists,
   AppSettings,
   DeskModelId,
+  ForecastEvent,
+  ForecastSnapshot,
   KillResult,
   NudgeEvent,
   NudgeKind,
@@ -26,8 +28,10 @@ import type {
 import type { AppEntry } from "@shared/types";
 import { DEFAULT_FACE_ID, normalizeFaceId } from "@shared/faces";
 import { DEFAULT_SESSION_STATE, DEFAULT_SETTINGS } from "@shared/defaults";
+import { latchSessionStartedAt } from "../features/session/model";
 import { getApi } from "../lib/api";
 import { newEntryId } from "../lib/ids";
+import { createWriteQueue } from "../lib/writeQueue";
 import {
   looksLikeStudyPc,
   mergePlugViews,
@@ -56,6 +60,14 @@ interface AppStateValue {
   settings: AppSettings;
   plugs: PlugView[];
   log: SessionEvent[];
+  /** Latest forecast snapshot (1 Hz while a session runs; null before the first). */
+  forecast: ForecastSnapshot | null;
+  /** Recent forecast events, newest first (capped ring). */
+  forecastEvents: ForecastEvent[];
+  /** Smoothed-risk history for the sparkline, oldest first (capped ring). */
+  forecastHistory: { ts: number; risk: number }[];
+  /** Session start latched outside the capped log (null when no session runs). */
+  sessionStartedAt: number | null;
   error: string | null;
   killResult: KillResult | null;
   countdown: LocalCountdown | null;
@@ -76,6 +88,8 @@ interface AppStateValue {
   setPlugEnabled: (deviceId: string, enabled: boolean) => Promise<PlugDevice[]>;
   testPlug: (deviceId: string, powerOn: boolean) => Promise<PlugSnapshot>;
   previewCountdown: (seconds: number, reason: string) => void;
+  /** Close a local countdown preview — never touches a real fuse in main. */
+  dismissPreview: () => void;
   clearError: () => void;
 }
 
@@ -111,6 +125,10 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [plugSnapshots, setPlugSnapshots] = useState<Record<string, PlugSnapshot>>({});
   const [log, setLog] = useState<SessionEvent[]>([]);
+  const [forecast, setForecast] = useState<ForecastSnapshot | null>(null);
+  const [forecastEvents, setForecastEvents] = useState<ForecastEvent[]>([]);
+  const [forecastHistory, setForecastHistory] = useState<{ ts: number; risk: number }[]>([]);
+  const [sessionStartedAt, setSessionStartedAt] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [killResult, setKillResult] = useState<KillResult | null>(null);
   const [localCountdown, setLocalCountdown] = useState<LocalCountdown | null>(null);
@@ -147,18 +165,25 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
     [clearLocalTimer],
   );
 
+  const dismissPreview = useCallback((): void => {
+    clearLocalTimer();
+    setLocalCountdown(null);
+  }, [clearLocalTimer]);
+
   useEffect(() => {
     let cancelled = false;
 
     void (async () => {
       try {
-        const [nextState, nextLists, nextSettings, nextLog, listedPlugs] = await Promise.all([
-          api.sessionGetState(),
-          api.listsGet(),
-          api.settingsGet(),
-          api.logGet(),
-          api.plugsList(),
-        ]);
+        const [nextState, nextLists, nextSettings, nextLog, listedPlugs, nextForecast] =
+          await Promise.all([
+            api.sessionGetState(),
+            api.listsGet(),
+            api.settingsGet(),
+            api.logGet(),
+            api.plugsList(),
+            api.forecastGetState(),
+          ]);
         if (cancelled) {
           return;
         }
@@ -181,6 +206,7 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
         }
         setSettings(settingsWithPlugs);
         setLog(nextLog);
+        setForecast(nextForecast);
         setReady(true);
       } catch (caught) {
         if (!cancelled) {
@@ -199,6 +225,20 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
     });
     const unsubLog = api.onSessionEvent((event) => {
       setLog((current) => [event, ...current].slice(0, 400));
+    });
+    const unsubForecast = api.onForecastSnapshot((snap) => {
+      setForecast(snap);
+      setForecastHistory((current) => {
+        const last = current[current.length - 1];
+        if (last && snap.ts <= last.ts) {
+          // Forced (sub-second) recomputes update the needle, not the trail.
+          return [...current.slice(0, -1), { ts: snap.ts, risk: snap.risk }];
+        }
+        return [...current, { ts: snap.ts, risk: snap.risk }].slice(-180);
+      });
+    });
+    const unsubForecastEvent = api.onForecastEvent((event) => {
+      setForecastEvents((current) => [event, ...current].slice(0, 60));
     });
     const unsubPolicy = api.onPolicyEvent((event: PolicyEvent) => {
       if (event.type === "start_countdown") {
@@ -238,11 +278,21 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
       unsubFocus();
       unsubDesk();
       unsubLog();
+      unsubForecast();
+      unsubForecastEvent();
       unsubPolicy();
       unsubNudge();
       clearLocalTimer();
     };
   }, [api, clearLocalTimer, previewCountdown, usingMock]);
+
+  // Latch the session start at provider scope: the capped log eventually
+  // trims "Session started", and page-scoped fallbacks reset on remount.
+  useEffect(() => {
+    setSessionStartedAt((current) =>
+      latchSessionStartedAt(current, log, state.sessionActive, Date.now()),
+    );
+  }, [log, state.sessionActive]);
 
   const run = useCallback(async (task: () => Promise<void>, fallback: string): Promise<void> => {
     setError(null);
@@ -271,6 +321,11 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
 
   const startSession = useCallback(async (): Promise<void> => {
     await run(async () => {
+      // A fresh session means a fresh forecast ledger — the monitor's ring
+      // resets too, so stale receipts must not survive into the new run.
+      setForecast(null);
+      setForecastEvents([]);
+      setForecastHistory([]);
       setState(await api.sessionStart());
     }, "Failed to start session");
   }, [api, run]);
@@ -387,18 +442,30 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
     [api, runWithResult],
   );
 
-  const setPlugEnabled = useCallback(
-    async (deviceId: string, enabled: boolean): Promise<PlugDevice[]> => {
-      return await runWithResult(async () => {
-        const plugs = settings.plugs.map((plug) =>
-          plug.id === deviceId ? { ...plug, enabled, isStudyPc: false as const } : plug,
-        );
+  // Plug toggles persist the whole array (last-write-wins settings:set). The
+  // queue computes each payload from the previous write's result so a second
+  // toggle clicked mid-flight cannot silently disarm the first.
+  const persistPlugs = useMemo(
+    () =>
+      createWriteQueue<PlugDevice>(async (plugs) => {
         const next = await api.settingsSet({ plugs });
         setSettings(next);
         return next.plugs;
+      }),
+    [api],
+  );
+
+  const setPlugEnabled = useCallback(
+    async (deviceId: string, enabled: boolean): Promise<PlugDevice[]> => {
+      return await runWithResult(async () => {
+        return await persistPlugs(settings.plugs, (plugs) =>
+          plugs.map((plug) =>
+            plug.id === deviceId ? { ...plug, enabled, isStudyPc: false as const } : plug,
+          ),
+        );
       }, "Failed to update plug");
     },
-    [api, runWithResult, settings.plugs],
+    [persistPlugs, runWithResult, settings.plugs],
   );
 
   const testPlug = useCallback(
@@ -451,6 +518,10 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
       settings,
       plugs,
       log,
+      forecast,
+      forecastEvents,
+      forecastHistory,
+      sessionStartedAt,
       error,
       killResult,
       countdown,
@@ -470,13 +541,18 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
       setPlugEnabled,
       testPlug,
       previewCountdown,
+      dismissPreview,
       clearError: () => setError(null),
     }),
     [
       addPlug,
       countdown,
       demoKill,
+      dismissPreview,
       error,
+      forecast,
+      forecastEvents,
+      forecastHistory,
       killResult,
       lists,
       log,
@@ -488,6 +564,7 @@ export function AppStateProvider(props: { children: ReactNode }): JSX.Element {
       previewCountdown,
       ready,
       removePlug,
+      sessionStartedAt,
       setAllowlist,
       setBlocklist,
       setDeskEnabled,
@@ -520,14 +597,18 @@ function readLegacyFaceId(): ReturnType<typeof normalizeFaceId> | null {
   }
 }
 
-export function useOptionalAppState(): AppStateValue | null {
-  return useContext(AppStateContext);
-}
-
 export function useAppState(): AppStateValue {
   const value = useOptionalAppState();
   if (!value) {
     throw new Error("useAppState must be used within AppStateProvider");
   }
   return value;
+}
+
+/**
+ * Optional variant for components that also render outside the provider
+ * (KillOverlay in the forecast preview page): null instead of throwing.
+ */
+export function useOptionalAppState(): AppStateValue | null {
+  return useContext(AppStateContext);
 }

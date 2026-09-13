@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useState, type JSX } from "react";
 import { parseRoute, type RouteId, ROUTES, navigate } from "../lib/routes";
+import { countdownIsPreview } from "../features/session/model";
 import { useAppState } from "../state/AppState";
 import { useSessionTimer } from "../features/timer/useSessionTimer";
+import { shellView, viewIsLocked } from "../features/timer/view";
 import { ErrorBanner } from "./page";
 import { KillOverlay } from "../features/kill/KillOverlay";
 import { NudgeOverlay } from "../features/nudge/NudgeOverlay";
 import { TopRail } from "./TopRail";
 import { SetupPage } from "../pages/SetupPage";
+import { SessionPage } from "../pages/SessionPage";
 import { LockPage } from "../pages/LockPage";
 import { ListPage } from "../pages/ListPage";
 import { SettingsPage } from "../pages/SettingsPage";
@@ -49,7 +52,15 @@ export function Shell(): JSX.Element {
   );
 
   const timer = useSessionTimer({ onEnforce });
-  const locked = timer.status !== "setup";
+  // Lock is a *view* of a live session, not the session itself. Enforcement is
+  // armed exactly while the plan runs, so deriving the lock from the lifecycle
+  // alone is what would make the live console unreachable in the shipped app.
+  const view = shellView({
+    status: timer.status,
+    consoleOpen: timer.consoleOpen,
+    sessionActive: app.state.sessionActive,
+  });
+  const locked = viewIsLocked(view);
 
   useEffect(() => {
     if (locked) {
@@ -84,7 +95,18 @@ export function Shell(): JSX.Element {
             </div>
           ) : null}
           <main id="fp-main" className="min-h-0 min-w-0 flex-1 overflow-auto" tabIndex={-1}>
-            {route === "session" ? <SetupPage timer={timer} /> : null}
+            {/* One route, two states. The plan is what you edit before the
+                lock goes on; a live session you have stepped out of lock mode
+                to see becomes the console — decision, forecast, sensors,
+                timeline. Lock mode itself is the full-screen LockPage above,
+                and `Console` there is the door between them. */}
+            {route === "session" ? (
+              view === "console" ? (
+                <SessionPage onLock={timer.status === "setup" ? undefined : timer.closeConsole} />
+              ) : (
+                <SetupPage timer={timer} />
+              )
+            ) : null}
             {route === "allowlist" ? <ListPage kind="allow" /> : null}
             {route === "blocklist" ? <ListPage kind="block" /> : null}
             {route === "plugs" ? <PlugsPage /> : null}
@@ -101,9 +123,11 @@ export function Shell(): JSX.Element {
           reason={app.countdown.reason}
           state={app.state}
           plugs={app.plugs}
+          preview={countdownIsPreview(app.state.countdownSec)}
           onDemoKill={() => {
             void app.demoKill();
           }}
+          onDismiss={app.dismissPreview}
         />
       ) : null}
 

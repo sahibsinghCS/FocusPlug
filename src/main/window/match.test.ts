@@ -4,7 +4,8 @@ import { DEFAULT_ALLOWLIST, DEFAULT_BLOCKLIST } from "../../shared/defaults.ts";
 import type { AppEntry } from "../../shared/types.ts";
 import { entryMatches, findMatchingEntry, processBasename } from "./match.ts";
 import { buildFocusSnapshot } from "./snapshot.ts";
-import { parseForegroundPayload } from "./win32.ts";
+import type { ForegroundWindow } from "./foreground.ts";
+import { FOREGROUND_SCRIPT, parseForegroundPayload, Win32ForegroundReader } from "./win32.ts";
 
 const discordLike = {
   processName: "Discord",
@@ -123,5 +124,33 @@ describe("parseForegroundPayload", () => {
   test("returns null on garbage", () => {
     assert.equal(parseForegroundPayload(""), null);
     assert.equal(parseForegroundPayload("not-json"), null);
+  });
+});
+
+describe("Win32ForegroundReader", () => {
+  test("stop() invalidates the cached window so a new session cannot replay stale focus", () => {
+    const reader = new Win32ForegroundReader();
+    assert.equal(reader.read(), null);
+
+    // Simulate the last payload seen before the previous session ended; the
+    // PowerShell child needs 1-3s after spawn before its first real line, so a
+    // surviving cache would drive policy with hours-old focus at session start.
+    (reader as unknown as { latest: ForegroundWindow | null }).latest = { ...discordLike };
+    assert.deepEqual(reader.read(), discordLike);
+
+    reader.stop();
+    assert.equal(reader.read(), null);
+  });
+});
+
+describe("FOREGROUND_SCRIPT", () => {
+  test("never uses the read-only $pid automatic variable", () => {
+    // $pid/$PID is a PowerShell automatic variable (ReadOnly, AllScope, case-insensitive);
+    // assigning it throws every tick, degrading the sensor to the empty fallback payload.
+    // Both sides of the merge found this bug and renamed the out-param differently;
+    // `$fgPid` is the name that shipped (src/main/window/win32.ts), and
+    // win32.test.ts pins it too — keep the two in step if it is ever renamed again.
+    assert.doesNotMatch(FOREGROUND_SCRIPT, /\$pid\b/i);
+    assert.match(FOREGROUND_SCRIPT, /\[ref\]\$fgPid\b/);
   });
 });
