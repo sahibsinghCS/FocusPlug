@@ -41,12 +41,8 @@ Replace the listed file. Do not fork `FaceHost` or invent a second picker.
 | `flight` | `agent/faces-flight` | `src/renderer/src/features/faces/FlightFace.tsx` | ready — low-poly map + session clock |
 | `hourglass` | `agent/faces-hourglass-v2` | `src/renderer/src/features/faces/HourglassFace.tsx` | ready — curved glass, sand transfer |
 | `readout` | `agent/faces-foundation` | `src/renderer/src/features/faces/ReadoutFace.tsx` | ready — honest digits |
-| `descent` | `agent/faces-descent` | `src/renderer/src/features/faces/DescentFace.tsx` | ready — deep-sea zones |
 | `movement` | `agent/faces-mid` | `src/renderer/src/features/faces/MovementFace.tsx` | ready — exposed calibre |
-| `record` | `agent/faces-mid` | `src/renderer/src/features/faces/RecordFace.tsx` | ready — paper-drum seismograph |
-| `circuit` | `agent/faces-circuit` | `src/renderer/src/features/faces/CircuitFace.tsx` | ready — session fuse plate |
 | `line` | `agent/faces-mid` | `src/renderer/src/features/faces/LineFace.tsx` | ready — transit map |
-| `orbit` | `agent/faces-orbit` | `src/renderer/src/features/faces/OrbitFace.tsx` | ready — alignment lock |
 | `growth` | `agent/faces-growth` | `src/renderer/src/features/faces/GrowthFace.tsx` | ready — bonsai + wilt stakes |
 | `flask` | `agent/faces-flask` | `src/renderer/src/features/faces/FlaskFace.tsx` | ready — glass vessel + visible leak |
 | `garden` | `agent/faces-garden` | `src/renderer/src/features/faces/GardenFace.tsx` | ready — sunrise garden (replaces retired Eclipse) |
@@ -65,7 +61,7 @@ Registry already maps every `FaceId`. A landing stream swaps the component body 
 
 ## Retired — do not build
 
-**Column / Grid / Eclipse / Field** are retired. They are not `FaceId`s. Persistence maps those strings back to the default face. Do not add them to the catalog, picker, or stubs. Garden (`garden`) is the colorful sunrise face — do not revive `eclipse`. Candle (`candle`) is the melting-wax face — do not revive `field`.
+**Column / Grid / Eclipse / Field** are retired, and **Descent / Record / Circuit / Orbit** were removed on 2026-09-13. They are not `FaceId`s. Persistence maps those strings back to the default face. Do not add them to the catalog, picker, or stubs. Garden (`garden`) is the colorful sunrise face — do not revive `eclipse`. Candle (`candle`) is the melting-wax face — do not revive `field`.
 
 ## Preview stills
 
@@ -77,9 +73,6 @@ npx vite --config scripts/renderer-preview.vite.ts
 # #/?scene=live&face=readout
 # #/?scene=distracted&countdown=8&freeze=1&face=hourglass
 # #/?scene=live&face=flight
-# #/?scene=live&face=descent&progress=0.62
-# #/?scene=live&face=orbit&progress=0.62
-# #/?scene=live&face=circuit&progress=0.62
 # #/?scene=live&face=growth&progress=0.74&session=gauntlet-growth-01
 # #/?scene=live&face=growth&progress=0.74&session=gauntlet-growth-01&kills=3
 # #/?scene=live&face=flask&progress=0.62

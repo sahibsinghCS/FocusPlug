@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 /**
  * How often lock faces receive a new wall-clock `now`.
  *
- * Canvas faces (flight, hourglass, flask, candle, garden, movement, record)
+ * Canvas faces (flight, hourglass, flask, candle, garden, movement)
  * already self-animate via their own `requestAnimationFrame` loops. Publishing
  * `now` on every frame re-rendered the whole lock stage for the session.
  */
