@@ -37,6 +37,7 @@ import type {
   PlanRevisionCopy,
   PlanRevisionKind,
   PlanRound,
+  PlanSeedStamp,
   PlanStep,
   PlanTrend,
 } from "./types";
@@ -358,6 +359,22 @@ function clampNote(input: PlanCardCopyInput): string {
 
 export const FORECAST_OFF_NOTE =
   "Focus Forecast is off, so there is no early read and no risk curve in the debrief — this plans from drifts only.";
+
+/**
+ * The one sentence the app says about a SEEDED ledger, written here with every
+ * other user-visible string so it is testable without a DOM.
+ *
+ * It is not hedged and it is not small: a plan card reading a fabricated
+ * history looks exactly like a plan card reading a measured one, so the only
+ * thing standing between a demo and a false claim is this line saying, in the
+ * product's own log, that the rounds under it were written rather than served.
+ * `PlanRecorder` prints it; `npm run demo:unseed` is what removes it.
+ */
+export function seedNotice(seed: PlanSeedStamp): string {
+  const count = Math.max(0, Math.round(seed.rounds));
+  const rounds = count === 1 ? "1 fabricated round" : `${count} fabricated rounds`;
+  return `SEEDED DEMO HISTORY · ${rounds} written by ${seed.source}. ${seed.note} Remove it with npm run demo:unseed.`;
+}
 
 export function planCardCopy(input: PlanCardCopyInput): PlanCardCopy {
   return {

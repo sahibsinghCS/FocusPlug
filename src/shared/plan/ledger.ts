@@ -38,6 +38,7 @@ import {
   type PlanEvidenceRow,
   type PlanRound,
   type PlanRoundStatus,
+  type PlanSeedStamp,
 } from "./types";
 
 const STATUSES: readonly PlanRoundStatus[] = ["completed", "aborted", "discarded"];
@@ -145,6 +146,47 @@ export function normalizeRound(raw: unknown): PlanRound | null {
   };
 }
 
+/**
+ * House copy for a stamp that is present but cannot say what it is. Erring
+ * toward disclosure: an unreadable stamp is still a stamp.
+ */
+export const SEED_FALLBACK_SOURCE = "an unnamed seeding tool";
+export const SEED_FALLBACK_NOTE =
+  "Seeded demo history: these rounds were written by a seeding tool for filming, not measured on this machine.";
+
+function text(value: unknown, max: number, fallback: string): string {
+  if (typeof value !== "string") {
+    return fallback;
+  }
+  const trimmed = value.trim().replace(/\s+/g, " ").slice(0, max);
+  return trimmed.length > 0 ? trimmed : fallback;
+}
+
+/**
+ * The seed stamp, validated. `null` exactly when the ledger claims no seed —
+ * anything present and truthy is seeded, because the failure mode that costs
+ * something here is a fabricated ledger that reads as measured, never a
+ * measured ledger that reads as fabricated.
+ */
+export function normalizeSeedStamp(raw: unknown): PlanSeedStamp | null {
+  if (!raw) {
+    return null;
+  }
+  const r = typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const rounds = finiteAt(r["rounds"], 0);
+  return {
+    source: text(r["source"], 120, SEED_FALLBACK_SOURCE),
+    writtenAt: finiteAt(r["writtenAt"], 0) ?? 0,
+    rounds: rounds === null ? 0 : Math.round(rounds),
+    note: text(r["note"], 400, SEED_FALLBACK_NOTE),
+  };
+}
+
+/** Carry a seed stamp onto a rebuilt ledger, and nothing when there is none. */
+function withSeed(ledger: FocusPlanLedger, seed: PlanSeedStamp | null | undefined): FocusPlanLedger {
+  return seed === null || seed === undefined ? ledger : { ...ledger, seed };
+}
+
 export function reviveLedger(raw: unknown): FocusPlanLedger {
   if (typeof raw !== "object" || raw === null) {
     return emptyLedger();
@@ -162,11 +204,14 @@ export function reviveLedger(raw: unknown): FocusPlanLedger {
   }
   rounds.sort((a, b) => a.startedAt - b.startedAt);
   const lifetime = finiteAt(r["lifetimeRounds"], 0);
-  return {
-    v: PLAN_LEDGER_VERSION,
-    lifetimeRounds: Math.max(lifetime ?? 0, rounds.length),
-    rounds: rounds.slice(-PLAN_LEDGER_CAP),
-  };
+  return withSeed(
+    {
+      v: PLAN_LEDGER_VERSION,
+      lifetimeRounds: Math.max(lifetime ?? 0, rounds.length),
+      rounds: rounds.slice(-PLAN_LEDGER_CAP),
+    },
+    normalizeSeedStamp(r["seed"]),
+  );
 }
 
 /** Append on round close, oldest-first, capped. Pure — the store does the I/O. */
@@ -174,11 +219,17 @@ export function appendRound(ledger: FocusPlanLedger, round: PlanRound): FocusPla
   const rounds = [...ledger.rounds.filter((r) => r.roundKey !== round.roundKey), round].sort(
     (a, b) => a.startedAt - b.startedAt,
   );
-  return {
-    v: PLAN_LEDGER_VERSION,
-    lifetimeRounds: ledger.lifetimeRounds + 1,
-    rounds: rounds.slice(-PLAN_LEDGER_CAP),
-  };
+  // The stamp rides every rewrite: a seeded ledger the student then worked
+  // against is still a seeded ledger, and the notice has to survive the round
+  // that would otherwise quietly launder it.
+  return withSeed(
+    {
+      v: PLAN_LEDGER_VERSION,
+      lifetimeRounds: ledger.lifetimeRounds + 1,
+      rounds: rounds.slice(-PLAN_LEDGER_CAP),
+    },
+    ledger.seed,
+  );
 }
 
 export interface WindowOptions {

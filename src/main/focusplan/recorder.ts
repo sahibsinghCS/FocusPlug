@@ -19,6 +19,7 @@ import type {
   SessionPlanContext,
 } from "../../shared/plan/types.ts";
 import { accumulateServed } from "../../shared/plan/ledger.ts";
+import { seedNotice } from "../../shared/plan/copy.ts";
 import {
   appendPlanRound,
   clonePlanRound,
@@ -179,6 +180,9 @@ export class PlanRecorder implements PlanTap {
   private readonly pinned: boolean;
 
   private ledger: FocusPlanLedger | null = null;
+  /** The round key the seeded-history notice was last printed for; "startup"
+   *  for the read that happens before any round. See `noticeSeed`. */
+  private seedNoticedFor: string | null = null;
   private active = false;
   /** Error latch — set by the first thrown error, cleared at session start. */
   private off = false;
@@ -431,6 +435,9 @@ export class PlanRecorder implements PlanTap {
       firstDriftLeadSec: prior?.firstDriftLeadSec ?? null,
       forecastOn: prior?.forecastOn ?? this.forecastEnabledNow(),
     };
+    // A round arming on top of fabricated history gets the disclosure next to
+    // it in the log, rather than thirty lines above it at app start.
+    this.noticeSeed(this.readLedger(), key);
   }
 
   private forecastEnabledNow(): boolean {
@@ -547,7 +554,32 @@ export class PlanRecorder implements PlanTap {
       raw = null;
     }
     this.ledger = revivePlanLedger(raw);
+    this.noticeSeed(this.ledger, null);
     return this.ledger;
+  }
+
+  /**
+   * Say out loud, in the app's own Log, that this history was written rather
+   * than served.
+   *
+   * A ledger `scripts/demo-seed.ts` wrote is indistinguishable on screen from
+   * one the student earned — same card, same numbers, same evidence table —
+   * so the disclosure cannot live only in the JSON. It is printed once when
+   * the ledger is first read (app start) and once more for each round that
+   * arms on top of it, keyed so a pause/resume of the same round does not
+   * repeat it. The recorder never WRITES a stamp; it only ever repeats one.
+   */
+  private noticeSeed(ledger: FocusPlanLedger, roundKey: string | null): void {
+    const seed = ledger.seed;
+    if (seed === undefined) {
+      return;
+    }
+    const tag = roundKey ?? "startup";
+    if (this.seedNoticedFor === tag) {
+      return;
+    }
+    this.seedNoticedFor = tag;
+    this.safeLog(seedNotice(seed));
   }
 
   private writeLedger(ledger: FocusPlanLedger): void {

@@ -3,6 +3,8 @@ import type { SessionEvent } from "../types";
 import { PLAN_LEDGER_CAP, PLAN_MAX_TICK_GAP_SEC, PLAN_WINDOW_DAYS, PLAN_WINDOW_ROUNDS } from "./constants";
 import { DAY, MINUTE, T0, dayKey, drift19_22_20, makeRound, mixedRounds } from "./fixtures";
 import {
+  SEED_FALLBACK_NOTE,
+  SEED_FALLBACK_SOURCE,
   accumulateServed,
   appendRound,
   civilDayUtc,
@@ -10,6 +12,7 @@ import {
   evidenceFrom,
   ledgerFromSessionLog,
   normalizeRound,
+  normalizeSeedStamp,
   reviveLedger,
   samplesFrom,
   selectWindow,
@@ -265,5 +268,85 @@ describe("ledgerFromSessionLog — the audit trail rebuilt", () => {
     );
     expect(ledger.rounds[0]?.day).toBe("2026-01-02");
     expect(ledger.rounds[0]?.hour).toBe(7);
+  });
+});
+
+/**
+ * The seed stamp is the only thing standing between a filmed demo and a false
+ * claim: `npm run demo:seed` writes a ledger that looks on screen exactly like
+ * a measured one. So it has to survive everything the app does to the file
+ * afterwards, and an unreadable stamp has to keep disclosing rather than fail
+ * quiet.
+ */
+describe("the seed stamp — fabricated history cannot age into measurement", () => {
+  const STAMP = {
+    source: "npm run demo:seed",
+    writtenAt: T0,
+    rounds: 3,
+    note: "Fabricated for filming.",
+  };
+
+  it("is absent from a ledger that never had one", () => {
+    expect(reviveLedger({ v: PLAN_LEDGER_VERSION, lifetimeRounds: 1, rounds: [GOOD] }).seed).toBeUndefined();
+    expect(appendRound(reviveLedger(null), GOOD).seed).toBeUndefined();
+  });
+
+  it("survives revive", () => {
+    const revived = reviveLedger({
+      v: PLAN_LEDGER_VERSION,
+      lifetimeRounds: 3,
+      rounds: drift19_22_20.rounds,
+      seed: STAMP,
+    });
+    expect(revived.seed).toEqual(STAMP);
+    expect(revived.rounds).toHaveLength(3);
+  });
+
+  it("survives the round that would otherwise launder it", () => {
+    const seeded = reviveLedger({
+      v: PLAN_LEDGER_VERSION,
+      lifetimeRounds: 3,
+      rounds: drift19_22_20.rounds,
+      seed: STAMP,
+    });
+    const after = appendRound(seeded, makeRound({ day: 5, driftMin: 12 }));
+    expect(after.seed).toEqual(STAMP);
+    // …and again on the next launch, through the same file the app rewrote.
+    expect(reviveLedger(JSON.parse(JSON.stringify(after))).seed).toEqual(STAMP);
+  });
+
+  it.each([
+    ["undefined", undefined],
+    ["null", null],
+    ["false", false],
+    ["empty string", ""],
+    ["zero", 0],
+  ])("%s is not a seed", (_name, raw) => {
+    expect(normalizeSeedStamp(raw)).toBeNull();
+  });
+
+  it("a stamp that cannot say what it is still says it is a stamp", () => {
+    expect(normalizeSeedStamp({})).toEqual({
+      source: SEED_FALLBACK_SOURCE,
+      writtenAt: 0,
+      rounds: 0,
+      note: SEED_FALLBACK_NOTE,
+    });
+    expect(normalizeSeedStamp(true)?.note).toBe(SEED_FALLBACK_NOTE);
+    expect(normalizeSeedStamp({ source: "   ", note: "", rounds: "nope" })).toEqual({
+      source: SEED_FALLBACK_SOURCE,
+      writtenAt: 0,
+      rounds: 0,
+      note: SEED_FALLBACK_NOTE,
+    });
+  });
+
+  it("normalises what it can read, and bounds what it cannot trust", () => {
+    const long = "x".repeat(900);
+    const stamp = normalizeSeedStamp({ source: long, note: long, rounds: 4.6, writtenAt: T0 });
+    expect(stamp?.source).toHaveLength(120);
+    expect(stamp?.note).toHaveLength(400);
+    expect(stamp?.rounds).toBe(5);
+    expect(stamp?.writtenAt).toBe(T0);
   });
 });

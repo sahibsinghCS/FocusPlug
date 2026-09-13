@@ -579,8 +579,11 @@ export function SettingsPage(): JSX.Element {
           <div>
             <p className="fp-section-label">Desk model</p>
             <p className="mt-1 text-[12px] text-fp-mute">
-              Frozen <span className="font-mono text-fp-ink">deskModelId</span> seam. BlazeFace is
-              the default. Custom is Timmy's drop-in. Stub is a safe soak.
+              Frozen <span className="font-mono text-fp-ink">deskModelId</span> seam. BlazeFace
+              is the shipped default: a face detector with no{" "}
+              <span className="font-mono text-fp-ink">away</span> class, so it answers away for any
+              frame it cannot find a face in. Custom is the presence head we trained, and the only
+              model allowed to stop the clock. Stub is always uncertain — a safe soak.
             </p>
           </div>
           <p className="shrink-0 font-mono text-[11px] text-fp-faint">
