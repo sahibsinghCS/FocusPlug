@@ -6,9 +6,10 @@ import type { DeskSnapshot, FocusSnapshot } from "@shared/ipc";
  * This file emits a raw BEHAVIOR stream (sub-second window pokes + a desk
  * label per second), never features and never risk numbers. Everything
  * downstream of it is the shipped code: the ring coalesces the pokes, the
- * shared extractor turns them into the 24 features, the trained GLM scores
- * them, and `stepPolicy` decides. Change a beat here and the risk curve moves
- * because the model re-reads it — there is no place to put a fake number.
+ * shared extractor turns them into the 24 features, the trained 24→36→1 MLP
+ * head (`mlp24-36-1`, 937 params) scores them, and `stepPolicy` decides.
+ * Change a beat here and the risk curve moves because the model re-reads it —
+ * there is no place to put a fake number.
  *
  * The arc, second by second (94 s at 1x):
  *   writing in Docs → tab flicking + grey loiter → NUDGE → comply, risk

@@ -171,8 +171,10 @@ Five flat keys (house `requirePatch`/`normalizeSettings` style — no nested blo
 |---|---|---|---|
 | `forecastEnabled` | boolean | `true` | boolean else default |
 | `forecastPrearmEnabled` | boolean | `true` | boolean else default |
-| `forecastNudgeRisk` | number | `0.55` | finite → clamp [0.05, 0.90] else default |
-| `forecastPrearmRisk` | number | `0.80` | finite → clamp [0.10, 0.95] else default; then raised to ≥ `forecastNudgeRisk` + 0.05 |
+| `forecastNudgeRisk` | number | `0.50` | finite → clamp [0.05, 0.90] else default |
+| `forecastPrearmRisk` | number | `0.65` | finite → clamp [0.10, 0.95] else default; then raised to ≥ `forecastNudgeRisk` + 0.05 |
 | `forecastPrearmFuseSec` | number | `5` | finite → `Math.round`, clamp [3, 600] else default (runtime additionally caps at `countdownSec`) |
+
+The two risk defaults are operating points re-derived with the model, not free constants. Code-side parity is enforced: `scripts/forecast/eval.ts` asserts `weights.thresholds.nudge/prearm` equal `DEFAULT_SETTINGS.forecastNudgeRisk/forecastPrearmRisk` (`nudge` 0.50 / `prearm` 0.65 today). This *table* is not machine-guarded — `npm run check:contracts` byte-compares only the Types fence above — so re-check it by hand after any threshold re-derivation, against `src/shared/defaults.ts` and `docs/FORECAST-CONTRACTS.md § 3`.
 
 `forecastEnabled: false` (or any load/inference failure) reproduces today's behavior event-for-event. The forecast's only authority over enforcement is `PolicyInput.countdownSec`, bounded to `[3, countdownSec]`, never lengthened. `src/shared/policy/**` and `SessionPush` (`src/main/session/push.ts`) stay untouched.

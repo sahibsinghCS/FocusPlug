@@ -29,7 +29,8 @@ interface CountdownOverlayProps {
    */
   forecastLeadSec?: number | null;
   onDemoKill: () => void;
-  onDismiss: () => void;
+  /** Escape-to-close, bound only when `preview` is true. */
+  onDismiss?: () => void;
 }
 
 export function CountdownOverlay(props: CountdownOverlayProps): JSX.Element {
@@ -39,7 +40,7 @@ export function CountdownOverlay(props: CountdownOverlayProps): JSX.Element {
   // A real fuse deliberately ignores Esc; a preview must let it close.
   const { preview, onDismiss } = props;
   useEffect(() => {
-    if (!preview) {
+    if (!preview || onDismiss === undefined) {
       return;
     }
     const onKey = (event: KeyboardEvent): void => {

@@ -1,5 +1,5 @@
 import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   applyInputSlices,
@@ -46,6 +46,19 @@ interface TrainConfig {
 
 function repoRoot(): string {
   return join(dirname(fileURLToPath(import.meta.url)), "..", "..");
+}
+
+/**
+ * Repo-relative rendering for the COMMITTED metrics file. `--out` is usually a
+ * scratch path on the trainer's machine; writing it verbatim leaked a username
+ * and a temp dir into a tracked artifact and told a reader nothing.
+ */
+function portablePath(absolute: string): string {
+  const rel = relative(repoRoot(), absolute);
+  if (rel.length === 0 || rel.startsWith("..") || isAbsolute(rel)) {
+    return basename(absolute);
+  }
+  return rel.split(sep).join("/");
 }
 
 function stringArg(flag: string, fallback: string): string {
@@ -563,7 +576,7 @@ async function main(): Promise<void> {
 
   const report = {
     trainedAt: new Date().toISOString(),
-    config: { ...config, arch: sizes },
+    config: { ...config, out: portablePath(config.out), arch: sizes },
     dataset: {
       train: trainSamples.length,
       val: valSamples.length,

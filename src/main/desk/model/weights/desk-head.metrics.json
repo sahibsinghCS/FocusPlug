@@ -15,7 +15,7 @@
     "mainWeight": 3,
     "centroidsPerClass": 0,
     "slices": null,
-    "out": "C:/Users/SS/AppData/Local/Temp/claude/C--Users-SS-FocusPlug/1d7eac55-3757-4bd3-be0c-97c71804bead/scratchpad/head-A.json",
+    "out": "head-A.json",
     "arch": [
       2025,
       64,

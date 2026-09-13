@@ -30,14 +30,20 @@ An optional second mode swaps the scripted desk sensor for your webcam and runs 
 
 ![Pre-arm — the fuse shortens before the violation](demo/evidence/demo-prearm-1280x800.png)
 
-**Swap the desk model:** default is on-device BlazeFace (`deskModelId: "blazeface"`). To drop in your own, edit only `src/main/desk/model/your-model.ts` (`infer()`), then set `deskModelId` to `"custom"`. Guide: [docs/MODEL-SEAM.md](docs/MODEL-SEAM.md).
+**Desk models:** the default is on-device BlazeFace plus occlusion heuristics (`deskModelId: "blazeface"`). `deskModelId: "custom"` is not a placeholder — it selects a desk head trained in this repo: BlazeFace over four crops, a MobileNetV2 scene vector and hand-crafted luma/colour/gradient descriptors into a 64-32 MLP, 95.16% held-out 3-way accuracy against 46.89% for the heuristic baseline, weights committed, caveats written down in [docs/CUSTOM-MODEL.md](docs/CUSTOM-MODEL.md). Dropping in a model of your own means replacing that file or adding a fourth factory id — both routes, and what each costs, are in [docs/MODEL-SEAM.md](docs/MODEL-SEAM.md).
 
-![On task — Desk AI at desk](docs/screenshots/01-on-task.png)
+## Verify
 
-![Kill overlay — Discord fuse](docs/screenshots/02-kill-overlay.png)
+Nothing here needs Windows; only the live window match and `taskkill` are Win32.
 
-![Desk AI away — covered lens](docs/screenshots/03-desk-away.png)
+```
+npm ci
+npm run typecheck    # contracts check + three tsconfigs
+npm test             # vitest suite, then the node --test kill/window suites
+```
 
-![Session log — countdown, kill, unlock](docs/screenshots/04-session-log.png)
+Typecheck and tests take about twenty seconds together (10 s and 8 s on a four-core Linux box; `npm ci` depends on your npm cache). `npm run typecheck` starts with `npm run check:contracts`, which byte-compares `src/shared/types.ts` against the frozen Types fence in [docs/CONTRACTS.md](docs/CONTRACTS.md), so the contract docs cannot drift from the types in silence. `npm run demo:verify` is the browser-demo gauntlet described above; `npm run test:desk` is the desk-vision fixture gauntlet.
 
-![Demo Kill footer](docs/screenshots/05-demo-kill.png)
+`npm run forecast:pipeline` retrains the shipped forecast model from nothing — simulate, build the dataset, build the disjoint 900-session evaluation corpus, train, score against the CI gate. About 7.5 min, fully offline, no keys or accounts, deterministic under `--seed` (default 42). It rewrites `src/shared/forecast/weights.json` and `eval-report.json` in place; on the same seed every weight and every metric comes back identical, and only the timestamps and provenance hashes move.
+
+Model and contract docs: [FORECAST.md](docs/FORECAST.md) (pipeline, every metric, provenance), [FORECAST-DESIGN.md](docs/FORECAST-DESIGN.md) (the design: model, telemetry, labels, training, policy integration, cut lines), [FORECAST-CONTRACTS.md](docs/FORECAST-CONTRACTS.md) (frozen forecast types and settings), [CUSTOM-MODEL.md](docs/CUSTOM-MODEL.md) (the trained desk head), [CONTRACTS.md](docs/CONTRACTS.md) (frozen app types).

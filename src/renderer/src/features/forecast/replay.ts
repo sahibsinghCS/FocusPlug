@@ -15,6 +15,7 @@ import {
   parseForecastWeights,
   smoothRisk,
   stepEscalation,
+  topPositiveKeys,
   type EscalationSettings,
   type EscalationState,
   type ForecastEvent,
@@ -26,7 +27,7 @@ import weightsJson from "@shared/forecast/weights.json";
  * Deterministic scripted replay — the demo beat as data. A raw behavior
  * stream (focus pokes + desk states, second by second) is pushed through the
  * SAME shared core the Electron main process runs: TelemetryRing →
- * extractFeatures → GLM forward → EMA → stepEscalation. Nothing here is
+ * extractFeatures → MLP head forward → EMA → stepEscalation. Nothing here is
  * canned risk numbers; the model genuinely thinks on the scripted stream, so
  * the preview page and the mock console show real attributions, a real
  * calibration readout, and a real receipt. Same inputs ⇒ byte-identical
@@ -54,12 +55,11 @@ export const REPLAY_EPOCH = Date.UTC(2026, 0, 5, 9, 0, 0);
 export const REPLAY_DURATION_SEC = 135;
 
 /**
- * Scripted beats — seconds since session start. `warmup`, `calm`, `ramp`,
- * `comply`, `ramp2`, `drift`, `kill` and `recovered` DRIVE the script;
- * `nudge` and `prearm` are OBSERVED — the second the shipped head fires.
+ * Scripted beats — seconds since session start. `calm`, `ramp`, `comply`,
+ * `ramp2`, `drift` and `kill` DRIVE the script; `nudge` and `prearm` are
+ * OBSERVED — the second the shipped head fires on this stream.
  */
 export const REPLAY_BEATS = {
-  warmup: 4,
   calm: 24,
   ramp: 30,
   nudge: 41,
@@ -68,7 +68,6 @@ export const REPLAY_BEATS = {
   prearm: 97,
   drift: 112,
   kill: 117,
-  recovered: 124,
 } as const;
 
 export interface ReplayFrame {
@@ -148,7 +147,9 @@ function flickCycle(t: number, from: number): FocusPoke[] {
 /**
  * The FIRST ramp is deliberately gentler than the second: one grey loiter and
  * one tab flick per cycle, with real code time in between. It is the "caught
- * early" beat — enough to cross the nudge line, not enough to pre-arm.
+ * early" beat — it earns a nudge and then a pre-arm the student's compliance
+ * stands down UNCONFIRMED, which is the demo showing the model wrong before it
+ * shows it right. The second ramp is the one that collects a receipt.
  */
 function softFlickCycle(t: number, from: number): FocusPoke[] {
   const phase = (t - from) % 5;
@@ -192,7 +193,7 @@ function scriptSecond(t: number): FocusPoke[] {
   if (t < B.kill) {
     return [poke(DISCORD, 0)];
   }
-  // Recovered: back on the assignment.
+  // Recovered: back on the assignment, from `kill` to the end of the replay.
   return [poke(CODE, 0, "forecast.ts:204 — FocusPlug — Visual Studio Code")];
 }
 
@@ -316,12 +317,12 @@ export function buildForecastReplay(startTs = REPLAY_EPOCH): ForecastReplay {
           event.type === "forecast_nudge"
             ? {
                 ...event,
-                topFeatures: FORECAST_FEATURE_KEYS
-                  .map((key, index) => ({ key, attribution: attr[index] ?? 0 }))
-                  .filter((entry) => entry.attribution > 0)
-                  .sort((a, b) => b.attribution - a.attribution)
-                  .slice(0, 3)
-                  .map((entry) => entry.key),
+                topFeatures: topPositiveKeys(
+                  FORECAST_FEATURE_KEYS.map((key, index) => ({
+                    key,
+                    attribution: attr[index] ?? 0,
+                  })),
+                ),
               }
             : event,
         )

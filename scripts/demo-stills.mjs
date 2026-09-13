@@ -3,6 +3,7 @@ import { mkdir, readFile } from "node:fs/promises";
 import { extname, join, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import puppeteer from "puppeteer-core";
+import { resolveChrome } from "./lib/chrome.mjs";
 
 /**
  * The browser demo's gauntlet: run headless Chromium against the BUILT output
@@ -21,7 +22,7 @@ import puppeteer from "puppeteer-core";
  *   5. The calibration readout — `logit → σ(a·z+b) → risk`, the one model
  *      internal this page promises is legible — renders end to end AND inside
  *      the 800 px fold in every scene that shows the panel. It used to do
- *      neither: the term-group strip squeezed it to an ellipsis at every
+ *      neither: the hidden-layer strip squeezed it to an ellipsis at every
  *      width, and the still that shows risk climbing cut it off entirely.
  *   6. The same bundle boots from `file://` (double-clicked index.html), which
  *      is the difference between "works on my static host" and "works".
@@ -172,9 +173,9 @@ function readText(page) {
  * Everything on the page whose own overflow rules are hiding part of its text.
  * A `truncate` that fits is invisible here; one that is actually eating
  * characters is reported with what it needed and what it had. The line this
- * page exists to prove — `logit … → risk 0.57` — was living inside one of
- * these, so "it has a title attribute" is not a defence: nobody hovers a
- * screenshot.
+ * page exists to prove — `logit … → σ(a·z+b) … → risk` — was living inside
+ * one of these, so "it has a title attribute" is not a defence: nobody hovers
+ * a screenshot.
  */
 function readClipped(page) {
   return page.evaluate(() => {
@@ -240,10 +241,7 @@ await mkdir(OUT, { recursive: true });
 const { server, origin } = await startServer();
 console.log(`serving ${DIST} at ${origin}`);
 
-const EXECUTABLE =
-  process.env.PUPPETEER_EXECUTABLE_PATH ??
-  process.env.CHROME_PATH ??
-  "/opt/pw-browsers/chromium";
+const EXECUTABLE = resolveChrome();
 
 const BASE_ARGS = [
   "--no-sandbox",

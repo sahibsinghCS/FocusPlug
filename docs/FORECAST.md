@@ -48,12 +48,18 @@ npm run forecast:bakeoff:publish   # distil that into the committed bake-off-pow
 
 Everything under `data/forecast/` is gitignored working data; only
 `weights.json`, `eval-report.json`, `bake-off-power.json` and `bake-off.json`
-are committed. The full pipeline runs in about 8 min (simulate ~25 s, dataset
-~21 s, eval corpus ~91 s to generate and ~270 s to score, trainer ~39 s) and is
-deterministic under `--seed` (default 42): rerunning
+are committed. The full pipeline runs in about 7.5 min on a 4-core Linux box —
+452 s measured end to end, in pipeline order: simulate 2 s, dataset 22 s, eval
+corpus 96 s to build, trainer 39 s, scoring 293 s. Scoring dominates because of
+its 2000-draw session-clustered bootstrap, not because of the model. The
+pipeline is deterministic under `--seed` (default 42): rerunning
 `forecast:train`/`forecast:eval` on the same dataset reproduces both artifacts
-byte-for-byte — wall-clock time enters only the dataset manifest's
-`createdAt`, which the artifacts inherit.
+except for their stamps — all 937 weights and every metric come back
+identical, and the whole diff is `createdAt` plus the `trainProvenanceSha`
+derived from it in `weights.json` (2 lines), and `createdAt` ×2, the recorded
+`gitCommit` ×3 and `provenanceSha` in `eval-report.json` (6 lines). Those
+`gitCommit` lines move only when HEAD does: they record which commit produced
+the run, not anything about the model.
 
 Useful levers (see each script's `readConfig`): `--sessions`, `--weights
 grinder=0.2,...`, `--hazard`, `--desk-hz`, `--desk-noise`, `--webcam-off`,

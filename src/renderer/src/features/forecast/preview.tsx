@@ -1,5 +1,6 @@
 import { StrictMode, useEffect, useMemo, useState, type JSX } from "react";
 import { createRoot } from "react-dom/client";
+import { DEFAULT_SETTINGS } from "@shared/defaults";
 import type { ForecastEvent, SessionState } from "@shared/ipc";
 import { FORECAST_BASIS, FORECAST_PARAM_COUNT } from "@shared/forecast";
 import "../../index.css";
@@ -208,8 +209,11 @@ function Preview(): JSX.Element {
           enabled
           prearmEnabled
           sessionActive
-          nudgeRisk={0.55}
-          prearmRisk={0.8}
+          // Live settings, never literals: RiskMeter draws its threshold ticks
+          // here and buildForecastReplay escalates on DEFAULT_SETTINGS, so a
+          // pinned 0.55/0.80 drew a PRE-ARM tick the page then fired below.
+          nudgeRisk={DEFAULT_SETTINGS.forecastNudgeRisk}
+          prearmRisk={DEFAULT_SETTINGS.forecastPrearmRisk}
           greyApp={greyApp}
         />
 
@@ -275,7 +279,6 @@ function Preview(): JSX.Element {
           preview={false}
           forecastLeadSec={overlayLeadSec(events, frame.snapshot.ts)}
           onDemoKill={() => setPlaying(true)}
-          onDismiss={() => setPlaying(true)}
         />
       ) : null}
     </div>

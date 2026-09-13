@@ -34,13 +34,14 @@ import weightsJson from "@shared/forecast/weights.json";
  * The demo's one inference loop — and the only place the demo owns logic.
  *
  * Everything load-bearing inside `step()` is imported, not reimplemented:
- * `TelemetryRing` → `extractFeatures` → the trained GLM (`forward` +
- * `attributions` over the committed `weights.json`) → `smoothRisk` →
- * `stepEscalation`, with the deterministic `stepPolicy` reducer from
- * `@shared/policy` producing the Decision, the countdown and the kill. The
- * fuse the policy engine sees each tick is `effectiveFuseSec(...)` — the same
- * single knob `ForecastHook.beforeStep` turns in the Electron main process, so
- * a pre-arm really does shorten the fuse here, latch rule included.
+ * `TelemetryRing` → `extractFeatures` → the trained 24→36→1 MLP head
+ * (`mlp24-36-1`, 937 params — `forward` + `attributions` over the committed
+ * `weights.json`) → `smoothRisk` → `stepEscalation`, with the deterministic
+ * `stepPolicy` reducer from `@shared/policy` producing the Decision, the
+ * countdown and the kill. The fuse the policy engine sees each tick is
+ * `effectiveFuseSec(...)` — the same single knob `ForecastHook.beforeStep`
+ * turns in the Electron main process, so a pre-arm really does shorten the
+ * fuse here, latch rule included.
  *
  * Only the INPUTS differ between the two demo modes: Mode 1 feeds a scripted
  * behavior stream, Mode 2 feeds live webcam desk snapshots. The pipeline

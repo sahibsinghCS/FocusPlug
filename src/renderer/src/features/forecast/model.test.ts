@@ -4,6 +4,7 @@ import {
   FORECAST_INPUT_DIM,
   FORECAST_HIDDEN_DIM,
   FORECAST_PARAM_COUNT,
+  topPositiveKeys,
 } from "@shared/forecast";
 import type { ForecastEvent, ForecastSnapshot } from "@shared/ipc";
 import {
@@ -25,7 +26,6 @@ import {
   riskAngle,
   riskPercent,
   sparklineView,
-  topPositiveKeys,
   whyNowRows,
 } from "./model";
 import { FEATURE_SHORT_LABELS, featurePhrase, nudgeToastBody } from "./copy";

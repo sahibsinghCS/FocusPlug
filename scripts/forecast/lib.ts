@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { createReadStream, existsSync, mkdirSync } from "node:fs";
 import { createInterface } from "node:readline";
-import { dirname, join } from "node:path";
+import { dirname, isAbsolute, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { classify } from "../../src/shared/policy";
 import type { DeskLabel, DeskSnapshot, FocusSnapshot } from "../../src/shared/types";
@@ -42,6 +42,20 @@ import {
 
 export function repoRoot(): string {
   return join(dirname(fileURLToPath(import.meta.url)), "..", "..");
+}
+
+/**
+ * Repo-relative, forward-slashed rendering of an absolute path, for artifacts
+ * that get COMMITTED: an absolute path resolves only on the machine that
+ * produced it, and provenance a judge cannot read is not provenance.
+ * Paths outside the repo are returned unchanged.
+ */
+export function repoRelative(absolute: string): string {
+  const rel = relative(repoRoot(), absolute);
+  if (rel.length === 0 || rel.startsWith("..") || isAbsolute(rel)) {
+    return absolute;
+  }
+  return rel.split(sep).join("/");
 }
 
 /** `data/forecast/` — gitignored; datasets and raw provenance live here. */

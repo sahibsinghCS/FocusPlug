@@ -19,9 +19,15 @@ import type { FocusSnapshot } from "../../shared/types.ts";
  * that feature and every other weight is zero — so escalation arcs are exactly
  * scriptable from proc-switch counts (`switch15` encodes as `min(n/8, 1)`):
  *
- *   switch15 = 0  (calm)          → risk ≈ 0.17   (below clear at 0.45)
- *   switch15 = 3  (medium churn)  → risk ≈ 0.67   (nudge zone, < pre-arm 0.80)
- *   switch15 ≥ 7  (heavy churn)   → risk ≈ 0.94   (pre-arm zone)
+ *   switch15 = 0  (calm)          → risk ≈ 0.17
+ *   switch15 = 3  (medium churn)  → risk ≈ 0.67
+ *   switch15 ≥ 7  (heavy churn)   → risk ≈ 0.94
+ *
+ * Which band each lands in is read off `DEFAULT_SETTINGS` and
+ * `CLEAR_HYSTERESIS` at run time, never pinned here — the trainer re-derives
+ * the thresholds every round and a written-down number goes stale silently.
+ * Against the shipped defaults today (clear `nudge − CLEAR_HYSTERESIS` = 0.40,
+ * nudge 0.50, pre-arm 0.65) that is: below clear, pre-arm zone, pre-arm zone.
  *
  * Desk noise, dwell and streak can never move the needle in these tests: their
  * hidden weights are zero, so they do not reach the one live unit.

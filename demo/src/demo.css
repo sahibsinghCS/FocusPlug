@@ -10,15 +10,15 @@
    (--color-fp-*, .fp-card, .fp-btn, .fp-control) imported above. */
 
 /* ── The model internals have to stay readable ─────────────────────────────
-   `InternalsPanel` lays the calibration readout beside the term-group strip
-   and lets the readout ellipse when the two cannot both fit. Inside the app
-   that is a fair trade — the full string is one hover away and the strip was
-   16 cells wide when the layout was drawn. Here it is not: the shipped head
-   has 24 term groups, whose 475 px strip squeezes the readout to 248 px, and
-   `logit +5.26 → σ(a·z+b) a=0.70 b=−3.41 → risk 0.57` needs 330 px — so the
-   demo was chopping "→ risk 0.57", the one number the line exists to show, on
-   a page whose whole claim is that the model is legible. Nobody hovers a
-   screenshot.
+   `InternalsPanel` lays the calibration readout beside the hidden-layer
+   strip and lets the readout ellipse when the two cannot both fit. Inside the
+   app that is a fair trade — the full string is one hover away and the strip
+   was 16 cells wide when the layout was drawn. Here it is not: the shipped
+   head's hidden layer is 36 tanh units, whose 681 px row squeezes the readout
+   to 129 px, and `logit +2.86 → σ(a·z+b) a=2.09 b=−5.80 → risk 0.54` needs
+   324 px — so the demo was chopping down to `logit +2.86 → σ(a·…`, losing the
+   number the line exists to show, on a page whose whole claim is that the
+   model is legible. Nobody hovers a screenshot.
 
    The width comes out of the demo's own page, not out of the instrument:
    RiskMeter caps its gauge and sparkline at 280 px (`max-w-[280px]`), so the
@@ -52,7 +52,7 @@ section[aria-label="Focus Forecast"] p[title^="logit "] {
 
 /* At 1240 px and up — the still frame and every judge laptop — the console's
    side-by-side arrangement holds, with a floor under the readout so the whole
-   line fits and the term strip keeps its natural single row. */
+   line fits; the hidden-layer strip wraps its 36 cells into what is left. */
 @media (min-width: 1240px) {
   section[aria-label="Focus Forecast"] div:has(> div > p[title^="logit "]) {
     grid-template-columns: minmax(23rem, 1fr) auto;
@@ -60,7 +60,7 @@ section[aria-label="Focus Forecast"] p[title^="logit "] {
 }
 
 /* Same argument, smaller stakes: four sensor cards across 1192 px leave the
-   meta and title lines a few pixels short ("325-PARAM LOGISTIC · ON…"). Let
+   meta and title lines a few pixels short ("937-PARAM NET · ON-DEVI…"). Let
    them take a second line instead of an ellipsis — this page is read, not
    hovered. */
 section[aria-label="Live sensors"] article > div:first-child {

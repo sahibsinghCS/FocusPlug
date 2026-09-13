@@ -31,6 +31,7 @@ import {
   prAuc,
   percentile,
   readJsonl,
+  repoRelative,
   repoRoot,
   replaySession,
   rocAuc,
@@ -1031,8 +1032,10 @@ async function main(): Promise<void> {
             kind: "holdout-power-corpus",
             regenerate: "npm run forecast:evalset",
             score: "npm run forecast:eval:holdout",
-            dataset: config.holdoutData,
-            rawSessions: config.holdoutRaw,
+            // Repo-relative: this artifact is committed, and an absolute
+            // path resolves on exactly the machine that produced it.
+            dataset: repoRelative(config.holdoutData),
+            rawSessions: repoRelative(config.holdoutRaw),
             note:
               "the 48-session eval SPLIT of dataset.jsonl was NOT scored in this run. Rows from " +
               "dataset.jsonl were read only to FIT the logistic baselines (train split), never to " +

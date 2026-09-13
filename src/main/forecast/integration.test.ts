@@ -5,7 +5,11 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_SETTINGS } from "../../shared/defaults.ts";
 import type { AppSettings } from "../../shared/ipc.ts";
 import type { FocusSnapshot, PolicyEvent, SessionEvent } from "../../shared/types.ts";
-import type { ForecastEvent, ForecastSnapshot } from "../../shared/forecast/index.ts";
+import type {
+  ForecastEvent,
+  ForecastHook,
+  ForecastSnapshot,
+} from "../../shared/forecast/index.ts";
 import { SessionController } from "../session/controller.ts";
 import { SAMPLE_PLUGS } from "../session/fixtures.ts";
 import {
@@ -53,6 +57,13 @@ function makeHarness(init?: {
   attach?: boolean;
   /** Simulate a broken forecast dependency — its loadSettings throws. */
   throwForecastSettings?: boolean;
+  /**
+   * Use the SHIPPED weights.json instead of the switch-probe fixture, so the
+   * regression tests can pin the artifact judges actually run.
+   */
+  bundledWeights?: boolean;
+  /** Replace the hook handed to the controller — used to break its contract. */
+  hook?: ForecastHook;
 }): Harness {
   const clock = new MutableClock();
   const window = new ScriptedWindowMonitor();
@@ -91,7 +102,7 @@ function makeHarness(init?: {
         snapshot: (snap) => fxSnapshots.push(snap),
         event: (event) => fxEvents.push(event),
       },
-      weights: switchProbeWeights(),
+      ...(init?.bundledWeights === true ? {} : { weights: switchProbeWeights() }),
     });
   }
   const controller = new SessionController({
@@ -103,7 +114,11 @@ function makeHarness(init?: {
     push: forecast === null ? push : withForecast(push, forecast.monitor),
     now: clock.now,
     tickIntervalMs: 0,
-    ...(forecast === null ? {} : { forecast: forecast.hook }),
+    ...(init?.hook !== undefined
+      ? { forecast: init.hook }
+      : forecast === null
+        ? {}
+        : { forecast: forecast.hook }),
   });
   return {
     controller,
@@ -261,6 +276,59 @@ describe("forecast disabled == committed golden path (byte-identical)", () => {
     expect(attached.fxEvents).toEqual([]);
     const countdown = attached.trace.policies.find((event) => event.type === "start_countdown");
     expect(countdown?.type === "start_countdown" && countdown.seconds).toBe(10);
+  });
+
+  it("the SHIPPED weights.json leaves the golden path byte-identical", async () => {
+    // The sibling cases run the switch-probe fixture, which is wired so only
+    // switch15 moves. This one runs src/shared/forecast/weights.json — the
+    // artifact a judge downloads — so "swapping the model cannot move the
+    // enforcement path" is a tested claim about the shipped head, not a
+    // synthetic one. Re-run it after every trainer round.
+    const bare = makeHarness({ attach: false });
+    await runGoldenScript(bare);
+
+    const shipped = makeHarness({ bundledWeights: true });
+    await runGoldenScript(shipped);
+
+    expect(JSON.stringify(shipped.trace.policies)).toBe(JSON.stringify(bare.trace.policies));
+    expect(JSON.stringify(shipped.trace.events)).toBe(JSON.stringify(bare.trace.events));
+    expect(JSON.stringify(shipped.controller.getLog())).toBe(
+      JSON.stringify(bare.controller.getLog()),
+    );
+
+    const golden = JSON.parse(readFileSync(GOLDEN_PATH, "utf8")) as GoldenEvidence;
+    expect(JSON.stringify(policyTypes(shipped))).toBe(JSON.stringify(golden.policyEventTypes));
+
+    // No escalation on this stream, and the fuse is the settings fuse.
+    expect(shipped.fxEvents).toEqual([]);
+    const countdown = shipped.trace.policies.find((event) => event.type === "start_countdown");
+    expect(countdown?.type === "start_countdown" && countdown.seconds).toBe(10);
+  });
+
+  it("a hook that BREAKS the never-throw contract still cannot stop enforcement", async () => {
+    // ForecastMonitor.beforeStep wraps everything in guard(), so this is not
+    // reachable today — that is the point. The controller catches around the
+    // call site, so the property belongs to the enforcement core and survives
+    // any future ForecastHook, not just the current observer.
+    const bare = makeHarness({ attach: false });
+    await runGoldenScript(bare);
+
+    const hostile = makeHarness({
+      attach: false,
+      hook: {
+        beforeStep: () => {
+          throw new Error("hook exploded");
+        },
+      },
+    });
+    await runGoldenScript(hostile);
+
+    expect(JSON.stringify(hostile.trace.policies)).toBe(JSON.stringify(bare.trace.policies));
+    expect(JSON.stringify(hostile.controller.getLog())).toBe(
+      JSON.stringify(bare.controller.getLog()),
+    );
+    expect(hostile.killer.calls.length).toBe(bare.killer.calls.length);
+    expect(hostile.killer.calls.length).toBeGreaterThan(0);
   });
 
   it("a throwing forecast never perturbs the PolicyEvent stream or kill timing", async () => {

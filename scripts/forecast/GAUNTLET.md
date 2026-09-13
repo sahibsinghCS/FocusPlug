@@ -121,6 +121,19 @@ equal to `lib.rocAuc` at unit weights to < 1e-12 for every model, with a
 **paired session-clustered bootstrap** (2 000 draws over the 48 held-out
 sessions, identical resamples across models).
 
+`adjudicate.ts` re-scores what it can from each candidate's committed weights;
+for `mlp-tuned` and `hybrid` it reads a per-session score dump instead, which
+those two write only under `--dump-scores`:
+
+```bash
+npx tsx --tsconfig tsconfig.node.json scripts/forecast/candidates/mlp-tuned.ts --dump-scores
+npx tsx --tsconfig tsconfig.node.json scripts/forecast/candidates/hybrid.ts --dump-scores
+npx tsx --tsconfig tsconfig.node.json scripts/forecast/adjudicate.ts
+```
+
+The dumps land in `data/forecast/candidates/<name>/eval-scores.json` (gitignored);
+`adjudicate.ts` skips any candidate whose dump is absent.
+
 | model | family | params | lead≥20s | ROC | PR | ECE | recall@30s\* | verdict |
 |---|---|---|---|---|---|---|---|---|
 | **lr18+pairwise** | GLM + pairwise basis | **190** | 0.9423 | 0.9659 | 0.6813 | 0.0067 | 0.7564 | **SHIPPED** |

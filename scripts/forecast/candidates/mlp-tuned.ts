@@ -1009,6 +1009,17 @@ async function main(): Promise<void> {
   const dir = OUT_DIR !== "" ? OUT_DIR : candidateDir();
   const outFile = join(dir, "metrics.json");
   writeFileSync(outFile, `${JSON.stringify(report, null, 2)}\n`);
+  if (boolFlag("--dump-scores")) {
+    // Per-session held-out scores for scripts/forecast/adjudicate.ts (see the
+    // same flag in hybrid.ts). Off by default — large, and only that step reads it.
+    writeFileSync(
+      join(dir, "eval-scores.json"),
+      JSON.stringify({
+        sessionIds: Array.from(evalRows.sessionOf).map((s) => evalRows.sessions[s] as string),
+        scores: evalScoreList,
+      }),
+    );
+  }
 
   console.log("\n===== mlp-tuned — held-out metrics =====");
   console.log(

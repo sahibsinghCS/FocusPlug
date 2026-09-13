@@ -17,6 +17,7 @@ import {
   processHash,
   smoothRisk,
   stepEscalation,
+  topPositiveKeys,
 } from "../../shared/forecast/index.ts";
 import type {
   EscalationInput,
@@ -316,12 +317,23 @@ export class ForecastMonitor {
       // the gap instead of grinding through hundreds of empty frames.
       this.frameCursor = now - FRAME_CAPACITY * 1000;
     }
+    let lastClosedTs: number | null = null;
     while (this.frameCursor + 1000 <= now) {
       this.frameCursor += 1000;
       const frame = this.ring.commit(this.frameCursor);
       if (frame !== null) {
         this.onFrameClosed(frame, settings, weights);
+        lastClosedTs = frame.ts;
       }
+    }
+    // ONE snapshot per beforeStep, not one per closed frame. Steady state
+    // closes a single frame, so this is unchanged there; a lid-open closes up
+    // to FRAME_CAPACITY of them, and firing 600 synchronous webContents.send
+    // calls inside the kill path would buy the UI nothing — it renders only
+    // the newest. The reducer still steps per frame above, so the sustain
+    // counters and every escalation event are unaffected.
+    if (lastClosedTs !== null && this.lastForward !== null && this.lastFeatures !== null) {
+      this.publishSnapshot(lastClosedTs, settings, this.lastForward, this.lastFeatures);
     }
   }
 
@@ -351,7 +363,7 @@ export class ForecastMonitor {
     const { state, events } = stepEscalation(this.esc, input);
     this.esc = state;
     this.emitEvents(events, input.ready);
-    this.publishSnapshot(ts, settings, fwd, this.lastFeatures);
+    // The snapshot is published by closeFrames, once, after the last frame.
   }
 
   /**
@@ -420,14 +432,7 @@ export class ForecastMonitor {
 
   /** Top-3 positive attribution keys — toast copy for the nudge event. */
   private topFeatureKeys(): ForecastFeatureKey[] {
-    if (this.lastFeatures === null) {
-      return [];
-    }
-    return [...this.lastFeatures]
-      .filter((feature) => feature.attribution > 0)
-      .sort((a, b) => b.attribution - a.attribution)
-      .slice(0, 3)
-      .map((feature) => feature.key);
+    return this.lastFeatures === null ? [] : topPositiveKeys(this.lastFeatures);
   }
 
   /**

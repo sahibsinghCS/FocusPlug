@@ -134,7 +134,7 @@ function rampToPrearm(h: MonitorHarness): void {
 }
 
 describe("ForecastMonitor cadence", () => {
-  it("closes one frame per elapsed wall second, driven only by beforeStep", () => {
+  it("closes one frame per elapsed wall second, publishes one snapshot per beforeStep", () => {
     const h = makeMonitor();
     start(h);
     // The session's first focus flips focusKind none→allow, which is a
@@ -149,13 +149,14 @@ describe("ForecastMonitor cadence", () => {
     expect(h.snapshots.length).toBe(2);
     expect(h.snapshots[1]?.ts).toBe(T0 + 1000);
 
+    // A multi-second gap (a stalled tick, a lid-open) still closes every whole
+    // second — warmupRemainingSec is counted off the frame cursor, so 11 s
+    // left proves four frames closed — but publishes ONE snapshot, not one per
+    // frame: the UI renders only the newest, and this runs inside the kill path.
     h.monitor.beforeStep(h.t + 4200, 10);
-    expect(h.snapshots.slice(1).map((snap) => snap.ts)).toEqual([
-      T0 + 1000,
-      T0 + 2000,
-      T0 + 3000,
-      T0 + 4000,
-    ]);
+    expect(h.snapshots.length).toBe(3);
+    expect(h.snapshots[2]?.ts).toBe(T0 + 4000);
+    expect(h.snapshots[2]?.warmupRemainingSec).toBe(11);
   });
 
   it("warm-up: ready flips at 15 s, warmupRemainingSec counts down", () => {

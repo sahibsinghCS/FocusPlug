@@ -87,20 +87,8 @@ export function rankAttributions(
     .slice(0, limit);
 }
 
-/** Top positive attribution keys — mirrors the monitor's nudge enrichment. */
-export function topPositiveKeys(
-  features: readonly ForecastFeatureView[],
-  limit = 3,
-): ForecastFeatureKey[] {
-  return [...features]
-    .filter((feature) => feature.attribution > 0)
-    .sort((a, b) => b.attribution - a.attribution)
-    .slice(0, limit)
-    .map((feature) => feature.key);
-}
-
 /** Strongest upward driver phrased in plain language, null when none pushes up. */
-export function topDriverPhrase(
+function topDriverPhrase(
   features: readonly ForecastFeatureView[],
   ctx: FeatureCopyCtx = {},
 ): string | null {
@@ -480,7 +468,10 @@ export function whyNowRows(
       delta: formatAttribution(feature.attribution),
       phrase: featurePhrase(feature.key, feature.raw, ctx),
       magnitude: Math.abs(feature.attribution) / max,
-      positive: feature.attribution >= 0,
+      // `> 0`, matching featureBars and the InternalsPanel legend: a feature
+      // whose occlusion delta is exactly 0 pushed nothing, and must not render
+      // red in one panel and blue in the other three inches away.
+      positive: feature.attribution > 0,
       negligible,
     };
   });

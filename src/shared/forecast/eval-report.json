@@ -6,8 +6,8 @@
     "kind": "holdout-power-corpus",
     "regenerate": "npm run forecast:evalset",
     "score": "npm run forecast:eval:holdout",
-    "dataset": "/home/user/FocusPlug-gauntlet/data/forecast/holdout/holdout-dataset.jsonl",
-    "rawSessions": "/home/user/FocusPlug-gauntlet/data/forecast/holdout/holdout-sessions.jsonl",
+    "dataset": "data/forecast/holdout/holdout-dataset.jsonl",
+    "rawSessions": "data/forecast/holdout/holdout-sessions.jsonl",
     "note": "the 48-session eval SPLIT of dataset.jsonl was NOT scored in this run. Rows from dataset.jsonl were read only to FIT the logistic baselines (train split), never to score anything; every scored frame comes from the hold-out corpus below.",
     "manifest": {
       "version": 1,
@@ -162,7 +162,7 @@
         "sessionScale": 18.75,
         "projectedPairedSe": 0.002078,
         "projectedResolvableDiff95": 0.004074,
-        "note": "projection only — SE scales as 1/√(independent clusters) and sessions are the cluster. The MEASURED paired session-clustered bootstrap SE is produced by `npm run forecast:eval:holdout` and written to eval-report-holdout.json."
+        "note": "projection only — SE scales as 1/√(independent clusters) and sessions are the cluster. The MEASURED paired session-clustered bootstrap SE is produced by `npm run forecast:eval` and written to src/shared/forecast/eval-report.json (field `power.measuredPairedSe`)."
       },
       "files": {
         "rawSessions": {
@@ -1516,7 +1516,7 @@
           "sessionScale": 18.75,
           "projectedPairedSe": 0.002078,
           "projectedResolvableDiff95": 0.004074,
-          "note": "projection only — SE scales as 1/√(independent clusters) and sessions are the cluster. The MEASURED paired session-clustered bootstrap SE is produced by `npm run forecast:eval:holdout` and written to eval-report-holdout.json."
+          "note": "projection only — SE scales as 1/√(independent clusters) and sessions are the cluster. The MEASURED paired session-clustered bootstrap SE is produced by `npm run forecast:eval` and written to src/shared/forecast/eval-report.json (field `power.measuredPairedSe`)."
         },
         "files": {
           "rawSessions": {

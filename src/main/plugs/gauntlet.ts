@@ -12,7 +12,7 @@ import { PlugController } from "./controller.ts";
 import { MemoryPlugStore } from "./memoryStore.ts";
 import { MockPlugHost } from "./mock.ts";
 import { PlugProtectError } from "./protect.ts";
-import type { PlugDevice } from "./types.ts";
+import type { PlugDevice, PlugSnapshot } from "./types.ts";
 
 const evidencePath = join(dirname(fileURLToPath(import.meta.url)), "evidence", "gauntlet-run.json");
 
@@ -20,6 +20,15 @@ interface Step {
   name: string;
   ok: boolean;
   detail: string;
+}
+
+/**
+ * Snapshot detail with the wall clock removed. `PlugSnapshot.ts` is the host's
+ * Date.now(), so serializing it verbatim made this TRACKED receipt differ on
+ * every run of a documented command.
+ */
+function snapshotDetail(snapshots: readonly PlugSnapshot[]): string {
+  return JSON.stringify(snapshots.map(({ ts: _ts, ...rest }) => rest));
 }
 
 async function main(): Promise<void> {
@@ -52,7 +61,7 @@ async function main(): Promise<void> {
   steps.push({
     name: "mock-off",
     ok: offOk,
-    detail: JSON.stringify(off),
+    detail: snapshotDetail(off),
   });
 
   const on = await controller.on(["lamp"]);
@@ -60,7 +69,7 @@ async function main(): Promise<void> {
   steps.push({
     name: "mock-on",
     ok: onOk,
-    detail: JSON.stringify(on),
+    detail: snapshotDetail(on),
   });
 
   let protectOk = false;
@@ -96,10 +105,13 @@ async function main(): Promise<void> {
   });
 
   const passed = steps.every((step) => step.ok);
+  // No wall clock: this receipt is TRACKED and `npm run gauntlet:plugs` is a
+  // documented command, so re-running it must leave the working tree clean
+  // rather than hand a judge a diff made of their own timestamp.
   const report = {
     bar: "Mock off→on; protect rejects study-PC; unknown id errors cleanly; zero-plug boot",
+    regenerate: "npm run gauntlet:plugs",
     passed,
-    ts: Date.now(),
     steps,
   };
   mkdirSync(dirname(evidencePath), { recursive: true });

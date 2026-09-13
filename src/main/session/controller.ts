@@ -576,9 +576,21 @@ export class SessionController {
     const settings = this.loadSettings();
     // Focus Forecast advisory seam: a non-null return is the countdownSec
     // policy sees this step (shortened while pre-armed, frozen while a fuse
-    // burns); null is byte-for-byte today's behavior. The hook never throws.
-    const countdownOverrideSec =
-      this.forecast?.beforeStep(this.now(), settings.countdownSec) ?? null;
+    // burns); null is byte-for-byte today's behavior.
+    //
+    // The catch is the floor, not a formality. ForecastHook's contract says
+    // implementations never throw and the shipped monitor honours it, but
+    // this is the one line through which a predictive model reaches the
+    // deterministic kill path: if it ever did throw, evaluateOnce would die
+    // before policy.step and enforcement would stop entirely — no status, no
+    // countdown, no kill. Swallowing here makes "exceptions never propagate"
+    // a property of the enforcement core rather than of the current observer.
+    let countdownOverrideSec: number | null = null;
+    try {
+      countdownOverrideSec = this.forecast?.beforeStep(this.now(), settings.countdownSec) ?? null;
+    } catch {
+      countdownOverrideSec = null;
+    }
     // The engine checks fuse expiry against the live countdownSec, so a
     // mid-fuse settings change must retime the displayed countdown to match —
     // using the overridden value whenever the forecast has one in force.

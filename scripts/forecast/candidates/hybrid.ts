@@ -22,6 +22,7 @@ import {
   DATASET_FILE,
   RAW_SESSIONS_FILE,
   ece10,
+  boolFlag,
   forecastDataRoot,
   keepProbability,
   logisticScore,
@@ -1831,6 +1832,18 @@ async function main(): Promise<void> {
   };
 
   writeFileSync(config.out, `${JSON.stringify(report, null, 2)}\n`);
+  if (boolFlag("--dump-scores")) {
+    // Per-session held-out scores for scripts/forecast/adjudicate.ts, which
+    // needs this candidate's raw scores to bootstrap it against the others.
+    // Off by default: it is a large file and only the adjudication step reads it.
+    writeFileSync(
+      join(config.out, "..", "eval-scores.json"),
+      JSON.stringify({
+        sessionIds: Array.from(evalRows.sessionId),
+        scores: Array.from(headlineScores),
+      }),
+    );
+  }
 
   const headlineBlock = {
     candidate: CANDIDATE,

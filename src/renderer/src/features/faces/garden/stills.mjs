@@ -1,11 +1,12 @@
 import { mkdir } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { resolve } from "node:path";
+import { resolveChrome } from "../../../../../../scripts/lib/chrome.mjs";
 
 const BASE = process.env.GARDEN_STILLS_BASE ?? "http://127.0.0.1:5173";
 const OUT = resolve(process.argv[2] ?? "src/renderer/src/features/faces/garden/evidence");
 const PREFIX = process.argv[3] ?? "after";
-const CHROME = process.env.CHROME_PATH ?? "/usr/bin/google-chrome";
+const CHROME = resolveChrome();
 const SESSION = "gauntlet-garden-01";
 
 const SCENES = [

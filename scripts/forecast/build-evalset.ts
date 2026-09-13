@@ -612,7 +612,8 @@ async function main(): Promise<void> {
       note:
         "projection only — SE scales as 1/√(independent clusters) and sessions are the cluster. " +
         "The MEASURED paired session-clustered bootstrap SE is produced by " +
-        "`npm run forecast:eval:holdout` and written to eval-report-holdout.json.",
+        "`npm run forecast:eval` and written to src/shared/forecast/eval-report.json " +
+        "(field `power.measuredPairedSe`).",
     },
     files: {
       rawSessions: { path: HOLDOUT_SESSIONS_FILE, bytes: rawOut.bytes, sha256: rawSha },

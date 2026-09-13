@@ -46,7 +46,12 @@
   --color-fp-line-strong: rgba(170, 190, 220, 0.16);
   --color-fp-ink: #eef2f8;
   --color-fp-mute: #9aa6b8;
-  --color-fp-faint: #6b768a;
+  /* WCAG AA for the smallest type in the forecast panel (9-10px labels, the
+     SVG tick text). #6b768a was 4.06:1 on --color-fp-panel — under the 4.5:1
+     floor. This is 5.12:1 on panel, 5.52 on bg, 5.39 on sidebar, 4.80 on elev;
+     the one surface still short is --color-fp-hover at 4.38, so do not put
+     faint body text on a hovered row. */
+  --color-fp-faint: #7d8798;
   --color-fp-lime: #d4ff3a;
   --color-fp-lime-dim: #9ec22c;
   --color-fp-red: #ff2d55;

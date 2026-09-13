@@ -37,7 +37,7 @@ export function InternalsPanel(props: {
         <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-fp-faint">
           Why now
           <span
-            className="ml-2 normal-case tracking-normal font-normal text-fp-faint/80"
+            className="ml-2 normal-case tracking-normal font-normal text-fp-faint"
             title="Occlusion deltas on calibrated risk — contribution estimates; they do not sum to the logit."
           >
             contribution estimate
@@ -117,18 +117,22 @@ export function InternalsPanel(props: {
       </div>
 
       {/* Calibration readout + hidden-layer activations — the model, visibly. */}
-      <div className="grid gap-2 min-[700px]:grid-cols-[minmax(0,1fr)_auto]">
-        <div className="rounded-md border border-fp-line bg-fp-elev/60 px-2.5 py-1.5">
-          <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-fp-faint">
+      {/* Both tracks must be able to SHRINK. With an `auto` second track the
+          36-cell strip (36 x 19px = ~684px) claimed the whole row, the
+          calibration column collapsed to zero and its heading painted over the
+          hidden-layer card. The strip wraps instead. */}
+      <div className="grid gap-2 min-[700px]:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+        <div className="min-w-0 rounded-md border border-fp-line bg-fp-elev/60 px-2.5 py-1.5">
+          <p className="truncate text-[9px] font-semibold uppercase tracking-[0.18em] text-fp-faint">
             Calibration
           </p>
           <p className="mt-0.5 truncate font-mono text-[11px] text-fp-ink tabular" title={calibrationLine(snapshot)}>
             {calibrationLine(snapshot)}
           </p>
         </div>
-        <div className="rounded-md border border-fp-line bg-fp-elev/60 px-2.5 py-1.5">
+        <div className="min-w-0 rounded-md border border-fp-line bg-fp-elev/60 px-2.5 py-1.5">
           <p
-            className="text-[9px] font-semibold uppercase tracking-[0.18em] text-fp-faint"
+            className="truncate text-[9px] font-semibold uppercase tracking-[0.18em] text-fp-faint"
             title="The shipped net's hidden layer: tanh of each unit's pre-activation. The units are anonymous — a learned basis, not one per feature — so read the pattern, not any single cell. The named per-feature numbers are the occlusion bars above."
           >
             Hidden layer · tanh

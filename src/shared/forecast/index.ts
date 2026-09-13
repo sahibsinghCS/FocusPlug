@@ -53,6 +53,7 @@ export {
   forward,
   parseForecastWeights,
   sigmoid,
+  topPositiveKeys,
 } from "./model";
 export type { ForecastForward } from "./model";
 export {

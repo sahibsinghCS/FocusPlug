@@ -207,7 +207,8 @@ scripts/forecast/
   mlp.ts             forward/backward + Adam + gradient check, promoted from the winner     [round 11]
   pairwise.ts        the round-8 GLM basis, moved out of the shared core when it stopped     [round 11]
                      shipping — research scripts still fit it
-  train.ts           GLM lr18+pairwise → src/shared/forecast/weights.json (+ golden fixture)
+  train.ts           tanh MLP mlp24-36-1 → src/shared/forecast/weights.json (+ golden   [round 11]
+                     fixture). Was GLM lr18+pairwise in rounds 8-10
   eval.ts            held-out metrics, baselines, ablations, alarm simulation, CI gate → src/shared/forecast/eval-report.json
   adjudicate.ts      independent re-scoring + paired session-clustered bootstrap            [round 8]
   candidates/        the five bake-off contender scripts, kept as the record                [round 8]

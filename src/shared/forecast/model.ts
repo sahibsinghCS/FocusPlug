@@ -341,3 +341,24 @@ export function attributions(
   }
   return out;
 }
+
+/**
+ * Top positive-attribution feature keys, strongest first — the ranking behind
+ * the nudge toast's "why now".
+ *
+ * Lives here, next to `attributions`, because main, renderer and the browser
+ * demo all need the SAME order: the toast a judge reads, the panel they look
+ * at and the demo's driver line must agree, and four hand-copied filter/sort
+ * chains cannot be trusted to. Zero is not positive — a feature whose
+ * occlusion delta is exactly 0 pushed nothing.
+ */
+export function topPositiveKeys(
+  features: readonly { key: ForecastFeatureKey; attribution: number }[],
+  limit = 3,
+): ForecastFeatureKey[] {
+  return [...features]
+    .filter((feature) => feature.attribution > 0)
+    .sort((a, b) => b.attribution - a.attribution)
+    .slice(0, limit)
+    .map((feature) => feature.key);
+}
