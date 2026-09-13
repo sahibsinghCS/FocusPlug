@@ -14,6 +14,8 @@ import {
   readFeatureRows,
   scorePredictions,
   shuffled,
+  standardization,
+  standardize,
   type AttentionLabelRow,
   type FeatureRow,
 } from "./lib";
@@ -26,6 +28,13 @@ import {
   trainMlp,
   type Sample,
 } from "./mlp";
+import {
+  census,
+  censusLine,
+  dedupeByPath,
+  duplicatePathWarning,
+  isFirstPersonRow,
+} from "./first-person";
 
 /**
  * Trainer for the attention head: focused / unfocused / phone.
@@ -37,6 +46,13 @@ import {
  * Only `split: "train"` rows are touched; eval-attention.ts scores the rest.
  *
  *   FOCUSPLUG_DESK_DATA=... tsx scripts/desk-model/train-attention.ts --hidden 0 --l2 0.01 --slices 745-2025
+ *
+ * FIRST-PERSON ROWS. Webcam clips recorded by capture-attention.ts sit in the
+ * same CSV with no schema change, and are trained on like any other row —
+ * `--first-person-weight`, `--exclude-first-person` and `--first-person-only`
+ * change that, and their defaults (1, off, off) leave behaviour exactly as it
+ * was. Their `group` is the clip id, so the group-aware validation split below
+ * already refuses to put frames of one clip on both sides.
  */
 
 function repoRoot(): string {
@@ -83,6 +99,14 @@ const config = {
       .map((pair) => [pair[0] as number, pair[1] as number] as [number, number]);
     return parsed.length > 0 ? parsed : null;
   })(),
+  /**
+   * First-person webcam rows. Defaults are a no-op: weight 1, nothing
+   * filtered — the head trains on exactly what it trained on before, plus
+   * whatever clips are now in the CSV.
+   */
+  firstPersonWeight: numberArg("--first-person-weight", 1),
+  excludeFirstPerson: process.argv.includes("--exclude-first-person"),
+  firstPersonOnly: process.argv.includes("--first-person-only"),
   labels: stringArg("--labels", attentionLabelsFile()),
   out: stringArg(
     "--out",
@@ -97,57 +121,61 @@ interface AttentionSample extends Sample {
 
 async function main(): Promise<void> {
   const labels = [...ATTENTION_HEAD_LABELS];
-  const annotations = readAttentionLabels(config.labels).filter(
-    (row) => row.split === "train" && (labels as string[]).includes(row.attention),
+  // One path is one image. A repeated path is one sample counted twice, and
+  // standardization is computed over the whole pool, so a handful of them
+  // would shift the mean and std of every feature for every row in the run.
+  const distinct = dedupeByPath(readAttentionLabels(config.labels));
+  const duplicates = duplicatePathWarning(distinct, config.labels);
+  if (duplicates) {
+    console.warn(duplicates);
+  }
+  const annotations = distinct.rows.filter(
+    (row) =>
+      row.split === "train" &&
+      (labels as string[]).includes(row.attention) &&
+      (config.excludeFirstPerson ? !isFirstPersonRow(row) : true) &&
+      (config.firstPersonOnly ? isFirstPersonRow(row) : true),
   );
-  const features = new Map(readFeatureRows().map((row) => [row.path, row]));
+  const features = new Map(
+    readFeatureRows(undefined, { includeFirstPerson: true }).map((row) => [row.path, row]),
+  );
   const pairs = annotations
     .map((label) => ({ label, row: features.get(label.path) }))
     .filter((pair): pair is { label: AttentionLabelRow; row: FeatureRow } => pair.row !== undefined);
   if (pairs.length === 0) {
     throw new Error("No labelled train rows with cached features — run adaption-label.py export and extract-features.ts");
   }
-  const projected = new Map(
-    pairs.map(({ row }) => [row, applyInputSlices(config.slices ?? undefined, row.vector)]),
-  );
-  const dim = projected.get(pairs[0]?.row as FeatureRow)?.length ?? 0;
+  // A plain array, not a Map keyed by the feature row: two pairs sharing one
+  // cached vector must stay two entries, so the population that is summed and
+  // the count it is divided by are the same thing by construction.
+  const projected = pairs.map(({ label, row }) => ({
+    label,
+    row,
+    vector: applyInputSlices(config.slices ?? undefined, row.vector),
+  }));
+  const dim = projected[0]?.vector.length ?? 0;
 
   // Standardization from the train pool only.
-  const mean = new Float64Array(dim);
-  const std = new Float64Array(dim);
-  for (const vector of projected.values()) {
-    for (let i = 0; i < dim; i += 1) {
-      mean[i] = (mean[i] ?? 0) + (vector[i] ?? 0);
-    }
-  }
-  for (let i = 0; i < dim; i += 1) {
-    mean[i] = (mean[i] ?? 0) / pairs.length;
-  }
-  for (const vector of projected.values()) {
-    for (let i = 0; i < dim; i += 1) {
-      const diff = (vector[i] ?? 0) - (mean[i] ?? 0);
-      std[i] = (std[i] ?? 0) + diff * diff;
-    }
-  }
-  for (let i = 0; i < dim; i += 1) {
-    std[i] = Math.sqrt((std[i] ?? 0) / pairs.length);
-  }
-  const toSample = ({ label, row }: { label: AttentionLabelRow; row: FeatureRow }): AttentionSample => {
-    const vector = projected.get(row) as number[];
-    const x = new Float64Array(dim);
-    for (let i = 0; i < dim; i += 1) {
-      const s = std[i] ?? 1;
-      x[i] = ((vector[i] ?? 0) - (mean[i] ?? 0)) / (s > 1e-6 ? s : 1);
-    }
-    return { x, y: labels.indexOf(label.attention as (typeof labels)[number]), weight: 1, row, label };
-  };
+  const stats = standardization(
+    projected.map((entry) => entry.vector),
+    dim,
+  );
+  const mean = stats.mean;
+  const std = stats.std;
+  const toSample = ({ label, row, vector }: (typeof projected)[number]): AttentionSample => ({
+    x: standardize(vector, stats),
+    y: labels.indexOf(label.attention as (typeof labels)[number]),
+    weight: 1,
+    row,
+    label,
+  });
 
   // Validation split by near-duplicate group, stratified by class, so model
   // selection never scores a copy of a training image.
   const rand = mulberry32(config.seed);
   const groupsByClass = new Map<string, AttentionSample[][]>();
   const groups = new Map<string, AttentionSample[]>();
-  for (const sample of pairs.map(toSample)) {
+  for (const sample of projected.map(toSample)) {
     const group = groups.get(sample.label.group) ?? [];
     group.push(sample);
     groups.set(sample.label.group, group);
@@ -169,14 +197,38 @@ async function main(): Promise<void> {
     mixed.forEach((members, index) => (inVal(index) ? valSamples : trainSamples).push(...members));
   }
 
+  if (trainSamples.length === 0) {
+    // One group per class all lands in validation, which is what happens with
+    // `--first-person-only` on a handful of clips. Say so instead of writing
+    // weights fitted to nothing.
+    throw new Error(
+      `Every group went to validation (${valSamples.length} samples): there is nothing to train on. ` +
+        "With only a clip or two per label there is no train/val split to make — record more clips (npm run capture:protocol).",
+    );
+  }
+
   const classCounts = new Map<number, number>();
   for (const sample of trainSamples) {
     classCounts.set(sample.y, (classCounts.get(sample.y) ?? 0) + 1);
   }
   for (const sample of trainSamples) {
     const count = classCounts.get(sample.y) ?? 1;
-    sample.weight = Math.min(4, Math.max(0.5, trainSamples.length / (labels.length * count)));
+    const balance = Math.min(4, Math.max(0.5, trainSamples.length / (labels.length * count)));
+    // --first-person-weight 1 (the default) leaves this identical to before.
+    sample.weight = balance * (isFirstPersonRow(sample.label) ? config.firstPersonWeight : 1);
   }
+
+  const firstPersonTrain = census(
+    trainSamples.filter((sample) => isFirstPersonRow(sample.label)).map((sample) => sample.label),
+  );
+  const firstPersonVal = census(
+    valSamples.filter((sample) => isFirstPersonRow(sample.label)).map((sample) => sample.label),
+  );
+  console.log(
+    firstPersonTrain.frames + firstPersonVal.frames === 0
+      ? "first-person: no webcam rows in the train split (stock photos only)"
+      : `first-person train: ${censusLine(firstPersonTrain)} | val: ${censusLine(firstPersonVal)} | weight ${config.firstPersonWeight}`,
+  );
 
   const sizes = [dim, ...config.hidden, labels.length];
   const layers = createLayers(sizes, rand);
@@ -223,6 +275,8 @@ async function main(): Promise<void> {
       train: trainSamples.length,
       val: valSamples.length,
       perClass: Object.fromEntries(labels.map((label, y) => [label, classCounts.get(y) ?? 0])),
+      // Frames are not samples: one webcam clip is one independent group.
+      firstPerson: { train: firstPersonTrain, val: firstPersonVal, weight: config.firstPersonWeight },
     },
     bestEpoch: best.epoch,
     bestScore: best.score,

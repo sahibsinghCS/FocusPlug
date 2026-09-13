@@ -30,6 +30,7 @@
     "vitest.config.ts",
     "src/main/**/*.ts",
     "src/preload/index.ts",
-    "src/shared/**/*.ts"
+    "src/shared/**/*.ts",
+    "scripts/desk-model/**/*.ts"
   ]
 }

@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { DESK_FEATURE_VERSION } from "../../src/main/desk/model/your-model";
+import { FIRST_PERSON_BUCKET } from "./first-person";
 
 /**
  * Shared helpers for the desk-model training pipeline.
@@ -80,7 +81,21 @@ export function featureShardFiles(): string[] {
     .map((name) => join(dir, name));
 }
 
-export function readFeatureRows(files: string[] = featureShardFiles()): FeatureRow[] {
+export interface ReadFeatureRowsOptions {
+  /**
+   * First-person webcam captures (`bucket: "first_person"`) are EXCLUDED by
+   * default. The presence head, its eval and every diagnostic in this folder
+   * were trained and measured without them, and appending rows to the shared
+   * feature cache must not silently move their numbers. The attention trainer
+   * and the attention eval opt in.
+   */
+  includeFirstPerson?: boolean;
+}
+
+export function readFeatureRows(
+  files: string[] = featureShardFiles(),
+  options: ReadFeatureRowsOptions = {},
+): FeatureRow[] {
   const rows: FeatureRow[] = [];
   const seen = new Set<string>();
   for (const file of files) {
@@ -90,6 +105,9 @@ export function readFeatureRows(files: string[] = featureShardFiles()): FeatureR
         continue;
       }
       const row = JSON.parse(trimmed) as FeatureRow;
+      if (options.includeFirstPerson !== true && row.bucket === FIRST_PERSON_BUCKET) {
+        continue;
+      }
       if (!seen.has(row.path)) {
         seen.add(row.path);
         rows.push(row);
@@ -97,6 +115,61 @@ export function readFeatureRows(files: string[] = featureShardFiles()): FeatureR
     }
   }
   return rows;
+}
+
+export interface Standardization {
+  mean: Float64Array;
+  std: Float64Array;
+  /** How many vectors were summed. The ONLY divisor either statistic uses. */
+  count: number;
+}
+
+/**
+ * Per-feature mean and standard deviation over the train pool.
+ *
+ * The divisor is derived from the very array that was summed, so the two can
+ * never disagree. That is not hypothetical: the attention trainer used to sum
+ * over a Map keyed by the feature-row OBJECT (which silently collapses two
+ * rows sharing one cached vector) while dividing by the un-collapsed pair
+ * count, so a single duplicated path in the labels CSV mis-standardized EVERY
+ * sample in the run — stock rows included — and the head degraded quietly.
+ */
+export function standardization(
+  vectors: ReadonlyArray<ArrayLike<number>>,
+  dim: number,
+): Standardization {
+  const mean = new Float64Array(dim);
+  const std = new Float64Array(dim);
+  for (const vector of vectors) {
+    for (let i = 0; i < dim; i += 1) {
+      mean[i] = (mean[i] ?? 0) + (vector[i] ?? 0);
+    }
+  }
+  const count = vectors.length;
+  for (let i = 0; i < dim; i += 1) {
+    mean[i] = (mean[i] ?? 0) / (count > 0 ? count : 1);
+  }
+  for (const vector of vectors) {
+    for (let i = 0; i < dim; i += 1) {
+      const diff = (vector[i] ?? 0) - (mean[i] ?? 0);
+      std[i] = (std[i] ?? 0) + diff * diff;
+    }
+  }
+  for (let i = 0; i < dim; i += 1) {
+    std[i] = Math.sqrt((std[i] ?? 0) / (count > 0 ? count : 1));
+  }
+  return { mean, std, count };
+}
+
+/** z-scores one vector; a feature with no spread passes through unscaled. */
+export function standardize(vector: ArrayLike<number>, stats: Standardization): Float64Array {
+  const dim = stats.mean.length;
+  const x = new Float64Array(dim);
+  for (let i = 0; i < dim; i += 1) {
+    const s = stats.std[i] ?? 1;
+    x[i] = ((vector[i] ?? 0) - (stats.mean[i] ?? 0)) / (s > 1e-6 ? s : 1);
+  }
+  return x;
 }
 
 /** Deterministic PRNG — training must be reproducible run to run. */

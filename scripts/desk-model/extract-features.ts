@@ -3,22 +3,57 @@ import { join } from "node:path";
 import { decodeImageBuffer } from "../../src/main/desk/frame";
 import { extractDeskFeatures } from "../../src/main/desk/model/your-model";
 import {
+  attentionLabelsFile,
   dataRoot,
   featureShardFile,
   featureShardFiles,
   loadPackLabels,
   mapLabel,
+  readAttentionLabels,
   type FeatureRow,
+  type PackItem,
 } from "./lib";
+import { FIRST_PERSON_BUCKET, isFirstPersonRow } from "./first-person";
 
 /**
  * One-time (cached, resumable) feature extraction over the desk-data pack.
  * Runs the EXACT runtime pipeline (`extractDeskFeatures` from your-model.ts):
  * decode → BlazeFace → scene features → feature vector, one JSONL row per
- * image. Shard for process-level parallelism:
+ * image. The pool is `labels.json` plus any first-person webcam clips recorded
+ * by capture-attention.ts. Shard for process-level parallelism:
  *
  *   FOCUSPLUG_DESK_DATA=... tsx scripts/desk-model/extract-features.ts --shard 0 --of 4
  */
+
+/**
+ * Webcam captures live inside the pack but not in its `labels.json`, so they
+ * are read straight out of `datasets/desk-attention-labels.csv` (path prefix
+ * `first-person/`). They carry `bucket: "first_person"`, which `readFeatureRows`
+ * skips by default — the presence head never sees them.
+ */
+function firstPersonItems(): PackItem[] {
+  const file = attentionLabelsFile();
+  if (!existsSync(file)) {
+    return [];
+  }
+  const seen = new Set<string>();
+  const items: PackItem[] = [];
+  for (const row of readAttentionLabels(file)) {
+    if (!isFirstPersonRow(row) || seen.has(row.path)) {
+      continue;
+    }
+    seen.add(row.path);
+    items.push({
+      path: row.path,
+      // The declared clip label, kept verbatim; `mapped` is at_desk because
+      // every capture is the user sitting at their own desk by construction.
+      label: row.attention,
+      split: row.split,
+      bucket: FIRST_PERSON_BUCKET,
+    });
+  }
+  return items;
+}
 
 function argValue(flag: string, fallback: number): number {
   const index = process.argv.indexOf(flag);
@@ -50,10 +85,12 @@ async function main(): Promise<void> {
     }
   }
 
-  const mine = pack.items.filter((_, index) => index % of === shard);
+  const captures = firstPersonItems();
+  const items = [...pack.items, ...captures];
+  const mine = items.filter((_, index) => index % of === shard);
   const pending = mine.filter((item) => !done.has(item.path));
   console.log(
-    `[shard ${shard}/${of}] ${mine.length} items, ${done.size} cached, ${pending.length} to extract`,
+    `[shard ${shard}/${of}] ${mine.length} items (${captures.length} first-person captures in the pool), ${done.size} cached, ${pending.length} to extract`,
   );
 
   let processed = 0;
@@ -72,7 +109,7 @@ async function main(): Promise<void> {
       const row: FeatureRow = {
         path: item.path,
         label: item.label,
-        mapped: mapLabel(pack, item.label),
+        mapped: item.bucket === FIRST_PERSON_BUCKET ? "at_desk" : mapLabel(pack, item.label),
         split: item.split,
         bucket: item.bucket,
         vector,
