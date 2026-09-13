@@ -159,7 +159,7 @@ async function main(): Promise<void> {
   const allColumns = FORECAST_FEATURE_KEYS.map((_, i) => i);
   const evalTsFull = trainLogistic(subX, subY, allColumns);
   scoreSets.set(
-    "fullLR18(evalts,19p)",
+    `fullLR${BASE_DIM}(evalts,${BASE_DIM + 1}p)`,
     evalRows.map((r) => logisticScore(evalTsFull, r.features, allColumns)),
   );
 
@@ -246,10 +246,18 @@ async function main(): Promise<void> {
   };
 
   console.log("refitting the linear family (lr-ceiling's own linear.ts, its own val split) …");
-  fitLinearVariant("lr18tuned(19p)", compileSpec("lr18", BASE_DIM, linTerms()), 1e-4, 1);
+  // Labels carry the live width: BASE_DIM follows FORECAST_FEATURE_KEYS, so a
+  // re-run after the feature set grows must not print "lr18" over 24 columns.
+  const pairwiseParams = BASE_DIM + (BASE_DIM * (BASE_DIM + 1)) / 2 + 1;
   fitLinearVariant(
-    "lr18+pairwise(190p)",
-    compileSpec("lr18+pairwise", BASE_DIM, [...linTerms(), ...pairTerms()]),
+    `lr${BASE_DIM}tuned(${BASE_DIM + 1}p)`,
+    compileSpec(`lr${BASE_DIM}`, BASE_DIM, linTerms()),
+    1e-4,
+    1,
+  );
+  fitLinearVariant(
+    `lr${BASE_DIM}+pairwise(${pairwiseParams}p)`,
+    compileSpec(`lr${BASE_DIM}+pairwise`, BASE_DIM, [...linTerms(), ...pairTerms()]),
     1e-5,
     1,
   );
@@ -533,7 +541,9 @@ async function main(): Promise<void> {
   }
 
   // Paired differences against every linear reference.
-  const references = names.filter((n) => n.startsWith("lr18") || n.startsWith("fullLR18"));
+  const references = names.filter(
+    (n) => n.startsWith(`lr${BASE_DIM}`) || n.startsWith(`fullLR${BASE_DIM}`),
+  );
   const pairs: Array<Record<string, unknown>> = [];
   console.log("\n=== PAIRED differences (same resample), 95% CI + one-sided p(diff <= 0) ===");
   for (const ref of references) {

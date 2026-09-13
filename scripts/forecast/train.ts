@@ -71,9 +71,9 @@ import {
 
 /**
  * Deterministic trainer for the shipped Focus Forecast head: an
- * L2-regularized multivariate LOGISTIC REGRESSION over the 18 encoded
- * features plus every pairwise product and square (189 terms, 190 params),
- * fitted with L-BFGS to convergence. Only `split: "train"` rows are ever read;
+ * L2-regularized multivariate LOGISTIC REGRESSION over the encoded features
+ * plus every pairwise product and square (`FORECAST_TERM_COUNT` terms,
+ * `FORECAST_PARAM_COUNT` params), fitted with L-BFGS to convergence. Only `split: "train"` rows are ever read;
  * the held-out eval split is scored exclusively by eval.ts.
  *
  * WHY A GLM AND NOT THE OLD 18→12→1 MLP: the five-family bake-off in
@@ -86,7 +86,7 @@ import {
  * - val = 10 % of train SESSIONS (seeded, exactly the split the old trainer
  *   used), for hyper-parameter selection, Platt calibration and the operating
  *   point only — never a gradient update;
- * - the class-weight power is swept once on the CHEAP plain-18 variant
+ * - the class-weight power is swept once on the CHEAP additive variant
  *   ({0, 0.5, 1}), then held fixed for the expansion;
  * - L2 λ is swept over a warm-started regularization path {1 … 1e-6}, and the
  *   winner is chosen by train-internal VAL lead-censored (≥ 20 s) ROC-AUC —
@@ -95,7 +95,7 @@ import {
  *   calm-negative downsampling) times the class weight, so Platt targets
  *   NATURAL prevalence rather than the rebalanced file;
  * - the fitted standardizer is FOLDED into the coefficients, so the artifact
- *   is 190 flat floats plus the Platt pair;
+ *   is `FORECAST_PARAM_COUNT` flat floats plus the Platt pair;
  * - the operating point is re-selected on train-internal VAL SESSIONS through
  *   the SHIPPED escalation reducer, under hard alarm ceilings (§ lib.ts), and
  *   compared against DEFAULT_SETTINGS with a loud WARN on disagreement;
@@ -134,10 +134,13 @@ function readConfig(): TrainConfig {
     iters: numberArg("--iters", 300),
     valFraction: numberArg("--val", 0.1),
     // w_pos = (Σw_neg/Σw_pos)^power. Default: swept over {0, 0.5, 1} on the
-    // cheap plain-18 variant and then held fixed for the pairwise expansion.
+    // cheap additive variant and then held fixed for the pairwise expansion.
     posWeightPower: posPower === "sweep" ? null : Number(posPower),
   };
 }
+
+/** Name of the plain additive reference fit — the "did you try logistic regression?" model. */
+const PLAIN_BASIS = `lr${FORECAST_INPUT_DIM}`;
 
 /** Warm-started regularization path, strong → weak. */
 const LAMBDAS = [1, 1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6];
@@ -572,7 +575,7 @@ async function main(): Promise<void> {
     featureScale[f] = s > 1e-6 ? s : 1;
   }
 
-  // --- A. Plain 18-feature logistic (19 params) -----------------------------
+  // --- A. Plain additive logistic (d + 1 params) ----------------------------
   // The "did you try logistic regression?" reference point, and the model
   // eval.ts's gate is anchored to. Also where the class-weight power is chosen.
   const plainDesign = Float32Array.from(rows.base);
@@ -580,7 +583,7 @@ async function main(): Promise<void> {
   applyStandardizer(plainDesign, FORECAST_INPUT_DIM, plainStd);
   const posPowers = config.posWeightPower === null ? POS_POWERS : [config.posWeightPower];
   const plain = fitVariant(
-    "lr18",
+    PLAIN_BASIS,
     plainDesign,
     FORECAST_INPUT_DIM,
     plainStd,
@@ -591,11 +594,11 @@ async function main(): Promise<void> {
     config.iters,
   );
   console.log(
-    `lr18            d=${String(plain.dim).padStart(3)} λ=${plain.lambda} posPow=${plain.posPower} ` +
+    `${PLAIN_BASIS.padEnd(15)} d=${String(plain.dim).padStart(3)} λ=${plain.lambda} posPow=${plain.posPower} ` +
       `VAL lead≥20s ${plain.valLeadAuc20.toFixed(4)} (${plain.params} params)`,
   );
 
-  // --- B. The shipped basis: lr18 + all 171 pairwise products/squares -------
+  // --- B. The shipped basis: the linear terms + every pairwise product ------
   const design = buildBasisDesign(rows.base, n, FORECAST_INPUT_DIM, FORECAST_TERM_COUNT);
   const standardizer = fitStandardizer(design, FORECAST_TERM_COUNT, fitIdx);
   applyStandardizer(design, FORECAST_TERM_COUNT, standardizer);
@@ -631,7 +634,7 @@ async function main(): Promise<void> {
       `Platt a ${calibration.a.toFixed(4)} b ${calibration.b.toFixed(4)}`,
   );
 
-  // --- Fold the standardizer in: 189 coefficients + 1 intercept -------------
+  // --- Fold the standardizer in: one coefficient per term + 1 intercept -----
   const folded = foldStandardizer(headline.theta, FORECAST_TERM_COUNT, standardizer);
   const precision8 = (value: number): number => Number(value.toPrecision(8));
   const thresholds = await thresholdDefaults();
@@ -676,7 +679,7 @@ async function main(): Promise<void> {
   // one threshold an out-of-sample choice on ~10× the evidence.
   //
   // The column standardizer is shared across folds (it is unsupervised
-  // scaling, not a model) so the 133 k × 189 design is standardized once.
+  // scaling, not a model) so the full expanded design is standardized once.
   //
   // All folds carry the SHIPPED Platt (a, b) rather than one fitted per fold.
   // The threshold is a cut on the shipped risk scale, so every fold must be
@@ -836,9 +839,12 @@ async function main(): Promise<void> {
         valLeadAuc20: headline.valLeadAuc20,
         valRocAuc: headline.valRocAuc,
       },
-      // The 19-parameter plain logistic — the "did you try logistic
+      // The plain additive logistic (d + 1 params) — the "did you try logistic
       // regression?" reference and the model eval.ts's gate is anchored to.
+      // Key name is historical (`referenceLr18`); eval.ts reads it to recover
+      // the λ, and the `basis` field below says which basis it actually is.
       referenceLr18: {
+        basis: PLAIN_BASIS,
         params: plain.params,
         lambda: plain.lambda,
         posWeightPower: plain.posPower,

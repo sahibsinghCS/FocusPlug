@@ -19,7 +19,16 @@ export type {
 export { FNV1A_OFFSET_BASIS, FNV1A_PRIME, fnv1a32, processHash, titleHash } from "./hash";
 export { FRAME_CAPACITY, TRANSITION_CAPACITY, TelemetryRing } from "./ring";
 export type { TelemetryFrame, Transition, TransitionKind } from "./ring";
-export { DESK_NEUTRAL, SWITCH_ACCEL_EPS, extractFeatures, logCompress } from "./features";
+export {
+  DESK_DROP_FULL_SCALE,
+  DESK_NEUTRAL,
+  DESK_SAG_FULL_SCALE_PER_MIN,
+  DESK_TREND_MIN_FRAMES,
+  GREY_LEAK_TAU_SEC,
+  SWITCH_ACCEL_EPS,
+  extractFeatures,
+  logCompress,
+} from "./features";
 export type { FeatureExtraction } from "./features";
 export {
   DRIFT_DEBOUNCE_SEC,

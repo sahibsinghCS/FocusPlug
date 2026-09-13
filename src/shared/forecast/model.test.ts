@@ -47,16 +47,20 @@ function corrupt(mutate: (weights: Record<string, unknown>) => void): unknown {
 }
 
 describe("the canonical basis", () => {
-  it("is 18 linear terms then every i≤j product — 189 terms, 190 params", () => {
-    expect(FORECAST_TERM_COUNT).toBe(189);
-    expect(FORECAST_PARAM_COUNT).toBe(190);
+  it("is d linear terms then every i≤j product — d(d+3)/2 terms, +1 params", () => {
+    const d = FORECAST_FEATURE_KEYS.length;
+    // Width is derived from the feature contract, so this arithmetic is the
+    // only place the sizes are asserted — no literal to forget to update.
+    expect(FORECAST_INPUT_DIM).toBe(d);
+    expect(FORECAST_TERM_COUNT).toBe(d + (d * (d + 1)) / 2);
+    expect(FORECAST_PARAM_COUNT).toBe(FORECAST_TERM_COUNT + 1);
     expect(FORECAST_TERMS).toHaveLength(FORECAST_TERM_COUNT);
-    // The first 18 are the plain features, in FORECAST_FEATURE_KEYS order.
+    // The first d are the plain features, in FORECAST_FEATURE_KEYS order.
     for (let i = 0; i < FORECAST_INPUT_DIM; i += 1) {
       expect(FORECAST_TERMS[i]).toEqual({ i, j: null });
       expect(FORECAST_TERM_KEYS[i]).toBe(FORECAST_FEATURE_KEYS[i]);
     }
-    // The remaining 171 are products with i ≤ j, each pair exactly once.
+    // The rest are products with i ≤ j, each pair exactly once.
     const pairs = new Set<string>();
     for (let k = FORECAST_INPUT_DIM; k < FORECAST_TERM_COUNT; k += 1) {
       const term = FORECAST_TERMS[k];
@@ -65,7 +69,7 @@ describe("the canonical basis", () => {
       expect(term?.i).toBeLessThanOrEqual(term?.j ?? -1);
       pairs.add(`${term?.i}:${term?.j}`);
     }
-    expect(pairs.size).toBe(171);
+    expect(pairs.size).toBe((FORECAST_INPUT_DIM * (FORECAST_INPUT_DIM + 1)) / 2);
     expect(new Set(FORECAST_TERM_KEYS).size).toBe(FORECAST_TERM_COUNT);
   });
 
@@ -84,7 +88,7 @@ describe("the canonical basis", () => {
   });
 
   it("checksums the basis so a reordering can never be served with old weights", () => {
-    expect(FORECAST_BASIS).toBe("lr18+pairwise");
+    expect(FORECAST_BASIS).toBe(`lr${FORECAST_INPUT_DIM}+pairwise`);
     expect(FORECAST_BASIS_SHA).toMatch(/^[0-9a-f]{8}$/);
     // Fail-closed: the shipped artifact must carry exactly this checksum.
     expect((weightsJson as unknown as { basisSha: string }).basisSha).toBe(FORECAST_BASIS_SHA);
@@ -109,10 +113,10 @@ describe("parseForecastWeights accepts", () => {
     const source = structuredClone(golden.modelForward.weights) as { coefficients: number[] };
     const parsed = parseForecastWeights(source);
     expect(parsed).not.toBeNull();
-    const before = forward(parsed as ForecastWeightsFile, new Array(18).fill(0.5)).logit;
+    const before = forward(parsed as ForecastWeightsFile, new Array(FORECAST_INPUT_DIM).fill(0.5)).logit;
     // Mutating the source after parsing must not change the parsed model.
     source.coefficients[0] = 999;
-    const after = forward(parsed as ForecastWeightsFile, new Array(18).fill(0.5)).logit;
+    const after = forward(parsed as ForecastWeightsFile, new Array(FORECAST_INPUT_DIM).fill(0.5)).logit;
     expect(after).toBe(before);
   });
 });
@@ -169,8 +173,8 @@ describe("parseForecastWeights rejects every malformed shape", () => {
     ["threshold out of range", corrupt((w) => { (w.thresholds as { nudge: number }).nudge = 1.5; })],
     ["threshold negative", corrupt((w) => { (w.thresholds as { clear: number }).clear = -0.1; })],
     ["threshold non-finite", corrupt((w) => { (w.thresholds as { prearm: number }).prearm = Number.NaN; })],
-    ["wrong paramCount", corrupt((w) => { w.paramCount = 241; })],
-    ["paramCount as string", corrupt((w) => { w.paramCount = "190"; })],
+    ["wrong paramCount", corrupt((w) => { w.paramCount = FORECAST_PARAM_COUNT + 1; })],
+    ["paramCount as string", corrupt((w) => { w.paramCount = String(FORECAST_PARAM_COUNT); })],
     ["missing trainProvenanceSha", corrupt((w) => { delete w.trainProvenanceSha; })],
     ["numeric trainProvenanceSha", corrupt((w) => { w.trainProvenanceSha = 42; })],
   ];
@@ -217,8 +221,8 @@ describe("forward pass vs golden fixture", () => {
 
   it("throws on a wrong-length feature vector (callers try/catch)", () => {
     const weights = goldenWeights();
-    expect(() => forward(weights, new Array(17).fill(0))).toThrow();
-    expect(() => forward(weights, new Array(19).fill(0))).toThrow();
+    expect(() => forward(weights, new Array(FORECAST_INPUT_DIM - 1).fill(0))).toThrow();
+    expect(() => forward(weights, new Array(FORECAST_INPUT_DIM + 1).fill(0))).toThrow();
   });
 
   it("sigmoid sanity", () => {
@@ -251,7 +255,7 @@ describe("occlusion attributions vs golden fixture", () => {
 
   /**
    * The GLM computes each occluded logit as a 19-term delta off the base
-   * logit instead of re-expanding all 189 terms. This pins the optimisation
+   * logit instead of re-expanding every term. This pins the optimisation
    * to the definition it claims to implement.
    */
   it("every attribution equals risk(x) − risk(x with feature i at its norm mean)", () => {
@@ -281,8 +285,8 @@ describe("occlusion attributions vs golden fixture", () => {
 
   it("does not mutate the input vector", () => {
     const weights = goldenWeights();
-    const encoded = new Array(18).fill(0.3);
+    const encoded = new Array(FORECAST_INPUT_DIM).fill(0.3);
     attributions(weights, encoded);
-    expect(encoded).toEqual(new Array(18).fill(0.3));
+    expect(encoded).toEqual(new Array(FORECAST_INPUT_DIM).fill(0.3));
   });
 });

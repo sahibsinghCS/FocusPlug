@@ -4,12 +4,24 @@ export const FORECAST_MODEL_VERSION = "ff-1";
 
 export type ForecastBand = "calm" | "elevated" | "prearm";
 
+/**
+ * Feature keys, in basis order. Indices 0–17 are the original LEVEL block
+ * (counts, fractions, means, σ over one fixed window); 18–23 are the TREND
+ * block (a slope, two short-vs-long rate ratios, a leaky occupancy, a run
+ * length, a two-window drop) that the level aggregates flatten by
+ * construction — see `features.ts` for what each one is and why it is here.
+ * The list is APPEND-ONLY: an existing index never moves, so a stale
+ * `weights.json` fails on `basisSha` rather than silently mapping
+ * coefficients onto the wrong inputs.
+ */
 export type ForecastFeatureKey =
   | "switch15" | "switch60" | "switchAccel" | "dwellCur"
   | "fracAllow60" | "fracOther60" | "otherDwell30" | "distinct60"
   | "sinceBlock" | "streak" | "deskPresent30" | "deskConfMean30"
   | "deskConfStd30" | "deskFlicker60" | "sessionMin" | "priorDrifts"
-  | "titleChurn30" | "titleChurn60";
+  | "titleChurn30" | "titleChurn60"
+  | "deskSagSlope30" | "dwellShrink30v90" | "titleChurnAccel"
+  | "greyLeaky120" | "absenceRun60" | "deskConfDrop120";
 
 export const FORECAST_FEATURE_KEYS: readonly ForecastFeatureKey[] = [
   "switch15", "switch60", "switchAccel", "dwellCur",
@@ -17,6 +29,8 @@ export const FORECAST_FEATURE_KEYS: readonly ForecastFeatureKey[] = [
   "sinceBlock", "streak", "deskPresent30", "deskConfMean30",
   "deskConfStd30", "deskFlicker60", "sessionMin", "priorDrifts",
   "titleChurn30", "titleChurn60",
+  "deskSagSlope30", "dwellShrink30v90", "titleChurnAccel",
+  "greyLeaky120", "absenceRun60", "deskConfDrop120",
 ];
 
 export interface ForecastFeatureView {
@@ -35,14 +49,14 @@ export interface ForecastSnapshot {
   logit: number;                // pre-calibration z
   band: ForecastBand;
   horizonSec: number;           // FORECAST_HORIZON_SEC
-  features: ForecastFeatureView[]; // length 18, FORECAST_FEATURE_KEYS order
-  hidden: number[];             // length 18 (FORECAST_INPUT_DIM), tanh of each feature's
+  features: ForecastFeatureView[]; // one per FORECAST_FEATURE_KEYS entry, in that order
+  hidden: number[];             // length FORECAST_INPUT_DIM, tanh of each feature's
                                 // summed basis-term contribution — the GLM's term-group strip
   prearmedAt: number | null;    // epoch ms, null unless pre-armed
   effectiveFuseSec: number;     // countdownSec policy sees this step (latched during a burn)
   baseFuseSec: number;          // settings.countdownSec
   modelVersion: string;         // FORECAST_MODEL_VERSION
-  paramCount: number;           // 190
+  paramCount: number;           // FORECAST_PARAM_COUNT
 }
 
 export type ForecastEvent =
@@ -56,7 +70,7 @@ export type DriftType = "tab_out" | "walk_away";
 
 /**
  * One basis term of the shipped GLM: `x_i` when `j` is null, `x_i · x_j`
- * otherwise (`i === j` ⇒ the square). The canonical 189-term list lives in
+ * otherwise (`i === j` ⇒ the square). The canonical term list lives in
  * `model.ts` as `FORECAST_TERMS` and is built by the same code the trainer
  * imports — basis skew between train and serve is impossible by construction.
  */
@@ -71,20 +85,21 @@ export interface ForecastWeightsFile {
   createdAt: string;            // ISO
   seed: number;
   featureKeys: ForecastFeatureKey[];       // must deep-equal FORECAST_FEATURE_KEYS
-  norm: { mean: number[]; scale: number[] }; // length 18 each — train-split feature stats.
+  norm: { mean: number[]; scale: number[] }; // one entry per feature — train-split stats.
                                 // `mean` is the occlusion baseline the attributions use;
                                 // `scale` is published dispersion. The model's own
                                 // standardizer is folded into `coefficients`/`intercept`,
                                 // so the forward pass needs neither.
-  basis: string;                // FORECAST_BASIS — "lr18+pairwise"
+  basis: string;                // FORECAST_BASIS — `lr{FORECAST_INPUT_DIM}+pairwise`
   basisSha: string;             // FORECAST_BASIS_SHA: fnv1a32 of the canonical term names
-  coefficients: number[];       // length 189, FORECAST_TERMS order (standardizer folded in)
+  coefficients: number[];       // length FORECAST_TERM_COUNT, FORECAST_TERMS order
+                                // (standardizer folded in)
   intercept: number;            // bias, standardizer folded in
   calibration: { a: number; b: number };   // Platt, fit on validation
   horizonSec: number;           // 30
   thresholds: { nudge: number; prearm: number; clear: number }; // evaluated operating point;
                                 // eval.ts asserts nudge/prearm match DEFAULT_SETTINGS forecast keys
-  paramCount: number;           // 190 = 189 coefficients + intercept
+  paramCount: number;           // FORECAST_PARAM_COUNT = coefficients + intercept
   trainProvenanceSha: string;   // sha256 of embedded provenance in eval-report.json
 }
 

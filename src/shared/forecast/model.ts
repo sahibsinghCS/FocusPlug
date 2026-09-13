@@ -10,9 +10,15 @@ import {
 
 /**
  * The shipped Focus Forecast head: an L2-regularized multivariate LOGISTIC
- * REGRESSION over the 18 encoded features plus every pairwise product and
- * square — 189 basis terms, 190 trainable parameters (189 coefficients + one
- * intercept). It is a GLM: linear in its basis, convex, one global optimum.
+ * REGRESSION over the encoded features plus every pairwise product and square
+ * — `FORECAST_TERM_COUNT` basis terms, `FORECAST_PARAM_COUNT` trainable
+ * parameters (one coefficient per term + one intercept). It is a GLM: linear in
+ * its basis, convex, one global optimum.
+ *
+ * Width is DERIVED from `FORECAST_FEATURE_KEYS`, never written down twice:
+ * growing the feature list grows the basis, renames `FORECAST_BASIS` and moves
+ * `FORECAST_BASIS_SHA`, so a weights file fitted on the old basis is rejected
+ * rather than silently misread.
  *
  * Why this and not the 18→12→1 TinyMLP that shipped before: the bake-off in
  * `scripts/forecast/GAUNTLET.md` scored five model families on one fixed
@@ -24,27 +30,34 @@ import {
  *
  * Everything here is pure TypeScript with no dependencies:
  *
- *   z      = intercept + Σ_k c_k · t_k(x)          (189 multiply-adds)
+ *   z      = intercept + Σ_k c_k · t_k(x)          (one multiply-add per term)
  *   risk   = σ(a·z + b)                            (Platt, fit on validation)
  *
  * The standardizer the trainer fitted on the expanded design is FOLDED into
  * `coefficients` / `intercept` (c_k = θ_k/s_k, intercept = b − Σ θ_k m_k/s_k),
- * so the shipped payload really is 190 floats plus the Platt pair.
+ * so the shipped payload really is `FORECAST_PARAM_COUNT` floats plus the
+ * Platt pair.
  *
  * `parseForecastWeights` is the fail-closed gate: any violation returns null,
  * the monitor stays `ready:false`, and the session runs exactly as today. A
  * corrupt-but-parseable file must never produce a fabricated risk.
  */
 
-export const FORECAST_INPUT_DIM = 18;
-
-/** The shipped basis. Bumping this invalidates every existing weights file. */
-export const FORECAST_BASIS = "lr18+pairwise";
+/** Feature-vector width — derived, never a literal, so the basis follows the keys. */
+export const FORECAST_INPUT_DIM = FORECAST_FEATURE_KEYS.length;
 
 /**
- * Canonical basis order: the 18 linear terms in `FORECAST_FEATURE_KEYS`
- * order, then every product `x_i · x_j` for `i ≤ j` in lexicographic order
- * (171 of them, squares included). The trainer imports this list, so the
+ * The shipped basis. Derived from the feature count, so growing
+ * `FORECAST_FEATURE_KEYS` renames the basis AND changes `FORECAST_BASIS_SHA`
+ * below — every existing weights file then fails `parseForecastWeights`
+ * closed instead of being served against a basis it was not fitted on.
+ */
+export const FORECAST_BASIS = `lr${FORECAST_INPUT_DIM}+pairwise`;
+
+/**
+ * Canonical basis order: the `FORECAST_INPUT_DIM` linear terms in
+ * `FORECAST_FEATURE_KEYS` order, then every product `x_i · x_j` for `i ≤ j` in
+ * lexicographic order (squares included). The trainer imports this list, so the
  * column order can never disagree between fitting and serving.
  */
 export const FORECAST_TERMS: readonly ForecastTerm[] = buildTerms();
@@ -62,10 +75,10 @@ function buildTerms(): ForecastTerm[] {
   return terms;
 }
 
-/** 18 linear + 171 products/squares = 189. */
+/** `d` linear + `d(d+1)/2` products/squares. */
 export const FORECAST_TERM_COUNT = FORECAST_TERMS.length;
 
-/** 189 coefficients + 1 intercept = 190 trainable parameters. */
+/** One coefficient per term + 1 intercept = the trainable parameter count. */
 export const FORECAST_PARAM_COUNT = FORECAST_TERM_COUNT + 1;
 
 /** Human-readable term names, same order — `deskConfMean30*deskConfStd30`, `otherDwell30^2`, … */
@@ -92,7 +105,7 @@ export const FORECAST_BASIS_SHA = fnv1a32(
   .toString(16)
   .padStart(8, "0");
 
-/** Term indices touching each feature: 1 linear + 18 products = 19 per feature. */
+/** Term indices touching each feature: 1 linear + d products = d + 1 per feature. */
 const TERMS_BY_FEATURE: ReadonlyArray<readonly number[]> = buildTermsByFeature();
 
 function buildTermsByFeature(): number[][] {
@@ -112,7 +125,7 @@ export interface ForecastForward {
   /** Calibrated σ(a·z + b), unsmoothed. */
   rawRisk: number;
   /**
-   * Term-group activations, length 18: `tanh` of the summed signed
+   * Term-group activations, one per feature: `tanh` of the summed signed
    * contribution of every basis term containing that feature. Product terms
    * count toward BOTH of their features, so these do not sum to the logit —
    * the UI labels them as an activation strip, not a decomposition.
@@ -125,7 +138,7 @@ export function sigmoid(z: number): number {
 }
 
 /**
- * Expands an encoded 18-vector into the 189 canonical basis values. Shared by
+ * Expands an encoded feature vector into the canonical basis values. Shared by
  * the trainer (`scripts/forecast/train.ts`) and runtime inference — the same
  * train/serve-skew guarantee `extractFeatures` gives the features themselves.
  */
@@ -259,7 +272,7 @@ export function parseForecastWeights(value: unknown): ForecastWeightsFile | null
 }
 
 /**
- * Forward pass on encoded [0,1] features: expand into the 189-term basis, one
+ * Forward pass on encoded [0,1] features: expand into the canonical basis, one
  * dot product, Platt-calibrate. Throws on a wrong-length input — callers hold
  * validated weights and a length-18 vector by construction (the monitor
  * try/catches every entry point regardless).
@@ -291,9 +304,9 @@ export function forward(weights: ForecastWeightsFile, encoded: readonly number[]
  * mean)`, per feature. Signed; a contribution estimate — the deltas do not
  * sum to the logit, the UI says so.
  *
- * The GLM makes this exact AND cheap: replacing x_i touches only the 19 terms
- * that contain feature i, so each occluded logit is the base logit minus a
- * 19-term delta rather than a full re-expansion. `model.test.ts` asserts the
+ * The GLM makes this exact AND cheap: replacing x_i touches only the d + 1
+ * terms that contain feature i, so each occluded logit is the base logit minus
+ * a (d + 1)-term delta rather than a full re-expansion. `model.test.ts` asserts the
  * delta form equals a naive re-forward to 1e-12.
  */
 export function attributions(

@@ -3,6 +3,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { processHash, titleHash } from "../../shared/forecast/index.ts";
+import { extractFeatures } from "../../shared/forecast/features.ts";
+import { TelemetryRing } from "../../shared/forecast/ring.ts";
+import { FORECAST_FEATURE_KEYS } from "../../shared/forecast/types.ts";
 import { DEFAULT_SESSION_STATE, DEFAULT_SETTINGS } from "../../shared/defaults.ts";
 import { presentDesk } from "../session/harness.ts";
 import { switchProbeWeights } from "./fixtures.ts";
@@ -16,6 +19,13 @@ import {
 
 const T0 = 1_000_000;
 
+/** The extractor's own empty-ring neutrals — grows with FORECAST_FEATURE_KEYS. */
+function neutralRaw(): ForecastFrameRow["raw"] {
+  const ring = new TelemetryRing();
+  ring.reset(T0);
+  return extractFeatures(ring, T0).raw;
+}
+
 function tempDir(): string {
   return mkdtempSync(join(tmpdir(), "focusplug-forecast-rec-"));
 }
@@ -27,27 +37,8 @@ function sampleRow(overrides?: Partial<ForecastFrameRow>): ForecastFrameRow {
     source: "recorded",
     archetype: "unknown",
     t: 42,
-    features: new Array<number>(18).fill(0),
-    raw: {
-      switch15: 0,
-      switch60: 0,
-      switchAccel: 1,
-      dwellCur: 0,
-      fracAllow60: 0,
-      fracOther60: 0,
-      otherDwell30: 0,
-      distinct60: 0,
-      sinceBlock: 600,
-      streak: 0,
-      deskPresent30: 0.5,
-      deskConfMean30: 0.5,
-      deskConfStd30: 0,
-      deskFlicker60: 0,
-      sessionMin: 0,
-      priorDrifts: 0,
-      titleChurn30: 0,
-      titleChurn60: 0,
-    },
+    features: new Array<number>(FORECAST_FEATURE_KEYS.length).fill(0),
+    raw: neutralRaw(),
     label: null,
     secs_to_drift: null,
     drift_type: null,
@@ -91,7 +82,7 @@ describe("ForecastRecorder", () => {
     expect(first.label).toBe(null);
     expect(first.secs_to_drift).toBe(null);
     expect(first.drift_type).toBe(null);
-    expect(first.features.length).toBe(18);
+    expect(first.features.length).toBe(FORECAST_FEATURE_KEYS.length);
   });
 
   it("a write failure disables the recorder, never throws", () => {

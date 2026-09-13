@@ -1,35 +1,35 @@
 {
   "version": "ff-1",
-  "createdAt": "2026-09-12T18:04:42.751Z",
+  "createdAt": "2026-09-13T00:24:40.298Z",
   "status": "trained",
   "gate": {
     "enforced": true,
     "metric": "lead-censored ROC-AUC (onset ≥ 20 s away vs calm)",
-    "baseline": "fullLogistic18Strongest",
-    "baselineRationale": "the strongest 18-feature multivariate logistic regression — the model a judge means by 'did you try logistic regression?'. The shipped head must not lose to it.",
+    "baseline": "fullLogisticStrongest",
+    "baselineRationale": "the strongest 24-feature multivariate logistic regression on the SAME feature basis the shipped head sees — the model a judge means by 'did you try logistic regression?'. The shipped head must not lose to it, and growing the feature set moves the bar with it.",
     "marginRequired": 0,
     "marginRequiredRationale": "zero by design: the paired session-clustered bootstrap over these 48 eval sessions puts the SE of a model-vs-model lead-AUC difference at ≈0.009, so no positive margin is measurable here. The bar is 'must not be beaten', and it fails the build the moment it is.",
-    "modelLeadAuc20": 0.9423,
-    "baselineLeadAuc20": 0.9355,
+    "modelLeadAuc20": 0.9389,
+    "baselineLeadAuc20": 0.9316,
     "baselineFit": "lbfgs-converged",
-    "margin": 0.0068,
+    "margin": 0.0073,
     "passed": true,
     "context": {
       "note": "the pre-bake-off gate: +0.03 over the best SINGLE-feature logistic. Reported so the two bars can be compared — the 18→12→1 MLP that shipped before this swap passed THIS one by +0.1514 while losing to the full logistic by −0.0077.",
       "bestSingleFeature": "otherDwell30",
       "bestSingleFeatureLeadAuc20": 0.7734,
-      "legacyMargin": 0.1689,
+      "legacyMargin": 0.1655,
       "legacyMarginRequired": 0.03,
       "legacyPassed": true
     }
   },
   "metrics": {
-    "rocAuc": 0.9659,
-    "prAuc": 0.6813,
+    "rocAuc": 0.9631,
+    "prAuc": 0.6746,
     "baseRate": 0.0275,
-    "aucLead20": 0.9423,
-    "aucLead10": 0.9583,
-    "ece": 0.0066,
+    "aucLead20": 0.9389,
+    "aucLead10": 0.9558,
+    "ece": 0.0075,
     "evalFrames": 85230,
     "evalSessions": 48
   },
@@ -37,86 +37,86 @@
     {
       "lo": 0,
       "hi": 0.1,
-      "count": 81829,
-      "meanPredicted": 0.006556,
-      "observedRate": 0.004314
+      "count": 81926,
+      "meanPredicted": 0.007047,
+      "observedRate": 0.004992
     },
     {
       "lo": 0.1,
       "hi": 0.2,
-      "count": 630,
-      "meanPredicted": 0.145961,
-      "observedRate": 0.301587
+      "count": 692,
+      "meanPredicted": 0.146209,
+      "observedRate": 0.320809
     },
     {
       "lo": 0.2,
       "hi": 0.3,
-      "count": 461,
-      "meanPredicted": 0.248136,
-      "observedRate": 0.498915
+      "count": 438,
+      "meanPredicted": 0.243821,
+      "observedRate": 0.465753
     },
     {
       "lo": 0.3,
       "hi": 0.4,
-      "count": 374,
-      "meanPredicted": 0.346828,
-      "observedRate": 0.52139
+      "count": 302,
+      "meanPredicted": 0.349896,
+      "observedRate": 0.450331
     },
     {
       "lo": 0.4,
       "hi": 0.5,
-      "count": 279,
-      "meanPredicted": 0.451217,
-      "observedRate": 0.523297
+      "count": 227,
+      "meanPredicted": 0.448206,
+      "observedRate": 0.563877
     },
     {
       "lo": 0.5,
       "hi": 0.6,
-      "count": 292,
-      "meanPredicted": 0.552446,
-      "observedRate": 0.554795
+      "count": 227,
+      "meanPredicted": 0.547989,
+      "observedRate": 0.674009
     },
     {
       "lo": 0.6,
       "hi": 0.7,
-      "count": 264,
-      "meanPredicted": 0.651517,
-      "observedRate": 0.647727
+      "count": 205,
+      "meanPredicted": 0.647195,
+      "observedRate": 0.741463
     },
     {
       "lo": 0.7,
       "hi": 0.8,
-      "count": 236,
-      "meanPredicted": 0.754196,
-      "observedRate": 0.745763
+      "count": 260,
+      "meanPredicted": 0.748723,
+      "observedRate": 0.692308
     },
     {
       "lo": 0.8,
       "hi": 0.9,
-      "count": 315,
-      "meanPredicted": 0.855169,
-      "observedRate": 0.822222
+      "count": 291,
+      "meanPredicted": 0.85287,
+      "observedRate": 0.714777
     },
     {
       "lo": 0.9,
       "hi": 1,
-      "count": 550,
-      "meanPredicted": 0.959922,
-      "observedRate": 0.832727
+      "count": 662,
+      "meanPredicted": 0.962994,
+      "observedRate": 0.827795
     }
   ],
   "operatingPoints": {
     "nudge": {
       "threshold": 0.45,
-      "precision": 0.7216,
-      "recall": 0.556,
-      "fpr": 0.0061
+      "precision": 0.7434,
+      "recall": 0.5547,
+      "fpr": 0.0054
     },
     "prearm": {
       "threshold": 0.8,
-      "precision": 0.8289,
-      "recall": 0.3064,
-      "fpr": 0.0018
+      "precision": 0.7933,
+      "recall": 0.3231,
+      "fpr": 0.0024
     }
   },
   "alarms": {
@@ -124,16 +124,16 @@
       "prearm": "recallAt30 — a pre-arm was ACTIVE at onset (the reducer's own forecast_hit receipt) or fired within the prior 30 s. The strict product rule: the fuse was actually shortened.",
       "nudge": "recallAt30Nudge — ANY nudge-or-higher alarm inside (onset − 30 s, onset]. The rule the five-family bake-off compared every contender on: the student got some warning."
     },
-    "recallAt30": 0.5513,
+    "recallAt30": 0.6282,
     "recallAt30Nudge": 0.8333,
-    "medianLeadSec": 18,
-    "p25LeadSec": 12,
-    "medianNudgeLeadSec": 18,
-    "falsePrearmsPerHour": 0.5908,
+    "medianLeadSec": 16,
+    "p25LeadSec": 10,
+    "medianNudgeLeadSec": 19,
+    "falsePrearmsPerHour": 0.5514,
     "nudgesPerHour": 3.4264,
     "drifts": 78,
-    "hits": 43,
-    "misses": 35,
+    "hits": 49,
+    "misses": 29,
     "nudgeHits": 65,
     "nudgeMisses": 13,
     "evalHours": 25.3908,
@@ -150,8 +150,8 @@
         "researchChurnFpr": 0.01,
         "alarmLoadAllowance": 1.15,
         "referenceNudgeRisk": 0.55,
-        "referenceNudgesPerHour": 2.3642,
-        "nudgesPerHourCeiling": 2.7188,
+        "referenceNudgesPerHour": 2.1604,
+        "nudgesPerHourCeiling": 2.4845,
         "falsePrearmsPerHour": 2
       },
       "searchSessions": 192,
@@ -165,70 +165,70 @@
         {
           "nudgeRisk": 0.3,
           "prearmRisk": 0.8,
-          "recallAt30sNudge": 0.7438,
-          "recallAt30sPrearm": 0.5413,
-          "nudgesPerHour": 3.1386,
-          "falsePrearmsPerHour": 0.4789,
-          "researchChurnFprAtNudge": 0.000127,
+          "recallAt30sNudge": 0.7066,
+          "recallAt30sPrearm": 0.5455,
+          "nudgesPerHour": 3.0673,
+          "falsePrearmsPerHour": 0.428,
+          "researchChurnFprAtNudge": 0.000146,
           "admissible": false
         },
         {
           "nudgeRisk": 0.35,
           "prearmRisk": 0.8,
-          "recallAt30sNudge": 0.7314,
-          "recallAt30sPrearm": 0.5413,
-          "nudgesPerHour": 2.9858,
-          "falsePrearmsPerHour": 0.4993,
+          "recallAt30sNudge": 0.6901,
+          "recallAt30sPrearm": 0.5372,
+          "nudgesPerHour": 2.8431,
+          "falsePrearmsPerHour": 0.428,
           "researchChurnFprAtNudge": 0.000109,
           "admissible": false
         },
         {
           "nudgeRisk": 0.4,
           "prearmRisk": 0.8,
-          "recallAt30sNudge": 0.7066,
+          "recallAt30sNudge": 0.6653,
           "recallAt30sPrearm": 0.5372,
-          "nudgesPerHour": 2.8227,
-          "falsePrearmsPerHour": 0.5095,
-          "researchChurnFprAtNudge": 0.000073,
+          "nudgesPerHour": 2.6087,
+          "falsePrearmsPerHour": 0.4484,
+          "researchChurnFprAtNudge": 0.000109,
           "admissible": false
         },
         {
           "nudgeRisk": 0.45,
           "prearmRisk": 0.8,
-          "recallAt30sNudge": 0.686,
-          "recallAt30sPrearm": 0.5372,
-          "nudgesPerHour": 2.6597,
-          "falsePrearmsPerHour": 0.5197,
-          "researchChurnFprAtNudge": 0.000055,
+          "recallAt30sNudge": 0.6364,
+          "recallAt30sPrearm": 0.5331,
+          "nudgesPerHour": 2.4559,
+          "falsePrearmsPerHour": 0.4586,
+          "researchChurnFprAtNudge": 0.000091,
           "admissible": true
         },
         {
           "nudgeRisk": 0.5,
           "prearmRisk": 0.8,
-          "recallAt30sNudge": 0.6529,
-          "recallAt30sPrearm": 0.5372,
-          "nudgesPerHour": 2.4763,
-          "falsePrearmsPerHour": 0.5401,
+          "recallAt30sNudge": 0.6281,
+          "recallAt30sPrearm": 0.5331,
+          "nudgesPerHour": 2.354,
+          "falsePrearmsPerHour": 0.4586,
           "researchChurnFprAtNudge": 0.000055,
           "admissible": true
         },
         {
           "nudgeRisk": 0.55,
           "prearmRisk": 0.8,
-          "recallAt30sNudge": 0.6446,
+          "recallAt30sNudge": 0.6033,
           "recallAt30sPrearm": 0.5331,
-          "nudgesPerHour": 2.3642,
-          "falsePrearmsPerHour": 0.5503,
+          "nudgesPerHour": 2.1604,
+          "falsePrearmsPerHour": 0.4688,
           "researchChurnFprAtNudge": 0.000055,
           "admissible": true
         },
         {
           "nudgeRisk": 0.6,
           "prearmRisk": 0.8,
-          "recallAt30sNudge": 0.5992,
-          "recallAt30sPrearm": 0.5331,
-          "nudgesPerHour": 2.0788,
-          "falsePrearmsPerHour": 0.5503,
+          "recallAt30sNudge": 0.5826,
+          "recallAt30sPrearm": 0.5289,
+          "nudgesPerHour": 1.7935,
+          "falsePrearmsPerHour": 0.4789,
           "researchChurnFprAtNudge": 0.000036,
           "admissible": true
         },
@@ -236,20 +236,20 @@
           "nudgeRisk": 0.65,
           "prearmRisk": 0.8,
           "recallAt30sNudge": 0.5702,
-          "recallAt30sPrearm": 0.5207,
-          "nudgesPerHour": 1.7222,
-          "falsePrearmsPerHour": 0.5605,
-          "researchChurnFprAtNudge": 0.000018,
+          "recallAt30sPrearm": 0.5289,
+          "nudgesPerHour": 1.3349,
+          "falsePrearmsPerHour": 0.4891,
+          "researchChurnFprAtNudge": 0.000036,
           "admissible": true
         },
         {
           "nudgeRisk": 0.7,
           "prearmRisk": 0.8,
-          "recallAt30sNudge": 0.5413,
-          "recallAt30sPrearm": 0.5165,
-          "nudgesPerHour": 1.1821,
-          "falsePrearmsPerHour": 0.5809,
-          "researchChurnFprAtNudge": 0,
+          "recallAt30sNudge": 0.5372,
+          "recallAt30sPrearm": 0.5289,
+          "nudgesPerHour": 0.8254,
+          "falsePrearmsPerHour": 0.5095,
+          "researchChurnFprAtNudge": 0.000018,
           "admissible": true
         }
       ]
@@ -276,29 +276,32 @@
       "leadAuc20": 0.7734,
       "note": "CONTEXT ONLY — the pre-bake-off gate baseline. One input; the shipped model beating it by a wide margin proves nothing, which is why the gate no longer uses it."
     },
-    "fullLogistic18": {
-      "auc": 0.958,
-      "leadAuc20": 0.9325,
+    "fullLogistic": {
+      "auc": 0.9577,
+      "leadAuc20": 0.9289,
+      "features": 24,
       "fit": "class-weighted full-batch GD (lib.trainLogistic, 250 epochs) — the historical baseline"
     },
-    "fullLogistic18Converged": {
-      "auc": 0.9577,
-      "leadAuc20": 0.9355,
+    "fullLogisticConverged": {
+      "auc": 0.9572,
+      "leadAuc20": 0.9316,
       "lambda": 0.0001,
-      "iters": 99,
+      "iters": 82,
       "rows": 133502,
-      "fit": "same 18 features, L-BFGS to convergence on ALL train rows, importance-weighted to natural prevalence, at the λ train.ts selected on its train-internal val split (never on eval) — the honest ceiling of the plain-18 logistic, and given MORE data than the shipped model"
+      "features": 24,
+      "fit": "the same 24 features, L-BFGS to convergence on ALL train rows, importance-weighted to natural prevalence, at the λ train.ts selected on its train-internal val split (never on eval) — the honest ceiling of the plain additive logistic, and given MORE data than the shipped model"
     },
-    "fullLogistic18Strongest": {
-      "leadAuc20": 0.9355,
+    "fullLogisticStrongest": {
+      "leadAuc20": 0.9316,
       "fit": "lbfgs-converged",
-      "note": "GATE BASELINE — the strongest 18-feature multivariate logistic we can produce"
+      "features": 24,
+      "note": "GATE BASELINE — the strongest 24-feature multivariate logistic we can produce"
     },
     "shippedModel": {
-      "auc": 0.9659,
-      "leadAuc20": 0.9423,
-      "basis": "lr18+pairwise",
-      "paramCount": 190
+      "auc": 0.9631,
+      "leadAuc20": 0.9389,
+      "basis": "lr24+pairwise",
+      "paramCount": 325
     },
     "singleFeature": [
       {
@@ -390,8 +393,45 @@
         "key": "titleChurn60",
         "auc": 0.6542,
         "leadAuc20": 0.638
+      },
+      {
+        "key": "deskSagSlope30",
+        "auc": 0.6655,
+        "leadAuc20": 0.6292
+      },
+      {
+        "key": "dwellShrink30v90",
+        "auc": 0.7091,
+        "leadAuc20": 0.7114
+      },
+      {
+        "key": "titleChurnAccel",
+        "auc": 0.6346,
+        "leadAuc20": 0.6411
+      },
+      {
+        "key": "greyLeaky120",
+        "auc": 0.7346,
+        "leadAuc20": 0.7237
+      },
+      {
+        "key": "absenceRun60",
+        "auc": 0.6276,
+        "leadAuc20": 0.5919
+      },
+      {
+        "key": "deskConfDrop120",
+        "auc": 0.6688,
+        "leadAuc20": 0.6405
       }
     ]
+  },
+  "bakeOffContext": {
+    "verbatimFrom": "src/shared/forecast/bake-off.json",
+    "producedBy": "scripts/forecast/candidates/*.ts, adjudicated by scripts/forecast/adjudicate.ts",
+    "gating": false,
+    "describesShippedBasis": false,
+    "note": "HISTORICAL. The bake-off contested the feature basis of 2026-09-12 and recorded \"lr18+pairwise\" as SHIPPED. That FAMILY still ships, but its basis has since grown to \"lr24+pairwise\" (24 features, 325 params) — see scripts/forecast/GAUNTLET.md round 9. Every score in the embedded table is on the older basis; re-run adjudicate.ts to re-contest the field on this one."
   },
   "bakeOff": {
     "description": "Five-model-family bake-off that chose the shipped Focus Forecast head. One fixed dataset (data/forecast/dataset.jsonl, 218,732 rows / 288 sessions, per-SESSION train/eval split), one fixed metric (lead-censored ROC-AUC at >=20 s), one shared escalation reducer. Non-gating: this table is published beside the CI gate so the claim is 'here is every family we tried and here is the noise floor', not 'here is a number that beats a one-input model'. Every contender script lives in scripts/forecast/candidates/; the scores below were re-derived from scratch by scripts/forecast/adjudicate.ts, whose weighted rank-sum estimator is asserted equal to lib.rocAuc at unit weights to <1e-12 for every model.",
@@ -634,21 +674,21 @@
       "sessions": 10,
       "frames": 17650,
       "baseRate": 0.051,
-      "falsePositiveRateAtNudge": 0.0045,
-      "falsePositiveRateAtPrearm": 0.0005,
-      "falsePrearmsPerHour": 1.3566,
+      "falsePositiveRateAtNudge": 0.0035,
+      "falsePositiveRateAtPrearm": 0.0016,
+      "falsePrearmsPerHour": 0.3391,
       "drifts": 30,
-      "hits": 14
+      "hits": 23
     },
     "burst_switcher": {
       "sessions": 9,
       "frames": 14097,
       "baseRate": 0.0511,
-      "falsePositiveRateAtNudge": 0.0134,
-      "falsePositiveRateAtPrearm": 0.0057,
-      "falsePrearmsPerHour": 0.722,
+      "falsePositiveRateAtNudge": 0.0114,
+      "falsePositiveRateAtPrearm": 0.0064,
+      "falsePrearmsPerHour": 0.9626,
       "drifts": 24,
-      "hits": 18
+      "hits": 17
     },
     "grinder": {
       "sessions": 10,
@@ -664,7 +704,7 @@
       "sessions": 7,
       "frames": 13601,
       "baseRate": 0,
-      "falsePositiveRateAtNudge": 0,
+      "falsePositiveRateAtNudge": 0.0004,
       "falsePositiveRateAtPrearm": 0,
       "falsePrearmsPerHour": 0,
       "drifts": 0,
@@ -684,85 +724,109 @@
       "sessions": 9,
       "frames": 16115,
       "baseRate": 0.041,
-      "falsePositiveRateAtNudge": 0.016,
-      "falsePositiveRateAtPrearm": 0.0041,
-      "falsePrearmsPerHour": 0.8486,
+      "falsePositiveRateAtNudge": 0.0149,
+      "falsePositiveRateAtPrearm": 0.0056,
+      "falsePrearmsPerHour": 1.6972,
       "drifts": 22,
-      "hits": 11
+      "hits": 9
     }
   },
   "ablation": [
     {
       "key": "fracOther60",
-      "leadAuc20Drop": 0.3548
-    },
-    {
-      "key": "otherDwell30",
-      "leadAuc20Drop": 0.1292
-    },
-    {
-      "key": "switch15",
-      "leadAuc20Drop": 0.1054
-    },
-    {
-      "key": "titleChurn60",
-      "leadAuc20Drop": 0.1023
+      "leadAuc20Drop": 0.4143
     },
     {
       "key": "streak",
-      "leadAuc20Drop": 0.0897
+      "leadAuc20Drop": 0.1226
     },
     {
-      "key": "deskConfStd30",
-      "leadAuc20Drop": 0.0785
+      "key": "otherDwell30",
+      "leadAuc20Drop": 0.1201
     },
     {
-      "key": "deskConfMean30",
-      "leadAuc20Drop": 0.0668
-    },
-    {
-      "key": "switch60",
-      "leadAuc20Drop": 0.0481
+      "key": "switch15",
+      "leadAuc20Drop": 0.1082
     },
     {
       "key": "titleChurn30",
-      "leadAuc20Drop": 0.0373
+      "leadAuc20Drop": 0.0627
+    },
+    {
+      "key": "deskSagSlope30",
+      "leadAuc20Drop": 0.0585
+    },
+    {
+      "key": "switch60",
+      "leadAuc20Drop": 0.0434
+    },
+    {
+      "key": "greyLeaky120",
+      "leadAuc20Drop": 0.0414
+    },
+    {
+      "key": "titleChurn60",
+      "leadAuc20Drop": 0.0344
+    },
+    {
+      "key": "deskConfStd30",
+      "leadAuc20Drop": 0.0314
+    },
+    {
+      "key": "dwellShrink30v90",
+      "leadAuc20Drop": 0.0211
     },
     {
       "key": "fracAllow60",
-      "leadAuc20Drop": 0.0189
-    },
-    {
-      "key": "deskPresent30",
-      "leadAuc20Drop": 0.0139
-    },
-    {
-      "key": "priorDrifts",
-      "leadAuc20Drop": 0.0127
-    },
-    {
-      "key": "switchAccel",
-      "leadAuc20Drop": 0.01
+      "leadAuc20Drop": 0.0184
     },
     {
       "key": "distinct60",
-      "leadAuc20Drop": 0.01
+      "leadAuc20Drop": 0.0167
+    },
+    {
+      "key": "titleChurnAccel",
+      "leadAuc20Drop": 0.0158
     },
     {
       "key": "sinceBlock",
-      "leadAuc20Drop": 0.0067
-    },
-    {
-      "key": "sessionMin",
-      "leadAuc20Drop": 0.0046
+      "leadAuc20Drop": 0.0113
     },
     {
       "key": "deskFlicker60",
-      "leadAuc20Drop": -0.0007
+      "leadAuc20Drop": 0.0111
+    },
+    {
+      "key": "deskPresent30",
+      "leadAuc20Drop": 0.006
+    },
+    {
+      "key": "switchAccel",
+      "leadAuc20Drop": 0.0055
+    },
+    {
+      "key": "deskConfDrop120",
+      "leadAuc20Drop": 0.0055
+    },
+    {
+      "key": "sessionMin",
+      "leadAuc20Drop": 0.0045
+    },
+    {
+      "key": "absenceRun60",
+      "leadAuc20Drop": 0.0004
+    },
+    {
+      "key": "priorDrifts",
+      "leadAuc20Drop": 0.0003
     },
     {
       "key": "dwellCur",
-      "leadAuc20Drop": -0.0018
+      "leadAuc20Drop": -0.0051
+    },
+    {
+      "key": "deskConfMean30",
+      "leadAuc20Drop": -0.0062
     }
   ],
   "thresholdParity": {
@@ -770,14 +834,14 @@
     "prearm": 0.8,
     "source": "DEFAULT_SETTINGS"
   },
-  "provenanceSha": "eaf9ee7d5fd5fd3bdd866ff46a37d34a2b2a6b08862962ef40afb2e395c31295",
+  "provenanceSha": "500f138b723a0a91e95c70b508f4c19d26a12a61c6a67e16107e5435feb5ea87",
   "provenance": {
     "manifest": {
       "version": 1,
-      "createdAt": "2026-09-12T18:04:42.751Z",
+      "createdAt": "2026-09-13T00:24:40.298Z",
       "seed": 42,
-      "mode": "offline-fallback",
-      "gitCommit": "712f10f",
+      "mode": "offline",
+      "gitCommit": "40f93b7",
       "counts": {
         "sessions": {
           "synthetic": 240,
@@ -808,10 +872,10 @@
         "rawFrames": 536375
       },
       "adaption": {
-        "attempted": true,
+        "attempted": false,
         "ok": false,
-        "httpStatus": 403,
-        "error": "POST /datasets HTTP 403: {\"statusCode\":403,\"error\":\"Forbidden\",\"message\":\"Invalid token. Please sign in\"}",
+        "httpStatus": null,
+        "error": null,
         "datasetId": null,
         "augmentedDatasetId": null,
         "mergedRows": 0,
@@ -843,9 +907,9 @@
         ],
         "selectionMetric": "train-internal val lead-censored (≥20s) ROC-AUC"
       },
-      "arch": "GLM lr18+pairwise (18 features → 189 terms → 1 logit)",
-      "basisSha": "911f37f1",
-      "paramCount": 190,
+      "arch": "GLM lr24+pairwise (24 features → 324 terms → 1 logit)",
+      "basisSha": "bb024dd8",
+      "paramCount": 325,
       "optimizer": "L-BFGS (m=10, Armijo backtracking), weighted BCE + L2, bias unpenalized",
       "rows": {
         "fit": 120200,
@@ -855,290 +919,291 @@
       "selected": {
         "lambda": 0.00001,
         "posWeightPower": 1,
-        "valLeadAuc20": 0.958575,
-        "valRocAuc": 0.964884
+        "valLeadAuc20": 0.963707,
+        "valRocAuc": 0.970302
       },
       "referenceLr18": {
-        "params": 19,
+        "basis": "lr24",
+        "params": 25,
         "lambda": 0.0001,
         "posWeightPower": 1,
-        "valLeadAuc20": 0.929895,
-        "valRocAuc": 0.946663
+        "valLeadAuc20": 0.931746,
+        "valRocAuc": 0.949707
       },
       "sweep": [
         {
           "lambda": 1,
           "posPower": 0,
-          "valLeadAuc20": 0.882878,
+          "valLeadAuc20": 0.901772,
+          "iters": 13
+        },
+        {
+          "lambda": 0.1,
+          "posPower": 0,
+          "valLeadAuc20": 0.912691,
           "iters": 14
         },
         {
-          "lambda": 0.1,
-          "posPower": 0,
-          "valLeadAuc20": 0.899957,
-          "iters": 13
-        },
-        {
           "lambda": 0.01,
           "posPower": 0,
-          "valLeadAuc20": 0.913483,
-          "iters": 23
+          "valLeadAuc20": 0.921961,
+          "iters": 28
         },
         {
           "lambda": 0.001,
           "posPower": 0,
-          "valLeadAuc20": 0.914107,
-          "iters": 50
+          "valLeadAuc20": 0.91816,
+          "iters": 55
         },
         {
           "lambda": 0.0001,
           "posPower": 0,
-          "valLeadAuc20": 0.915429,
-          "iters": 81
+          "valLeadAuc20": 0.916334,
+          "iters": 91
         },
         {
           "lambda": 0.00001,
           "posPower": 0,
-          "valLeadAuc20": 0.915891,
-          "iters": 72
+          "valLeadAuc20": 0.916756,
+          "iters": 117
         },
         {
           "lambda": 0.000001,
           "posPower": 0,
-          "valLeadAuc20": 0.915886,
-          "iters": 93
+          "valLeadAuc20": 0.916788,
+          "iters": 126
         },
         {
           "lambda": 1,
           "posPower": 0.5,
-          "valLeadAuc20": 0.894919,
-          "iters": 12
-        },
-        {
-          "lambda": 0.1,
-          "posPower": 0.5,
-          "valLeadAuc20": 0.91194,
-          "iters": 18
-        },
-        {
-          "lambda": 0.01,
-          "posPower": 0.5,
-          "valLeadAuc20": 0.91794,
-          "iters": 33
-        },
-        {
-          "lambda": 0.001,
-          "posPower": 0.5,
-          "valLeadAuc20": 0.921354,
-          "iters": 59
-        },
-        {
-          "lambda": 0.0001,
-          "posPower": 0.5,
-          "valLeadAuc20": 0.92295,
-          "iters": 72
-        },
-        {
-          "lambda": 0.00001,
-          "posPower": 0.5,
-          "valLeadAuc20": 0.922951,
-          "iters": 76
-        },
-        {
-          "lambda": 0.000001,
-          "posPower": 0.5,
-          "valLeadAuc20": 0.922858,
-          "iters": 87
-        },
-        {
-          "lambda": 1,
-          "posPower": 1,
-          "valLeadAuc20": 0.903288,
+          "valLeadAuc20": 0.908434,
           "iters": 13
         },
         {
           "lambda": 0.1,
-          "posPower": 1,
-          "valLeadAuc20": 0.916742,
+          "posPower": 0.5,
+          "valLeadAuc20": 0.920394,
           "iters": 17
         },
         {
           "lambda": 0.01,
-          "posPower": 1,
-          "valLeadAuc20": 0.923767,
-          "iters": 36
+          "posPower": 0.5,
+          "valLeadAuc20": 0.924256,
+          "iters": 31
         },
         {
           "lambda": 0.001,
-          "posPower": 1,
-          "valLeadAuc20": 0.929012,
-          "iters": 59
+          "posPower": 0.5,
+          "valLeadAuc20": 0.922115,
+          "iters": 68
         },
         {
           "lambda": 0.0001,
-          "posPower": 1,
-          "valLeadAuc20": 0.929895,
-          "iters": 62
+          "posPower": 0.5,
+          "valLeadAuc20": 0.923044,
+          "iters": 88
         },
         {
           "lambda": 0.00001,
-          "posPower": 1,
-          "valLeadAuc20": 0.929642,
-          "iters": 64
+          "posPower": 0.5,
+          "valLeadAuc20": 0.923119,
+          "iters": 125
         },
         {
           "lambda": 0.000001,
-          "posPower": 1,
-          "valLeadAuc20": 0.929494,
-          "iters": 57
+          "posPower": 0.5,
+          "valLeadAuc20": 0.923044,
+          "iters": 83
         },
         {
           "lambda": 1,
           "posPower": 1,
-          "valLeadAuc20": 0.928229,
-          "iters": 21
+          "valLeadAuc20": 0.913366,
+          "iters": 12
         },
         {
           "lambda": 0.1,
           "posPower": 1,
-          "valLeadAuc20": 0.942881,
-          "iters": 37
+          "valLeadAuc20": 0.924546,
+          "iters": 15
         },
         {
           "lambda": 0.01,
           "posPower": 1,
-          "valLeadAuc20": 0.951547,
-          "iters": 80
+          "valLeadAuc20": 0.928507,
+          "iters": 40
         },
         {
           "lambda": 0.001,
           "posPower": 1,
-          "valLeadAuc20": 0.954744,
-          "iters": 221
+          "valLeadAuc20": 0.93072,
+          "iters": 70
         },
         {
           "lambda": 0.0001,
           "posPower": 1,
-          "valLeadAuc20": 0.957614,
+          "valLeadAuc20": 0.931746,
+          "iters": 93
+        },
+        {
+          "lambda": 0.00001,
+          "posPower": 1,
+          "valLeadAuc20": 0.931561,
+          "iters": 101
+        },
+        {
+          "lambda": 0.000001,
+          "posPower": 1,
+          "valLeadAuc20": 0.931419,
+          "iters": 95
+        },
+        {
+          "lambda": 1,
+          "posPower": 1,
+          "valLeadAuc20": 0.936418,
+          "iters": 22
+        },
+        {
+          "lambda": 0.1,
+          "posPower": 1,
+          "valLeadAuc20": 0.948132,
+          "iters": 39
+        },
+        {
+          "lambda": 0.01,
+          "posPower": 1,
+          "valLeadAuc20": 0.954951,
+          "iters": 87
+        },
+        {
+          "lambda": 0.001,
+          "posPower": 1,
+          "valLeadAuc20": 0.960969,
+          "iters": 248
+        },
+        {
+          "lambda": 0.0001,
+          "posPower": 1,
+          "valLeadAuc20": 0.963149,
           "iters": 300
         },
         {
           "lambda": 0.00001,
           "posPower": 1,
-          "valLeadAuc20": 0.958575,
+          "valLeadAuc20": 0.963707,
           "iters": 300
         },
         {
           "lambda": 0.000001,
           "posPower": 1,
-          "valLeadAuc20": 0.958342,
+          "valLeadAuc20": 0.963255,
           "iters": 300
         }
       ],
       "calibration": {
-        "a": 0.823592,
-        "b": -3.53982
+        "a": 0.704384,
+        "b": -3.413868
       },
       "topCoefficients": [
         {
-          "term": "deskConfMean30*deskConfStd30",
-          "standardizedWeight": -7.422006,
-          "shippedCoefficient": -126.378839
+          "term": "dwellCur*greyLeaky120",
+          "standardizedWeight": -4.36539,
+          "shippedCoefficient": -108.207466
         },
         {
-          "term": "deskPresent30*deskConfStd30",
-          "standardizedWeight": 5.140706,
-          "shippedCoefficient": 78.355136
+          "term": "otherDwell30*greyLeaky120",
+          "standardizedWeight": 4.242465,
+          "shippedCoefficient": 67.24261
         },
         {
-          "term": "sinceBlock*deskConfMean30",
-          "standardizedWeight": 4.231031,
-          "shippedCoefficient": 50.959349
+          "term": "deskConfMean30*deskSagSlope30",
+          "standardizedWeight": -3.624738,
+          "shippedCoefficient": -56.650777
         },
         {
           "term": "dwellCur*deskConfMean30",
-          "standardizedWeight": 4.194626,
-          "shippedCoefficient": 21.387877
-        },
-        {
-          "term": "deskConfMean30*deskFlicker60",
-          "standardizedWeight": -4.138274,
-          "shippedCoefficient": -26.954628
-        },
-        {
-          "term": "deskConfMean30*sessionMin",
-          "standardizedWeight": 3.636618,
-          "shippedCoefficient": 22.413288
-        },
-        {
-          "term": "switch60*streak",
-          "standardizedWeight": -2.522546,
-          "shippedCoefficient": -20.764434
-        },
-        {
-          "term": "switch60*titleChurn30",
-          "standardizedWeight": 2.456601,
-          "shippedCoefficient": 18.696326
-        },
-        {
-          "term": "otherDwell30*deskConfMean30",
-          "standardizedWeight": 2.437411,
-          "shippedCoefficient": 14.385649
+          "standardizedWeight": 2.881796,
+          "shippedCoefficient": 14.693917
         },
         {
           "term": "fracAllow60*distinct60",
-          "standardizedWeight": 2.389092,
-          "shippedCoefficient": 18.389556
+          "standardizedWeight": 2.852016,
+          "shippedCoefficient": 21.952818
         },
         {
-          "term": "fracOther60*titleChurn60",
-          "standardizedWeight": 2.305135,
-          "shippedCoefficient": 26.391951
+          "term": "otherDwell30*titleChurn30",
+          "standardizedWeight": -2.784563,
+          "shippedCoefficient": -21.342996
         },
         {
-          "term": "deskConfStd30",
-          "standardizedWeight": 2.2623,
-          "shippedCoefficient": 30.485442
+          "term": "otherDwell30*titleChurnAccel",
+          "standardizedWeight": 2.663629,
+          "shippedCoefficient": 37.966848
         },
         {
-          "term": "deskConfMean30*priorDrifts",
-          "standardizedWeight": 2.240276,
-          "shippedCoefficient": 13.702567
+          "term": "fracAllow60*greyLeaky120",
+          "standardizedWeight": 2.531895,
+          "shippedCoefficient": 50.59578
         },
         {
-          "term": "deskConfMean30*titleChurn30",
-          "standardizedWeight": 2.136859,
-          "shippedCoefficient": 8.121979
+          "term": "deskPresent30*dwellShrink30v90",
+          "standardizedWeight": 2.378039,
+          "shippedCoefficient": 16.913977
         },
         {
-          "term": "titleChurn60^2",
-          "standardizedWeight": -2.095627,
-          "shippedCoefficient": -7.552436
+          "term": "dwellCur*fracOther60",
+          "standardizedWeight": 2.322728,
+          "shippedCoefficient": 37.062174
         },
         {
-          "term": "distinct60*titleChurn30",
-          "standardizedWeight": -2.078077,
-          "shippedCoefficient": -13.301235
+          "term": "switch60*streak",
+          "standardizedWeight": -2.193437,
+          "shippedCoefficient": -18.055355
         },
         {
-          "term": "fracAllow60*deskConfStd30",
-          "standardizedWeight": 1.974696,
-          "shippedCoefficient": 24.609449
+          "term": "titleChurn30*dwellShrink30v90",
+          "standardizedWeight": 2.175168,
+          "shippedCoefficient": 20.204266
         },
         {
-          "term": "distinct60*titleChurn60",
-          "standardizedWeight": 1.955224,
-          "shippedCoefficient": 13.036179
+          "term": "otherDwell30^2",
+          "standardizedWeight": -2.161089,
+          "shippedCoefficient": -12.870447
         },
         {
-          "term": "fracAllow60*deskFlicker60",
-          "standardizedWeight": 1.847411,
-          "shippedCoefficient": 9.914538
+          "term": "deskConfStd30*titleChurn60",
+          "standardizedWeight": -2.033634,
+          "shippedCoefficient": -30.028785
         },
         {
-          "term": "deskPresent30",
-          "standardizedWeight": -1.843973,
-          "shippedCoefficient": -29.664199
+          "term": "titleChurnAccel*greyLeaky120",
+          "standardizedWeight": -1.977263,
+          "shippedCoefficient": -73.443477
+        },
+        {
+          "term": "distinct60*priorDrifts",
+          "standardizedWeight": -1.961278,
+          "shippedCoefficient": -33.818554
+        },
+        {
+          "term": "fracAllow60*titleChurnAccel",
+          "standardizedWeight": 1.935892,
+          "shippedCoefficient": 16.618883
+        },
+        {
+          "term": "titleChurn60*dwellShrink30v90",
+          "standardizedWeight": -1.911529,
+          "shippedCoefficient": -20.281773
+        },
+        {
+          "term": "deskPresent30*absenceRun60",
+          "standardizedWeight": -1.828332,
+          "shippedCoefficient": -26.04458
+        },
+        {
+          "term": "switch60*titleChurn30",
+          "standardizedWeight": 1.820261,
+          "shippedCoefficient": 13.853366
         }
       ],
       "operatingPoint": {
@@ -1148,8 +1213,8 @@
           "researchChurnFpr": 0.01,
           "alarmLoadAllowance": 1.15,
           "referenceNudgeRisk": 0.55,
-          "referenceNudgesPerHour": 2.3642,
-          "nudgesPerHourCeiling": 2.7188,
+          "referenceNudgesPerHour": 2.1604,
+          "nudgesPerHourCeiling": 2.4845,
           "falsePrearmsPerHour": 2
         },
         "searchSessions": 192,
@@ -1163,70 +1228,70 @@
           {
             "nudgeRisk": 0.3,
             "prearmRisk": 0.8,
-            "recallAt30sNudge": 0.7438,
-            "recallAt30sPrearm": 0.5413,
-            "nudgesPerHour": 3.1386,
-            "falsePrearmsPerHour": 0.4789,
-            "researchChurnFprAtNudge": 0.000127,
+            "recallAt30sNudge": 0.7066,
+            "recallAt30sPrearm": 0.5455,
+            "nudgesPerHour": 3.0673,
+            "falsePrearmsPerHour": 0.428,
+            "researchChurnFprAtNudge": 0.000146,
             "admissible": false
           },
           {
             "nudgeRisk": 0.35,
             "prearmRisk": 0.8,
-            "recallAt30sNudge": 0.7314,
-            "recallAt30sPrearm": 0.5413,
-            "nudgesPerHour": 2.9858,
-            "falsePrearmsPerHour": 0.4993,
+            "recallAt30sNudge": 0.6901,
+            "recallAt30sPrearm": 0.5372,
+            "nudgesPerHour": 2.8431,
+            "falsePrearmsPerHour": 0.428,
             "researchChurnFprAtNudge": 0.000109,
             "admissible": false
           },
           {
             "nudgeRisk": 0.4,
             "prearmRisk": 0.8,
-            "recallAt30sNudge": 0.7066,
+            "recallAt30sNudge": 0.6653,
             "recallAt30sPrearm": 0.5372,
-            "nudgesPerHour": 2.8227,
-            "falsePrearmsPerHour": 0.5095,
-            "researchChurnFprAtNudge": 0.000073,
+            "nudgesPerHour": 2.6087,
+            "falsePrearmsPerHour": 0.4484,
+            "researchChurnFprAtNudge": 0.000109,
             "admissible": false
           },
           {
             "nudgeRisk": 0.45,
             "prearmRisk": 0.8,
-            "recallAt30sNudge": 0.686,
-            "recallAt30sPrearm": 0.5372,
-            "nudgesPerHour": 2.6597,
-            "falsePrearmsPerHour": 0.5197,
-            "researchChurnFprAtNudge": 0.000055,
+            "recallAt30sNudge": 0.6364,
+            "recallAt30sPrearm": 0.5331,
+            "nudgesPerHour": 2.4559,
+            "falsePrearmsPerHour": 0.4586,
+            "researchChurnFprAtNudge": 0.000091,
             "admissible": true
           },
           {
             "nudgeRisk": 0.5,
             "prearmRisk": 0.8,
-            "recallAt30sNudge": 0.6529,
-            "recallAt30sPrearm": 0.5372,
-            "nudgesPerHour": 2.4763,
-            "falsePrearmsPerHour": 0.5401,
+            "recallAt30sNudge": 0.6281,
+            "recallAt30sPrearm": 0.5331,
+            "nudgesPerHour": 2.354,
+            "falsePrearmsPerHour": 0.4586,
             "researchChurnFprAtNudge": 0.000055,
             "admissible": true
           },
           {
             "nudgeRisk": 0.55,
             "prearmRisk": 0.8,
-            "recallAt30sNudge": 0.6446,
+            "recallAt30sNudge": 0.6033,
             "recallAt30sPrearm": 0.5331,
-            "nudgesPerHour": 2.3642,
-            "falsePrearmsPerHour": 0.5503,
+            "nudgesPerHour": 2.1604,
+            "falsePrearmsPerHour": 0.4688,
             "researchChurnFprAtNudge": 0.000055,
             "admissible": true
           },
           {
             "nudgeRisk": 0.6,
             "prearmRisk": 0.8,
-            "recallAt30sNudge": 0.5992,
-            "recallAt30sPrearm": 0.5331,
-            "nudgesPerHour": 2.0788,
-            "falsePrearmsPerHour": 0.5503,
+            "recallAt30sNudge": 0.5826,
+            "recallAt30sPrearm": 0.5289,
+            "nudgesPerHour": 1.7935,
+            "falsePrearmsPerHour": 0.4789,
             "researchChurnFprAtNudge": 0.000036,
             "admissible": true
           },
@@ -1234,20 +1299,20 @@
             "nudgeRisk": 0.65,
             "prearmRisk": 0.8,
             "recallAt30sNudge": 0.5702,
-            "recallAt30sPrearm": 0.5207,
-            "nudgesPerHour": 1.7222,
-            "falsePrearmsPerHour": 0.5605,
-            "researchChurnFprAtNudge": 0.000018,
+            "recallAt30sPrearm": 0.5289,
+            "nudgesPerHour": 1.3349,
+            "falsePrearmsPerHour": 0.4891,
+            "researchChurnFprAtNudge": 0.000036,
             "admissible": true
           },
           {
             "nudgeRisk": 0.7,
             "prearmRisk": 0.8,
-            "recallAt30sNudge": 0.5413,
-            "recallAt30sPrearm": 0.5165,
-            "nudgesPerHour": 1.1821,
-            "falsePrearmsPerHour": 0.5809,
-            "researchChurnFprAtNudge": 0,
+            "recallAt30sNudge": 0.5372,
+            "recallAt30sPrearm": 0.5289,
+            "nudgesPerHour": 0.8254,
+            "falsePrearmsPerHour": 0.5095,
+            "researchChurnFprAtNudge": 0.000018,
             "admissible": true
           }
         ]

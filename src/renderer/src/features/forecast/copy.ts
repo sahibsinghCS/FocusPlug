@@ -12,7 +12,7 @@ export interface FeatureCopyCtx {
   greyApp?: string;
 }
 
-/** Short technical labels for the full 18-bar grid (fit a 112px lane). */
+/** Short technical labels for the full attribution grid (fit a 112px lane). */
 export const FEATURE_SHORT_LABELS: Record<ForecastFeatureKey, string> = {
   switch15: "switches 15s",
   switch60: "switches 60s",
@@ -32,6 +32,12 @@ export const FEATURE_SHORT_LABELS: Record<ForecastFeatureKey, string> = {
   priorDrifts: "prior drifts",
   titleChurn30: "tab flips 30s",
   titleChurn60: "tab flips 60s",
+  deskSagSlope30: "desk sag rate",
+  dwellShrink30v90: "dwell shrink",
+  titleChurnAccel: "flip accel",
+  greyLeaky120: "grey leak 120s",
+  absenceRun60: "absence run",
+  deskConfDrop120: "conf drop 2 min",
 };
 
 function pct(x: number): string {
@@ -119,6 +125,26 @@ export function featurePhrase(
       return raw >= 1
         ? `Tab flicking (${Math.round(raw)} flips in 60 s)`
         : "No tab flicking (60 s)";
+    case "deskSagSlope30":
+      return raw > 0.05
+        ? `Desk confidence sagging (−${pct(Math.min(1, raw))}/min)`
+        : "Desk confidence steady";
+    case "dwellShrink30v90":
+      return raw >= 1.5
+        ? `Dwells shrinking (×${raw.toFixed(1)} vs 90 s)`
+        : `Dwells holding (×${raw.toFixed(1)} vs 90 s)`;
+    case "titleChurnAccel":
+      return raw >= 1.5
+        ? `Tab flipping speeding up (×${raw.toFixed(1)})`
+        : `Tab flipping steady (×${raw.toFixed(1)})`;
+    case "greyLeaky120":
+      return `Grey occupancy, 2-min leak (${pct(raw)})`;
+    case "absenceRun60":
+      return raw >= 1 ? `Longest absence ${secs(raw)} (60 s)` : "No absence in 60 s";
+    case "deskConfDrop120":
+      return raw > 0.02
+        ? `Desk confidence down ${pct(raw)} vs 2 min ago`
+        : "Desk confidence level vs 2 min ago";
     default: {
       const _exhaustive: never = key;
       void _exhaustive;

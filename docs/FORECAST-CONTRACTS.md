@@ -5,20 +5,30 @@
 ## 1. New shared types — `src/shared/forecast/types.ts` (complete source)
 
 ```ts
-import type { Decision } from "../types";
-
 export const FORECAST_HORIZON_SEC = 30;
 export const FORECAST_WARMUP_SEC = 15;
 export const FORECAST_MODEL_VERSION = "ff-1";
 
 export type ForecastBand = "calm" | "elevated" | "prearm";
 
+/**
+ * Feature keys, in basis order. Indices 0–17 are the original LEVEL block
+ * (counts, fractions, means, σ over one fixed window); 18–23 are the TREND
+ * block (a slope, two short-vs-long rate ratios, a leaky occupancy, a run
+ * length, a two-window drop) that the level aggregates flatten by
+ * construction — see `features.ts` for what each one is and why it is here.
+ * The list is APPEND-ONLY: an existing index never moves, so a stale
+ * `weights.json` fails on `basisSha` rather than silently mapping
+ * coefficients onto the wrong inputs.
+ */
 export type ForecastFeatureKey =
   | "switch15" | "switch60" | "switchAccel" | "dwellCur"
   | "fracAllow60" | "fracOther60" | "otherDwell30" | "distinct60"
   | "sinceBlock" | "streak" | "deskPresent30" | "deskConfMean30"
   | "deskConfStd30" | "deskFlicker60" | "sessionMin" | "priorDrifts"
-  | "titleChurn30" | "titleChurn60";
+  | "titleChurn30" | "titleChurn60"
+  | "deskSagSlope30" | "dwellShrink30v90" | "titleChurnAccel"
+  | "greyLeaky120" | "absenceRun60" | "deskConfDrop120";
 
 export const FORECAST_FEATURE_KEYS: readonly ForecastFeatureKey[] = [
   "switch15", "switch60", "switchAccel", "dwellCur",
@@ -26,6 +36,8 @@ export const FORECAST_FEATURE_KEYS: readonly ForecastFeatureKey[] = [
   "sinceBlock", "streak", "deskPresent30", "deskConfMean30",
   "deskConfStd30", "deskFlicker60", "sessionMin", "priorDrifts",
   "titleChurn30", "titleChurn60",
+  "deskSagSlope30", "dwellShrink30v90", "titleChurnAccel",
+  "greyLeaky120", "absenceRun60", "deskConfDrop120",
 ];
 
 export interface ForecastFeatureView {
@@ -44,14 +56,14 @@ export interface ForecastSnapshot {
   logit: number;                // pre-calibration z
   band: ForecastBand;
   horizonSec: number;           // FORECAST_HORIZON_SEC
-  features: ForecastFeatureView[]; // length 18, FORECAST_FEATURE_KEYS order
-  hidden: number[];             // length 18 (FORECAST_INPUT_DIM), tanh of each feature's
+  features: ForecastFeatureView[]; // one per FORECAST_FEATURE_KEYS entry, in that order
+  hidden: number[];             // length FORECAST_INPUT_DIM, tanh of each feature's
                                 // summed basis-term contribution — the GLM's term-group strip
   prearmedAt: number | null;    // epoch ms, null unless pre-armed
   effectiveFuseSec: number;     // countdownSec policy sees this step (latched during a burn)
   baseFuseSec: number;          // settings.countdownSec
   modelVersion: string;         // FORECAST_MODEL_VERSION
-  paramCount: number;           // 190
+  paramCount: number;           // FORECAST_PARAM_COUNT
 }
 
 export type ForecastEvent =
@@ -65,7 +77,7 @@ export type DriftType = "tab_out" | "walk_away";
 
 /**
  * One basis term of the shipped GLM: `x_i` when `j` is null, `x_i · x_j`
- * otherwise (`i === j` ⇒ the square). The canonical 189-term list lives in
+ * otherwise (`i === j` ⇒ the square). The canonical term list lives in
  * `model.ts` as `FORECAST_TERMS` and is built by the same code the trainer
  * imports — basis skew between train and serve is impossible by construction.
  */
@@ -80,20 +92,21 @@ export interface ForecastWeightsFile {
   createdAt: string;            // ISO
   seed: number;
   featureKeys: ForecastFeatureKey[];       // must deep-equal FORECAST_FEATURE_KEYS
-  norm: { mean: number[]; scale: number[] }; // length 18 each — train-split feature stats.
+  norm: { mean: number[]; scale: number[] }; // one entry per feature — train-split stats.
                                 // `mean` is the occlusion baseline the attributions use;
                                 // `scale` is published dispersion. The model's own
                                 // standardizer is folded into `coefficients`/`intercept`,
                                 // so the forward pass needs neither.
-  basis: string;                // FORECAST_BASIS — "lr18+pairwise"
+  basis: string;                // FORECAST_BASIS — `lr{FORECAST_INPUT_DIM}+pairwise`
   basisSha: string;             // FORECAST_BASIS_SHA: fnv1a32 of the canonical term names
-  coefficients: number[];       // length 189, FORECAST_TERMS order (standardizer folded in)
+  coefficients: number[];       // length FORECAST_TERM_COUNT, FORECAST_TERMS order
+                                // (standardizer folded in)
   intercept: number;            // bias, standardizer folded in
   calibration: { a: number; b: number };   // Platt, fit on validation
   horizonSec: number;           // 30
   thresholds: { nudge: number; prearm: number; clear: number }; // evaluated operating point;
                                 // eval.ts asserts nudge/prearm match DEFAULT_SETTINGS forecast keys
-  paramCount: number;           // 190 = 189 coefficients + intercept
+  paramCount: number;           // FORECAST_PARAM_COUNT = coefficients + intercept
   trainProvenanceSha: string;   // sha256 of embedded provenance in eval-report.json
 }
 
@@ -199,13 +212,15 @@ onForecastEvent(cb: (event: ForecastEvent) => void): () => void;
 
 ## 4. Dataset JSONL schema — `data/forecast/dataset.jsonl` (one object per 1 Hz frame)
 
-Fields: `v` (schema version, 1) · `session_id` (string; split key) · `source` ∈ `"synthetic" | "recorded" | "augmented:local" | "augmented:adaption" | "invented:adaption"` · `archetype` (string; `"unknown"` for recorded) · `split` ∈ `"train" | "eval"` (assigned per SESSION, never per frame) · `t` (seconds since session start) · `features` (18 floats, `FORECAST_FEATURE_KEYS` order, encoded pre-normalization) · `raw` (human-unit map, debugging + prompt building) · `label` (0|1: drift onset within next 30 s) · `secs_to_drift` (number|null) · `drift_type` (`"tab_out" | "walk_away" | null`) · `prompt` (string; deterministic compact serialization for Adaption `column_mapping`) · `completion` (`"DRIFT" | "STAY"`).
+Fields: `v` (schema version, 1) · `session_id` (string; split key) · `source` ∈ `"synthetic" | "recorded" | "augmented:local" | "augmented:adaption" | "invented:adaption"` · `archetype` (string; `"unknown"` for recorded) · `split` ∈ `"train" | "eval"` (assigned per SESSION, never per frame) · `t` (seconds since session start) · `features` (one float per `FORECAST_FEATURE_KEYS` entry — 24 today, in that order, encoded pre-normalization; the key list is APPEND-ONLY so an existing index never moves) · `raw` (human-unit map, debugging + prompt building) · `label` (0|1: drift onset within next 30 s) · `secs_to_drift` (number|null) · `drift_type` (`"tab_out" | "walk_away" | null`) · `prompt` (string; deterministic compact serialization for Adaption `column_mapping`) · `completion` (`"DRIFT" | "STAY"`).
 
 Example line (single line in the file):
 
 ```json
-{"v":1,"session_id":"syn-000042","source":"synthetic","archetype":"burst_switcher","split":"train","t":913,"features":[0.375,0.45,0.62,0.21,0.55,0.30,0.40,0.375,0.18,0.33,0.92,0.87,0.12,0.0,0.30,0.2,0.5,0.42],"raw":{"switch15":3,"switch60":9,"switchAccel":2.5,"dwellCur":11,"fracAllow60":0.55,"fracOther60":0.30,"otherDwell30":12,"distinct60":3,"sinceBlock":600,"streak":41,"deskPresent30":0.92,"deskConfMean30":0.87,"deskConfStd30":0.03,"deskFlicker60":0,"sessionMin":15.2,"priorDrifts":1,"titleChurn30":6,"titleChurn60":10},"label":1,"secs_to_drift":17,"drift_type":"tab_out","prompt":"fp-forecast v1 | sw15=3 sw60=9 acc=2.5 dwell=11 allow60=0.55 other60=0.30 od30=12 dis=3 sb=600 stk=41 dp30=0.92 dc30=0.87 ds30=0.03 df60=0 min=15.2 pd=1 tc30=6 tc60=10","completion":"DRIFT"}
+{"v":1,"session_id":"syn-000096","source":"synthetic","archetype":"burst_switcher","split":"train","t":169,"features":[0.625,0.5,0.485849,0.247733,0.8,0.2,0.4,0.625,0,0.211463,1,0.873633,0.219496,0,0.056333,0,0.666667,0.375,0.08931,0.708716,0.432292,0.118369,0,0],"raw":{"switch15":5,"switch60":10,"switchAccel":1.9434,"dwellCur":3.88,"fracAllow60":0.8,"fracOther60":0.2,"otherDwell30":12,"distinct60":5,"sinceBlock":600,"streak":3.88,"deskPresent30":1,"deskConfMean30":0.8736,"deskConfStd30":0.0549,"deskFlicker60":0,"sessionMin":2.8167,"priorDrifts":0,"titleChurn30":8,"titleChurn60":9,"deskSagSlope30":0.1072,"dwellShrink30v90":2.8349,"titleChurnAccel":1.7292,"greyLeaky120":0.1184,"absenceRun60":0,"deskConfDrop120":0},"label":1,"secs_to_drift":18,"drift_type":"tab_out","prompt":"fp-forecast v1 | sw15=5 sw60=10 acc=1.94 dwell=3.88 allow60=0.8 other60=0.2 od30=12 dis=5 sb=600 stk=3.88 dp30=1 dc30=0.87 ds30=0.05 df60=0 min=2.82 pd=0 tc30=8 tc60=9 sag=0.11 dsh=2.83 tca=1.73 gl120=0.12 arun=0 dcd=0","completion":"DRIFT"}
 ```
+
+The `prompt` short names, in `FORECAST_FEATURE_KEYS` order (`scripts/forecast/lib.ts`, `PROMPT_FIELDS`): `sw15 sw60 acc dwell allow60 other60 od30 dis sb stk dp30 dc30 ds30 df60 min pd tc30 tc60` for the level block, then `sag dsh tca gl120 arun dcd` for the trend block. `lib.encodeRaw` re-encodes a parsed prompt with the same formulas `extractFeatures` uses and `build-dataset.ts` asserts the two agree to 1e-9 on every run; `lib.RAW_BOUNDS` gives a `[min, max]` in human units for EVERY key and `rawInBounds` throws if the table ever misses one, so a new feature cannot ship without a validation range for untrusted downloaded rows.
 
 Recorder output (`<userData>/forecast-sessions/<sessionId>.jsonl`, `FOCUSPLUG_FORECAST_RECORD=1`): same frame fields with `label`/`secs_to_drift`/`drift_type` as `null` (filled offline by build-dataset) and process/title identity present only as FNV-1a hashes (`procHash`, `titleHash`) — never raw strings.
 
@@ -217,10 +232,14 @@ Recorder output (`<userData>/forecast-sessions/<sessionId>.jsonl`, `FOCUSPLUG_FO
 "forecast:train":    "tsx --tsconfig tsconfig.node.json scripts/forecast/train.ts",
 "forecast:eval":     "tsx --tsconfig tsconfig.node.json scripts/forecast/eval.ts",
 "forecast:pipeline": "npm run forecast:simulate && npm run forecast:data && npm run forecast:train && npm run forecast:eval",
+"forecast:features":         "tsx --tsconfig tsconfig.node.json scripts/forecast/feature-mine.ts",
+"forecast:features:confirm": "tsx ... scripts/forecast/feature-confirm.ts --sets \"...\"",
+"forecast:features:abtest":  "tsx --tsconfig tsconfig.node.json scripts/forecast/feature-abtest.ts",
+"forecast:fixtures":         "tsx --tsconfig tsconfig.node.json scripts/forecast/make-fixtures.ts",
 "test:forecast":     "vitest run src/shared/forecast src/main/forecast src/renderer/src/features/forecast",
 "forecast:preview":  "vite --config scripts/forecast-preview.vite.ts"
 ```
-Flags: `forecast:data -- --adaption` (sponsor path, auto-fallback on non-2xx, exit 0); `forecast:eval -- --gate=off` (bypasses the gate and stamps `"gate":{"enforced":false}` into eval-report.json). **Amended after the bake-off:** the gate baseline is the FULL 18-feature multivariate logistic (strongest of a class-weighted GD fit and an L-BFGS-converged one), required margin 0 — not the old "+0.03 over the best single-feature logistic", which is still printed as context. See docs/FORECAST.md § Stage 4.
+Flags: `forecast:data -- --adaption` (sponsor path, auto-fallback on non-2xx, exit 0); `forecast:eval -- --gate=off` (bypasses the gate and stamps `"gate":{"enforced":false}` into eval-report.json). **Amended after the bake-off:** the gate baseline is the FULL multivariate logistic on the SAME feature basis the shipped head sees (strongest of a class-weighted GD fit and an L-BFGS-converged one), required margin 0 — so growing `FORECAST_FEATURE_KEYS` raises the bar as well as the model — not the old "+0.03 over the best single-feature logistic", which is still printed as context. See docs/FORECAST.md § Stage 4.
 
 ## 6. Definitive file list
 
@@ -246,3 +265,4 @@ NEW — scripts/docs/data: `scripts/forecast/{lib,simulate,build-dataset,adaptio
 MODIFIED (exhaustive): `src/shared/ipc.ts` (channels, maps, api, 5 settings keys, re-exports) · `src/shared/defaults.ts` (5 defaults) · `src/main/store/appStore.ts` (normalizeSettings clamps) · `src/main/session/controller.ts` (`forecast?: ForecastHook` option; `beforeStep` call in `evaluateOnce`; optional `countdownOverrideSec` param on `buildPolicyInput`; `requirePatch` keys) · `src/main/session/runtime.ts` (construct + wrap + pass hook) · `src/main/index.ts` (FORECAST_GET_STATE handler, two push broadcasts) · `src/preload/index.ts` + `index.d.ts` · `src/renderer/src/state/AppState.tsx` · `src/renderer/src/pages/SessionPage.tsx` · `src/renderer/src/pages/SettingsPage.tsx` (cuttable) · `src/renderer/src/features/session/model.ts` (add `"forecast"` to `PREVIEW_KINDS`; `kind === "forecast" → "cause"` branch in `classifySessionEvent`) · `src/renderer/src/features/session/SessionClock.tsx` (pre-arm plate + 10s→5s chip) · `src/renderer/src/components/CountdownOverlay.tsx` (optional `forecastLeadSec` receipt line) · `src/renderer/src/lib/mockApi.ts` · `package.json` · `.gitignore` (`data/`) · `docs/CONTRACTS.md` (append-only "## Focus Forecast (Phase 4)" section BELOW the frozen Types fence)
 
 UNTOUCHED (asserted by tests/CI): `src/shared/types.ts` · `src/shared/policy/**` · `src/main/session/push.ts` (`SessionPush` unchanged) · `src/main/kill/**` · `src/main/desk/**` · `src/main/plugs/**` · the CONTRACTS.md Types fence.
+Feature-selection scripts (train-split only, never gating): `scripts/forecast/feature-mine.ts` (backward elimination on an additive logistic → `data/forecast/feature-mine.json`) · `feature-confirm.ts` (the same candidate sets re-fitted on the SHIPPED pairwise basis → `feature-confirm.json`) · `feature-abtest.ts` (paired session-clustered before/after on the eval split, reporting only → `feature-abtest.json`) · `make-fixtures.ts` (regenerates the width-dependent halves of `fixtures/golden.json`; refuses to overwrite a previously pinned value).

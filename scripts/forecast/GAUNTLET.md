@@ -1,8 +1,8 @@
 # Focus Forecast model — gauntlet log
 
 **Bar (raised in round 8):** on held-out sessions the shipped forecast head
-must beat the **full 18-feature multivariate logistic regression** on
-**lead-censored ROC-AUC** (frames whose nearest drift onset is ≥ 20 s away vs
+must beat the **full multivariate logistic regression on the same feature
+basis** on **lead-censored ROC-AUC** (frames whose nearest drift onset is ≥ 20 s away vs
 calm frames — prediction, not detection), with per-archetype slices published,
 `research_churn` false-positive rates called out, ECE reported, and the alarm
 simulation run through the SHIPPED escalation reducer at the SHIPPED default
@@ -258,6 +258,209 @@ ECE (0.0066 vs 0.0053) and false pre-arms (0.59/h vs 0.35/h, still far under
 the < 2/h budget). **Pre-arm recall is unchanged within noise (0.5513 vs
 0.5641) — this swap does not fix the pre-arm problem, and no contender did.**
 Wanderer is still the weak family. Nothing here was tuned on eval sessions.
+
+## Round 9 — the trend block: features, not architecture (SHIPPED)
+
+Round 8's own conclusion was that the highest-value follow-up was **features**:
+the `hybrid` contender's ablation ladder moved a plain logistic
+0.9325 → 0.9408 using only extras read off the existing `TelemetryRing`, while
+its architecture alone scored 0.9313 — *below* the plain logistic. This round
+cashes that in. `FORECAST_FEATURE_KEYS` grows 18 → **24** and the shipped head
+is refitted on the wider basis: `lr24+pairwise`, 324 terms, **325 parameters**.
+
+**The gap being closed.** Every one of the original eighteen features is a
+LEVEL over one fixed window — a count, a fraction, a mean, a σ. A window mean
+is exactly the statistic that destroys a trend: a desk confidence sliding
+0.90 → 0.50 across 30 s and one sitting flat at 0.70 have the same
+`deskConfMean30`. The six new features are slopes, short-vs-long rate ratios, a
+leaky occupancy, a run length and a two-window drop. **No new telemetry, no new
+permission, no new IPC** — same 600-frame ring, same 128-transition list, same
+session scalars, all through the same `extractFeatures` the trainer and the
+runtime share.
+
+### The protocol (train-split only, twice)
+
+Thirteen candidates were proposed: the three round 8 named, three more of
+hybrid's seven, and seven new ones. Selection never opened the eval split or
+`data/forecast/holdout/`.
+
+- **inner-val = 20 % of the SYNTHETIC train sessions** (38 sessions, 20 077
+  rows, 19 260 lead-eligible frames, 473 lead-eligible positives), seeded.
+  Every `augmented:local` session is forced inner-FIT — a jittered twin sitting
+  opposite its parent would leak the answer.
+- **Pass 1, `feature-mine.ts`** — backward elimination on an ADDITIVE L2
+  logistic, keep while dropping costs ≥ 0.0005 inner-val lead≥20s AUC. Additive
+  on purpose: over a `d(d+1)/2` basis a feature can earn its keep through 30
+  interaction terms fitted on the rows that judge it, which is the classic way
+  to select noise. A feature that cannot pay for one column does not get 25.
+- **Pass 2, `feature-confirm.ts`** — the survivors *and* the borderline rejects
+  re-fitted on the SHIPPED pairwise basis, same split, same metric. A feature
+  can be worthless additively and valuable in a product; that has to be asked
+  on the basis that actually ships.
+
+Both passes reproduce with `npm run forecast:features` /
+`npm run forecast:features:confirm`. The seven retired candidates still live in
+`scripts/forecast/trend-candidates.ts` — deleting them would make the rejection
+table unreproducible.
+
+### Pass 1 — additive ladder (inner-val lead≥20s, 1 000-draw paired bootstrap)
+
+| feature set | d | AUC | Δ vs base-18 | 95 % CI | p(Δ≤0) |
+| --- | --- | --- | --- | --- | --- |
+| base-18 (the shipped level block) | 18 | 0.8821 | — | — | — |
+| + the 3 round 8 nominated | 21 | 0.8952 | +0.0130 | [−0.0002, +0.0265] | 0.027 |
+| + the 5 the audit kept | 23 | **0.9012** | **+0.0190** | **[+0.0056, +0.0320]** | **0.004** |
+| + all 13 candidates | 31 | 0.8963 | +0.0141 | [−0.0046, +0.0401] | 0.090 |
+
+**This is the first resolved margin in the whole gauntlet.** Every model-family
+margin in round 8 died inside its own interval; +0.0190 with a CI that excludes
+zero does not. Note also that all-13 scores *below* kept-5: the eight rejects
+are not free, they are negative.
+
+Per kept feature, additive (leave-one-out refit vs occlusion — the two answer
+different questions and are printed side by side):
+
+| feature | LOO refit drop | occlusion drop |
+| --- | --- | --- |
+| `deskSagSlope30` | +0.0102 | +0.0158 |
+| `deskConfDrop120` | +0.0044 | +0.0025 |
+| `absenceRun60` | +0.0030 | +0.0014 |
+| `dwellShrink30v90` | +0.0011 | −0.0002 |
+| `greyLeaky120` | +0.0009 | +0.0059 |
+
+### Pass 2 — the same question on the SHIPPED pairwise basis
+
+| feature set | d | terms | AUC | Δ vs base-18 |
+| --- | --- | --- | --- | --- |
+| base-18 | 18 | 189 | 0.8866 | — |
+| the 3 round 8 nominated | 21 | 252 | 0.8994 | +0.0129 |
+| the 5 the additive audit kept | 23 | 299 | 0.8941 | +0.0076 |
+| **their union — 6, SHIPPED** | **24** | **324** | **0.9039** | **+0.0173** [−0.0008, +0.0359] p 0.033 |
+| all 13 | 31 | 527 | 0.9049 | +0.0183 |
+
+The two passes disagree, and the disagreement is the finding:
+**`titleChurnAccel` pays nothing additively (−0.0001 added back to the kept
+set) and +0.0097 on the pairwise basis** — it is worth a column only because
+the basis multiplies it by everything else. That is round 8's "ship the
+interactions, skip the hidden layer" conclusion showing up one level down, in
+feature selection. The union of the two passes is what ships; all-13 buys
++0.0011 more for 203 extra terms, which is not a trade.
+
+Cost of dropping each shipped feature from the union, on the pairwise basis:
+
+| feature | Δ if dropped |
+| --- | --- |
+| `titleChurnAccel` | +0.0097 |
+| `dwellShrink30v90` | +0.0051 |
+| `absenceRun60` | +0.0037 |
+| `deskSagSlope30` | +0.0026 |
+| `greyLeaky120` | +0.0026 |
+| `deskConfDrop120` | −0.0001 |
+
+`deskConfDrop120` is the marginal one and is kept on the additive audit's
+verdict (+0.0044 LOO): −0.0001 is not a cost, and dropping columns on
+inner-val deltas that small is the overfitting this protocol exists to avoid.
+
+### The rejects (as publishable as the keeps)
+
+What each would add to the kept set, additively, and its occlusion inside the
+all-13 fit:
+
+| rejected | adds to kept set | occlusion in all-13 | why it was proposed |
+| --- | --- | --- | --- |
+| `otherFrac180` | +0.0004 | +0.0028 | hybrid's loiter-depth window; `greyLeaky120` carries depth more smoothly |
+| `greyRun` | +0.0002 | +0.0014 | age of the current off-list run; same information, harder edge |
+| `newApps30` | +0.0001 | +0.0018 | novel-app count: exploration vs cycling |
+| `repeatRatio60` | −0.00001 | +0.0093 | switches per distinct app; spanned by `distinct60` × `switch60` |
+| `titleChurnAccel`\* | −0.0001 | +0.0001 | *rescued by pass 2 — see above* |
+| `allowSlip30v150` | −0.0002 | +0.0058 | allowlisted-share collapse |
+| `switchAccel60v180` | −0.0014 | +0.0183 | long-baseline switch accel; its 180 s window also truncates against the 128-entry transition ring |
+| `sinceTitleFlip` | −0.0020 | −0.0025 | recency of the last tab flip; actively harmful |
+
+Note how badly occlusion and refit disagree for `repeatRatio60`,
+`allowSlip30v150` and `switchAccel60v180`: each looks important when you blank
+it (the fit leans on it) and is worth nothing when you refit without it (the
+other columns span it). **Occlusion ranks features inside a model; it does not
+decide whether a feature deserves a column.** hybrid's ladder ranked its extras
+by occlusion, which is why its ordering and this one differ.
+
+### Shipped numbers — 48-session eval split, before → after
+
+`auc_before` is the committed artifact at the previous commit; `auc_after` is
+today's. Both heads scored on the SAME rows and the SAME 2 000 resamples by
+`npm run forecast:features:abtest`.
+
+| Metric | before (lr18+pairwise, 190p) | after (lr24+pairwise, 325p) |
+| --- | --- | --- |
+| **lead≥20s AUC (headline)** | **0.9423** | **0.9389** |
+| paired Δ (session-clustered) | — | **−0.0035, 95 % CI [−0.0288, +0.0159], SE 0.0117, p(Δ≤0) 0.59** |
+| lead≥10s AUC | 0.9583 | 0.9558 |
+| ROC-AUC / PR-AUC | 0.9659 / 0.6813 | 0.9631 / 0.6746 |
+| ECE (10-bin) | 0.0066 | 0.0075 |
+| **recall@30s — pre-arm rule** | 0.5513 (43/78) | **0.6282 (49/78)** |
+| recall@30s — nudge rule | 0.8333 (65/78) | 0.8333 (65/78) |
+| nudges/h · false pre-arms/h | 3.4264 · 0.5908 | 3.4264 · **0.5514** |
+| median / p25 pre-arm lead | 18 s / 12 s | 16 s / 10 s |
+| research_churn FPR @ nudge | 0.0000 | 0.0004 |
+| gate baseline (full logistic, same basis) | 0.9355 | 0.9316 |
+| gate margin (needs ≥ 0) | +0.0068 PASS | **+0.0073 PASS** |
+
+**Read this honestly. The headline metric did not move.** −0.0035 is 0.3 of one
+paired standard error on this split; the interval spans −0.029 to +0.016. The
+48 sessions cannot tell these two heads apart, which is the same sentence round
+8 had to write about a 14 803-parameter CNN. Nothing here is a claimed ranking
+improvement.
+
+**What did move is the pre-arm.** 43/78 → 49/78 onsets get a pre-arm, at an
+identical nudge load (3.4264/h) and *fewer* false pre-arms (0.5514/h vs
+0.5908/h), and it is concentrated exactly where the desk-trend features aim:
+
+| family | drifts | pre-arm hits before | after |
+| --- | --- | --- | --- |
+| away_drifter | 30 | 14 | **23** |
+| burst_switcher | 24 | 18 | 17 |
+| wanderer | 22 | 11 | 9 |
+| steady_then_snap | 2 | 0 | 0 |
+
+`away_drifter` is the walk-away family, and its false pre-arms/h fell
+1.357 → 0.339. docs/FORECAST.md has said since round 8 that "this swap does not
+fix the pre-arm problem; no contender did" — the trend block moves it +6 drifts
+for free, and moves it in the family whose precursor is a desk sag. Wanderer
+remains the weak family, now by a wider margin. 78 onsets is a small
+denominator; treat ±6 with the same suspicion as ±0.005 AUC.
+
+Held-out per-feature occlusion (the shipped `eval.ts` ablation) puts two of the
+new features in the top eight of twenty-four: `deskSagSlope30` +0.0585,
+`greyLeaky120` +0.0414, `dwellShrink30v90` +0.0211, `titleChurnAccel` +0.0158,
+`deskConfDrop120` +0.0055, `absenceRun60` +0.0004. The features carry signal on
+held-out data; what 48 sessions cannot resolve is whether the *whole model*
+ranks better with them.
+
+**What would settle it.** The same thing round 8 asked for and the same thing
+the power work built: the large hold-out corpus. `data/forecast/holdout/` was
+generated against the 18-feature extractor and is stale as of this round —
+`npm run forecast:power` regenerates and re-scores it, and the paired SE it
+measures is the number that can decide a ±0.004 question this split cannot.
+
+### Contract changes (additive)
+
+`FORECAST_FEATURE_KEYS` 18 → 24, APPEND-ONLY so no existing index moves.
+`FORECAST_INPUT_DIM`, `FORECAST_BASIS` (`lr18+pairwise` → `lr24+pairwise`),
+`FORECAST_TERMS`, `FORECAST_TERM_COUNT` (189 → 324) and `FORECAST_PARAM_COUNT`
+(190 → 325) are all DERIVED from that list now — the width is written down
+once. `FORECAST_BASIS_SHA` moves with it, so the previous `weights.json` fails
+`parseForecastWeights` closed rather than being served against a basis it was
+never fitted on (`model.test.ts` covers exactly this). The dataset row's
+`features` array, the `raw` map, the Adaption `prompt` short names, the golden
+fixtures and the renderer's attribution strip all grow from the same list; the
+internals panel renders `bars.length` bars and never a literal. `lib.RAW_BOUNDS`
+now carries a `[min, max]` for every key and `rawInBounds` throws if the table
+ever misses one, so a future feature cannot ship without a validation range for
+untrusted Adaption rows.
+
+The operating point was re-derived on 3-fold cross-fitted train sessions as
+always and came back **unchanged at nudge 0.45 / pre-arm 0.80**, so the
+`DEFAULT_SETTINGS` parity assertion still holds untouched.
 
 ## Adaption Labs round (live, 2026-09-12)
 

@@ -12,7 +12,8 @@ import {
 
 /**
  * Watch-it-think: top-5 attribution drivers in plain language, the full
- * 18-feature occlusion strip, the printed logit → Platt → risk line, the
+ * per-feature occlusion strip (N bars, read off `snapshot.features` — never a
+ * hardcoded count), the printed logit → Platt → risk line, the
  * per-feature term-group activations, the hit/miss/stood-down receipt, and the
  * model card fed from the committed weights + eval artifacts.
  */
@@ -76,10 +77,12 @@ export function InternalsPanel(props: {
         )}
       </div>
 
-      {/* All 18 features — signed occlusion bars around a center axis. */}
+      {/* Every feature — signed occlusion bars around a center axis. The count
+          comes from the snapshot array, so growing FORECAST_FEATURE_KEYS grows
+          the strip with no edit here. */}
       <div>
         <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-fp-faint">
-          Feature attributions · 18 inputs
+          Feature attributions · {bars.length} inputs
         </p>
         <div className="mt-1.5 grid grid-cols-1 gap-x-5 gap-y-[3px] min-[700px]:grid-cols-2">
           {bars.map((bar) => (
@@ -107,7 +110,9 @@ export function InternalsPanel(props: {
         <p className="mt-1 text-[10px] text-fp-faint">
           <span className="text-fp-red">■ pushes risk up</span>
           <span className="ml-3 text-fp-blue">■ holds risk down</span>
-          <span className="ml-3">occluded to training mean · exact 19-term delta per feature</span>
+          <span className="ml-3">
+            occluded to training mean · exact {bars.length + 1}-term delta per feature
+          </span>
         </p>
       </div>
 

@@ -5,7 +5,11 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { classify } from "../../src/shared/policy";
 import type { DeskLabel, DeskSnapshot, FocusSnapshot } from "../../src/shared/types";
-import { extractFeatures } from "../../src/shared/forecast/features";
+import {
+  DESK_DROP_FULL_SCALE,
+  DESK_SAG_FULL_SCALE_PER_MIN,
+  extractFeatures,
+} from "../../src/shared/forecast/features";
 import { fnv1a32 } from "../../src/shared/forecast/hash";
 import {
   findDriftOnsets,
@@ -237,6 +241,12 @@ const PROMPT_FIELDS: ReadonlyArray<[string, ForecastFeatureKey]> = [
   ["pd", "priorDrifts"],
   ["tc30", "titleChurn30"],
   ["tc60", "titleChurn60"],
+  ["sag", "deskSagSlope30"],
+  ["dsh", "dwellShrink30v90"],
+  ["tca", "titleChurnAccel"],
+  ["gl120", "greyLeaky120"],
+  ["arun", "absenceRun60"],
+  ["dcd", "deskConfDrop120"],
 ];
 
 /** Deterministic compact serialization for the Adaption `column_mapping` prompt. */
@@ -307,27 +317,59 @@ export function encodeRaw(raw: Record<ForecastFeatureKey, number>): number[] {
     priorDrifts: clamp01(raw.priorDrifts / 5),
     titleChurn30: clamp01(raw.titleChurn30 / 12),
     titleChurn60: clamp01(raw.titleChurn60 / 24),
+    deskSagSlope30: clamp01(raw.deskSagSlope30 / DESK_SAG_FULL_SCALE_PER_MIN),
+    dwellShrink30v90: clamp01(raw.dwellShrink30v90 / 4),
+    titleChurnAccel: clamp01(raw.titleChurnAccel / 4),
+    greyLeaky120: clamp01(raw.greyLeaky120),
+    absenceRun60: clamp01(raw.absenceRun60 / 20),
+    deskConfDrop120: clamp01(raw.deskConfDrop120 / DESK_DROP_FULL_SCALE),
   };
   return FORECAST_FEATURE_KEYS.map((key) => enc[key]);
 }
 
+/**
+ * Per-feature sanity bounds for untrusted (downloaded) raw maps, in HUMAN
+ * units. A table rather than a hand-written conjunction so a new feature key
+ * cannot slip through unvalidated: `rawInBounds` asserts the table covers
+ * every key in `FORECAST_FEATURE_KEYS`.
+ */
+export const RAW_BOUNDS: Readonly<Record<ForecastFeatureKey, readonly [number, number]>> = {
+  switch15: [0, 200],
+  switch60: [0, 500],
+  switchAccel: [0, 5000],
+  dwellCur: [0, 86_400],
+  fracAllow60: [0, 1],
+  fracOther60: [0, 1],
+  otherDwell30: [0, 120],
+  distinct60: [0, 200],
+  sinceBlock: [0, 600],
+  streak: [0, 86_400],
+  deskPresent30: [0, 1],
+  deskConfMean30: [0, 1],
+  deskConfStd30: [0, 1],
+  deskFlicker60: [0, 600],
+  sessionMin: [0, 24 * 60],
+  priorDrifts: [0, 1000],
+  titleChurn30: [0, 500],
+  titleChurn60: [0, 1000],
+  deskSagSlope30: [0, 600],
+  dwellShrink30v90: [0, 5000],
+  titleChurnAccel: [0, 5000],
+  greyLeaky120: [0, 1],
+  absenceRun60: [0, 600],
+  deskConfDrop120: [0, 1],
+};
+
 /** Sanity bounds for untrusted (downloaded) raw maps — outside ⇒ row dropped. */
 export function rawInBounds(raw: Record<ForecastFeatureKey, number>): boolean {
-  const nonNegative = FORECAST_FEATURE_KEYS.every((key) => Number.isFinite(raw[key]) && raw[key] >= 0);
-  return (
-    nonNegative &&
-    raw.fracAllow60 <= 1 &&
-    raw.fracOther60 <= 1 &&
-    raw.deskPresent30 <= 1 &&
-    raw.deskConfMean30 <= 1 &&
-    raw.deskConfStd30 <= 1 &&
-    raw.sinceBlock <= 600 &&
-    raw.switch15 <= 200 &&
-    raw.switch60 <= 500 &&
-    raw.titleChurn30 <= 500 &&
-    raw.titleChurn60 <= 1000 &&
-    raw.sessionMin <= 24 * 60
-  );
+  return FORECAST_FEATURE_KEYS.every((key) => {
+    const bounds = RAW_BOUNDS[key];
+    if (bounds === undefined) {
+      throw new Error(`RAW_BOUNDS is missing feature ${key} — add it before shipping the feature`);
+    }
+    const value = raw[key];
+    return Number.isFinite(value) && value >= bounds[0] && value <= bounds[1];
+  });
 }
 
 // ---------------------------------------------------------------------------

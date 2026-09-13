@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { DEFAULT_SETTINGS } from "../../src/shared/defaults";
 import {
@@ -35,6 +35,7 @@ import {
   replaySession,
   rocAuc,
   round4,
+  round6,
   sha256Hex,
   splitForSession,
   stringArg,
@@ -44,6 +45,15 @@ import {
   type RawSession,
 } from "./lib";
 import { applyStandardizer, fitLogisticL2, fitStandardizer, sigmoidStable } from "./linear";
+import { pairedClusterBootstrap, type BootstrapModel } from "./bootstrap";
+import {
+  HOLDOUT_DATASET_FILE,
+  HOLDOUT_MANIFEST_FILE,
+  HOLDOUT_REPORT_FILE,
+  HOLDOUT_SESSIONS_FILE,
+  holdoutRoot,
+  isHoldoutSessionId,
+} from "./holdout-namespace";
 
 /**
  * Held-out evaluation + CI gate — the judge-facing numbers, produced only
@@ -59,7 +69,7 @@ import { applyStandardizer, fitLogisticL2, fitStandardizer, sigmoidStable } from
  *   (a pre-arm active at onset or fired in the prior 30 s) and the nudge rule
  *   (any nudge-or-higher alarm in the prior 30 s), plus median/p25 lead and
  *   false pre-arms/hour.
- * - THE GATE IS ANCHORED TO THE FULL 18-FEATURE MULTIVARIATE LOGISTIC — the
+ * - THE GATE IS ANCHORED TO THE FULL-FEATURE MULTIVARIATE LOGISTIC — the
  *   strongest linear-family baseline a judge would write in an afternoon, and
  *   the strongest of BOTH fits we can produce of it (eval.ts's historical
  *   class-weighted GD fit and an L-BFGS-to-convergence refit at the λ train.ts
@@ -86,11 +96,29 @@ interface EvalConfig {
   out: string;
   seed: number;
   gateOff: boolean;
+  /**
+   * `--holdout` swaps the 48-session eval SPLIT for the large fresh corpus in
+   * `data/forecast/holdout/` (npm run forecast:evalset). Train rows still come
+   * from `--data` — the baselines have to be fitted on something — but not one
+   * scored frame does: eval rows, raw sessions for the alarm simulation and
+   * the report path all move. Off by default, so the committed
+   * `eval-report.json` stays exactly what `npm run forecast:pipeline` produces.
+   */
+  holdout: boolean;
+  holdoutData: string;
+  holdoutRaw: string;
+  holdoutManifest: string;
+  /** Paired session-clustered bootstrap draws (holdout mode only; 0 = skip). */
+  powerDraws: number;
 }
 
 function readConfig(): EvalConfig {
   const gateOff =
     process.argv.includes("--gate=off") || stringArg("--gate", "on").toLowerCase() === "off";
+  const holdout = process.argv.includes("--holdout");
+  const defaultOut = holdout
+    ? join(holdoutRoot(), HOLDOUT_REPORT_FILE)
+    : join(repoRoot(), "src", "shared", "forecast", "eval-report.json");
   return {
     data: stringArg("--data", join(forecastDataRoot(), DATASET_FILE)),
     raw: stringArg("--raw", join(forecastDataRoot(), RAW_SESSIONS_FILE)),
@@ -102,14 +130,22 @@ function readConfig(): EvalConfig {
       "--bake-off",
       join(repoRoot(), "src", "shared", "forecast", "bake-off.json"),
     ),
-    out: stringArg("--out", join(repoRoot(), "src", "shared", "forecast", "eval-report.json")),
+    out: stringArg("--out", defaultOut),
     seed: numberArg("--seed", 42),
     gateOff,
+    holdout,
+    holdoutData: stringArg("--holdout-data", join(holdoutRoot(), HOLDOUT_DATASET_FILE)),
+    holdoutRaw: stringArg("--holdout-raw", join(holdoutRoot(), HOLDOUT_SESSIONS_FILE)),
+    holdoutManifest: stringArg("--holdout-manifest", join(holdoutRoot(), HOLDOUT_MANIFEST_FILE)),
+    powerDraws: Math.max(0, Math.round(numberArg("--power-draws", 1000))),
   };
 }
 
+/** Feature-vector width, read from the shared contract — never written down twice. */
+const FEATURE_DIM = FORECAST_FEATURE_KEYS.length;
+
 /**
- * Required margin over the FULL 18-feature multivariate logistic, in
+ * Required margin over the FULL-feature multivariate logistic, in
  * lead-censored ROC-AUC.
  *
  * Zero, deliberately, and that is the honest number rather than a soft one.
@@ -354,29 +390,85 @@ async function main(): Promise<void> {
     );
   }
 
+  // --- Hold-out corpus (optional) -------------------------------------------
+  // `--holdout` scores the large fresh corpus instead of the 48-session eval
+  // split. Its manifest is embedded in the report so the numbers name the exact
+  // corpus (and file shas) they came from.
+  let holdoutManifest: Record<string, unknown> | null = null;
+  if (config.holdout) {
+    if (!existsSync(config.holdoutData) || !existsSync(config.holdoutManifest)) {
+      throw new Error(
+        `--holdout needs ${config.holdoutData} and its manifest — run 'npm run forecast:evalset' first`,
+      );
+    }
+    holdoutManifest = JSON.parse(readFileSync(config.holdoutManifest, "utf8")) as Record<string, unknown>;
+    console.log(
+      `holdout corpus: ${dig(holdoutManifest, "counts", "sessions")} sessions | ` +
+        `${dig(holdoutManifest, "counts", "driftOnsets")} drift onsets | ` +
+        `${dig(holdoutManifest, "counts", "rows")} rows | seed ${dig(holdoutManifest, "namespace", "holdoutSeed")}`,
+    );
+  }
+
   // --- Load rows ------------------------------------------------------------
   const evalRows: EvalRow[] = [];
   const trainFeatures: number[][] = [];
   const trainLabels: number[] = [];
   const trainImportance: number[] = [];
+  // One string instance per distinct session id / archetype — the hold-out
+  // corpus is ~1.6 M rows and JSON.parse would otherwise allocate 1.6 M copies.
+  const strings = new Map<string, string>();
+  const intern = (value: string): string => {
+    const hit = strings.get(value);
+    if (hit !== undefined) {
+      return hit;
+    }
+    strings.set(value, value);
+    return value;
+  };
+  const pushEvalRow = (row: DatasetRow): void => {
+    if (row.source !== "synthetic" && row.source !== "recorded") {
+      throw new Error(
+        `eval split contains ${row.source} row (${row.session_id}) — augmented data must be train-only`,
+      );
+    }
+    evalRows.push({
+      features: row.features,
+      label: row.label,
+      secsToDrift: row.secs_to_drift,
+      archetype: intern(row.archetype),
+      sessionId: intern(row.session_id),
+    });
+  };
   for await (const row of readJsonl<DatasetRow>(config.data)) {
     if (row.split === "eval") {
-      if (row.source !== "synthetic" && row.source !== "recorded") {
+      // In hold-out mode the 48-session split is not scored at all; the
+      // trainer's own held-out rows are simply skipped.
+      if (!config.holdout) {
+        pushEvalRow(row);
+      }
+    } else {
+      // Barrier 2, consumer side: a hold-out session id must never appear in
+      // the file the trainer and every bake-off contender read.
+      if (isHoldoutSessionId(row.session_id)) {
         throw new Error(
-          `eval split contains ${row.source} row (${row.session_id}) — augmented data must be train-only`,
+          `CONTAMINATION: training row ${row.session_id} carries a hold-out session id — ` +
+            `${config.data} and the hold-out corpus have been mixed`,
         );
       }
-      evalRows.push({
-        features: row.features,
-        label: row.label,
-        secsToDrift: row.secs_to_drift,
-        archetype: row.archetype,
-        sessionId: row.session_id,
-      });
-    } else {
       trainFeatures.push(row.features);
       trainLabels.push(row.label);
       trainImportance.push(1 / keepProbability(row.label, row.secs_to_drift));
+    }
+  }
+  if (config.holdout) {
+    for await (const row of readJsonl<DatasetRow>(config.holdoutData)) {
+      if (row.split !== "eval" || !isHoldoutSessionId(row.session_id)) {
+        throw new Error(
+          `hold-out row ${row.session_id} (split ${row.split}) is not an eval row from the ` +
+            `hold-out namespace — regenerate with 'npm run forecast:evalset'`,
+        );
+      }
+      pushEvalRow(row);
     }
   }
   if (evalRows.length === 0) {
@@ -425,14 +517,14 @@ async function main(): Promise<void> {
   const fullLogistic = trainLogistic(subX, subY, allColumns);
   const fullLogisticScores = evalRows.map((row) => logisticScore(fullLogistic, row.features, allColumns));
 
-  // The SAME 18 features fitted as well as we know how: L-BFGS to convergence
+  // The SAME features fitted as well as we know how: L-BFGS to convergence
   // on ALL train rows (not the 40 k subsample), importance-weighted by
   // 1/keep-probability so the fit is unbiased at natural prevalence, at the λ
   // train.ts selected on its train-internal val split (never on eval).
   //
   // This is deliberately a STRONGER baseline than the shipped model's own fit
   // — it is allowed the val sessions the shipped model held out — because the
-  // gate should anchor to the best plain-18 logistic that exists, not to a
+  // gate should anchor to the best plain-feature logistic that exists, not a
   // convenient one. A judge asking "did you converge your baseline?" gets yes.
   const referenceLambda =
     (dig(provenance, "train", "referenceLr18", "lambda") as number | undefined) ?? 1e-4;
@@ -515,27 +607,31 @@ async function main(): Promise<void> {
         "CONTEXT ONLY — the pre-bake-off gate baseline. One input; the shipped model beating it " +
         "by a wide margin proves nothing, which is why the gate no longer uses it.",
     },
-    fullLogistic18: {
+    fullLogistic: {
       auc: round4(rocAuc(fullLogisticScores, evalLabels)),
       leadAuc20: fullLogisticLead20,
+      features: FEATURE_DIM,
       fit: "class-weighted full-batch GD (lib.trainLogistic, 250 epochs) — the historical baseline",
     },
-    fullLogistic18Converged: {
+    fullLogisticConverged: {
       auc: round4(rocAuc(convergedScores, evalLabels)),
       leadAuc20: convergedLead20,
       lambda: referenceLambda,
       iters: convergedFit.iters,
       rows: trainLabels.length,
+      features: FEATURE_DIM,
       fit:
-        "same 18 features, L-BFGS to convergence on ALL train rows, importance-weighted to natural " +
-        "prevalence, at the λ train.ts selected on its train-internal val split (never on eval) — " +
-        "the honest ceiling of the plain-18 logistic, and given MORE data than the shipped model",
+        `the same ${FEATURE_DIM} features, L-BFGS to convergence on ALL train rows, ` +
+        "importance-weighted to natural prevalence, at the λ train.ts selected on its " +
+        "train-internal val split (never on eval) — the honest ceiling of the plain additive " +
+        "logistic, and given MORE data than the shipped model",
     },
-    /** What the gate is anchored to: the stronger of the two plain-18 fits. */
-    fullLogistic18Strongest: {
+    /** What the gate is anchored to: the stronger of the two plain additive fits. */
+    fullLogisticStrongest: {
       leadAuc20: round4(linearBaselineLead20),
       fit: linearBaselineFit,
-      note: "GATE BASELINE — the strongest 18-feature multivariate logistic we can produce",
+      features: FEATURE_DIM,
+      note: `GATE BASELINE — the strongest ${FEATURE_DIM}-feature multivariate logistic we can produce`,
     },
     shippedModel: {
       auc: round4(overallAuc),
@@ -573,8 +669,15 @@ async function main(): Promise<void> {
   };
   const totals = newAlarmTotals();
   const byArchetype = new Map<string, AlarmTotals>();
-  for await (const session of readJsonl<RawSession>(config.raw)) {
-    if (session.source !== "synthetic" || splitForSession(session.id, config.seed) !== "eval") {
+  // In hold-out mode the alarm simulation replays the hold-out raw streams —
+  // every session in that file is held out by construction, so there is no
+  // split hash to consult (and `splitForSession` is never called on them).
+  const alarmRawFile = config.holdout ? config.holdoutRaw : config.raw;
+  for await (const session of readJsonl<RawSession>(alarmRawFile)) {
+    if (session.source !== "synthetic") {
+      continue;
+    }
+    if (config.holdout ? !isHoldoutSessionId(session.id) : splitForSession(session.id, config.seed) !== "eval") {
       continue;
     }
     const result = simulateAlarms(session, weights, escalationSettings);
@@ -646,9 +749,32 @@ async function main(): Promise<void> {
   } catch {
     console.warn(`WARN ${config.bakeOff} unreadable — report carries "bakeOff": null`);
   }
+  // bake-off.json is adjudicate.ts's output and is never hand-edited, so when
+  // the feature basis moves on, the table's `SHIPPED` row stops describing what
+  // actually ships. Rather than tamper with the adjudicator's artifact, the
+  // report says so out loud right beside it and names both bases.
+  const bakeOffWinner = (() => {
+    const contenders = (bakeOff as { contenders?: Array<{ name?: unknown }> } | null)?.contenders;
+    const first = Array.isArray(contenders) ? contenders[0]?.name : undefined;
+    return typeof first === "string" ? first : null;
+  })();
+  const bakeOffStale = bakeOffWinner !== null && bakeOffWinner !== weights.basis;
+  const bakeOffContext = {
+    verbatimFrom: "src/shared/forecast/bake-off.json",
+    producedBy: "scripts/forecast/candidates/*.ts, adjudicated by scripts/forecast/adjudicate.ts",
+    gating: false,
+    describesShippedBasis: !bakeOffStale,
+    note: bakeOffStale
+      ? `HISTORICAL. The bake-off contested the feature basis of 2026-09-12 and recorded ` +
+        `"${bakeOffWinner}" as SHIPPED. That FAMILY still ships, but its basis has since grown to ` +
+        `"${weights.basis}" (${FEATURE_DIM} features, ${weights.paramCount} params) — see ` +
+        `scripts/forecast/GAUNTLET.md round 9. Every score in the embedded table is on the older ` +
+        `basis; re-run adjudicate.ts to re-contest the field on this one.`
+      : "CURRENT — the embedded table's winner is the basis that ships today.",
+  };
 
   // --- Gate ------------------------------------------------------------------
-  // Anchored to the FULL 18-feature multivariate logistic (the strongest of
+  // Anchored to the FULL-feature multivariate logistic (the strongest of
   // our two honest fits of it), not to a one-input strawman.
   const margin = modelLead20 - linearBaselineLead20;
   const gatePassed = margin >= GATE_MARGIN;
@@ -656,10 +782,11 @@ async function main(): Promise<void> {
   const gate = {
     enforced: !config.gateOff,
     metric: "lead-censored ROC-AUC (onset ≥ 20 s away vs calm)",
-    baseline: "fullLogistic18Strongest",
+    baseline: "fullLogisticStrongest",
     baselineRationale:
-      "the strongest 18-feature multivariate logistic regression — the model a judge means by " +
-      "'did you try logistic regression?'. The shipped head must not lose to it.",
+      `the strongest ${FEATURE_DIM}-feature multivariate logistic regression on the SAME feature ` +
+      "basis the shipped head sees — the model a judge means by 'did you try logistic regression?'. " +
+      "The shipped head must not lose to it, and growing the feature set moves the bar with it.",
     marginRequired: GATE_MARGIN,
     marginRequiredRationale:
       "zero by design: the paired session-clustered bootstrap over these 48 eval sessions puts the " +
@@ -683,11 +810,145 @@ async function main(): Promise<void> {
     },
   };
 
+  // --- MEASURED power (hold-out mode only) ----------------------------------
+  // The 48-session split could not resolve the bake-off: the paired
+  // session-clustered SE was ≈ 0.009 and every non-linear margin was 0.4–0.7 of
+  // one SE. This block measures — not projects — what the large corpus buys, by
+  // running the SAME paired bootstrap the adjudicator ran, on the shipped head
+  // against the gate baseline, and then asking of every margin the bake-off
+  // reported: would this evaluation have resolved it?
+  let power: Record<string, unknown> | null = null;
+  if (config.holdout && config.powerDraws > 0) {
+    const eligibleIdx: number[] = [];
+    for (let i = 0; i < evalRows.length; i += 1) {
+      if (leadEligible(evalRows[i] as EvalRow, 20)) {
+        eligibleIdx.push(i);
+      }
+    }
+    const clusterOf = new Map<string, number>();
+    const cluster = new Int32Array(eligibleIdx.length);
+    const label = new Uint8Array(eligibleIdx.length);
+    for (let k = 0; k < eligibleIdx.length; k += 1) {
+      const row = evalRows[eligibleIdx[k] as number] as EvalRow;
+      let index = clusterOf.get(row.sessionId);
+      if (index === undefined) {
+        index = clusterOf.size;
+        clusterOf.set(row.sessionId, index);
+      }
+      cluster[k] = index;
+      label[k] = row.label;
+    }
+    const pick = (scores: readonly number[]): Float64Array =>
+      Float64Array.from(eligibleIdx, (i) => scores[i] as number);
+    const shippedName = `shipped:${weights.basis}(${weights.paramCount}p)`;
+    const convergedName = `fullLR${FEATURE_DIM}:lbfgs-converged`;
+    const gdName = `fullLR${FEATURE_DIM}:class-weighted-gd`;
+    const models: BootstrapModel[] = [
+      { name: shippedName, scores: pick(modelScores) },
+      { name: convergedName, scores: pick(convergedScores) },
+      { name: gdName, scores: pick(fullLogisticScores) },
+    ];
+    const reference = linearBaselineFit === "lbfgs-converged" ? convergedName : gdName;
+    console.log(
+      `power: paired session-clustered bootstrap, ${config.powerDraws} draws over ` +
+        `${clusterOf.size} sessions / ${eligibleIdx.length} lead≥20s-eligible frames …`,
+    );
+    const boot = pairedClusterBootstrap(
+      label,
+      cluster,
+      clusterOf.size,
+      models,
+      reference,
+      config.powerDraws,
+      // Fixed, and deliberately not `config.seed`: the resampling stream must
+      // not move when the corpus seed does.
+      20260913,
+      (done, total) => {
+        if (done % 200 === 0) {
+          console.log(`  bootstrap ${done}/${total}`);
+        }
+      },
+    );
+    const shippedPair = boot.pairs.find((pair) => pair.model === shippedName);
+    const measuredSe = shippedPair?.sd ?? null;
+    const resolvable95 = measuredSe === null ? null : round6(1.96 * measuredSe);
+    const priorPairs = (dig(bakeOff as Record<string, unknown>, "pairedBootstrap", "vsShippedBasis") ??
+      []) as Array<{ model?: string; diff?: number; lo95?: number; hi95?: number }>;
+    power = {
+      question:
+        "is a ~0.01 lead-censored AUC difference decidable on this corpus? The 48-session split " +
+        "could not decide 0.006, which is why 'the neural net did not win' was a shrug.",
+      metric: "lead-censored ROC-AUC (onset ≥ 20 s away vs calm), paired, clustered by session",
+      bootstrap: boot,
+      measuredPairedSe: measuredSe,
+      resolvableDiff95: resolvable95,
+      reference: {
+        evalSessions: 48,
+        pairedSe: 0.009,
+        source: "scripts/forecast/adjudicate.ts over the 48-session eval split (GAUNTLET round 8)",
+      },
+      sessionScale: round4(clusterOf.size / 48),
+      seRatioObservedVsSqrtN:
+        measuredSe === null ? null : round4(measuredSe / (0.009 / Math.sqrt(clusterOf.size / 48))),
+      bakeOffMarginsUnderThisPower: priorPairs.map((pair) => ({
+        model: pair.model ?? "unknown",
+        diffOn48Sessions: pair.diff ?? null,
+        resolvableHere:
+          resolvable95 === null || pair.diff === undefined ? null : Math.abs(pair.diff) > resolvable95,
+        sessionsNeededFor95:
+          measuredSe === null || pair.diff === undefined || pair.diff === 0
+            ? null
+            : Math.ceil(clusterOf.size * ((1.96 * measuredSe) / Math.abs(pair.diff)) ** 2),
+      })),
+      caveatSameGenerator:
+        "this corpus is FRESH SAMPLING from the same simulator, not new recorded data. It removes " +
+        "sampling noise; it does not remove simulator misspecification. Any bias the training and " +
+        "hold-out corpora share is invisible to it, and the round-8 open question — that the raw " +
+        "1 Hz stream carries signal the 18 window aggregates destroy — still needs a real corpus.",
+      caveat:
+        "this SE is measured on the shipped head vs the gate baseline. The bake-off contenders " +
+        "themselves are NOT re-scored here — their scripts are frozen and their scores exist only " +
+        "for the 48-session split — but the SE of a paired lead-AUC difference is a property of " +
+        "the corpus, the metric and the clustering far more than of which two similar-strength " +
+        "models are differenced, so it is the right yardstick for planning the re-run. Re-running " +
+        "the five contenders against `--data data/forecast/holdout/holdout-dataset.jsonl` is what " +
+        "actually settles the bake-off.",
+    };
+    // The gate's stock rationale quotes the 48-session noise floor. On this
+    // corpus that sentence would be a stale number sitting next to a margin it
+    // no longer describes, so the hold-out report carries the measured one.
+    (gate as { marginRequiredRationale: string }).marginRequiredRationale =
+      `zero was the honest bar on the 48-session split, where the paired session-clustered SE was ` +
+      `≈0.009 and no positive margin was measurable. On THIS corpus the measured paired SE is ` +
+      `${measuredSe}, so the margin above is a resolved measurement rather than a coin flip — see ` +
+      `the power block. The bar itself is unchanged: the shipped head must not lose to a plain ` +
+      `additive logistic on the same features.`;
+  }
+
   const manifest = (provenance as { manifest?: { createdAt?: string } }).manifest;
   const report = {
     version: FORECAST_MODEL_VERSION,
     createdAt: manifest?.createdAt ?? "unknown",
     status: "trained",
+    // Present ONLY in hold-out runs, so the committed eval-report.json that
+    // `npm run forecast:pipeline` writes is byte-for-byte what it always was.
+    ...(config.holdout
+      ? {
+          heldOutCorpus: {
+            kind: "holdout-power-corpus",
+            regenerate: "npm run forecast:evalset",
+            score: "npm run forecast:eval:holdout",
+            dataset: config.holdoutData,
+            rawSessions: config.holdoutRaw,
+            note:
+              "the 48-session eval SPLIT of dataset.jsonl was NOT scored in this run. Rows from " +
+              "dataset.jsonl were read only to FIT the logistic baselines (train split), never to " +
+              "score anything; every scored frame comes from the hold-out corpus below.",
+            manifest: holdoutManifest,
+          },
+          power,
+        }
+      : {}),
     gate,
     metrics: {
       rocAuc: round4(overallAuc),
@@ -735,6 +996,7 @@ async function main(): Promise<void> {
       operatingPointSelection: dig(provenance, "train", "operatingPoint") ?? null,
     },
     baselines,
+    bakeOffContext,
     bakeOff,
     perArchetype,
     ablation,
@@ -760,8 +1022,8 @@ async function main(): Promise<void> {
   );
   console.log(
     `baselines (lead≥20s): if-else ${baselines.ifElseHeuristic.leadAuc20} | grey-dwell ${baselines.greyDwellHeuristic.leadAuc20} | ` +
-      `best single (${bestSingle.key}) ${bestSingle.leadAuc20} | full logistic GD ${baselines.fullLogistic18.leadAuc20} | ` +
-      `full logistic converged ${baselines.fullLogistic18Converged.leadAuc20}`,
+      `best single (${bestSingle.key}) ${bestSingle.leadAuc20} | full logistic GD ${baselines.fullLogistic.leadAuc20} | ` +
+      `full logistic converged ${baselines.fullLogisticConverged.leadAuc20}`,
   );
   console.log(
     `alarms @ nudge ${thresholds.nudge}/prearm ${thresholds.prearm}: recall@30s ${report.alarms.recallAt30} (pre-arm rule) / ` +
@@ -774,11 +1036,27 @@ async function main(): Promise<void> {
   console.log(
     `research_churn slice: FPR@nudge ${churn.falsePositiveRateAtNudge} | FPR@prearm ${churn.falsePositiveRateAtPrearm}`,
   );
+  if (power !== null) {
+    const measured = power["measuredPairedSe"] as number | null;
+    const resolvable = power["resolvableDiff95"] as number | null;
+    console.log(
+      `power: measured paired session-clustered SE ${measured} over ${report.metrics.evalSessions} ` +
+        `sessions (48-session split: 0.009) → smallest 95 %-resolvable lead-AUC difference ` +
+        `${resolvable}`,
+    );
+    for (const entry of power["bakeOffMarginsUnderThisPower"] as Array<Record<string, unknown>>) {
+      console.log(
+        `  bake-off margin ${String(entry["model"]).padEnd(22)} ${entry["diffOn48Sessions"]} → ` +
+          `${entry["resolvableHere"] === true ? "RESOLVABLE here" : "still inside the noise"} ` +
+          `(95 % needs ~${entry["sessionsNeededFor95"]} sessions)`,
+      );
+    }
+  }
   console.log(`report → ${config.out}`);
 
   if (!gatePassed && !config.gateOff) {
     console.error(
-      `GATE FAILED: shipped head lead≥20s AUC ${round4(modelLead20)} must beat the full 18-feature ` +
+      `GATE FAILED: shipped head lead≥20s AUC ${round4(modelLead20)} must beat the full ${FEATURE_DIM}-feature ` +
         `logistic (${linearBaselineFit}, ${round4(linearBaselineLead20)}) by ≥ ${GATE_MARGIN} — ` +
         `margin ${round4(margin)}. A logistic regression a judge could write in an afternoon is ` +
         `now at least as good as what we ship; fix the model, not the gate.`,
@@ -793,7 +1071,7 @@ async function main(): Promise<void> {
   }
   console.log(
     gatePassed
-      ? `gate PASSED: margin ${round4(margin)} ≥ ${GATE_MARGIN} over the full 18-feature logistic ` +
+      ? `gate PASSED: margin ${round4(margin)} ≥ ${GATE_MARGIN} over the full ${FEATURE_DIM}-feature logistic ` +
           `(${round4(linearBaselineLead20)}, ${linearBaselineFit}) | context: +${round4(legacyMargin)} ` +
           `over the old best-single-feature bar ('${bestSingle.key}', ${bestSingle.leadAuc20})`
       : "gate skipped",

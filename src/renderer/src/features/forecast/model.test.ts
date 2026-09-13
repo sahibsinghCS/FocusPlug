@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { FORECAST_FEATURE_KEYS } from "@shared/forecast";
+import {
+  FORECAST_FEATURE_KEYS,
+  FORECAST_INPUT_DIM,
+  FORECAST_PARAM_COUNT,
+  FORECAST_TERM_COUNT,
+} from "@shared/forecast";
 import type { ForecastEvent, ForecastSnapshot } from "@shared/ipc";
 import {
   bandLabel,
@@ -50,10 +55,10 @@ function makeSnapshot(overrides: Partial<ForecastSnapshot> = {}): ForecastSnapsh
     features: FORECAST_FEATURE_KEYS.map((key, index) => ({
       key,
       raw: index,
-      value: index / 18,
+      value: index / FORECAST_FEATURE_KEYS.length,
       attribution: 0,
     })),
-    hidden: new Array<number>(18).fill(0.2),
+    hidden: new Array<number>(FORECAST_INPUT_DIM).fill(0.2),
     prearmedAt: null,
     effectiveFuseSec: 10,
     baseFuseSec: 10,
@@ -87,7 +92,7 @@ describe("forecast sensor card", () => {
     expect(card.id).toBe("forecast");
     expect(card.title).toBe("Off");
     expect(card.tone).toBe("mute");
-    expect(card.meta).toContain("190-param");
+    expect(card.meta).toContain(`${FORECAST_PARAM_COUNT}-param`);
   });
 
   it("renders standby outside a session and warm-up before ready", () => {
@@ -153,11 +158,11 @@ describe("attribution ranking + copy", () => {
     );
   });
 
-  it("builds all 18 feature bars in key order with normalized magnitudes", () => {
+  it("builds one feature bar per key, in key order, with normalized magnitudes", () => {
     const snap = makeSnapshot();
     snap.features[3] = { key: "dwellCur", raw: 11, value: 0.4, attribution: 0.5 };
     const bars = featureBars(snap.features);
-    expect(bars).toHaveLength(18);
+    expect(bars).toHaveLength(FORECAST_FEATURE_KEYS.length);
     expect(bars.map((bar) => bar.key)).toEqual([...FORECAST_FEATURE_KEYS]);
     expect(bars[3]?.magnitude).toBe(1);
     expect(bars[3]?.positive).toBe(true);
@@ -172,8 +177,8 @@ describe("calibration + model card", () => {
 
   it("feeds the model card from the committed artifacts", () => {
     const card = modelCard();
-    expect(card.spec).toContain("Logistic 18→189 terms→1");
-    expect(card.spec).toContain("190 params");
+    expect(card.spec).toContain(`Logistic ${FORECAST_INPUT_DIM}→${FORECAST_TERM_COUNT} terms→1`);
+    expect(card.spec).toContain(`${FORECAST_PARAM_COUNT} params`);
     expect(card.spec).toContain("v ff-1");
     expect(card.evalLine).toMatch(/held-out AUC 0\.\d{2}/);
     expect(card.dataLine).toContain("Adaption:");
@@ -333,14 +338,14 @@ describe("scripted replay (real shared core)", () => {
     );
   });
 
-  it("warms up for exactly 15 s and always ships 18 features", () => {
+  it("warms up for exactly 15 s and always ships every feature", () => {
     expect(replay.frames).toHaveLength(REPLAY_DURATION_SEC);
     for (const frame of replay.frames) {
       expect(frame.snapshot.ready).toBe(frame.t >= 15);
       expect(frame.snapshot.features.map((feature) => feature.key)).toEqual([
         ...FORECAST_FEATURE_KEYS,
       ]);
-      expect(frame.snapshot.hidden).toHaveLength(18);
+      expect(frame.snapshot.hidden).toHaveLength(FORECAST_INPUT_DIM);
       expect(frame.snapshot.risk).toBeGreaterThanOrEqual(0);
       expect(frame.snapshot.risk).toBeLessThanOrEqual(1);
       expect(frame.events.length === 0 || frame.snapshot.ready).toBe(true);

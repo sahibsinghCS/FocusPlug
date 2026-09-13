@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { Decision, DeskSnapshot } from "../types";
-import { DESK_NEUTRAL, extractFeatures, logCompress } from "./features";
+import {
+  DESK_NEUTRAL,
+  DESK_TREND_MIN_FRAMES,
+  SWITCH_ACCEL_EPS,
+  extractFeatures,
+  logCompress,
+} from "./features";
 import { TelemetryRing } from "./ring";
 import { FORECAST_FEATURE_KEYS, type ForecastFeatureKey } from "./types";
 import goldenJson from "./fixtures/golden.json";
@@ -88,12 +94,252 @@ describe("extractFeatures golden fixtures", () => {
   }
 });
 
+/** Index of a feature in the encoded vector — no magic numbers in assertions. */
+function idx(key: ForecastFeatureKey): number {
+  return FORECAST_FEATURE_KEYS.indexOf(key);
+}
+
+/** Commits `count` 1 Hz frames starting at `T0 + fromSec*1000`, via `each`. */
+function commitFrames(
+  ring: TelemetryRing,
+  fromSec: number,
+  count: number,
+  each: (ring: TelemetryRing, ts: number, i: number) => void,
+): void {
+  for (let i = 0; i < count; i += 1) {
+    const ts = T0 + (fromSec + i) * SEC;
+    each(ring, ts, i);
+    ring.commit(ts);
+  }
+}
+
+describe("the trend block — hand-derived cases", () => {
+  it("deskSagSlope30 is the least-squares slope, per minute, one-sided", () => {
+    // 30 webcam-on frames, confidence falling exactly 0.01 per second.
+    // Regressing on (frame.ts − ts)/1000 gives slope −0.01/s ⇒ 0.6 lost/min,
+    // and 0.6 / DESK_SAG_FULL_SCALE_PER_MIN (1.2) encodes to exactly 0.5.
+    const sagging = new TelemetryRing();
+    sagging.reset(T0);
+    commitFrames(sagging, 1, 30, (ring, ts, i) => {
+      ring.noteDesk({ ts, label: "at_desk", confidence: 0.9 - 0.01 * i, webcamEnabled: true }, 0.6);
+    });
+    const sag = extractFeatures(sagging, T0 + 30 * SEC);
+    expect(sag.raw.deskSagSlope30).toBeCloseTo(0.6, 9);
+    expect(sag.values[idx("deskSagSlope30")]).toBeCloseTo(0.5, 9);
+
+    // A RISING trend is not a sag: the feature is max(0, −slope), so 0.
+    const rising = new TelemetryRing();
+    rising.reset(T0);
+    commitFrames(rising, 1, 30, (ring, ts, i) => {
+      ring.noteDesk({ ts, label: "at_desk", confidence: 0.6 + 0.01 * i, webcamEnabled: true }, 0.6);
+    });
+    expect(extractFeatures(rising, T0 + 30 * SEC).raw.deskSagSlope30).toBe(0);
+
+    // Fewer than DESK_TREND_MIN_FRAMES samples ⇒ no estimate, not a wild one.
+    const thin = new TelemetryRing();
+    thin.reset(T0);
+    commitFrames(thin, 1, DESK_TREND_MIN_FRAMES - 1, (ring, ts, i) => {
+      ring.noteDesk({ ts, label: "at_desk", confidence: 0.9 - 0.2 * i, webcamEnabled: true }, 0.6);
+    });
+    expect(extractFeatures(thin, T0 + (DESK_TREND_MIN_FRAMES - 1) * SEC).raw.deskSagSlope30).toBe(0);
+  });
+
+  it("deskSagSlope30 ignores webcam-off frames entirely", () => {
+    // A steep "sag" made only of webcam-off frames must read 0 — the camera
+    // being off is not evidence that the user is leaving.
+    const ring = new TelemetryRing();
+    ring.reset(T0);
+    commitFrames(ring, 1, 30, (r, ts, i) => {
+      r.noteDesk({ ts, label: "uncertain", confidence: 0.9 - 0.03 * i, webcamEnabled: false }, 0.6);
+    });
+    const { raw, values } = extractFeatures(ring, T0 + 30 * SEC);
+    expect(raw.deskSagSlope30).toBe(0);
+    expect(raw.deskConfDrop120).toBe(0);
+    expect(raw.absenceRun60).toBe(0);
+    expectAllInUnit(values);
+  });
+
+  it("dwellShrink30v90 reads the 30 s switch rate against the 90 s rate", () => {
+    // Six process switches, all inside the last 30 s ⇒ proc30 = proc90 = 6.
+    const ring = new TelemetryRing();
+    ring.reset(T0);
+    commitFrames(ring, 1, 90, (r, ts, i) => {
+      // One steady window for 60 s, then a switch every 5 s for the last 30 s.
+      const second = i + 1;
+      const app = second <= 60 ? "editor.exe" : `app-${Math.floor((second - 61) / 5)}.exe`;
+      r.noteFocus({ ts, processName: app, windowTitle: "w", matchedAllow: true, matchedBlock: false });
+    });
+    const { raw, values } = extractFeatures(ring, T0 + 90 * SEC);
+    const expected = (6 / 30 + SWITCH_ACCEL_EPS) / (6 / 90 + SWITCH_ACCEL_EPS);
+    expect(raw.dwellShrink30v90).toBeCloseTo(expected, 9);
+    expect(raw.dwellShrink30v90).toBeGreaterThan(1); // dwells ARE shrinking
+    expect(values[idx("dwellShrink30v90")]).toBeCloseTo(expected / 4, 9);
+    expectAllInUnit(values);
+  });
+
+  it("dwellShrink30v90 drops below 1 when the churn is OLD, not new", () => {
+    // The mirror image: the same six switches, but 60–90 s ago and nothing
+    // since. proc30 = 0, proc90 = 6 ⇒ ratio < 1, "dwells are lengthening".
+    const ring = new TelemetryRing();
+    ring.reset(T0);
+    commitFrames(ring, 1, 90, (r, ts, i) => {
+      const second = i + 1;
+      const app = second <= 30 ? `app-${Math.floor((second - 1) / 5)}.exe` : "editor.exe";
+      r.noteFocus({ ts, processName: app, windowTitle: "w", matchedAllow: true, matchedBlock: false });
+    });
+    const { raw } = extractFeatures(ring, T0 + 90 * SEC);
+    expect(raw.dwellShrink30v90).toBeLessThan(1);
+  });
+
+  it("titleChurnAccel is the same shape on same-process title flips", () => {
+    // Four title flips inside the last 30 s, none in the 30 s before that.
+    const ring = new TelemetryRing();
+    ring.reset(T0);
+    commitFrames(ring, 1, 60, (r, ts, i) => {
+      const second = i + 1;
+      const title = second <= 30 ? "doc" : `doc-${Math.floor((second - 31) / 8)}`;
+      r.noteFocus({
+        ts,
+        processName: "chrome.exe",
+        windowTitle: title,
+        matchedAllow: true,
+        matchedBlock: false,
+      });
+    });
+    const { raw, values } = extractFeatures(ring, T0 + 60 * SEC);
+    expect(raw.titleChurn30).toBe(4);
+    expect(raw.titleChurn60).toBe(4);
+    const expected = (4 / 30 + SWITCH_ACCEL_EPS) / (4 / 60 + SWITCH_ACCEL_EPS);
+    expect(raw.titleChurnAccel).toBeCloseTo(expected, 9);
+    expect(values[idx("titleChurnAccel")]).toBeCloseTo(expected / 4, 9);
+  });
+
+  it("greyLeaky120 is 1 on an all-grey ring, 0 on an all-allow ring, and recency-weighted between", () => {
+    const grey = new TelemetryRing();
+    grey.reset(T0);
+    commitFrames(grey, 1, 40, (r, ts) => {
+      r.noteFocus({ ts, processName: "x.exe", windowTitle: "w", matchedAllow: false, matchedBlock: false });
+    });
+    expect(extractFeatures(grey, T0 + 40 * SEC).raw.greyLeaky120).toBeCloseTo(1, 12);
+
+    const allow = new TelemetryRing();
+    allow.reset(T0);
+    commitFrames(allow, 1, 40, (r, ts) => {
+      r.noteFocus({ ts, processName: "e.exe", windowTitle: "w", matchedAllow: true, matchedBlock: false });
+    });
+    expect(extractFeatures(allow, T0 + 40 * SEC).raw.greyLeaky120).toBe(0);
+
+    // Same 60 s of grey, once at the end of a 300 s session and once at its
+    // start: the recent one must score higher. This is the whole point of the
+    // feature — `fracOther60` cannot tell these two apart at all.
+    const build = (greyFrom: number, greyTo: number): number => {
+      const ring = new TelemetryRing();
+      ring.reset(T0);
+      commitFrames(ring, 1, 300, (r, ts, i) => {
+        const second = i + 1;
+        const isGrey = second > greyFrom && second <= greyTo;
+        r.noteFocus({
+          ts,
+          processName: isGrey ? "x.exe" : "e.exe",
+          windowTitle: "w",
+          matchedAllow: !isGrey,
+          matchedBlock: false,
+        });
+      });
+      return extractFeatures(ring, T0 + 300 * SEC).raw.greyLeaky120;
+    };
+    const recent = build(240, 300);
+    const stale = build(0, 60);
+    expect(recent).toBeGreaterThan(stale);
+    expect(stale).toBeGreaterThan(0);
+  });
+
+  it("absenceRun60 is the LONGEST unbroken absence, not the count of absences", () => {
+    // 3 away, 1 present, 5 away ⇒ longest run 5, encoded 5/20 = 0.25.
+    const labels: Array<"away" | "at_desk"> = [
+      "away", "away", "away", "at_desk", "away", "away", "away", "away", "away",
+    ];
+    const ring = new TelemetryRing();
+    ring.reset(T0);
+    commitFrames(ring, 1, labels.length, (r, ts, i) => {
+      const label = labels[i] as "away" | "at_desk";
+      r.noteDesk(
+        { ts, label, confidence: label === "at_desk" ? 0.95 : 0.05, webcamEnabled: true },
+        0.6,
+      );
+    });
+    const { raw, values } = extractFeatures(ring, T0 + labels.length * SEC);
+    expect(raw.absenceRun60).toBe(5);
+    expect(values[idx("absenceRun60")]).toBeCloseTo(0.25, 12);
+    // The flicker COUNT sees the same stream as 2 changes — the two features
+    // are not redundant, which is why this one is here.
+    expect(raw.deskFlicker60).toBe(2);
+  });
+
+  it("deskConfDrop120 compares the last 30 s against the preceding 120 s", () => {
+    // 120 s at 0.90, then 30 s at 0.60 ⇒ a 0.30 drop, encoded 0.30/0.40 = 0.75.
+    const ring = new TelemetryRing();
+    ring.reset(T0);
+    commitFrames(ring, 1, 150, (r, ts, i) => {
+      r.noteDesk(
+        { ts, label: "at_desk", confidence: i < 120 ? 0.9 : 0.6, webcamEnabled: true },
+        0.6,
+      );
+    });
+    const { raw, values } = extractFeatures(ring, T0 + 150 * SEC);
+    expect(raw.deskConfDrop120).toBeCloseTo(0.3, 9);
+    expect(values[idx("deskConfDrop120")]).toBeCloseTo(0.75, 9);
+
+    // One-sided: confidence RISING against the long baseline reads 0.
+    const rising = new TelemetryRing();
+    rising.reset(T0);
+    commitFrames(rising, 1, 150, (r, ts, i) => {
+      r.noteDesk(
+        { ts, label: "at_desk", confidence: i < 120 ? 0.6 : 0.9, webcamEnabled: true },
+        0.6,
+      );
+    });
+    expect(extractFeatures(rising, T0 + 150 * SEC).raw.deskConfDrop120).toBe(0);
+  });
+
+  it("every trend feature sits at its documented neutral on a one-frame ring", () => {
+    const ring = new TelemetryRing();
+    ring.reset(T0);
+    ring.noteFocus({
+      ts: T0 + SEC,
+      processName: "editor.exe",
+      windowTitle: "essay",
+      matchedAllow: true,
+      matchedBlock: false,
+    });
+    ring.commit(T0 + SEC);
+    const { raw, values } = extractFeatures(ring, T0 + SEC);
+    expectAllInUnit(values);
+    expect(raw.deskSagSlope30).toBe(0);
+    expect(raw.dwellShrink30v90).toBe(1); // ε/ε
+    expect(raw.titleChurnAccel).toBe(1);
+    expect(raw.greyLeaky120).toBe(0);
+    expect(raw.absenceRun60).toBe(0);
+    expect(raw.deskConfDrop120).toBe(0);
+    expect(values[idx("dwellShrink30v90")]).toBeCloseTo(0.25, 12);
+    expect(values[idx("titleChurnAccel")]).toBeCloseTo(0.25, 12);
+  });
+});
+
 describe("extractFeatures neutrals and bounds", () => {
   it("an empty ring (session just started) encodes to defined neutrals, never NaN", () => {
     const ring = new TelemetryRing();
     ring.reset(T0);
     const { raw, values } = extractFeatures(ring, T0);
     expectAllInUnit(values);
+    // Trend neutrals: nothing observed ⇒ no trend, and the rate ratios are
+    // exactly ε/ε = 1 rather than 0/0.
+    expect(raw.deskSagSlope30).toBe(0);
+    expect(raw.dwellShrink30v90).toBe(1);
+    expect(raw.titleChurnAccel).toBe(1);
+    expect(raw.greyLeaky120).toBe(0);
+    expect(raw.absenceRun60).toBe(0);
+    expect(raw.deskConfDrop120).toBe(0);
     // Desk neutrals with zero webcam frames in window.
     expect(raw.deskPresent30).toBe(DESK_NEUTRAL);
     expect(raw.deskConfMean30).toBe(DESK_NEUTRAL);

@@ -187,19 +187,18 @@ describe("ForecastMonitor cadence", () => {
     expect(eventTypes(h)).toContain("forecast_prearm");
   });
 
-  it("snapshot shape: 18 features in key order, 18 term groups, provenance fields", () => {
+  it("snapshot shape: every feature in key order, one term group each, provenance fields", () => {
     const h = makeMonitor();
     start(h);
     tickSeconds(h, 1);
     const snap = h.snapshots[0];
-    expect(snap?.features.length).toBe(18);
+    expect(snap?.features.length).toBe(FORECAST_INPUT_DIM);
     expect(snap?.features[0]?.key).toBe("switch15");
     // The GLM has no hidden layer: `hidden` is one tanh'd term-group
     // activation per feature, so the strip stays a strip and the contract
     // stays "a number[] of whatever length the architecture has".
     expect(snap?.hidden.length).toBe(FORECAST_INPUT_DIM);
     expect(snap?.paramCount).toBe(FORECAST_PARAM_COUNT);
-    expect(snap?.paramCount).toBe(190);
     expect(snap?.modelVersion).toBe("ff-1");
     expect(snap?.horizonSec).toBe(30);
     expect(snap?.baseFuseSec).toBe(10);
@@ -359,7 +358,7 @@ describe("ForecastMonitor failure containment", () => {
     expect(rows[0]?.v).toBe(1);
     expect(rows[0]?.source).toBe("recorded");
     expect(rows[0]?.label).toBe(null);
-    expect(rows[0]?.features.length).toBe(18);
+    expect(rows[0]?.features.length).toBe(FORECAST_INPUT_DIM);
     expect(rows[0]?.decision).toBe("ON_TASK");
   });
 });

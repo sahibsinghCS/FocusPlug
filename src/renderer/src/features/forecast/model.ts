@@ -429,7 +429,7 @@ export interface FeatureBarView {
   positive: boolean;
 }
 
-/** All 18 features as signed bars, in FORECAST_FEATURE_KEYS order. */
+/** Every feature as a signed bar, in FORECAST_FEATURE_KEYS order. */
 export function featureBars(
   features: readonly ForecastFeatureView[],
   ctx: FeatureCopyCtx = {},
