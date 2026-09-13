@@ -31,6 +31,8 @@
     "probe:window:live": "node --experimental-strip-types --disable-warning=ExperimentalWarning --import ./src/main/kill/register.mjs src/main/window/probe.ts --live",
     "probe:golden": "tsx --tsconfig tsconfig.node.json src/main/session/probe.ts",
     "test:desk": "tsx --tsconfig tsconfig.node.json src/main/desk/gauntlet.ts",
+    "capture:attention": "tsx --tsconfig tsconfig.node.json scripts/desk-model/capture-attention.ts",
+    "capture:protocol": "tsx --tsconfig tsconfig.node.json scripts/desk-model/capture-protocol.ts",
     "gauntlet:adapt": "tsx --tsconfig tsconfig.node.json src/shared/adapt/gauntlet.ts",
     "dataset:adapt": "tsx --tsconfig tsconfig.node.json src/shared/adapt/export.ts",
     "prior:adapt": "tsx --tsconfig tsconfig.node.json src/shared/adapt/fit-prior.ts",

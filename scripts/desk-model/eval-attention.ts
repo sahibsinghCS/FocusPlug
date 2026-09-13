@@ -6,50 +6,30 @@ import {
   loadDeskHeadWeights,
 } from "../../src/main/desk/model/your-model";
 import { deskRoot } from "../../src/main/desk/assets";
-import {
-  attentionLabelsFile,
-  cacheDir,
-  formatMetrics,
-  readAttentionLabels,
-  readFeatureRows,
-  scorePredictions,
-} from "./lib";
+import { buildAttentionEval, type Pair } from "./attention-report";
+import { dedupeByPath, duplicatePathWarning, resolveMinGroups } from "./first-person";
+import { attentionLabelsFile, cacheDir, readAttentionLabels, readFeatureRows } from "./lib";
 
 /**
  * Held-out eval for the attention head. Scores ONLY `split: "eval"` rows of
  * datasets/desk-attention-labels.csv, whose near-duplicate groups never
  * straddle the split.
  *
- * Truth here is Adaption Labs' annotation, not a human label — the report
- * says so, and says how often the pack's own `distracted` label agrees.
+ * Truth for the stock photos is Adaption Labs' annotation, not a human label —
+ * the report says so, and says how often the pack's own `distracted` label
+ * agrees.
+ *
+ * This file is the IO shell only: weights, features, labels, stdout, the JSON
+ * file. Every decision about what is scored, what is refused and how it is
+ * printed lives in `attention-report.ts`, so that the two-population split,
+ * the group-count gate and the clip count riding on every first-person number
+ * are pinned by `attention-report.test.ts` instead of only observable by
+ * running this script against a data pack.
  *
  *   FOCUSPLUG_DESK_DATA=... tsx scripts/desk-model/eval-attention.ts
+ *   ... eval-attention.ts --stock-only        # the pre-capture numbers, exactly
+ *   ... eval-attention.ts --min-fp-groups 6   # raise the gate (it can only rise)
  */
-
-interface Binary {
-  precision: number;
-  recall: number;
-  f1: number;
-  support: number;
-}
-
-function binary(pairs: Array<{ truth: boolean; predicted: boolean }>): Binary {
-  const tp = pairs.filter((pair) => pair.truth && pair.predicted).length;
-  const fp = pairs.filter((pair) => !pair.truth && pair.predicted).length;
-  const fn = pairs.filter((pair) => pair.truth && !pair.predicted).length;
-  const precision = tp + fp > 0 ? tp / (tp + fp) : 0;
-  const recall = tp + fn > 0 ? tp / (tp + fn) : 0;
-  return {
-    precision,
-    recall,
-    f1: precision + recall > 0 ? (2 * precision * recall) / (precision + recall) : 0,
-    support: tp + fn,
-  };
-}
-
-function formatBinary(name: string, value: Binary): string {
-  return `${name}: precision ${(value.precision * 100).toFixed(1)}% · recall ${(value.recall * 100).toFixed(1)}% · F1 ${(value.f1 * 100).toFixed(1)}% (${value.support} positives)`;
-}
 
 function stringArg(flag: string, fallback: string): string {
   const index = process.argv.indexOf(flag);
@@ -60,13 +40,25 @@ async function main(): Promise<void> {
   // --weights / --labels let an old head be scored on a new split, and vice versa.
   const file = stringArg("--weights", join(deskRoot(), "model", "weights", "attention-head.json"));
   const labelsFile = stringArg("--labels", attentionLabelsFile());
+  const stockOnly = process.argv.includes("--stock-only");
+  const minGroups = resolveMinGroups(Number(stringArg("--min-fp-groups", "")) || undefined);
   const weights = loadDeskHeadWeights(file, ATTENTION_HEAD_LABELS);
   if (!weights) {
     throw new Error("attention-head.json not found — run train-attention.ts first");
   }
   const labels = [...ATTENTION_HEAD_LABELS] as string[];
-  const features = new Map(readFeatureRows().map((row) => [row.path, row]));
-  const rows = readAttentionLabels(labelsFile)
+  const features = new Map(
+    readFeatureRows(undefined, { includeFirstPerson: true }).map((row) => [row.path, row]),
+  );
+  // One path is one image: a repeated path would score the same image twice
+  // and print frame counts for images that do not exist. extract-features.ts
+  // has always deduped its work list; this is the same rule on the way in.
+  const labelled = dedupeByPath(readAttentionLabels(labelsFile));
+  const duplicates = duplicatePathWarning(labelled, labelsFile);
+  if (duplicates) {
+    console.warn(duplicates);
+  }
+  const rows = labelled.rows
     .filter((row) => row.split === "eval" && labels.includes(row.attention))
     .flatMap((label) => {
       const feature = features.get(label.path);
@@ -76,7 +68,7 @@ async function main(): Promise<void> {
     throw new Error("No labelled eval rows with cached features");
   }
 
-  const pairs = rows.map(({ label, feature }) => {
+  const pairs: Pair[] = rows.map(({ label, feature }) => {
     const prediction = attentionHeadPredict(weights, feature.vector);
     return {
       path: label.path,
@@ -85,46 +77,21 @@ async function main(): Promise<void> {
       confidence: prediction.confidence,
       workspace: label.workspace === "True" || label.workspace === "true",
       packLabel: label.packLabel,
+      group: label.group,
+      attention: label.attention,
     };
   });
 
-  const overall = scorePredictions(labels, pairs);
-  const workspace = scorePredictions(labels, pairs.filter((pair) => pair.workspace));
-  const majority = labels
-    .map((label) => ({ label, count: pairs.filter((pair) => pair.truth === label).length }))
-    .sort((a, b) => b.count - a.count)[0]?.label as string;
-  const majorityBaseline = scorePredictions(
+  const { lines, report } = buildAttentionEval({
     labels,
-    pairs.map((pair) => ({ truth: pair.truth, predicted: majority })),
-  );
-  const phone = binary(pairs.map((pair) => ({ truth: pair.truth === "phone", predicted: pair.predicted === "phone" })));
-  const offTask = binary(
-    pairs.map((pair) => ({ truth: pair.truth !== "focused", predicted: pair.predicted !== "focused" })),
-  );
-  // What the pack's own label would have said, scored against the same truth.
-  const packPhone = binary(
-    pairs.map((pair) => ({ truth: pair.truth === "phone", predicted: pair.packLabel === "distracted" })),
-  );
-
-  console.log(formatMetrics("attention head (eval)", overall));
-  console.log(formatMetrics("  at a workspace only", workspace));
-  console.log(formatMetrics(`majority baseline (always ${majority})`, majorityBaseline));
-  console.log(formatBinary("phone detection", phone));
-  console.log(formatBinary("off task (unfocused or phone)", offTask));
-  console.log(formatBinary("pack label `distracted` as a phone detector", packPhone));
-  console.log("truth = Adaption Labs annotation; see datasets/desk-attention-labels.csv");
-
-  const report = {
+    pairs,
+    minGroups,
+    stockOnly,
     evaluatedAt: new Date().toISOString(),
-    truth: "Adaption Labs Adaptive Data annotation",
-    overall,
-    workspace,
-    majorityBaseline,
-    phone,
-    offTask,
-    packPhone,
-    misses: pairs.filter((pair) => pair.truth !== pair.predicted),
-  };
+  });
+  for (const line of lines) {
+    console.log(line);
+  }
   const reportFile = join(cacheDir(), "attention-eval-report.json");
   writeFileSync(reportFile, JSON.stringify(report, null, 2));
   console.log(`report -> ${reportFile}`);

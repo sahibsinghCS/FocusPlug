@@ -174,9 +174,140 @@ photos, so it only restates how they were chosen.
 
 It still learns from 3rd-person stock photos while the runtime camera is
 1st-person, where the phone is usually below the frame and the tell is the
-head tilting down. Claim the pipeline, not phone detection. The data that would
-fix it is the actual webcam: a minute focused and a minute on the phone label
-themselves.
+head tilting down. **Claim the pipeline, not phone detection.** Nothing in the
+next section changes that headline; it only narrows the domain gap and
+measures the narrowing honestly.
+
+### First-person capture (`npm run capture:attention`)
+
+Webcam clips are **self-labelling**. Record 20 seconds while deliberately on
+your phone and every frame in that clip is a phone frame by construction — no
+annotation step, not by a human and not by Adaption. Your entire cost is the
+recording.
+
+```
+npm run capture:attention -- --label phone --seconds 20 --clip 3
+npm run capture:attention -- --label focused --clip 1 --dry-run   # prints the plan, no camera
+npm run capture:attention -- --label phone --clip 3 --retake      # re-record clip 3, REPLACING it
+npm run capture:protocol                                          # the protocol below
+```
+
+It opens the camera through `src/main/desk/camera.ts` — the same
+`ElectronCameraSource` the shipped desk monitor uses, reached by relaunching
+under the Electron binary the app already depends on (`--source ffmpeg` uses
+that file's ffmpeg source instead). No new dependency. Frames are written into
+the desk-data pack under `first-person/<label>/fp-clip-NNN/`, never into the
+repo, and rows are appended to `datasets/desk-attention-labels.csv` in its
+**existing schema** — no new columns:
+
+| column | value | why |
+| --- | --- | --- |
+| `group` | the clip id, e.g. `fp-clip-003` | **one clip is one group**, so a clip can never straddle the split |
+| `attention` / `pack_label` | the label you declared | the declaration is the only ground truth here |
+| `split` | odd clips train, even clips eval | assigned per clip, never per frame |
+| `note` | `first-person webcam capture, self-labelled by clip` | so nobody mistakes these for annotated photos |
+
+`person` / `workspace` / `phone` / `gaze` are **derived from the declared
+label**, not observed. A clip id can never be reused for a different label or
+the other split — the tool refuses, because that would split one group across
+train and eval.
+
+Re-recording the same clip is a **replacement, not an addition**. A frame
+filename is a pure function of label, clip and frame index, so take two
+overwrites take one's images and no new image exists; appending a second set of
+rows for those same paths would add nothing but duplicates. `--retake` says
+that out loud and **rewrites** the clip's rows (and deletes any frames a
+shorter take left behind); without it the tool refuses. One path, one row: the
+1,919 stock rows have always held that, and neither the eval nor the trainer
+will be the first thing to break it.
+
+#### The recording protocol
+
+Six clips of 20 seconds: two focused, two phone, two unfocused. That is about
+two minutes of your time, and there is no labelling step at all — the label you
+declare before recording IS the label of every frame in that clip.
+
+Vary the clips on purpose: different lighting, a different camera angle, a
+different time of day. Six varied clips are six independent groups; one long
+clip is one group no matter how many frames it holds, so a single long take
+teaches almost nothing and measures nothing.
+
+Record them in this order, one command per clip:
+
+```
+npm run capture:attention -- --label focused   --seconds 20 --clip 1
+npm run capture:attention -- --label focused   --seconds 20 --clip 2
+npm run capture:attention -- --label phone     --seconds 20 --clip 3
+npm run capture:attention -- --label phone     --seconds 20 --clip 4
+npm run capture:attention -- --label unfocused --seconds 20 --clip 5
+npm run capture:attention -- --label unfocused --seconds 20 --clip 6
+```
+
+Odd clip numbers go to the train split and even ones to eval, so each label
+lands one clip on each side. That gives three eval clips — the minimum the eval
+will score at all, and still only a three-sample measurement.
+
+focused: work as you actually work. phone: hold the phone where you really hold
+it, below the frame, and let your head tilt down. unfocused: at the desk but
+off task — staring away, leaning back, talking to someone.
+
+Then re-extract features and retrain, and read the first-person and stock
+numbers separately:
+
+```
+npx tsx --tsconfig tsconfig.node.json scripts/desk-model/extract-features.ts --shard 0 --of 1
+npx tsx --tsconfig tsconfig.node.json scripts/desk-model/train-attention.ts --hidden 16 --l2 0.03 --slices 745-2025
+npx tsx --tsconfig tsconfig.node.json scripts/desk-model/eval-attention.ts
+```
+
+#### What six clips can and cannot claim
+
+The honest claim after six clips is "adapted toward first-person, measured on 3
+eval clips" — not a new headline accuracy. Three clips cannot move a headline
+number, and the eval refuses to print one that pretends otherwise.
+
+Consecutive frames of one clip are near-identical, so **a clip is one
+independent sample however many frames it holds**. 40 frames are not 40
+samples, and a tool that recorded two clips and reported a big accuracy jump
+would be lying. The machinery that keeps this honest:
+
+- `eval-attention.ts` scores stock (3rd-person) and first-person rows
+  **separately** and never pools them; the top-level numbers in the report and
+  the table above stay the stock slice. `--stock-only` reproduces the
+  pre-capture numbers exactly.
+- Every first-person number printed carries its **clip count**, not just its
+  frame count — the headline, every per-class row, and both precision/recall
+  lines, whose frame counts alone ("80 positives" off three clips) are exactly
+  the inflation this section exists to stop. `assertClipCounted` enforces that
+  in code rather than by memory: a first-person line carrying a percentage or
+  an `n/m` ratio with no clips named throws instead of printing. The pack's
+  `distracted` baseline is not printed on webcam rows at all — the pack never
+  labelled them, so a 0% "baseline" there would be manufactured out of a
+  vocabulary mismatch, sitting flatteringly next to the head's number.
+- Below `FIRST_PERSON_MIN_EVAL_GROUPS` (3) independent eval clips — or with any
+  of the three labels missing an eval clip — the eval prints a refusal and the
+  clip census **instead of an accuracy**, and the JSON report stores `null`
+  where the metrics would go. This is the same shape as the Focus Plan trend
+  gates. `--min-fp-groups` can raise the bar; it cannot lower it.
+- **One path is one row**, on both sides of the tool. `eval-attention.ts` and
+  `train-attention.ts` deduplicate by path before scoring or training — as
+  `extract-features.ts` always has — and say so when they find one, and
+  `buildAttentionEval` refuses to render a report at all if a duplicate reaches
+  it. A duplicated path is the quietest failure in this pipeline: the clip
+  counts stay reassuringly correct while the frame counts describe images that
+  no longer exist, and the trainer standardizes **every** row in the run —
+  stock rows included — against a mean divided by a count it never summed.
+- `train-attention.ts` treats the rows like any other (`--first-person-weight`,
+  `--exclude-first-person`, `--first-person-only` change that; the defaults —
+  weight 1, no filter — leave behaviour identical). Its validation split is
+  already group-aware, so clip frames never land on both sides.
+- The presence head is untouched: capture rows carry `bucket: "first_person"`,
+  which `readFeatureRows` skips unless a caller opts in.
+
+So after the full protocol the table above does not gain a row. What you can
+say is: the head has seen first-person frames, and it was measured on three
+first-person clips. Anything stronger needs many more clips from many more
+people.
 
 It is opt-in by construction: attention only exists with
 `deskModelId: "custom"`, so the default BlazeFace install never nudges on it.

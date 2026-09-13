@@ -17,6 +17,7 @@ export default defineConfig({
       "src/main/desk/**/*.test.ts",
       "src/main/plugs/**/*.test.ts",
       "src/renderer/src/**/*.test.ts",
+      "scripts/desk-model/**/*.test.ts",
     ],
   },
 });
