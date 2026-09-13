@@ -11,7 +11,7 @@ import {
 } from "./math";
 import { buildFlightModel } from "./model";
 import { FlightRoutePicker } from "./RoutePicker";
-import { resolveFlightRoutePicker } from "./routePicker";
+import { resolveFlightRoutePicker } from "./routePickerVisibility";
 
 export interface FlightFaceViewProps {
   clock: FlightClock;
