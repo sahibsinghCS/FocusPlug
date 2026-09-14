@@ -555,6 +555,75 @@ say is: the head has seen first-person frames, and it was measured on three
 first-person clips. Anything stronger needs many more clips from many more
 people.
 
+### Corrections from the student (`docs/CORRECTION-LOOP.md`)
+
+Everything above this line was learned from **third-person stock photography**.
+The one source of first-person evidence that scales is the student themselves:
+when the timer pauses on a `phone` reading and they say *I was working*, the
+frames that caused that pause are stored on their machine with their label. It
+is data captured at exactly the moments this head is worst, labelled by the
+only person who knows the truth, in their own room and their own light.
+
+Two timescales, and they are deliberately not the same mechanism:
+
+* **Immediately** the app obeys: the clock resumes and pauses of that kind are
+  suppressed for a stated cooldown. The student is the authority in the moment.
+  This touches no weights at all.
+* **Later, and only when asked**, `npm run refit:attention` (or the Settings
+  button, which runs the same code) fits **the output layer only** — 3×16
+  weights and 3 biases, **51 numbers** — from the accumulated corrections,
+  anchored to the shipped layer. **One click never retrains anything.**
+
+What is refit and what is not:
+
+| | |
+| --- | --- |
+| **fitted** | the 3×16 output layer, on the student's machine, into `<userData>/desk-corrections/personal-attention-head.json` |
+| **frozen** | the 1280→16 bottleneck, the slice, the mean, the std — a personal head file physically cannot express them |
+| **never written by the app** | `model/weights/attention-head.json`. On a packaged install it is inside a read-only bundle. |
+
+The refit optimises the softmax over `focused` and `phone` **only**, and leaves
+the `unfocused` row byte-identical to the shipped one. That is not an
+optimisation: the paused screen has two buttons and neither can produce
+`unfocused`, so a pile of corrections carries no evidence about that class —
+and a three-way softmax would read every frame as evidence *against* it.
+Measured on the 286 anchors below, that mistake costs `unfocused` recall
+53.1% → 12.5%. The fit does not make it.
+
+**The gate.** A personal head that is worse than the shipped one must not
+replace it, so both are scored on the **same held-out eval this page already
+reports** and eleven named gates run in order. It installs only if it is not
+beaten pooled, drops neither slice by more than 3 points, and newly agrees with
+the student on at least one more of their own held-out corrections. A refit
+that fails writes the report and **deletes** any personal head that was there.
+Both columns and every gate are in `refit-report.json` and on screen, and the
+UI says which head is running.
+
+**The anchors.** Scoring both heads needs the eval, and the eval is 286
+photographs that cannot ship. So `npm run anchors:attention` commits
+`model/weights/attention-anchors.json` (~56 KB): for each held-out image, the
+**16 activations of the frozen bottleneck** and its truth — no pixels, nothing
+invertible to an image, no `nc/` (CC BY-NC-SA) row and no first-person frame.
+`attention-anchors.metrics.json` records the census, the licence exclusions,
+and a parity check that every row reproduces `your-model.ts`'s own arithmetic
+to 5e-7. The pack is stamped with `baseHeadHash`; if this head is ever
+retrained the pack is stale, the gate says so, and nothing installs until it is
+rebuilt.
+
+**Is the gate real?** `npm run gauntlet:corrections` runs it against 200
+synthetic students per arm: it installs **1.0%** of heads fitted on
+shuffled-label pools, and **95.5%** of heads fitted on a first-person cue that
+genuinely exists. A gate nobody checked in the *pass* direction is
+indistinguishable from `return false`.
+
+**Privacy.** The photographs are the student's own webcam frames. They stay in
+`<userData>/desk-corrections/`, are never uploaded, are listed with thumbnails
+in Settings, and are deletable in one action which also removes any head fitted
+from them — and stops it running: the cached desk model is dropped in the same
+call, so the reading after the tap comes from the shipped head, not from the
+one fitted on the photographs that just went. The only way one leaves the
+machine is the student running `npm run corrections:export` themselves.
+
 ### What this head is allowed to do in the product
 
 It is opt-in by construction: attention only exists with
@@ -609,3 +678,11 @@ nudge is evidence that the pause works.
 - Edinburgh office webcam frames (`nc/`, Fisher et al.) — **CC BY-NC-SA**,
   used for training/eval only in this non-commercial hackathon build; only
   learned weights ship, never the images.
+- The committed anchor pack (`model/weights/attention-anchors.json`) is derived
+  from the held-out eval slice of `datasets/desk-attention-labels.csv` — the
+  Adaption Labs annotations and the Pexels/public-domain proxies above — as 16
+  activations per image and nothing else. No `nc/` (CC BY-NC-SA) row is in it,
+  which `build-attention-anchors.ts` enforces rather than assumes, and no
+  first-person frame is either: a student's own photographs never enter a
+  committed file. `attention-anchors.metrics.json` records both exclusions as
+  counts.

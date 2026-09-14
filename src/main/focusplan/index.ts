@@ -1,9 +1,12 @@
+import type { PlanRetraction } from "../../shared/correction/types.ts";
 import type { FocusPlanState, PlanPush, PlanTap } from "../../shared/plan/types.ts";
 import { PlanRecorder, type PlanRecorderOptions } from "./recorder.ts";
 
 export { PlanRecorder, describeRound, normalizePlanContext, PLAN_PIN_ENV } from "./recorder.ts";
 export type { PlanLedgerStore, PlanRecorderOptions } from "./recorder.ts";
 export { withPlan, withPlanForecast } from "./tap.ts";
+export { applyPlanRetraction } from "./retract.ts";
+export type { PlanRetractionInput, PlanRetractionOutcome } from "./retract.ts";
 export {
   appendPlanRound,
   clonePlanRound,
@@ -27,6 +30,15 @@ export interface FocusPlan {
   getState(): FocusPlanState;
   /** `PLAN_RESET`. */
   reset(): FocusPlanState;
+  /**
+   * A student said a confirmed `away` pause was wrong, so the drift it
+   * produced was not one. A COMMAND, injected into the corrections service by
+   * `runtime.ts` rather than imported by it — the desk stack gains no seam
+   * into the coaching layer, and this one gains none into the desk stack.
+   *
+   * Never throws, and names the gate that stopped it when it refuses.
+   */
+  retractLastAwayDrift(): PlanRetraction;
 }
 
 /**
@@ -44,6 +56,7 @@ export function createFocusPlan(options: CreateFocusPlanOptions): FocusPlan {
     declareRound: (context) => recorder.declareRound(context),
     getState: () => recorder.getState(),
     reset: () => recorder.reset(),
+    retractLastAwayDrift: () => recorder.retractLastAwayDrift(),
   };
 }
 

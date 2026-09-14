@@ -19,6 +19,8 @@ const POLICY: DriftPolicy = {
   pauseOnPhone: DEFAULT_SETTINGS.pauseOnPhoneEnabled,
   awayConfidence: DEFAULT_SETTINGS.pauseAwayConfidence,
   phoneConfidence: DEFAULT_SETTINGS.pausePhoneConfidence,
+  // Nothing corrected: `silenced: []` is today's behaviour byte for byte.
+  silenced: [],
   // No countdown burning. On a default install the 10 s fuse has long since
   // resolved by the time the 15 s away floor is met, so this is what the
   // shipped case looks like at the moment a pause is due. The fuse lengths

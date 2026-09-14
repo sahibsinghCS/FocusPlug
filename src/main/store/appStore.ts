@@ -245,6 +245,14 @@ export function normalizeSettings(raw: Partial<AppSettings> | null | undefined):
       typeof raw?.focusPlanStretchEnabled === "boolean"
         ? raw.focusPlanStretchEnabled
         : DEFAULT_SETTINGS.focusPlanStretchEnabled,
+    deskCorrectionsEnabled:
+      typeof raw?.deskCorrectionsEnabled === "boolean"
+        ? raw.deskCorrectionsEnabled
+        : DEFAULT_SETTINGS.deskCorrectionsEnabled,
+    personalAttentionHeadEnabled:
+      typeof raw?.personalAttentionHeadEnabled === "boolean"
+        ? raw.personalAttentionHeadEnabled
+        : DEFAULT_SETTINGS.personalAttentionHeadEnabled,
   };
 }
 

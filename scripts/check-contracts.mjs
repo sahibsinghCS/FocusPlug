@@ -37,9 +37,12 @@ function normalizeSource(source) {
 
 /**
  * Every fence a doc publishes as the complete source of a shipped file.
- * `docs/CONTRACTS.md` freezes the kill-path contract; the Focus Plan appendix
- * freezes the plan core's types and constants — and an appendix is exactly
- * where an unchecked claim would earn the most undeserved trust.
+ * `docs/CONTRACTS.md` freezes the kill-path contract; the Focus Plan and
+ * correction-loop appendices freeze their cores' types and constants — and an
+ * appendix is exactly where an unchecked claim would earn the most undeserved
+ * trust. The correction loop's fence earns its keep the hard way: the anchor
+ * strength in it is a tuned number, and a tuned number that drifted from the
+ * document explaining how it was tuned is worse than no document.
  */
 const FROZEN = [
   {
@@ -51,6 +54,16 @@ const FROZEN = [
     doc: "docs/FOCUS-PLAN.md",
     heading: "## 1. New shared types — `src/shared/plan/types.ts` (complete source)",
     source: "src/shared/plan/types.ts",
+  },
+  {
+    doc: "docs/CORRECTION-LOOP.md",
+    heading: "## 1. New shared types — `src/shared/correction/types.ts` (complete source)",
+    source: "src/shared/correction/types.ts",
+  },
+  {
+    doc: "docs/CORRECTION-LOOP.md",
+    heading: "## 2. Constants — `src/shared/correction/constants.ts` (complete source)",
+    source: "src/shared/correction/constants.ts",
   },
   {
     doc: "docs/FOCUS-PLAN.md",

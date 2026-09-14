@@ -14,6 +14,7 @@ export type KindFilterId =
   | "plug_on"
   | "session"
   | "plan"
+  | "correction"
   | "config"
   | "other";
 
@@ -39,6 +40,7 @@ export const KIND_FILTERS: readonly KindFilter[] = [
   { id: "demo", label: "Demo Kill", kinds: ["demo"], always: true },
   { id: "session", label: "Session", kinds: ["session"], always: false },
   { id: "plan", label: "Focus Plan", kinds: ["plan"], always: false },
+  { id: "correction", label: "Corrections", kinds: ["correction"], always: false },
   { id: "config", label: "Settings", kinds: ["settings", "lists", "plugs"], always: false },
   { id: "other", label: "Other", kinds: [], always: false },
 ];

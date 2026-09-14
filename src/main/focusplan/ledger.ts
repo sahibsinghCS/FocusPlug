@@ -44,7 +44,11 @@ export function revivePlanLedger(raw: unknown): FocusPlanLedger {
 }
 
 export function clonePlanRound(round: PlanRound): PlanRound {
-  return { ...round, driftsSec: [...round.driftsSec] };
+  const clone: PlanRound = { ...round, driftsSec: [...round.driftsSec] };
+  if (round.retractedDriftsSec !== undefined) {
+    clone.retractedDriftsSec = [...round.retractedDriftsSec];
+  }
+  return clone;
 }
 
 /**

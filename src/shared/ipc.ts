@@ -1,3 +1,9 @@
+import type {
+  DeskCorrectionsState,
+  RecordCorrectionRequest,
+  RecordCorrectionResult,
+  RefitReport,
+} from "./correction/types";
 import type { FaceId } from "./faces";
 import type { ForecastEvent, ForecastSnapshot } from "./forecast/types";
 import type { NudgeEvent, NudgeKind, PlugMode } from "./nudge";
@@ -16,6 +22,31 @@ import type {
   SessionEvent,
 } from "./types";
 
+export type {
+  ActiveAttentionHead,
+  AttentionAnchorRow,
+  AttentionAnchors,
+  CorrectionCooldown,
+  CorrectionHead,
+  CorrectionLabel,
+  CorrectionListItem,
+  CorrectionMeaning,
+  CorrectionVerdict,
+  DeskCorrection,
+  DeskCorrectionFrame,
+  DeskCorrectionsFile,
+  DeskCorrectionsState,
+  PendingCorrection,
+  PersonalAttentionHead,
+  PlanRetraction,
+  PlanRetractionRefusal,
+  RecordCorrectionRequest,
+  RecordCorrectionResult,
+  RefitGateId,
+  RefitGateResult,
+  RefitReport,
+  RefitScores,
+} from "./correction/types";
 export type { FaceId, FacePhase } from "./faces";
 export type { ForecastBand, ForecastEvent, ForecastSnapshot } from "./forecast/types";
 export type { DeskDrift, NudgeEvent, NudgeKind, PauseKind, PlugMode } from "./nudge";
@@ -74,6 +105,12 @@ export const IPC_INVOKE = {
   FORECAST_GET_STATE: "focusplug:forecast:getState",
   PLAN_GET_STATE: "focusplug:plan:getState",
   PLAN_RESET: "focusplug:plan:reset",
+  CORRECTIONS_GET_STATE: "focusplug:corrections:getState",
+  CORRECTIONS_RECORD: "focusplug:corrections:record",
+  CORRECTIONS_DELETE: "focusplug:corrections:delete",
+  CORRECTIONS_CLEAR: "focusplug:corrections:clear",
+  CORRECTIONS_REVEAL: "focusplug:corrections:reveal",
+  CORRECTIONS_REFIT: "focusplug:corrections:refit",
 } as const;
 
 /** Main → renderer push (event) channels. */
@@ -87,6 +124,7 @@ export const IPC_PUSH = {
   FORECAST_SNAPSHOT: "focusplug:forecast:snapshot",
   FORECAST_EVENT: "focusplug:forecast:event",
   PLAN_ROUND: "focusplug:plan:round",
+  CORRECTIONS_STATE: "focusplug:corrections:state",
 } as const;
 
 export type IpcInvokeChannel = (typeof IPC_INVOKE)[keyof typeof IPC_INVOKE];
@@ -156,6 +194,27 @@ export interface AppSettings {
   /** Let progression raise or lower the target. Off keeps the measurement
    *  and the debrief, and plans to the estimate with no step. */
   focusPlanStretchEnabled: boolean;
+  /**
+   * Keep the frames that caused a pause so the student can correct it.
+   *
+   * On by default, and on a default install it still does nothing at all: a
+   * correction can only come from a pause, and only `deskModelId: "custom"`
+   * can pause. Off reproduces today's behaviour exactly — the ring retains
+   * nothing, no `correctionId` is ever issued, the paused screen shows no
+   * verdict row, and nothing is written. It does NOT delete anything already
+   * stored: an off switch is not an erase button, and the erase button is in
+   * the review card.
+   */
+  deskCorrectionsEnabled: boolean;
+  /**
+   * Run a personal attention head when one has passed the gate.
+   *
+   * A PREFERENCE, not a capability: it can only ever turn OFF a head the gate
+   * already let in, never let one in. On by default because a head that got
+   * past the gate is one that did not regress the held-out eval and newly
+   * agrees with the student at least once.
+   */
+  personalAttentionHeadEnabled: boolean;
 }
 
 export interface SessionState {
@@ -205,6 +264,15 @@ export interface IpcInvokeChannelMap {
   "focusplug:forecast:getState": { args: []; result: ForecastSnapshot | null };
   "focusplug:plan:getState": { args: []; result: FocusPlanState };
   "focusplug:plan:reset": { args: []; result: FocusPlanState };
+  "focusplug:corrections:getState": { args: []; result: DeskCorrectionsState };
+  "focusplug:corrections:record": {
+    args: [request: RecordCorrectionRequest];
+    result: RecordCorrectionResult;
+  };
+  "focusplug:corrections:delete": { args: [id: string]; result: DeskCorrectionsState };
+  "focusplug:corrections:clear": { args: []; result: DeskCorrectionsState };
+  "focusplug:corrections:reveal": { args: []; result: void };
+  "focusplug:corrections:refit": { args: [options?: { gate?: "off" }]; result: RefitReport };
 }
 
 export interface IpcPushChannelMap {
@@ -217,6 +285,7 @@ export interface IpcPushChannelMap {
   "focusplug:forecast:snapshot": ForecastSnapshot;
   "focusplug:forecast:event": ForecastEvent;
   "focusplug:plan:round": PlanRound;
+  "focusplug:corrections:state": DeskCorrectionsState;
 }
 
 /** Preload API exposed on `window.focusplug`. */
@@ -243,6 +312,16 @@ export interface FocusPlugApi {
   forecastGetState(): Promise<ForecastSnapshot | null>;
   planGetState(): Promise<FocusPlanState>;
   planReset(): Promise<FocusPlanState>;
+  correctionsGetState(): Promise<DeskCorrectionsState>;
+  /** Records a verdict. Writes JPEGs and one JSON record, and NO weights. */
+  correctionsRecord(request: RecordCorrectionRequest): Promise<RecordCorrectionResult>;
+  correctionsDelete(id: string): Promise<DeskCorrectionsState>;
+  correctionsClear(): Promise<DeskCorrectionsState>;
+  /** Opens `<userData>/desk-corrections/` in the OS file manager. */
+  correctionsReveal(): Promise<void>;
+  /** The separate, explicit refit. One click never retrains; this is the click
+   *  that does, and even it installs nothing the gate refuses. */
+  correctionsRefit(options?: { gate?: "off" }): Promise<RefitReport>;
   onSessionState(cb: (state: SessionState) => void): () => void;
   onPolicyEvent(cb: (event: PolicyEvent) => void): () => void;
   onFocusSnapshot(cb: (snap: FocusSnapshot) => void): () => void;
@@ -252,6 +331,7 @@ export interface FocusPlugApi {
   onForecastSnapshot(cb: (snap: ForecastSnapshot) => void): () => void;
   onForecastEvent(cb: (event: ForecastEvent) => void): () => void;
   onPlanRound(cb: (round: PlanRound) => void): () => void;
+  onCorrectionsState(cb: (state: DeskCorrectionsState) => void): () => void;
 }
 
 export interface WindowMonitor {

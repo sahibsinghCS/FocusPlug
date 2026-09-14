@@ -28,6 +28,19 @@
   }
 }
 
+/* The retraction note, when there is one: its own line under the row rather
+   than a fifth column, because it is a sentence and the other cells are
+   labels. It spans the grid so it reads left-aligned with the outcome. */
+.fp-plan-evidence-retracted {
+  grid-column: 3 / -1;
+}
+
+@media (max-width: 640px) {
+  .fp-plan-evidence-retracted {
+    grid-column: 2 / -1;
+  }
+}
+
 /* Censoring marks: an open circle with an upward tick, the standard notation
    for "the true value is somewhere past here". Filled dots are drifts. */
 .fp-plan-spark-event {

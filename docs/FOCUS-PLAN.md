@@ -203,6 +203,10 @@ The asymmetry in rows 5–6 is deliberate and tested: a short round **with** a d
 
 `status` is decided in main with no extra IPC: `completed` iff `servedSec ≥ plannedFocusSec − PLAN_COMPLETE_SLACK_SEC`, else `aborted`, with the two `discarded` overrides.
 
+**A drift the student says never happened (`docs/CORRECTION-LOOP.md § 5`).** The desk model can stop the clock on an `away` reading it got wrong, and when the student answers *I was working* that reading was not a drift — so it must not count against minutes-until-first-drift. `PlanRecorder.retractLastAwayDrift()` removes **the last recorded onset, and only if the round closed while the decision stream was still drifted and that episode was a `walk_away`**: the pause fires inside an away episode whose onset happened earlier, and `stepOnset` records exactly one onset per episode, so the still-open episode is always the last one. Every other refusal is named (`plan-off`, `pinned`, `no-round`, `no-onset`, `not-open`, `not-away`, `capped`) and reported as one quiet line, never as an error. The round is then **reclassified**, not merely decremented: `classifyRound` re-runs, so a four-minute round whose only drift has just been retracted becomes `discarded` rather than entering the estimator as a censored four-minute observation. `countdowns` and `kills` are untouched — the fuse really did burn. Nothing here changes a gate: the estimator, the seven trend gates and the eligibility rules all run afterwards exactly as before, on corrected data.
+
+The edit is never silent. `PlanRound.retractedDriftsSec?` records the offsets that were removed (optional and absent by default, exactly as `FocusPlanLedger.seed?` is, so no `v` bump and every older ledger reads unchanged), the evidence row prints *"one drift retracted — you told us the camera was wrong"* in the same grey the ineligible rows use, and one `plan · round N — drift at M min retracted (the away reading was wrong)` line lands beside the round it belongs to. The rewrite is applied both to the ledger row and to the recorder's `carried` round, or a resume under the same `roundKey` would seed its onsets from the un-retracted list and put the drift straight back.
+
 ### 3.4 Pause, resume, and round identity
 
 `roundKey = "<plan startedAtMs>-<segment index>"`, supplied by the renderer in the arm context. A pause emits `stopSession()` and the resume emits `startSession()` with the **same** `roundKey`; the recorder merges consecutive sessions sharing a key into one `PlanRound`, summing `servedSec` and keeping the earliest drift across them. Without this, every pause would manufacture two short bogus rounds and fragment a pauser's real hold. `end()` clears `startedAtMs`, so a fresh run is a fresh key namespace.
@@ -1011,6 +1015,10 @@ export interface PlanRound {
   /** Every kept onset, debounced by DRIFT_DEBOUNCE_SEC, capped at
    *  PLAN_MAX_DRIFTS_PER_ROUND. */
   driftsSec: number[];
+  /** Drift onsets removed by a student's correction, in served seconds.
+   *  Absent on every round nothing was retracted from. The round's history is
+   *  edited, never silently: the evidence row says so and so does the log. */
+  retractedDriftsSec?: number[];
   /** First forecast_nudge in this round. A WARNING, never a drift. */
   firstWobbleSec: number | null;
   wobbles: number;
@@ -1192,6 +1200,9 @@ export interface PlanEvidenceRow {
   counted: boolean;
   /** Why it does not count. Null exactly when counted is true. */
   excludedBecause: string | null;
+  /** Onsets a student's correction removed from this round. Absent when none
+   *  were: a row that says nothing about a retraction never had one. */
+  retractedDrifts?: number;
 }
 
 export interface PlanRecommendation {

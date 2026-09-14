@@ -115,6 +115,18 @@ export function normalizeRound(raw: unknown): PlanRound | null {
     driftsRaw.filter((d): d is number => typeof d === "number" && Number.isFinite(d) && d >= 0),
   );
   const driftType = r["firstDriftType"];
+  // Optional and absent by default, exactly as `FocusPlanLedger.seed?` is, so
+  // every older ledger reads back unchanged with no version bump. An empty
+  // array is dropped rather than stored: a round nothing was retracted from
+  // must not claim, on screen, that something was.
+  const retractedRaw = Array.isArray(r["retractedDriftsSec"])
+    ? (r["retractedDriftsSec"] as unknown[]).filter(
+        (d): d is number => typeof d === "number" && Number.isFinite(d) && d >= 0,
+      )
+    : [];
+  const retractedDriftsSec = retractedRaw.length > 0
+    ? { retractedDriftsSec: cappedDrifts([...retractedRaw].sort((a, b) => a - b)) }
+    : {};
 
   return {
     v: 1,
@@ -143,6 +155,7 @@ export function normalizeRound(raw: unknown): PlanRound | null {
     kills: optionalFinite(r["kills"], 0) ?? 0,
     startedDrifted: r["startedDrifted"] === true,
     forecastOn: r["forecastOn"] === true,
+    ...retractedDriftsSec,
   };
 }
 
@@ -284,6 +297,7 @@ export function evidenceFrom(rounds: readonly PlanRound[]): PlanEvidenceRow[] {
     .sort((a, b) => a.startedAt - b.startedAt)
     .map((round) => {
       const excludedBecause = exclusionReason(round);
+      const retracted = round.retractedDriftsSec?.length ?? 0;
       return {
         at: round.startedAt,
         day: round.day,
@@ -294,6 +308,7 @@ export function evidenceFrom(rounds: readonly PlanRound[]): PlanEvidenceRow[] {
         driftType: round.firstDriftType,
         counted: excludedBecause === null,
         excludedBecause,
+        ...(retracted > 0 ? { retractedDrifts: retracted } : {}),
       };
     });
 }

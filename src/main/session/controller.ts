@@ -5,9 +5,11 @@ import type { ForecastHook } from "../../shared/forecast/index.ts";
 import {
   deskModelMayPauseOnAway,
   isNudgeKind,
+  isPauseKind,
   isPlugMode,
   type NudgeEvent,
   type NudgeKind,
+  type PauseKind,
 } from "../../shared/nudge.ts";
 import { REASONS } from "../../shared/policy/constants.ts";
 import {
@@ -28,9 +30,16 @@ import {
   PolicyEngine,
   type PolicyEngineInput,
 } from "../../shared/policy/index.ts";
+import type { CorrectionsSeam } from "../desk/corrections/index.ts";
+import type { RetainedFrame } from "../desk/frameRing.ts";
 import { AdaptiveFuse } from "./adaptiveFuse.ts";
 import { composeFuse } from "./fuseAuthority.ts";
-import { NudgeTracker, type DriftPolicy } from "./nudge.ts";
+import {
+  NudgeTracker,
+  PAUSE_SUSTAIN_AWAY_MS,
+  PAUSE_SUSTAIN_PHONE_MS,
+  type DriftPolicy,
+} from "./nudge.ts";
 import type {
   AppEntry,
   DeskModelId,
@@ -53,6 +62,9 @@ import type { SessionPush } from "./push.ts";
 import { demoKillMatchers, enabledPlugIds, expandKillTargets } from "./targets.ts";
 
 export const DEFAULT_SESSION_TICK_MS = 250;
+
+/** `silenced: []` is today's behaviour byte for byte — one frozen array. */
+const EMPTY_SILENCED: readonly PauseKind[] = Object.freeze([]);
 
 /** JSON persistence used by the session loop. Returns are synchronous. */
 export interface SessionStore {
@@ -277,6 +289,18 @@ function requirePatch(value: unknown): Partial<AppSettings> {
     }
     patch.pauseOnPhoneEnabled = record.pauseOnPhoneEnabled;
   }
+  if ("deskCorrectionsEnabled" in record) {
+    if (typeof record.deskCorrectionsEnabled !== "boolean") {
+      throw new Error("deskCorrectionsEnabled must be a boolean");
+    }
+    patch.deskCorrectionsEnabled = record.deskCorrectionsEnabled;
+  }
+  if ("personalAttentionHeadEnabled" in record) {
+    if (typeof record.personalAttentionHeadEnabled !== "boolean") {
+      throw new Error("personalAttentionHeadEnabled must be a boolean");
+    }
+    patch.personalAttentionHeadEnabled = record.personalAttentionHeadEnabled;
+  }
   if ("pauseAwayConfidence" in record) {
     if (
       typeof record.pauseAwayConfidence !== "number" ||
@@ -353,6 +377,7 @@ export class SessionController {
   private readonly forecast: ForecastHook | null;
   private readonly revealWindow: (() => void) | undefined;
   private readonly nudges = new NudgeTracker();
+  private corrections: CorrectionsSeam | null = null;
 
   private policy: PolicyEngineSeam;
   private generation = 0;
@@ -401,6 +426,37 @@ export class SessionController {
     this.syncDeskEnabled(this.loadSettings().webcamEnabled);
   }
 
+  /**
+   * Attach the correction loop after construction.
+   *
+   * A METHOD AND NOT A CONSTRUCTOR OPTION, deliberately.
+   * `SessionControllerOptions` is asserted key-by-key by
+   * `src/main/focusplan/integration.test.ts` — "if a future change adds an
+   * option, this stops compiling" — and that assertion is worth more than the
+   * convenience of one more key. It also matches how the seam is used: the
+   * corrections service needs the user data path and the log, which the
+   * wiring has and the controller does not.
+   *
+   * Attaching twice replaces the seam; attaching `null` detaches it and
+   * restores today's behaviour on the very next reading, because
+   * `driftPolicy()` is rebuilt per reading rather than cached.
+   */
+  attachCorrections(corrections: CorrectionsSeam | null): void {
+    this.corrections = corrections;
+    this.syncCorrectionCapture();
+  }
+
+  /**
+   * One `correction · …` line in the session log, persisted and pushed.
+   *
+   * The corrections service owns a directory and not a store, so it borrows
+   * the log the same way the plan and the forecast recorders do — through a
+   * closure the wiring hands it, rather than a second writer on the log file.
+   */
+  appendCorrectionLog(detail: string): void {
+    this.appendLog("correction", detail);
+  }
+
   async start(): Promise<SessionState> {
     if (this.sessionActive) {
       await this.stop();
@@ -444,15 +500,22 @@ export class SessionController {
       this.push.deskSnapshot({ ...snap });
       const drift = this.nudges.observeDesk(snap, this.driftPolicy(), this.now());
       if (drift !== null) {
+        // FIRST, and synchronously: hold the frames that caused this pause.
+        // The pause stops the session, a stopped session stops the monitor,
+        // and the monitor releases the camera — so by the time the student
+        // reads the screen there is no camera and no frame. This is the only
+        // ordering in which a correction can exist at all.
+        const correctionId = drift.pause ? this.captureCorrection(drift.kind) : null;
         // Either flag pulls them back: `drift.nudge` is the nudge gate, not a
         // veto. The reading that stops the clock arrives inside
         // NUDGE_REPEAT_MS with `nudge: false`, and a round that just stopped
         // is exactly when the window, the overlay and the lamp have to say so.
-        void this.nudge(drift.kind, { pause: drift.pause });
+        void this.nudge(drift.kind, { pause: drift.pause, correctionId });
       }
       this.enqueueEvaluate();
     });
     this.nudges.reset();
+    this.syncCorrectionCapture();
     this.startTicker(gen);
     this.appendLog("session", "Session started");
     this.publishState();
@@ -968,6 +1031,12 @@ export class SessionController {
       pauseOnPhone: settings.pauseOnPhoneEnabled,
       awayConfidence: settings.pauseAwayConfidence,
       phoneConfidence: settings.pausePhoneConfidence,
+      // The student's own verdict, ANDed in exactly as the model gate above
+      // is. DERIVED from the correction records rather than stored, so the
+      // resume that "I was working" performs — which calls `nudges.reset()` —
+      // cannot cancel the cooldown that same tap armed. See
+      // `docs/CORRECTION-LOOP.md § 4.2`.
+      silenced: this.silencedKinds(),
       // THE KILL GOES FIRST — see `DriftPolicy.fuseBurning`.
       // `countdownStartedAt` is set on `start_countdown` and cleared by
       // `clearFuse` on every path that ends one (kill, recovery, Demo Kill,
@@ -985,15 +1054,20 @@ export class SessionController {
    */
   private async nudge(
     kind: NudgeKind,
-    options?: { app?: string; pause?: boolean },
+    options?: { app?: string; pause?: boolean; correctionId?: string | null },
   ): Promise<void> {
     const app = options?.app;
     const pause = options?.pause === true;
+    // Present ONLY when frames are actually being held. Absent means the
+    // paused screen offers no verdict row, which is the honest thing to show
+    // when there is nothing behind the buttons.
+    const correctionId = options?.correctionId ?? null;
     const event: NudgeEvent = {
       ts: this.now(),
       kind,
       ...(app ? { app } : {}),
       ...(pause ? { pause: true } : {}),
+      ...(correctionId !== null ? { correctionId } : {}),
     };
     this.push.nudge(event);
     try {
@@ -1150,9 +1224,106 @@ export class SessionController {
       setModelId?: (next: DeskModelId) => void;
     };
     monitor.setModelId?.(id);
+    // Only the trained head can pause, and only a pause can produce a
+    // correction: swapping to `blazeface` turns the ring off in the same call.
+    this.syncCorrectionCapture();
+  }
+
+  /**
+   * The kinds the student has corrected and that are still inside their
+   * cooldown. A corrections seam that throws costs the cooldown and never the
+   * reading: the app keeps pausing, which is the pre-correction behaviour.
+   */
+  private silencedKinds(): readonly PauseKind[] {
+    if (this.corrections === null) {
+      return EMPTY_SILENCED;
+    }
+    try {
+      return this.corrections.silencedKinds(this.now());
+    } catch (error) {
+      console.error("Failed to read correction cooldowns:", errorMessage(error));
+      return EMPTY_SILENCED;
+    }
+  }
+
+  /**
+   * Hold the frames that caused this pause, and hand back the id the nudge
+   * carries. Runs synchronously inside the desk callback, BEFORE the pause
+   * reaches the renderer.
+   *
+   * No new camera is opened and no new grab is issued: `peekFrames` returns
+   * frames the model already looked at, on their way to being garbage
+   * collected. Every failure here is swallowed — a correction is a convenience
+   * attached to a pause, and it does not get to cost the pause.
+   */
+  private captureCorrection(kind: NudgeKind): string | null {
+    const corrections = this.corrections;
+    if (corrections === null || !isPauseKind(kind)) {
+      return null;
+    }
+    try {
+      const now = this.now();
+      const sinceMs = kind === "away" ? PAUSE_SUSTAIN_AWAY_MS : PAUSE_SUSTAIN_PHONE_MS;
+      const monitor = this.deskMonitor as DeskMonitor & {
+        peekFrames?: (since: number) => RetainedFrame[];
+      };
+      const frames = monitor.peekFrames?.(now - sinceMs) ?? [];
+      if (frames.length === 0) {
+        return null;
+      }
+      return corrections.openPause({
+        kind,
+        at: now,
+        frames,
+        deskModelId: this.loadSettings().deskModelId,
+      });
+    } catch (error) {
+      console.error("Failed to hold frames for a correction:", errorMessage(error));
+      return null;
+    }
+  }
+
+  /**
+   * Turn the desk monitor's frame ring on or off.
+   *
+   * Retention is conditional on a correction being possible at all
+   * (`deskCorrectionsEnabled`, the trained model, and a pause switch), so a
+   * default install holds no pictures of anybody and the `if` in the monitor's
+   * loop is one comparison per frame. Off also frees whatever is being held.
+   */
+  private syncCorrectionCapture(): void {
+    const corrections = this.corrections;
+    const monitor = this.deskMonitor as DeskMonitor & {
+      setCorrectionCapture?: (enabled: boolean) => void;
+    };
+    let capture = false;
+    try {
+      capture = corrections !== null && corrections.shouldCapture(this.loadSettings());
+      if (!capture) {
+        corrections?.dropPending();
+      }
+    } catch (error) {
+      console.error("Failed to resolve correction capture:", errorMessage(error));
+      capture = false;
+    }
+    try {
+      monitor.setCorrectionCapture?.(capture);
+    } catch (error) {
+      console.error("Failed to switch correction capture:", errorMessage(error));
+    }
+    try {
+      // `personalAttentionHeadEnabled` and `deskModelId` both change which
+      // attention head should be running, and both land here. The controller
+      // is told nothing about heads, paths or weights — it says "settings
+      // moved" and the corrections service decides what that means.
+      corrections?.syncPersonalHead?.();
+    } catch (error) {
+      console.error("Failed to sync the personal attention head:", errorMessage(error));
+    }
   }
 
   private syncDeskEnabled(enabled: boolean): void {
+    this.syncCorrectionCapture();
     this.deskMonitor.setEnabled(enabled);
     if (this.desk !== null) {
       this.desk = { ...this.desk, webcamEnabled: enabled, ts: this.now() };

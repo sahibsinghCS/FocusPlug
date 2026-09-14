@@ -20,6 +20,10 @@ import type {
 } from "../../shared/plan/types.ts";
 import { accumulateServed } from "../../shared/plan/ledger.ts";
 import { seedNotice } from "../../shared/plan/copy.ts";
+import { retractionLogLine } from "../../shared/plan/retract.ts";
+import type { PlanRetraction } from "../../shared/correction/types.ts";
+import type { Decision } from "../../shared/types.ts";
+import { applyPlanRetraction } from "./retract.ts";
 import {
   appendPlanRound,
   clonePlanRound,
@@ -92,6 +96,10 @@ interface OpenRound {
   recommendedFocusSec: number | null;
   acceptedRecommendation: boolean;
   onsets: OnsetState;
+  /** Onsets a correction removed. Carried across a pause/resume like every
+   *  other measurement, so a resumed segment cannot quietly relaunder an
+   *  edited history back into an unmarked one. */
+  retractedDriftsSec: number[];
   firstDriftType: DriftType | null;
   sawStatus: boolean;
   startedDrifted: boolean;
@@ -112,6 +120,15 @@ interface CarriedRound {
   round: PlanRound;
   /** `OnsetState.sawClean` at the moment the segment closed. */
   sawClean: boolean;
+  /**
+   * `OnsetState.last` at the moment the segment closed — the decision the
+   * stream was sitting on when the pause stopped the clock.
+   *
+   * This one field is the whole of "was the episode still open?", which is
+   * condition (a) of the retraction rule. Without it a false `away` pause and
+   * a drift that had already ended would be indistinguishable.
+   */
+  lastDecision: Decision | null;
 }
 
 function errorMessage(error: unknown): string {
@@ -261,6 +278,57 @@ export class PlanRecorder implements PlanTap {
       this.safeLog(`history cleared (${before} ${before === 1 ? "round" : "rounds"})`);
       return { v: 1, enabled: this.enabledNow(), rounds: [], lifetimeRounds: 0 };
     }, { v: 1, enabled: false, rounds: [], lifetimeRounds: 0 });
+  }
+
+  /**
+   * `retractLastAwayDrift` — a COMMAND, like `PLAN_RESET`, and never a tap.
+   *
+   * Focus Plan gains no seam into the desk stack: `runtime.ts` injects this as
+   * a callback into the corrections service, so the uncoupling assertion in
+   * `integration.test.ts` still holds. It runs under the existing `attempt()`
+   * guard and therefore never throws — a retraction that fails costs the
+   * retraction and never the session, and the behavioural half of the
+   * correction (resume, cooldown) has already happened regardless.
+   */
+  retractLastAwayDrift(): PlanRetraction {
+    return this.attempt<PlanRetraction>(() => {
+      const carried = this.carried;
+      const outcome = applyPlanRetraction({
+        enabled: this.enabledNow(),
+        pinned: this.pinned,
+        round: carried?.round ?? null,
+        lastDecision: carried?.lastDecision ?? null,
+        ledger: this.pinned ? emptyPlanLedger() : this.readLedger(),
+      });
+      if (outcome.round === null || carried === null) {
+        // Named, never silent: a refusal the student cannot see would be the
+        // one failure mode this disclosure exists to prevent.
+        if (carried !== null) {
+          this.safeLog(retractionLogLine(carried.round.round, outcome.retraction));
+        }
+        return outcome.retraction;
+      }
+      // `carried` first: a resume under the same key seeds its onsets from
+      // this round, so the rewrite has to be in hand before anything else can
+      // read it.
+      this.carried = { ...carried, round: outcome.round };
+      if (!this.pinned) {
+        this.ledger = outcome.ledger;
+        this.writeLedger(outcome.ledger);
+      }
+      // Push the rewritten round so every open surface reconciles: the
+      // renderer's ledger replaces by `roundKey`, exactly as a round close does.
+      this.push.round(clonePlanRound(outcome.round));
+      this.safeLog(retractionLogLine(outcome.round.round, outcome.retraction));
+      return outcome.retraction;
+    }, {
+      retracted: false,
+      roundKey: null,
+      retractedAtSec: null,
+      firstDriftSecBefore: null,
+      firstDriftSecAfter: null,
+      refusal: "no-round",
+    });
   }
 
   // ----------------------------------------------------------------- tap ----
@@ -422,6 +490,7 @@ export class PlanRecorder implements PlanTap {
         onsetsSec: prior === null ? [] : [...prior.driftsSec],
         sawClean: carry?.sawClean ?? false,
       },
+      retractedDriftsSec: [...(prior?.retractedDriftsSec ?? [])],
       firstDriftType: prior?.firstDriftType ?? null,
       sawStatus: false,
       startedDrifted: prior?.startedDrifted ?? false,
@@ -521,6 +590,11 @@ export class PlanRecorder implements PlanTap {
       kills: open.kills,
       startedDrifted: open.startedDrifted,
       forecastOn: open.forecastOn,
+      // Absent by default: a round nothing was retracted from must not claim,
+      // on screen, that something was.
+      ...(open.retractedDriftsSec.length > 0
+        ? { retractedDriftsSec: [...open.retractedDriftsSec] }
+        : {}),
     };
 
     // A start/stop that saw nothing at all is not a round; recording it would
@@ -529,7 +603,12 @@ export class PlanRecorder implements PlanTap {
       return;
     }
 
-    this.carried = { key: round.roundKey, round, sawClean: open.onsets.sawClean };
+    this.carried = {
+      key: round.roundKey,
+      round,
+      sawClean: open.onsets.sawClean,
+      lastDecision: open.onsets.last,
+    };
 
     // Push BEFORE persisting: a failed write costs the history, never the
     // debrief the student is about to read.

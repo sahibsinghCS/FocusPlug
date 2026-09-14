@@ -1,4 +1,4 @@
-import type { DeskDrift, NudgeKind, PauseKind } from "@shared/nudge";
+import { isPauseKind, type DeskDrift, type NudgeKind, type PauseKind } from "@shared/nudge";
 import type { DeskSnapshot } from "@shared/types";
 
 /** Off-task desk readings in a row before a drift counts. One is flicker. */
@@ -82,6 +82,31 @@ export interface DriftPolicy {
   /** Attention-head floor a reading must clear to count toward a phone pause. */
   phoneConfidence: number;
   /**
+   * Kinds the student has told us, in words, are wrong about them right now.
+   *
+   * A `verdict: "wrong"` correction arms a per-kind silence, and while it is
+   * armed a reading of that kind is treated as UNSURE — the same class as a
+   * low-confidence reading, an `uncertain` label or a webcam that is off. It
+   * breaks both streaks, re-arms nothing, and produces neither a pause nor a
+   * nudge. One mechanism, one code path, and `silenced: []` reproduces
+   * today's behaviour byte for byte.
+   *
+   * The nudge is silenced along with the pause, not only the pause: the
+   * false-`phone` pose this exists to fix — head down over a notebook, at
+   * 0.99 — is one a student holds for a whole round, so a cooldown that
+   * silenced only the pause would leave them nudged sixty times.
+   *
+   * THE TYPE IS THE GUARD. It is `PauseKind[]`, so a `blocked` nudge and an
+   * `unfocused` reading cannot be silenced by construction rather than by
+   * discipline. And it never reaches `PolicyEngine`: a silenced `away` still
+   * produces `Decision: AWAY`, still arms the countdown and still force-quits
+   * Discord. Enforcement is not a coaching decision, and the student's verdict
+   * does not get a vote in it.
+   *
+   * `docs/CORRECTION-LOOP.md § 4.1`.
+   */
+  silenced: readonly PauseKind[];
+  /**
    * A kill countdown is burning RIGHT NOW, so no pause may fire this reading.
    *
    * THE KILL GOES FIRST. Stopping the clock stops the session — the renderer
@@ -135,14 +160,18 @@ export interface Drift {
  * `uncertain` label, which is a first-class answer in this product and stays
  * non-actionable: neither drift nor recovery.
  */
-function readDrift(desk: DeskSnapshot | null, threshold: number): DriftReading | "focused" | null {
+function readDrift(desk: DeskSnapshot | null, policy: DriftPolicy): DriftReading | "focused" | null {
   if (desk === null || !desk.webcamEnabled) {
     return null;
   }
+  const threshold = policy.threshold;
   if (desk.label === "away") {
     // The presence head is the signal here, so it is the presence head's
     // confidence that has to clear the floor.
     if (!Number.isFinite(desk.confidence) || desk.confidence < threshold) {
+      return null;
+    }
+    if (isSilenced("away", policy)) {
       return null;
     }
     return { kind: "away", confidence: desk.confidence };
@@ -157,7 +186,23 @@ function readDrift(desk: DeskSnapshot | null, threshold: number): DriftReading |
   if (attention.label === "focused") {
     return "focused";
   }
+  if (isSilenced(attention.label, policy)) {
+    return null;
+  }
   return { kind: attention.label, confidence: attention.confidence };
+}
+
+/**
+ * The student corrected this kind and the cooldown is still running.
+ *
+ * The reading is then dropped by returning `null` from `readDrift`, which is
+ * the tracker's existing UNSURE class — not a drift, and not a recovery
+ * either. Routing the silence through a class the tracker already knows how to
+ * ignore is what keeps this to one code path rather than a second set of
+ * counters that could disagree with the first.
+ */
+function isSilenced(kind: DeskDrift, policy: DriftPolicy): boolean {
+  return isPauseKind(kind) && policy.silenced.includes(kind);
 }
 
 /**
@@ -219,7 +264,7 @@ export class NudgeTracker {
   private paused = false;
 
   observeDesk(desk: DeskSnapshot | null, policy: DriftPolicy, now: number): Drift | null {
-    const reading = readDrift(desk, policy.threshold);
+    const reading = readDrift(desk, policy);
     if (reading === "focused") {
       this.recovered();
       return null;

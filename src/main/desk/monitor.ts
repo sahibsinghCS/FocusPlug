@@ -2,6 +2,7 @@ import type { DeskMonitor as DeskMonitorContract } from "@shared/ipc";
 import type { DeskModel, DeskModelId, DeskSnapshot } from "@shared/types";
 import { analyzeDeskFrame } from "./analyze";
 import { createDefaultFrameSource } from "./camera";
+import { FrameRing, type RetainedFrame } from "./frameRing";
 import {
   DEFAULT_DESK_MODEL_ID,
   getSharedDeskModel,
@@ -29,6 +30,12 @@ export interface DeskMonitorOptions {
   model?: DeskModel;
   modelId?: DeskModelId;
   now?: () => number;
+  /**
+   * Retain recent frames so a pause can hand them to a correction. OFF unless
+   * the controller turns it on, which it only does when a correction could
+   * actually come out of the ring — see `setCorrectionCapture`.
+   */
+  correctionCapture?: boolean;
 }
 
 export class DeskMonitor implements DeskMonitorContract {
@@ -47,6 +54,13 @@ export class DeskMonitor implements DeskMonitorContract {
   private sourceFault: string | null = null;
   private nextSourceRetryAt = 0;
   private sourceStartEpoch = 0;
+  /**
+   * Null on a default install, and the `if` below is then one comparison per
+   * frame. Non-null only while `deskCorrectionsEnabled` AND the trained model
+   * AND one of the pause switches are all true — nothing else can pause, so
+   * nothing else can produce a correction to hold frames for.
+   */
+  private ring: FrameRing | null = null;
 
   constructor(options: DeskMonitorOptions = {}) {
     this.enabled = options.enabled ?? true;
@@ -57,6 +71,35 @@ export class DeskMonitor implements DeskMonitorContract {
     this.modelId = resolveDeskModelId(options.modelId);
     this.source = options.source ?? null;
     this.model = options.model ?? null;
+    if (options.correctionCapture === true) {
+      this.ring = new FrameRing();
+    }
+  }
+
+  /**
+   * Turn frame retention on or off. Off DROPS the ring rather than pausing it,
+   * so the bytes go with the switch: an off switch that kept the last six
+   * photographs of a student's room in memory would be a lie.
+   */
+  setCorrectionCapture(enabled: boolean): void {
+    if (enabled) {
+      this.ring = this.ring ?? new FrameRing();
+      return;
+    }
+    this.ring = null;
+  }
+
+  /**
+   * The frames at or after `sinceMs`, oldest first — what the model already
+   * looked at, on their way to being garbage collected. No new camera is
+   * opened, no new grab is issued, and the loop is not touched.
+   *
+   * The returned array survives `stop()`, which is the only ordering that
+   * works: the pause stops the session, and a stopped session tears the
+   * camera down before the student has read the screen.
+   */
+  peekFrames(sinceMs: number): RetainedFrame[] {
+    return this.ring?.peek(sinceMs) ?? [];
   }
 
   start(cb: (snap: DeskSnapshot) => void): void {
@@ -73,6 +116,8 @@ export class DeskMonitor implements DeskMonitorContract {
     this.running = false;
     this.loopGen += 1;
     this.callback = null;
+    // A stopped session holds no pictures of anybody.
+    this.ring?.clear();
     if (this.source && this.sourceStarted) {
       this.sourceStarted = false;
       void this.source.stop();
@@ -84,6 +129,11 @@ export class DeskMonitor implements DeskMonitorContract {
       return;
     }
     this.enabled = enabled;
+    if (!enabled) {
+      // The webcam went off: whatever the ring is holding is from before it
+      // did, and no correction can be raised from a camera that is not on.
+      this.ring?.clear();
+    }
     if (!this.source) {
       return;
     }
@@ -108,6 +158,9 @@ export class DeskMonitor implements DeskMonitorContract {
       return;
     }
     this.modelId = next;
+    // The retained frames carry the OLD model's call on them, and a
+    // correction records what the model said. Drop them with the model.
+    this.ring?.clear();
     if (!this.injectedModel) {
       this.model = null;
     }
@@ -128,12 +181,23 @@ export class DeskMonitor implements DeskMonitorContract {
         frame = null;
       }
     }
+    const ts = this.now();
     const analysis = await analyzeDeskFrame({
       frame,
       model,
-      ts: this.now(),
+      ts,
       webcamEnabled: this.enabled,
     });
+    if (this.ring !== null && frame !== null) {
+      // Never a throw on the enforcement path: retaining a frame is a
+      // convenience for a correction that may never be asked for, and it does
+      // not get to cost a reading.
+      try {
+        this.ring.push({ at: ts, frame, snapshot: analysis.snapshot });
+      } catch {
+        this.ring.clear();
+      }
+    }
     this.callback?.(analysis.snapshot);
     return analysis.snapshot;
   }

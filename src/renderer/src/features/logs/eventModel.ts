@@ -48,6 +48,7 @@ const KIND_LABELS: Record<string, string> = {
   unlock: "Unlock",
   session: "Session",
   plan: "Focus Plan",
+  correction: "Correction",
   settings: "Settings",
   lists: "Lists",
   plugs: "Plugs",

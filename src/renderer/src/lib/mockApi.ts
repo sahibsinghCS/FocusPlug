@@ -22,6 +22,22 @@ import {
   type SessionEvent,
   type SessionState,
 } from "@shared/ipc";
+import {
+  CORRECTION_ANSWER_WINDOW_MS,
+  CORRECTION_CAP_GROUPS,
+  CORRECTION_COOLDOWN_MS,
+  CORRECTION_FRAMES_PER_CORRECTION,
+  CORRECTION_REFIT_MIN_GROUPS,
+} from "@shared/correction/constants";
+import type {
+  CorrectionCooldown,
+  CorrectionListItem,
+  DeskCorrectionsState,
+  PendingCorrection,
+  RecordCorrectionResult,
+  RefitReport,
+} from "@shared/correction/types";
+import { correctionMeaning, excludedBecause } from "@shared/correction/meaning";
 import { isFaceId } from "@shared/faces";
 import { ledgerFromSessionLog } from "@shared/plan";
 import { isFlightIata, normalizeFlightPair } from "@shared/flightRoute";
@@ -36,6 +52,12 @@ import {
 } from "../features/forecast/replay";
 import { goldenSessionEvents } from "../features/logs/fixtures";
 import { planSceneState, readPlanScene } from "../features/focusplan/scenes";
+import {
+  correctionSceneState,
+  readCorrectionScene,
+  refitReport,
+} from "../features/corrections/scenes";
+import { EMPTY_CORRECTIONS_STATE } from "../features/corrections/useCorrections";
 
 function cloneEntries(entries: AppEntry[]): AppEntry[] {
   return entries.map((entry) => ({
@@ -229,6 +251,14 @@ function loadStoredSettings(): AppSettings {
       typeof record.focusPlanStretchEnabled === "boolean"
         ? record.focusPlanStretchEnabled
         : DEFAULT_SETTINGS.focusPlanStretchEnabled,
+    deskCorrectionsEnabled:
+      typeof record.deskCorrectionsEnabled === "boolean"
+        ? record.deskCorrectionsEnabled
+        : DEFAULT_SETTINGS.deskCorrectionsEnabled,
+    personalAttentionHeadEnabled:
+      typeof record.personalAttentionHeadEnabled === "boolean"
+        ? record.personalAttentionHeadEnabled
+        : DEFAULT_SETTINGS.personalAttentionHeadEnabled,
     plugs,
   };
 }
@@ -287,8 +317,7 @@ export function createMockApi(): FocusPlugApi {
       window as unknown as {
         __focusplugNudge?: (kind: NudgeKind, app?: string, pause?: boolean) => void;
       }
-    ).__focusplugNudge = (kind, app, pause) =>
-      nudgeBus.emit({ ts: now(), kind, ...(app ? { app } : {}), ...(pause ? { pause: true } : {}) });
+    ).__focusplugNudge = (kind, app, pause) => emitNudge(kind, app, pause);
   }
 
   const forecastBus = createBus<ForecastSnapshot>();
@@ -320,6 +349,116 @@ export function createMockApi(): FocusPlugApi {
       rounds: rebuilt.rounds,
       lifetimeRounds: rebuilt.lifetimeRounds,
     };
+  }
+
+  /**
+   * The correction loop, in the browser.
+   *
+   * A named scene (`?scene=corrections-*`, `?scene=correction-*`) pins one of
+   * the states worth photographing; with no scene the mock keeps a live store
+   * so the preview can actually walk the loop — fire a pause-carrying nudge,
+   * answer it, watch the row appear and the cooldown arm.
+   *
+   * It mirrors the two structural promises rather than describing them:
+   * nothing is added to `stored` except by `correctionsRecord`, and the refit
+   * is a different method that returns a report whose gate can refuse.
+   */
+  const correctionScene = readCorrectionScene(window.location.search, window.location.hash);
+  const correctionBus = createBus<DeskCorrectionsState>();
+  let stored: CorrectionListItem[] = [];
+  let pendingCapture: PendingCorrection | null = null;
+  let lastRefit: RefitReport | null = null;
+  let correctionSeq = 0;
+
+  function correctionsState(): DeskCorrectionsState {
+    const seeded = correctionSceneState(correctionScene, now());
+    if (seeded !== null) {
+      return seeded;
+    }
+    const at = now();
+    const pool = stored.filter((item) => item.excludedBecause === null).length;
+    const cooldowns: CorrectionCooldown[] = [];
+    for (const kind of ["away", "phone"] as const) {
+      const armed = stored
+        .filter((item) => item.kind === kind && item.verdict === "wrong")
+        .map((item) => ({
+          kind,
+          until: item.at + CORRECTION_COOLDOWN_MS[kind],
+          correctionId: item.id,
+        }))
+        .filter((cooldown) => cooldown.until > at)
+        .sort((a, b) => b.until - a.until);
+      const best = armed[0];
+      if (best !== undefined) {
+        cooldowns.push(best);
+      }
+    }
+    return {
+      ...EMPTY_CORRECTIONS_STATE,
+      enabled: settings.deskCorrectionsEnabled,
+      // Only the trained model can pause, and only a pause can produce a
+      // correction — so a `blazeface` preview reaches none of this either.
+      available: settings.deskModelId === "custom",
+      pending: pendingCapture,
+      items: [...stored],
+      lifetimeCorrections: stored.length,
+      bytes: stored.reduce((total, item) => total + item.bytes, 0),
+      capped: stored.length >= CORRECTION_CAP_GROUPS,
+      cooldowns,
+      refitReady: pool >= CORRECTION_REFIT_MIN_GROUPS,
+      refitTrainGroups: Math.ceil(pool / 2),
+      refitEvalGroups: Math.floor(pool / 2),
+      refitNeeded: Math.max(0, CORRECTION_REFIT_MIN_GROUPS - pool),
+      activeHead:
+        lastRefit?.installed === true && settings.personalAttentionHeadEnabled
+          ? "personal"
+          : "shipped",
+      lastRefit,
+    };
+  }
+
+  function pushCorrections(): DeskCorrectionsState {
+    const state = correctionsState();
+    correctionBus.emit(state);
+    return state;
+  }
+
+  /**
+   * Emit a nudge, minting a pending capture when it carries a pause.
+   *
+   * `correctionId` rides the nudge exactly as `pause` does, and it is present
+   * only when frames are actually held — which is what makes "no chips" the
+   * default rather than a special case.
+   */
+  function emitNudge(kind: NudgeKind, app?: string, pause?: boolean): void {
+    const ts = now();
+    const capturing =
+      pause === true &&
+      (kind === "away" || kind === "phone") &&
+      settings.deskCorrectionsEnabled &&
+      settings.deskModelId === "custom";
+    if (capturing) {
+      correctionSeq += 1;
+      const capped = stored.length >= CORRECTION_CAP_GROUPS;
+      pendingCapture = {
+        id: `dc-${String(correctionSeq).padStart(4, "0")}`,
+        at: ts,
+        kind,
+        modelLabel: kind === "phone" ? "phone" : "away",
+        modelConfidence: kind === "phone" ? 0.94 : 0.88,
+        frames: capped ? 0 : CORRECTION_FRAMES_PER_CORRECTION,
+        expiresAt: ts + CORRECTION_ANSWER_WINDOW_MS,
+        capped,
+      };
+      pushCorrections();
+    }
+    nudgeBus.emit({
+      ts,
+      kind,
+      ...(app ? { app } : {}),
+      ...(pause ? { pause: true } : {}),
+      ...(capturing && pendingCapture ? { correctionId: pendingCapture.id } : {}),
+    });
   }
 
   // The forecast side of the mock is the deterministic scripted replay —
@@ -744,7 +883,7 @@ export function createMockApi(): FocusPlugApi {
     },
     demoNudge: async (kind) => {
       appendLog("demo", `Test nudge · ${kind}`);
-      nudgeBus.emit({ ts: now(), kind });
+      emitNudge(kind);
     },
     forecastGetState: async () => forecastSnap,
     planGetState: async () => planState(),
@@ -754,6 +893,117 @@ export function createMockApi(): FocusPlugApi {
       appendLog("plan", `history cleared (${cleared} ${cleared === 1 ? "round" : "rounds"})`);
       return planState();
     },
+    /**
+     * Recording writes a row and arms a cooldown. It touches no weights, and
+     * there is no code path from here to `correctionsRefit` — the same
+     * structural uncoupling the app asserts in `no-retrain.test.ts`.
+     */
+    correctionsRecord: async (request): Promise<RecordCorrectionResult> => {
+      const held = pendingCapture;
+      const verdict = request?.verdict;
+      if (
+        held === null ||
+        held.id !== request?.correctionId ||
+        (verdict !== "wrong" && verdict !== "right") ||
+        held.expiresAt <= now()
+      ) {
+        return {
+          recorded: false,
+          correctionId: request?.correctionId ?? "",
+          cooldown: null,
+          retraction: null,
+          state: pushCorrections(),
+        };
+      }
+      const meaning = correctionMeaning(held.kind, verdict);
+      pendingCapture = null;
+      const item: CorrectionListItem = {
+        id: held.id,
+        at: held.at,
+        day: new Date(held.at).toISOString().slice(0, 10),
+        kind: held.kind,
+        verdict,
+        modelLabel: held.modelLabel,
+        modelConfidence: held.modelConfidence,
+        label: meaning.label,
+        head: meaning.head,
+        frames: held.capped ? 0 : held.frames,
+        bytes: held.capped ? 0 : held.frames * 34_000,
+        capped: held.capped,
+        thumbnail: null,
+        excludedBecause: excludedBecause(held.kind, verdict),
+      };
+      stored = [...stored, item];
+      appendLog(
+        "correction",
+        `${item.id} · the model said ${item.modelLabel} ` +
+          `(${item.modelConfidence.toFixed(2)}), you said ${item.label}`,
+      );
+      const state = pushCorrections();
+      const cooldown = meaning.armsCooldown
+        ? state.cooldowns.find((entry) => entry.kind === held.kind) ?? null
+        : null;
+      return {
+        recorded: true,
+        correctionId: item.id,
+        cooldown,
+        // The mock keeps no drift ledger of its own, so it reports honestly
+        // that nothing was retracted rather than inventing a correction to
+        // the student's history.
+        retraction: meaning.retractsDrift
+          ? {
+              retracted: false,
+              roundKey: null,
+              retractedAtSec: null,
+              firstDriftSecBefore: null,
+              firstDriftSecAfter: null,
+              refusal: "no-round",
+            }
+          : null,
+        state,
+      };
+    },
+    correctionsGetState: async () => correctionsState(),
+    correctionsDelete: async (id) => {
+      const before = stored.length;
+      stored = stored.filter((item) => item.id !== id);
+      if (stored.length !== before) {
+        appendLog("correction", `deleted ${id} — its photos and the cooldown it armed are gone`);
+      }
+      return pushCorrections();
+    },
+    correctionsClear: async () => {
+      const gone = stored.length;
+      stored = [];
+      // A head fitted on deleted data is deleted data: keeping it would make
+      // the erase cosmetic.
+      lastRefit = null;
+      appendLog(
+        "correction",
+        `cleared ${gone} ${gone === 1 ? "correction" : "corrections"} and any personal head`,
+      );
+      return pushCorrections();
+    },
+    correctionsReveal: async () => {
+      appendLog("correction", "revealed desk-corrections/ (no folder in the browser preview)");
+    },
+    correctionsRefit: async () => {
+      // The gate is real even here: with a pool this small it refuses, which
+      // is the honest default state of this feature and the one a preview
+      // should show.
+      const pool = stored.filter((item) => item.excludedBecause === null).length;
+      const report = refitReport(pool >= CORRECTION_REFIT_MIN_GROUPS * 2, now());
+      lastRefit = report;
+      appendLog(
+        "correction",
+        report.installed
+          ? "refit installed — it did not lose to the shipped head"
+          : `refit discarded — ${report.blockedBy ?? "a gate refused it"}`,
+      );
+      pushCorrections();
+      return report;
+    },
+    onCorrectionsState: (cb) => correctionBus.on(cb),
     onSessionState: (cb) => sessionBus.on(cb),
     onPolicyEvent: (cb) => policyBus.on(cb),
     onFocusSnapshot: (cb) => focusBus.on(cb),

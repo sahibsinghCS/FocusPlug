@@ -1,6 +1,7 @@
 import { useRef, type JSX, type ReactNode } from "react";
 import { faceMeta, normalizeFaceId } from "@shared/faces";
 import { pauseNotice } from "@shared/nudge";
+import { VerdictRow } from "../features/corrections";
 import { FaceErrorBoundary, buildLockFaceProps, faceComponent } from "../features/faces";
 import { DebriefCard } from "../features/focusplan";
 import { formatFaceClock } from "../features/faces/clock";
@@ -115,6 +116,20 @@ export function LockPage(props: { timer: SessionTimer }): JSX.Element {
                 ? "Blocked apps are yours again until the next round."
                 : "Leave the assignment and the fuse starts."}
         </p>
+
+        {/* A clock main stopped owes the student a question as well as a
+            reason: it just made a claim about them, and the only person who
+            knows whether it was right is sitting there. Both answers are one
+            action, both are the same size, and neither is the default. It sits
+            on THIS screen rather than the nudge overlay because the overlay
+            auto-dismisses after twelve seconds, and a verdict control that
+            vanishes on a timer is a trap. */}
+        {/* Mounted unconditionally, and it renders nothing on the overwhelming
+            majority of screens: no pause, no capture, no chips. It is not
+            gated on `drift` because the sentence it prints after *I was
+            working* has to outlive the resume that clears `pausedBy` — the
+            confirmation is about the tap, not about the pause. */}
+        <VerdictRow status={timer.status} pausedBy={timer.pausedBy} onResume={timer.resume} />
 
         {/* The break is exactly when you want to know how the round went, and
             the lock is already off — so the debrief sits here rather than

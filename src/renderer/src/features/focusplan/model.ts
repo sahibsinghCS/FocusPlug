@@ -3,6 +3,7 @@ import {
   PLAN_DEBRIEF_FRESH_MS,
   holdSparkCaption,
   median,
+  retractedNote,
   reviseBreak,
   type LivePlanRound,
   type PlanEvidenceRow,
@@ -129,6 +130,15 @@ export interface EvidenceRowView {
   /** What kind of drift, or why the row does not count. */
   note: string;
   counted: boolean;
+  /**
+   * "one drift retracted — you told us the camera was wrong", or null.
+   *
+   * A student who reads "held 24 minutes" here and remembers being interrupted
+   * at six has to be able to find out why the two disagree. Editing a measured
+   * history quietly would be worse than the false drift that made it
+   * necessary, so the row says so in the same grey the ineligible rows use.
+   */
+  retracted: string | null;
 }
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
@@ -176,6 +186,7 @@ export function evidenceRows(rows: readonly PlanEvidenceRow[]): EvidenceRowView[
           : driftLabel(row.driftType)
         : (row.excludedBecause ?? "not counted"),
       counted: row.counted,
+      retracted: retractedNote(row.retractedDrifts ?? 0),
     };
   });
 }
