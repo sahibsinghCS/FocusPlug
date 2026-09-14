@@ -45,6 +45,13 @@ export interface NudgeEvent {
    * never resumes itself. Absent or `false` is an ordinary pull-back.
    */
   pause?: boolean;
+  /**
+   * Frames from this pause are being held for a verdict. Present ONLY on a
+   * pause-carrying nudge, only on `deskModelId: "custom"`, only with
+   * `deskCorrectionsEnabled`, and only when the ring actually had frames.
+   * Absent means the paused screen offers no verdict row.
+   */
+  correctionId?: string;
 }
 
 /**

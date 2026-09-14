@@ -1,0 +1,121 @@
+{
+  "builtAt": "2026-09-13T23:12:06.763Z",
+  "builtBy": "scripts/desk-model/build-attention-anchors.ts (npm run anchors:attention)",
+  "anchors": {
+    "file": "attention-anchors.json",
+    "bytes": 56202,
+    "hash": "59bc5c8993b55332",
+    "rows": 286,
+    "hiddenDim": 16,
+    "precision": 7
+  },
+  "baseHeadHash": "a7738e7a295dbb5e",
+  "head": {
+    "file": "attention-head.json",
+    "arch": [
+      1280,
+      16,
+      3
+    ],
+    "inputSlices": [
+      [
+        745,
+        2025
+      ]
+    ]
+  },
+  "source": {
+    "labels": "datasets/desk-attention-labels.csv",
+    "split": "eval",
+    "truth": "Adaption Labs annotation (adaption slice) / the search-query bucket that found the photo (proxy slice)"
+  },
+  "census": {
+    "pooled": {
+      "images": 286,
+      "byTruth": {
+        "focused": 169,
+        "unfocused": 32,
+        "phone": 85
+      }
+    },
+    "adaption": {
+      "images": 200,
+      "byTruth": {
+        "focused": 97,
+        "unfocused": 32,
+        "phone": 71
+      }
+    },
+    "proxy": {
+      "images": 86,
+      "byTruth": {
+        "focused": 72,
+        "phone": 14
+      }
+    }
+  },
+  "excluded": {
+    "nonCommercial": 0,
+    "firstPerson": 0,
+    "noFeatures": 0
+  },
+  "parity": {
+    "images": 286,
+    "predictionsAgree": 286,
+    "maxProbDelta": 2.1178169895552656e-7,
+    "maxHiddenDelta": 4.999028155872054e-7
+  },
+  "shipped": {
+    "pooled": {
+      "images": 286,
+      "groups": 286,
+      "accuracy": 0.6188811188811189,
+      "balanced": 0.605717745678153,
+      "presentLabels": [
+        "focused",
+        "unfocused",
+        "phone"
+      ],
+      "phone": {
+        "precision": 0.5686274509803921,
+        "recall": 0.6823529411764706,
+        "f1": 0.6203208556149732,
+        "support": 85
+      }
+    },
+    "adaption": {
+      "images": 200,
+      "groups": 200,
+      "accuracy": 0.64,
+      "balanced": 0.620188700934127,
+      "presentLabels": [
+        "focused",
+        "unfocused",
+        "phone"
+      ],
+      "phone": {
+        "precision": 0.6805555555555556,
+        "recall": 0.6901408450704225,
+        "f1": 0.6853146853146853,
+        "support": 71
+      }
+    },
+    "proxy": {
+      "images": 86,
+      "groups": 86,
+      "accuracy": 0.5697674418604651,
+      "balanced": 0.5992063492063493,
+      "presentLabels": [
+        "focused",
+        "phone"
+      ],
+      "phone": {
+        "precision": 0.3,
+        "recall": 0.6428571428571429,
+        "f1": 0.4090909090909091,
+        "support": 14
+      }
+    }
+  },
+  "note": "16 activations of a frozen 1280->16 bottleneck per held-out image, and the truth. No image is recoverable from a row, no nc/ (CC BY-NC-SA) image is in the pack, and no first-person frame is either. Rebuild whenever attention-head.json changes, or the refit gate fails with stale-anchors."
+}

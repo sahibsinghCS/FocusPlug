@@ -1,8 +1,11 @@
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import * as tf from "@tensorflow/tfjs-core";
 import "@tensorflow/tfjs-backend-cpu";
 import { loadGraphModel, type GraphModel } from "@tensorflow/tfjs-converter";
+import { personalHeadFits } from "@shared/correction/refit";
+import type { PersonalAttentionHead } from "@shared/correction/types";
 import type { DeskFrame, DeskModel, DeskModelOutput } from "@shared/types";
 import { deskRoot } from "../assets";
 import { frameStats, resizeNearest } from "../frame";
@@ -65,6 +68,12 @@ export const DESK_HEAD_LABELS = ["at_desk", "away", "uncertain"] as const;
 export const ATTENTION_HEAD_LABELS = ["focused", "unfocused", "phone"] as const;
 export type AttentionHeadLabel = (typeof ATTENTION_HEAD_LABELS)[number];
 export const ATTENTION_HEAD_RELATIVE_PATH = join("model", "weights", "attention-head.json");
+/**
+ * The committed held-out anchor pack the refit gate scores both heads on: 16
+ * activations of this head's frozen bottleneck per eval image, and a truth.
+ * Built by `npm run anchors:attention`; read by the refit, never at inference.
+ */
+export const ATTENTION_ANCHORS_RELATIVE_PATH = join("model", "weights", "attention-anchors.json");
 /** Feature-layout version stamped by `scripts/desk-model/train-attention.ts`. */
 export const ATTENTION_HEAD_FEATURE_VERSION = 2;
 
@@ -667,6 +676,133 @@ export function loadDeskHeadWeights(
   }
 }
 
+/* ────────────────────────────────────────────────────────────────────────
+ * The student's own 51 numbers, worn over the shipped bottleneck
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/**
+ * `sha256(attention-head.json).slice(0, 16)` — the identity of the running
+ * attention head, hashed from the BYTES ON DISK.
+ *
+ * Hashing the file rather than a re-serialisation means an app update that
+ * only reformats the JSON still counts as a different head, which is the safe
+ * direction: a personal layer fitted against one 1280→16 bottleneck is simply
+ * not applicable to another, and the honest answer to "is this still my head?"
+ * is no whenever the bytes moved. Memoised per path for the process, because
+ * a 1.7 MB sha256 on every `init()` would be work the enforcement loop pays.
+ */
+const headHashes = new Map<string, string>();
+
+export function attentionHeadHash(file: string = join(deskRoot(), ATTENTION_HEAD_RELATIVE_PATH)): string {
+  const cached = headHashes.get(file);
+  if (cached !== undefined) {
+    return cached;
+  }
+  let hash = "";
+  try {
+    hash = createHash("sha256").update(readFileSync(file)).digest("hex").slice(0, 16);
+  } catch {
+    // No head file, no hash. `personalHeadFits` refuses an empty one, so a
+    // missing shipped head can never let a personal layer load on top of
+    // nothing.
+    hash = "";
+  }
+  headHashes.set(file, hash);
+  return hash;
+}
+
+/**
+ * Where the personal attention head lives, or `null` for "run the shipped one".
+ *
+ * Set once by `src/main/index.ts`, which is the only place that knows
+ * `app.getPath("userData")` — the model layer must not learn how to find a
+ * user data directory, and a headless run, a probe or a test that never sets
+ * it behaves exactly as this app did before the correction loop existed.
+ *
+ * It is also the enforcement point for `personalAttentionHeadEnabled`: the
+ * setting turns a head OFF by passing `null` here. A preference can silence a
+ * personal head; nothing but the gate can install one.
+ */
+let personalAttentionHeadFile: string | null = null;
+
+/**
+ * Record where the personal head lives, and say whether that MOVED.
+ *
+ * The caller that owns the model cache — `factory.ts`'s
+ * `applyPersonalAttentionHead`, which is the one everything else uses — drops
+ * its instances when this returns `true`. Split that way round so this module
+ * does not import the factory that imports it.
+ *
+ * `false` means only "the pointer did not move", NEVER "the head did not
+ * change": *Delete all* unlinks the file the pointer names without touching
+ * the pointer. That case is the caller's to declare, and it does —
+ * `applyPersonalAttentionHead(file, { force: true })`.
+ */
+export function setPersonalAttentionHeadFile(file: string | null): boolean {
+  const next = typeof file === "string" && file.length > 0 ? file : null;
+  if (next === personalAttentionHeadFile) {
+    return false;
+  }
+  personalAttentionHeadFile = next;
+  return true;
+}
+
+export function getPersonalAttentionHeadFile(): string | null {
+  return personalAttentionHeadFile;
+}
+
+/**
+ * The shipped attention head with its OUTPUT LAYER replaced by the student's,
+ * or the shipped head untouched when there is nothing usable to wear.
+ *
+ * Three properties, in the order they matter:
+ *
+ * 1. **The shipped weights are never mutated.** The 1280→16 bottleneck, the
+ *    means, the standard deviations and the slices are shared by reference and
+ *    only `layers` is rebuilt, so a personal head that is later removed leaves
+ *    nothing behind and `attention-head.json` is never written by the app at
+ *    all.
+ * 2. **A head that does not fit is not worn.** `personalHeadFits` checks the
+ *    base hash, the label order and the exact 3×16 shape; anything else falls
+ *    back to shipped rather than being coerced.
+ * 3. **A read failure is shipped, not a crash.** This runs inside `init()` on
+ *    the enforcement path.
+ */
+export function wearPersonalAttentionHead(
+  shipped: DeskHeadWeights,
+  file: string | null,
+  baseHeadHash: string,
+): { weights: DeskHeadWeights; source: "shipped" | "personal" } {
+  if (file === null) {
+    return { weights: shipped, source: "shipped" };
+  }
+  const last = shipped.layers[shipped.layers.length - 1];
+  if (!last) {
+    return { weights: shipped, source: "shipped" };
+  }
+  const hiddenDim = last.w[0]?.length ?? 0;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(readFileSync(file, "utf8"));
+  } catch {
+    return { weights: shipped, source: "shipped" };
+  }
+  if (!personalHeadFits(parsed, baseHeadHash, hiddenDim, shipped.labels.length)) {
+    return { weights: shipped, source: "shipped" };
+  }
+  const output = (parsed as PersonalAttentionHead).output;
+  return {
+    weights: {
+      ...shipped,
+      layers: [
+        ...shipped.layers.slice(0, -1),
+        { w: output.w.map((row) => [...row]), b: [...output.b] },
+      ],
+    },
+    source: "personal",
+  };
+}
+
 export interface DeskHeadPrediction {
   label: DeskModelOutput["label"];
   confidence: number;
@@ -753,13 +889,29 @@ export class YourModel implements DeskModel {
   readonly id = "custom";
   private weights: DeskHeadWeights | null = null;
   private attentionWeights: DeskHeadWeights | null = null;
+  /** Which attention head the loaded weights actually are. Reported in
+   *  `debug.attentionHead` so a log line can never disagree with the layer
+   *  that produced the reading. */
+  private attentionSource: "shipped" | "personal" = "shipped";
   private readonly weightsFile: string | undefined;
   private readonly attentionWeightsFile: string | undefined;
+  private readonly personalHeadFileOverride: string | null | undefined;
 
-  /** Both files are test seams — production loads the committed defaults. */
-  constructor(weightsFile?: string, attentionWeightsFile?: string) {
+  /** All three files are test seams — production loads the committed
+   *  defaults and whatever `setPersonalAttentionHeadFile` was given. */
+  constructor(
+    weightsFile?: string,
+    attentionWeightsFile?: string,
+    personalHeadFile?: string | null,
+  ) {
     this.weightsFile = weightsFile;
     this.attentionWeightsFile = attentionWeightsFile;
+    this.personalHeadFileOverride = personalHeadFile;
+  }
+
+  /** "shipped" until a personal head has been loaded AND fits. */
+  attentionHeadSource(): "shipped" | "personal" {
+    return this.attentionSource;
   }
 
   async init(): Promise<void> {
@@ -775,10 +927,26 @@ export class YourModel implements DeskModel {
       // Optional second head: without it the model reports presence only.
       // Same retry-on-null rule as the presence head — a transient read
       // failure must not latch "no attention" for the process lifetime.
-      this.attentionWeights = loadDeskHeadWeights(
-        this.attentionWeightsFile ?? join(deskRoot(), ATTENTION_HEAD_RELATIVE_PATH),
-        ATTENTION_HEAD_LABELS,
-      );
+      const attentionFile =
+        this.attentionWeightsFile ?? join(deskRoot(), ATTENTION_HEAD_RELATIVE_PATH);
+      const shipped = loadDeskHeadWeights(attentionFile, ATTENTION_HEAD_LABELS);
+      // …and then, and only then, the student's own 51 numbers over the top.
+      // The personal layer is read AFTER the shipped head, against the hash of
+      // the file just loaded, so a head fitted for another base is left on
+      // disk and not worn. `clearSharedDeskModel()` is what makes a fresh
+      // refit or a toggled setting take effect: this whole object is dropped.
+      const worn =
+        shipped === null
+          ? null
+          : wearPersonalAttentionHead(
+              shipped,
+              this.personalHeadFileOverride === undefined
+                ? personalAttentionHeadFile
+                : this.personalHeadFileOverride,
+              attentionHeadHash(attentionFile),
+            );
+      this.attentionWeights = worn?.weights ?? null;
+      this.attentionSource = worn?.source ?? "shipped";
     }
     if (this.weights) {
       // Warm the shared detector so the first real frame is fast.
@@ -826,6 +994,7 @@ export class YourModel implements DeskModel {
         ...base.debug,
         reason: "custom-head",
         model: this.id,
+        ...(attention ? { attentionHead: this.attentionSource } : {}),
       },
     };
   }

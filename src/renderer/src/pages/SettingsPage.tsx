@@ -18,6 +18,7 @@ import {
   Notice,
   useSaveState,
 } from "../features/config";
+import { CorrectionsCard } from "../features/corrections";
 import { FacePicker } from "../features/faces";
 import { useFocusPlan } from "../features/focusplan";
 import { FlightRoutePicker } from "../features/faces/flight/RoutePicker";
@@ -616,6 +617,41 @@ export function SettingsPage(): JSX.Element {
             Shipped graph is active. Uncertain still never desk-only-kills.
           </Notice>
         )}
+
+        {/* Everything the correction loop put on this disk, and the one
+            action that takes it all off again. It renders nothing at all
+            unless the trained model is running: only that model can pause,
+            only a pause can produce a correction, and a card offering to
+            delete photographs that could never have been taken would be
+            theatre rather than a privacy affordance. */}
+        <CorrectionsCard
+          personalEnabled={settings.personalAttentionHeadEnabled}
+          onTogglePersonal={(next) => {
+            void app.patchSettings({ personalAttentionHeadEnabled: next });
+          }}
+        />
+
+        <div className="flex items-center justify-between gap-4 border-t border-fp-line pt-4">
+          <div>
+            <p className="text-[13px] font-medium">Keep the frames when it gets it wrong</p>
+            <p className="mt-0.5 max-w-[62ch] text-[12px] leading-snug text-fp-mute">
+              When a pause is wrong and you say so, the photos that caused it are kept on this
+              computer with your answer, so the model can eventually be refit from your own
+              camera and room instead of stock photographs. Nothing is written unless you tap an
+              answer — restarting the clock saves nothing — and nothing is ever uploaded. Off
+              stops the capture; it does not delete what is already stored, and the erase button
+              is in the card above. Only the custom model can pause, so on BlazeFace or the stub
+              this switch has nothing to switch off.
+            </p>
+          </div>
+          <Toggle
+            checked={settings.deskCorrectionsEnabled}
+            onChange={(next) => {
+              void app.patchSettings({ deskCorrectionsEnabled: next });
+            }}
+            label="Keep the frames when it gets it wrong"
+          />
+        </div>
 
         {modelError ? (
           <p className="text-[12px] text-fp-red" role="alert">

@@ -8,9 +8,16 @@ import {
   type AppSettings,
   type DeskModelId,
   type PlugDevice,
+  type RecordCorrectionRequest,
 } from "@shared/ipc";
 import type { ForecastPush } from "@shared/forecast/types";
 import type { PlanPush } from "@shared/plan/types";
+import {
+  applyPersonalAttentionHead,
+  createDeskCorrections,
+  createPersonalRefit,
+  type DeskCorrections,
+} from "./desk";
 import { assertControllable, type PlugController } from "./plugs";
 import {
   createFocusPlugRuntime,
@@ -91,6 +98,7 @@ function registerIpc(
   plugs: PlugController,
   forecast: FocusPlugRuntime["forecast"],
   plan: FocusPlugRuntime["plan"],
+  corrections: DeskCorrections,
 ): void {
   /**
    * SESSION_START carries ONE optional argument: the renderer's arm context
@@ -150,6 +158,27 @@ function registerIpc(
   ipcMain.handle(IPC_INVOKE.FORECAST_GET_STATE, () => forecast.getSnapshot());
   ipcMain.handle(IPC_INVOKE.PLAN_GET_STATE, () => plan.getState());
   ipcMain.handle(IPC_INVOKE.PLAN_RESET, () => plan.reset());
+  /**
+   * The correction loop. RECORD writes JPEGs and one JSON record and touches
+   * no weights — there is no call path from here to any fitting code, which is
+   * what makes "one click never retrains the model" structural rather than a
+   * promise. REFIT is the separate, explicit action, and even it installs
+   * nothing the gate refuses.
+   */
+  ipcMain.handle(IPC_INVOKE.CORRECTIONS_GET_STATE, () => corrections.getState());
+  ipcMain.handle(IPC_INVOKE.CORRECTIONS_RECORD, (_event, request: RecordCorrectionRequest) =>
+    corrections.record(request),
+  );
+  ipcMain.handle(IPC_INVOKE.CORRECTIONS_DELETE, (_event, id: string) => corrections.delete(id));
+  ipcMain.handle(IPC_INVOKE.CORRECTIONS_CLEAR, () => corrections.clear());
+  // Being able to open the directory and look at the actual files is a
+  // stronger guarantee than any sentence in the docs.
+  ipcMain.handle(IPC_INVOKE.CORRECTIONS_REVEAL, async () => {
+    await shell.openPath(corrections.revealPath());
+  });
+  ipcMain.handle(IPC_INVOKE.CORRECTIONS_REFIT, async (_event, options?: { gate?: "off" }) =>
+    corrections.refit(options),
+  );
 }
 
 function createWindow(): void {
@@ -218,15 +247,62 @@ if (!app.requestSingleInstanceLock()) {
     .whenReady()
     .then(() => {
       electronApp.setAppUserModelId("com.focusplug.app");
+      const userDataDir = app.getPath("userData");
       const runtime = createFocusPlugRuntime({
-        userDataDir: app.getPath("userData"),
+        userDataDir,
         push: createElectronPush(),
         forecastPush: createForecastElectronPush(),
         planPush: createPlanElectronPush(),
         revealWindow: revealMainWindow,
       });
       session = runtime.session;
-      registerIpc(runtime.session, runtime.plugs, runtime.forecast, runtime.plan);
+      /**
+       * One owner, one directory. The corrections service is built HERE rather
+       * than inside the session runtime because what it needs is the user data
+       * path and the log, and because the controller only ever sees the narrow
+       * `CorrectionsSeam` — it can hold frames and read cooldowns, and it has
+       * no way to reach the store, the refit or the gate.
+       */
+      const corrections = createDeskCorrections({
+        userDataDir,
+        loadSettings: () => runtime.session.getSettings(),
+        appendLog: (detail) => runtime.session.appendCorrectionLog(detail),
+        push: (state) => broadcast(IPC_PUSH.CORRECTIONS_STATE, state),
+        /**
+         * A confirmed `away` the student says was wrong did not just stop the
+         * clock — it wrote a drift into their focus history. Focus Plan's
+         * command undoes exactly that one onset, and it arrives here as a
+         * CALLBACK: the desk stack gains no import of the coaching layer and
+         * the coaching layer gains none of the desk stack, which is the seam
+         * `integration.test.ts` checks. A retraction that refuses names the
+         * gate that refused it, and never costs the resume.
+         */
+        retractDrift: () => runtime.plan.retractLastAwayDrift(),
+        /**
+         * …and the deferred half. Injected for the same reason: the refit
+         * loads the desk model and TensorFlow, and `CorrectionsStore` must be
+         * able to write a JPEG without any of that. Note what is NOT wired —
+         * there is no path from `CORRECTIONS_RECORD` to this function. One
+         * click stores a photograph and a label; only this button fits
+         * anything, and only the gate installs it.
+         */
+        refit: (options) =>
+          createPersonalRefit({
+            store: corrections.store(),
+            userDataDir,
+            deskModelId: () => runtime.session.getSettings().deskModelId,
+            sessionActive: () => runtime.session.getState().sessionActive,
+            appendLog: (detail: string) => runtime.session.appendCorrectionLog(detail),
+          }).run(options),
+        applyPersonalHead: applyPersonalAttentionHead,
+      });
+      // `attachCorrections` runs the controller's settings sync, which asks
+      // the service which attention head should be running — so the desk model
+      // is pointed at (or away from) the student's 51 numbers from here on,
+      // including on every later settings change, without main holding a
+      // second copy of that rule.
+      runtime.session.attachCorrections(corrections);
+      registerIpc(runtime.session, runtime.plugs, runtime.forecast, runtime.plan, corrections);
 
       app.on("browser-window-created", (_event, window) => {
         optimizer.watchWindowShortcuts(window);

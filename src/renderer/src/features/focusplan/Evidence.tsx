@@ -49,6 +49,16 @@ export function Evidence(props: {
               <span className="truncate text-fp-mute" title={row.note}>
                 {row.note}
               </span>
+              {/* A retraction is never silent: the round's history was edited,
+                  and the row that reports it says so. */}
+              {row.retracted === null ? null : (
+                <span
+                  className="fp-plan-evidence-retracted truncate text-fp-faint"
+                  title={row.retracted}
+                >
+                  {row.retracted}
+                </span>
+              )}
             </li>
           ))}
         </ul>

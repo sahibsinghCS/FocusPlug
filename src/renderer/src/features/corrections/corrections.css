@@ -1,0 +1,89 @@
+/* The correction loop — two surfaces, two very different rooms.
+
+   The verdict row sits on the paused LockPage, which inverts on a break, so
+   like `.fp-plan-lock` it is mixed out of `--phase` rather than painted with
+   `fp-card`'s fixed panel colour. The review list sits in Settings, which is
+   the ordinary console, so it uses the console tokens directly.
+
+   Only the shapes Tailwind cannot express live here. */
+
+/* ── the verdict row, on the paused lock screen ────────────────────────── */
+
+.fp-verdict {
+  border-top: 1px solid color-mix(in srgb, var(--phase) 18%, transparent);
+  padding-top: 12px;
+}
+
+/* Equal weight, equal size, and no default. "You were right" is worth as much
+   as the correction — a loop that only ever hears "wrong" teaches the head one
+   lesson, and a loop that hears both teaches it where the line is. */
+.fp-verdict-chip {
+  border: 1px solid color-mix(in srgb, var(--phase) 30%, transparent);
+  background: color-mix(in srgb, var(--phase) 6%, transparent);
+  color: var(--phase);
+  border-radius: var(--radius-fp);
+  min-width: 168px;
+}
+
+.fp-verdict-chip:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--phase) 12%, transparent);
+}
+
+.fp-verdict-chip:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ── the review list, in Settings ──────────────────────────────────────── */
+
+.fp-correction-row {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+}
+
+@media (max-width: 640px) {
+  .fp-correction-row {
+    grid-template-columns: 48px minmax(0, 1fr);
+  }
+}
+
+/* A fixed box so a missing thumbnail — a capped correction keeps none — does
+   not collapse the row and reflow the list under the reader's eye. */
+.fp-correction-thumb {
+  width: 64px;
+  height: 48px;
+  border-radius: 4px;
+  border: 1px solid var(--fp-line, rgba(255, 255, 255, 0.12));
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+@media (max-width: 640px) {
+  .fp-correction-thumb {
+    width: 48px;
+    height: 36px;
+  }
+}
+
+/* The gate table under "Why this?" — one row per gate, in order. Mirrors
+   `.fp-plan-evidence-row`: a reconciliation you cannot read is not a
+   disclosure, so it collapses rather than truncating. */
+.fp-refit-gate-row {
+  display: grid;
+  grid-template-columns: 18px 150px minmax(0, 1fr);
+  gap: 8px;
+  align-items: baseline;
+}
+
+@media (max-width: 640px) {
+  .fp-refit-gate-row {
+    grid-template-columns: 18px minmax(0, 1fr);
+    row-gap: 2px;
+  }
+}
+
+/* No prefers-reduced-motion block: src/renderer/src/index.css already forces
+   transition-duration to 0.01ms on `*` under that query, and nothing here
+   animates — a verdict is a tap, not a transition. */

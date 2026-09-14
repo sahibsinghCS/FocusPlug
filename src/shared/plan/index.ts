@@ -127,6 +127,14 @@ export type { DebriefInput } from "./debrief";
 export { reviseBreak } from "./revise";
 
 export {
+  retractLastAwayDrift,
+  retractedNote,
+  retractionLogLine,
+  retractionNotice,
+} from "./retract";
+export type { RetractInput, RetractOutcome } from "./retract";
+
+export {
   FORECAST_OFF_NOTE,
   holdSparkCaption,
   minutesList,

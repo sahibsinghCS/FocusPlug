@@ -37,6 +37,13 @@ export interface DeskDebug {
   largestFaceAreaRatio: number;
   backend: string;
   model: string;
+  /**
+   * Which attention head produced the reading on this frame — present only on
+   * `deskModelId: "custom"` frames that got an attention call at all. It is
+   * reported by the model that ran, so a log line or an evidence file can
+   * never claim a head the arithmetic did not use.
+   */
+  attentionHead?: "shipped" | "personal";
 }
 
 export interface DeskAnalysis {

@@ -4,6 +4,7 @@ import {
   IPC_PUSH,
   type AppEntry,
   type AppSettings,
+  type DeskCorrectionsState,
   type DeskModelId,
   type DeskSnapshot,
   type FocusPlanState,
@@ -16,6 +17,8 @@ import {
   type PlanRound,
   type PlugDevice,
   type PolicyEvent,
+  type RecordCorrectionRequest,
+  type RefitReport,
   type SessionEvent,
   type SessionPlanContext,
   type SessionState,
@@ -62,6 +65,16 @@ const api: FocusPlugApi = {
   forecastGetState: () => ipcRenderer.invoke(IPC_INVOKE.FORECAST_GET_STATE),
   planGetState: (): Promise<FocusPlanState> => ipcRenderer.invoke(IPC_INVOKE.PLAN_GET_STATE),
   planReset: (): Promise<FocusPlanState> => ipcRenderer.invoke(IPC_INVOKE.PLAN_RESET),
+  correctionsGetState: (): Promise<DeskCorrectionsState> =>
+    ipcRenderer.invoke(IPC_INVOKE.CORRECTIONS_GET_STATE),
+  correctionsRecord: (request: RecordCorrectionRequest) =>
+    ipcRenderer.invoke(IPC_INVOKE.CORRECTIONS_RECORD, request),
+  correctionsDelete: (id: string) => ipcRenderer.invoke(IPC_INVOKE.CORRECTIONS_DELETE, id),
+  correctionsClear: (): Promise<DeskCorrectionsState> =>
+    ipcRenderer.invoke(IPC_INVOKE.CORRECTIONS_CLEAR),
+  correctionsReveal: (): Promise<void> => ipcRenderer.invoke(IPC_INVOKE.CORRECTIONS_REVEAL),
+  correctionsRefit: (options?: { gate?: "off" }): Promise<RefitReport> =>
+    ipcRenderer.invoke(IPC_INVOKE.CORRECTIONS_REFIT, options),
   onSessionState: (cb: (state: SessionState) => void) =>
     subscribe(IPC_PUSH.SESSION_STATE, cb),
   onPolicyEvent: (cb: (event: PolicyEvent) => void) =>
@@ -78,6 +91,8 @@ const api: FocusPlugApi = {
   onForecastEvent: (cb: (event: ForecastEvent) => void) =>
     subscribe(IPC_PUSH.FORECAST_EVENT, cb),
   onPlanRound: (cb: (round: PlanRound) => void) => subscribe(IPC_PUSH.PLAN_ROUND, cb),
+  onCorrectionsState: (cb: (state: DeskCorrectionsState) => void) =>
+    subscribe(IPC_PUSH.CORRECTIONS_STATE, cb),
 };
 
 contextBridge.exposeInMainWorld("focusplug", api);

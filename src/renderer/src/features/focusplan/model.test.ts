@@ -184,6 +184,27 @@ describe("the evidence disclosure — five rounds and three counted must reconci
     expect(clean?.note).toMatch(/^held \d+ of \d+ min$/);
   });
 
+  it("says when a drift was retracted, and stays silent when none was", () => {
+    // A pause the student said was WRONG was not a drift. The round's history
+    // is edited — never silently, or the disagreement between "held 24 min"
+    // and "I was interrupted at six" would have no explanation on screen.
+    const retracted = makeRound({
+      plannedFocusMin: 25,
+      servedMin: 25,
+      driftMin: 6,
+      driftsMin: [6],
+    });
+    const rows = view([
+      { ...retracted, driftsSec: [], firstDriftSec: null, firstDriftType: null, retractedDriftsSec: [840] },
+    ]).evidence;
+    expect(rows[0]?.retracted).toBe("one drift retracted — you told us the camera was wrong");
+    expect(rows[0]?.outcome).toBe("no drift");
+
+    for (const row of view(mixedRounds.rounds).evidence) {
+      expect(row.retracted).toBeNull();
+    }
+  });
+
   it("formats drift offsets to the second, and a wall clock that is real", () => {
     expect(minSec(19 * 60 + 12)).toBe("19:12");
     expect(minSec(65)).toBe("1:05");

@@ -103,4 +103,27 @@ describe("driftPauseStep", () => {
   it("no nudge changes nothing", () => {
     expect(step({ nudge: null, handledTs: 42 })).toEqual({ pause: null, handledTs: 42 });
   });
+
+  /**
+   * The correction loop hangs a second optional field off the same wire. The
+   * two are independent by construction: `correctionId` says main is holding
+   * frames for a verdict, `pause` says the clock stops, and neither implies
+   * the other. This is the test that keeps them that way — a correction that
+   * could stop a clock, or a pause that needed a capture to land, would both
+   * be bugs in the enforcement path.
+   */
+  it("a correctionId never changes what the clock does", () => {
+    const withId = nudge("away", { pause: true, correctionId: "dc-0007" });
+    expect(step({ nudge: withId })).toEqual({ pause: "away", handledTs: 1000 });
+
+    // And it cannot make a non-pausing nudge stop the clock.
+    expect(step({ nudge: nudge("away", { correctionId: "dc-0007" }) })).toEqual({
+      pause: null,
+      handledTs: null,
+    });
+    expect(step({ nudge: nudge("unfocused", { pause: true, correctionId: "dc-0007" }) })).toEqual({
+      pause: null,
+      handledTs: 1000,
+    });
+  });
 });

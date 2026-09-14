@@ -41,7 +41,9 @@
     "pauseAwayConfidence": 0.75,
     "pausePhoneConfidence": 0.9,
     "focusPlanEnabled": true,
-    "focusPlanStretchEnabled": true
+    "focusPlanStretchEnabled": true,
+    "deskCorrectionsEnabled": true,
+    "personalAttentionHeadEnabled": true
   },
   "policyEventTypes": [
     "status",

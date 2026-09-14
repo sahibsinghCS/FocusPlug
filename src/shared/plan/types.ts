@@ -66,6 +66,10 @@ export interface PlanRound {
   /** Every kept onset, debounced by DRIFT_DEBOUNCE_SEC, capped at
    *  PLAN_MAX_DRIFTS_PER_ROUND. */
   driftsSec: number[];
+  /** Drift onsets removed by a student's correction, in served seconds.
+   *  Absent on every round nothing was retracted from. The round's history is
+   *  edited, never silently: the evidence row says so and so does the log. */
+  retractedDriftsSec?: number[];
   /** First forecast_nudge in this round. A WARNING, never a drift. */
   firstWobbleSec: number | null;
   wobbles: number;
@@ -247,6 +251,9 @@ export interface PlanEvidenceRow {
   counted: boolean;
   /** Why it does not count. Null exactly when counted is true. */
   excludedBecause: string | null;
+  /** Onsets a student's correction removed from this round. Absent when none
+   *  were: a row that says nothing about a retraction never had one. */
+  retractedDrifts?: number;
 }
 
 export interface PlanRecommendation {

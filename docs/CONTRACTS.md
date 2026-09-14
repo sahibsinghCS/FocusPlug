@@ -423,4 +423,45 @@ Two flat keys (house `requirePatch`/`normalizeSettings` style — no nested bloc
 `<userData>/focus-plan.json`, a sibling of `adaptive-model.json`, written through the existing `writeJsonAtomic` on round close only. Wrong version, wrong shape or unreadable ⇒ an empty ledger, never a throw. It holds round durations, drift offsets and risk peaks — **no process name, no window title and no frame**, which is structural rather than promised: `src/main/focusplan/tap.ts` observes `sessionState`, `policyEvent`, `forecastSnapshot` and `forecastEvent` only, and never subscribes to `focusSnapshot`, `deskSnapshot`, `sessionEvent` or `nudge`.
 
 ### Uncoupling
-Both taps forward to the base push **first** and only then mirror, and `swallow()` catches anything that escapes the recorder's own `guard()`, so a coaching layer can never delay, reorder or drop an enforcement message. `src/main/focusplan/integration.test.ts` deep-equals the push trace of a scripted session with Focus Plan attached against the same session without it. This table is not machine-guarded — `npm run check:contracts` byte-compares source fences only: the Types fence above, plus the two "complete source" fences for `src/shared/plan/types.ts` and `src/shared/plan/constants.ts` in `docs/FOCUS-PLAN.md`.
+Both taps forward to the base push **first** and only then mirror, and `swallow()` catches anything that escapes the recorder's own `guard()`, so a coaching layer can never delay, reorder or drop an enforcement message. `src/main/focusplan/integration.test.ts` deep-equals the push trace of a scripted session with Focus Plan attached against the same session without it. This table is not machine-guarded — `npm run check:contracts` byte-compares source fences only: the Types fence above, plus the "complete source" fences for `src/shared/plan/types.ts` and `src/shared/plan/constants.ts` in `docs/FOCUS-PLAN.md` and for `src/shared/correction/types.ts` and `src/shared/correction/constants.ts` in `docs/CORRECTION-LOOP.md`.
+
+## Correction loop (Phase 6)
+
+Design: `docs/CORRECTION-LOOP.md`. The full types and constants are frozen there and byte-checked by `npm run check:contracts`; this section is the seam summary only.
+
+### IPC (Phase 6 additions)
+Invoke:
+
+- `focusplug:corrections:getState` → `DeskCorrectionsState`
+- `focusplug:corrections:record` (`RecordCorrectionRequest`) → `RecordCorrectionResult` — writes JPEGs and one JSON record, and **has no call path to any fitting code**
+- `focusplug:corrections:delete` (`id`) → `DeskCorrectionsState`
+- `focusplug:corrections:clear` → `DeskCorrectionsState`
+- `focusplug:corrections:reveal` → `void` (`shell.openPath` on `<userData>/desk-corrections`)
+- `focusplug:corrections:refit` (`{ gate?: "off" }?`) → `RefitReport` — the separate, explicit action; even it installs nothing the gate refuses
+
+Push:
+
+- `focusplug:corrections:state` → `DeskCorrectionsState`
+
+Widened:
+
+- `NudgeEvent` gains one optional `correctionId?`, present only on a pause-carrying nudge on `deskModelId: "custom"` with capture on and frames actually held. Absent means the paused screen offers no verdict row, which is every pre-Phase-6 caller byte for byte.
+
+`FocusPlugApi` gains `correctionsGetState()`, `correctionsRecord(request)`, `correctionsDelete(id)`, `correctionsClear()`, `correctionsReveal()`, `correctionsRefit(options?)` and `onCorrectionsState(cb)`. The renderer feature-detects every one of them: an older preload, `probe.ts` and the smoke scripts degrade to "no corrections" rather than throwing on a screen that is about to restart a study clock.
+
+### Settings (Phase 6 additions to `AppSettings`)
+
+| key | type | default | `normalizeSettings` clamp |
+|---|---|---|---|
+| `deskCorrectionsEnabled` | boolean | `true` | boolean else default |
+| `personalAttentionHeadEnabled` | boolean | `true` | boolean else default |
+
+`deskCorrectionsEnabled: false` reproduces today's behaviour exactly: the ring retains nothing, no `correctionId` is issued, no verdict row appears and nothing is written. It does **not** delete anything already stored — an off switch is not an erase button, and the erase button is in the review card. `personalAttentionHeadEnabled: false` forces the shipped head even when a personal one passed the gate; it is a preference, not a capability, and can only ever turn a head **off**.
+
+### Storage
+`<userData>/desk-corrections/`, a sibling of `adaptive-model.json` and `focus-plan.json`: `corrections.json`, `frames/<dc-NNNN>/*.jpg` at the camera's native size, `personal-attention-head.json` (only while a refit has passed), `refit-report.json`. It holds the student's own webcam photographs. **They are never uploaded** — there is no network import anywhere in `src/main/desk/corrections/`, they are listed with thumbnails in Settings, *Reveal folder* opens the directory, and *Delete all* removes the frames, the index **and** any personal head fitted from them, because a head fitted on deleted photographs is deleted data.
+
+`src/main/desk/model/weights/attention-head.json` is **never opened for writing by the app**. A personal head is 51 numbers — a 3×16 output layer — in the student's own directory, and the 1280→16 representation it is anchored to is physically not in that file.
+
+### Uncoupling
+`SessionController` sees only `CorrectionsSeam`: hold frames, read cooldowns, drop a pending capture, re-resolve which head should run. It cannot reach the store, the refit or the gate. Focus Plan's retraction and the refit both arrive in `src/main/index.ts` as **callbacks**, so the desk stack gains no import of the coaching layer and the store that writes a JPEG never loads TensorFlow. `src/main/desk/corrections/no-retrain.test.ts` asserts the central claim — recording a correction touches no weights — by spying on the write seam rather than by reading the code.

@@ -1,7 +1,8 @@
 # FocusPlug — current state
 
-Where the product actually is, not a log of branches. Last rewritten 2026-09-13,
-when the Focus Forecast branch and `main` were merged into one tree.
+Where the product actually is, not a log of branches. Last rewritten 2026-09-14,
+when the correction loop landed on the tree the Focus Forecast branch and `main`
+were merged into.
 
 ## What ships
 
@@ -83,6 +84,42 @@ Because a stopped clock stops the session, and a stopped session throws away a
 burning fuse, the pause is also **held while a kill countdown burns**: the
 force-quit goes first at every Countdown setting, not just at the shipped 10 s
 one. Rule, floors, the fuse gate and defaults: `docs/CONTRACTS.md § Drift pause`.
+
+## When the pause was wrong (the correction loop)
+
+The phone head is the weakest model in the product and the pause it raises will
+sometimes be wrong, so the paused screen asks — **I was working** / **You were
+right** — and the answer does two things on two timescales that are
+deliberately not the same mechanism.
+
+*Immediately* the app obeys: the clock resumes and that kind of pause is
+silenced for a cooldown (25 min phone, 10 min away), and an `away` the student
+says never happened has its drift retracted from the Focus Plan round it landed
+in, named in the evidence row and in the log rather than quietly subtracted.
+None of that touches a weight.
+
+*Later, and only when asked*, the stored frames are worth more than the
+cooldown: they are first-person photographs from that student's camera, room
+and light, captured at exactly the moments the head is worst, labelled by the
+only person who knows. **One click never retrains anything** — recording a
+correction has no call path to any fitting code, which
+`src/main/desk/corrections/no-retrain.test.ts` asserts by spying on the write
+seam. A separate button, twelve corrections and no running session later, the
+refit fits the attention head's **output layer only — 51 numbers** — anchored to
+the shipped layer, and installs it only if eleven ordered gates agree: not
+beaten on the same 286-image held-out eval, neither slice down more than three
+points, and newly agreeing with the student on at least one more of their own
+held-out corrections. Both columns and the blocking gate are on screen.
+`npm run gauntlet:corrections` checks that gate in both directions — 1.0% of
+shuffled-label pools install, 95.5% of genuine ones do.
+
+The photographs live in `<userData>/desk-corrections/`, are never uploaded,
+are listed with thumbnails in Settings, and *Delete all* takes the frames, the
+index and any head fitted from them together — and the cached desk model with
+them, so the next reading is the shipped head's rather than the deleted one's.
+Design, every gate and every
+refusal: `docs/CORRECTION-LOOP.md`; what it means for the head:
+`docs/CUSTOM-MODEL.md § Corrections from the student`.
 
 ## The fuse authority (the one design decision of the merge)
 

@@ -127,6 +127,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   pausePhoneConfidence: 0.9,
   focusPlanEnabled: true,
   focusPlanStretchEnabled: true,
+  deskCorrectionsEnabled: true,
+  personalAttentionHeadEnabled: true,
 };
 
 export const DEFAULT_SESSION_STATE: SessionState = {
