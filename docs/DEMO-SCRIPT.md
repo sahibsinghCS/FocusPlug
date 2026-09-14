@@ -19,12 +19,18 @@ Do **not** say: streak, gentle reminder, productivity coach, tutor. Never pitch 
    **Decide about *Stop the clock when you leave* before you roll — and check which desk model you are on.** The switch is **on** by default, but the away pause also needs `deskModelId: "custom"`: on the shipped BlazeFace detector it is inert by design, because that detector answers `away` for any frame with no usable face and is right 42.1% of the time (`docs/CUSTOM-MODEL.md § Away, on the model that actually ships`), and Settings shows a card saying so. **On the default model the clock does not stop, so do not promise that it will.** On the custom model the away beat below is fifteen seconds of away — exactly the pause threshold — and the take gains a real beat (the clock stops, the lock releases, the screen says why, and you press *Start the clock again*); say so on camera, because a timer that stops without a word looks broken on video. Turn the switch off if you want the away beat to be about the kill and nothing else. Either is fine; being surprised by it mid-take is not.
 5. **Pin the fuse, or the take is a coin flip.** Two models decide the fuse length. The adaptive fuse hands out a longer probe fuse on a fraction of early drifts, so the overlay can read **30** while you are saying “ten-second fuse”; the forecast then scales whatever that personal length is by half. For a scripted take, pin the personal length to the Settings number:
 
+   ```
+   rem cmd.exe — two lines, and never paste a # comment into cmd
+   set FOCUSPLUG_NO_ADAPT=1
+   npm run dev
+   ```
+
    ```powershell
    $env:FOCUSPLUG_NO_ADAPT = "1"; npm run dev
    ```
 
    ```bash
-   FOCUSPLUG_NO_ADAPT=1 npm run dev   # bash / git-bash only — the line above is the PowerShell form
+   FOCUSPLUG_NO_ADAPT=1 npm run dev
    ```
 
    Pinned, the beat is exactly **10 s, or 5 s if the forecast pre-armed** — the two numbers you can safely say out loud. Unpinned you get the stronger AI story — say “the fuse is learned, not fixed” and read the number off the overlay instead of scripting it.

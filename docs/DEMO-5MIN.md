@@ -73,6 +73,12 @@ unfilmable — fix that before anything else.
 **Pin the fuse for a scripted take** so the overlay cannot read 30 while you say
 "ten seconds":
 
+```
+rem cmd.exe — two lines, and never paste a # comment into cmd
+set FOCUSPLUG_NO_ADAPT=1
+npm run dev
+```
+
 ```powershell
 $env:FOCUSPLUG_NO_ADAPT = "1"; npm run dev
 ```
