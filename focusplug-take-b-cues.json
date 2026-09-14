@@ -1,0 +1,91 @@
+{
+  "take": "B",
+  "attempt": 3,
+  "cues": [
+    {
+      "id": "click_allowlist",
+      "target_t": 1.2,
+      "actual_t": 1.305,
+      "delta": 0.105,
+      "sx": 241,
+      "sy": 22
+    },
+    {
+      "id": "click_blocklist",
+      "target_t": 3.6,
+      "actual_t": 3.705,
+      "delta": 0.105,
+      "sx": 313,
+      "sy": 22
+    },
+    {
+      "id": "click_session",
+      "target_t": 6,
+      "actual_t": 6.105,
+      "delta": 0.105,
+      "sx": 170,
+      "sy": 22
+    },
+    {
+      "id": "pick_garden",
+      "target_t": 8.4,
+      "actual_t": 8.504,
+      "delta": 0.104,
+      "sx": 518,
+      "sy": 602
+    },
+    {
+      "id": "hold_lock_down",
+      "target_t": 11,
+      "actual_t": 11.004,
+      "delta": 0.004,
+      "sx": 955,
+      "sy": 995
+    },
+    {
+      "id": "hold_lock_up",
+      "target_t": 12,
+      "actual_t": 12.011,
+      "delta": 0.011,
+      "hold_s": 1.007
+    },
+    {
+      "id": "lock_settle",
+      "target_t": 13.2,
+      "actual_t": 13.2,
+      "delta": 0
+    },
+    {
+      "id": "clip_end",
+      "target_t": 15,
+      "actual_t": 15.001,
+      "delta": 0.001
+    }
+  ],
+  "ffmpeg": {
+    "raw": "/workspace/footage-take-b/out/take-b-raw.mkv",
+    "stderr_tail": "a00] frame P:464   Avg QP:14.31  size:  3036\n[libx264 @ 0x55b81c06ea00] mb I  I16..4: 100.0%  0.0%  0.0%\n[libx264 @ 0x55b81c06ea00] mb P  I16..4:  1.9%  0.0%  0.0%  P16..4:  2.7%  0.0%  0.0%  0.0%  0.0%    skip:95.4%\n[libx264 @ 0x55b81c06ea00] coded y,uvDC,uvAC intra: 20.1% 14.9% 11.3% inter: 1.0% 0.9% 0.3%\n[libx264 @ 0x55b81c06ea00] i16 v,h,dc,p: 69% 24%  4%  3%\n[libx264 @ 0x55b81c06ea00] i8c dc,h,v,p: 74% 16%  8%  2%\n[libx264 @ 0x55b81c06ea00] kb/s:1597.82\nExiting normally, received signal 2.\n",
+    "final": "/workspace/footage-take-b/out/take-b-setup-15s.mp4"
+  },
+  "meta": {
+    "t0": 1789350580953,
+    "display": ":98",
+    "locked_probe": true
+  },
+  "probe": {
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "codec_type": "video",
+        "width": 1920,
+        "height": 1080,
+        "r_frame_rate": "30/1"
+      }
+    ],
+    "format": {
+      "duration": "15.000000"
+    }
+  },
+  "cues_off_by_gt_0_25": []
+}

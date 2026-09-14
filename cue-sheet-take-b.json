@@ -1,0 +1,21 @@
+{
+  "take": "B",
+  "title": "Setup",
+  "final_timeline": { "start": 40.0, "end": 55.0 },
+  "clip_duration_s": 15.0,
+  "fps": 30,
+  "size": [1920, 1080],
+  "audio": false,
+  "cues": [
+    { "id": "slate_settle", "t": 0.00, "note": "Session panel visible, faceId=flight" },
+    { "id": "click_allowlist", "t": 1.20, "action": "nav", "target": "Allowlist" },
+    { "id": "click_blocklist", "t": 3.60, "action": "nav", "target": "Blocklist" },
+    { "id": "click_session", "t": 6.00, "action": "nav", "target": "Session" },
+    { "id": "pick_garden", "t": 8.40, "action": "pick_face", "target": "Garden" },
+    { "id": "hold_lock_down", "t": 11.00, "action": "hold_down", "target": "Hold to lock" },
+    { "id": "hold_lock_up", "t": 12.00, "action": "hold_up", "min_hold_s": 0.9 },
+    { "id": "lock_settle", "t": 13.20, "note": "Garden lock face settling" },
+    { "id": "clip_end", "t": 15.00, "note": "hard trim" }
+  ],
+  "tolerance_s": 0.25
+}
