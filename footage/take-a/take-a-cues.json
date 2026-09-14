@@ -1,0 +1,122 @@
+{
+  "take": "A",
+  "attempt": 6,
+  "cues": [
+    {
+      "id": "slate_settle",
+      "target_t": 0,
+      "actual_t": 0.001,
+      "delta": 0.001
+    },
+    {
+      "id": "pick_hourglass",
+      "target_t": 2,
+      "actual_t": 2.113,
+      "delta": 0.113,
+      "sx": 664,
+      "sy": 491,
+      "face": "Hourglass"
+    },
+    {
+      "id": "pick_readout",
+      "target_t": 4.2,
+      "actual_t": 4.312,
+      "delta": 0.112,
+      "sx": 809,
+      "sy": 491,
+      "face": "Readout"
+    },
+    {
+      "id": "pick_growth",
+      "target_t": 6.4,
+      "actual_t": 6.507,
+      "delta": 0.107,
+      "sx": 1246,
+      "sy": 491,
+      "face": "Growth"
+    },
+    {
+      "id": "pick_flask",
+      "target_t": 8.6,
+      "actual_t": 8.708,
+      "delta": 0.108,
+      "sx": 1392,
+      "sy": 491,
+      "face": "Flask"
+    },
+    {
+      "id": "pick_candle",
+      "target_t": 10.8,
+      "actual_t": 10.908,
+      "delta": 0.108,
+      "sx": 664,
+      "sy": 632,
+      "face": "Candle"
+    },
+    {
+      "id": "pick_flight",
+      "target_t": 13,
+      "actual_t": 13.108,
+      "delta": 0.108,
+      "sx": 518,
+      "sy": 491,
+      "face": "Flight"
+    },
+    {
+      "id": "dial_to_25",
+      "target_t": 15.2,
+      "actual_t": 15.307,
+      "delta": 0.107,
+      "sx": 480,
+      "sy": 785,
+      "from": 50
+    },
+    {
+      "id": "dial_drag_to_50",
+      "target_t": 17,
+      "actual_t": 17.005,
+      "delta": 0.005,
+      "sx": 592,
+      "sy": 785,
+      "phase": "drag_start"
+    },
+    {
+      "id": "settle_route",
+      "target_t": 21,
+      "actual_t": 21,
+      "delta": 0
+    },
+    {
+      "id": "clip_end",
+      "target_t": 25,
+      "actual_t": 25,
+      "delta": 0
+    }
+  ],
+  "ffmpeg": {
+    "raw": "/workspace/footage-take-a/out/take-a-raw.mkv",
+    "stderr_tail": "fe273c0] video:3135KiB audio:0KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.201806%\nframe=  781 fps= 30 q=-1.0 Lsize=    3142KiB time=00:00:26.03 bitrate= 988.6kbits/s speed=   1x    \n[libx264 @ 0x558d2fe25a00] frame I:27    Avg QP:11.33  size:112506\n[libx264 @ 0x558d2fe25a00] frame P:754   Avg QP:13.83  size:   228\n[libx264 @ 0x558d2fe25a00] mb I  I16..4: 100.0%  0.0%  0.0%\n[libx264 @ 0x558d2fe25a00] mb P  I16..4:  0.1%  0.0%  0.0%  P16..4:  0.1%  0.0%  0.0%  0.0%  0.0%    skip:99.8%\n[libx264 @ 0x558d2fe25a00] coded y,uvDC,uvAC intra: 15.0% 8.1% 7.2% inter: 0.1% 0.0% 0.0%\n[libx264 @ 0x558d2fe25a00] i16 v,h,dc,p: 80% 17%  2%  1%\n[libx264 @ 0x558d2fe25a00] i8c dc,h,v,p: 84% 10%  5%  1%\n[libx264 @ 0x558d2fe25a00] kb/s:986.40\nExiting normally, received signal 2.\n",
+    "final": "/workspace/footage-take-a/out/take-a-what-it-does-25s.mp4"
+  },
+  "meta": {
+    "t0": 1789350772366,
+    "display": ":99",
+    "monotonic": "Date.now()-t0"
+  },
+  "probe": {
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "codec_type": "video",
+        "width": 1920,
+        "height": 1080,
+        "r_frame_rate": "30/1"
+      }
+    ],
+    "format": {
+      "duration": "25.000000"
+    }
+  },
+  "cues_off_by_gt_0_25": []
+}

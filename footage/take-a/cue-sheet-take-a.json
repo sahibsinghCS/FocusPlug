@@ -1,0 +1,23 @@
+{
+  "take": "A",
+  "title": "What it does",
+  "final_timeline": { "start": 15.0, "end": 40.0 },
+  "clip_duration_s": 25.0,
+  "fps": 30,
+  "size": [1920, 1080],
+  "audio": false,
+  "cues": [
+    { "id": "slate_settle", "t": 0.00, "note": "Session panel visible; faceId=flight; DXB→DOH" },
+    { "id": "pick_hourglass", "t": 2.00, "action": "pick_face", "target": "Hourglass" },
+    { "id": "pick_readout", "t": 4.20, "action": "pick_face", "target": "Readout" },
+    { "id": "pick_growth", "t": 6.40, "action": "pick_face", "target": "Growth" },
+    { "id": "pick_flask", "t": 8.60, "action": "pick_face", "target": "Flask" },
+    { "id": "pick_candle", "t": 10.80, "action": "pick_face", "target": "Candle" },
+    { "id": "pick_flight", "t": 13.00, "action": "pick_face", "target": "Flight" },
+    { "id": "dial_to_25", "t": 15.20, "action": "dial_set", "target": "Length", "value": 25 },
+    { "id": "dial_drag_to_50", "t": 17.00, "action": "dial_drag", "target": "Length", "to": 50 },
+    { "id": "settle_route", "t": 21.00, "note": "50 min / Dubai→Doha / done-by visible" },
+    { "id": "clip_end", "t": 25.00, "note": "hard trim" }
+  ],
+  "tolerance_s": 0.25
+}
