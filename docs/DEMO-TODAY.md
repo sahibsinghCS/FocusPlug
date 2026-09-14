@@ -13,15 +13,38 @@ kill is how it keeps it for you."*
 
 ## 1. Off camera — five minutes, do it in this order
 
+**Copy the block for the shell you are actually in.** The three lines are the
+same everywhere; only the way you set the environment variable differs. Do not
+paste a line with a trailing `#` comment into `cmd.exe` — it has no comment
+syntax, so the `#` arrives as an argument and `demo:seed` refuses to run.
+
+`cmd.exe` (the plain black Command Prompt):
+
+```
+npm run probe:golden
+npm run demo:seed -- --settings
+set FOCUSPLUG_NO_ADAPT=1
+npm run dev
+```
+
+PowerShell / Windows Terminal:
+
 ```powershell
-npm run probe:golden                 # must print GOLDEN PATH PROBE: PASS
-npm run demo:seed -- --settings      # seeded plan history + the filming settings
+npm run probe:golden
+npm run demo:seed -- --settings
 $env:FOCUSPLUG_NO_ADAPT = "1"; npm run dev
 ```
 
+bash / git-bash:
+
 ```bash
-FOCUSPLUG_NO_ADAPT=1 npm run dev     # bash / git-bash only
+npm run probe:golden
+npm run demo:seed -- --settings
+FOCUSPLUG_NO_ADAPT=1 npm run dev
 ```
+
+`probe:golden` must print `GOLDEN PATH PROBE: PASS`. `demo:seed --settings`
+writes the seeded plan history and pins the filming settings.
 
 1. **`probe:golden` must pass.** It drives the real wiring against your real
    foreground window and kills nothing. If it fails the window sensor is dead
