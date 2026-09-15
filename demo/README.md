@@ -14,7 +14,7 @@ A static page that runs the shipped Focus Forecast without Windows, Electron, or
 | `src/desk/detector.ts` | BlazeFace over a `<video>` frame, classified by the app's own `@main/desk/classify`. |
 | `src/narrative.ts`, `src/components/*` | Demo-local layout and copy. Every instrument is a console component. |
 | `src/demo.css` | The console's stylesheet, demo-only chrome, and the responsive overrides that keep the model internals readable here (see below). |
-| `evidence/` | Gauntlet stills; see [evidence/README.md](evidence/README.md). |
+| `evidence/` | Stills written by `npm run demo:verify`. |
 
 **Nothing load-bearing is reimplemented here.** The risk model, the escalation reducer, the policy engine, the desk classifier and every on-screen instrument (`ForecastPanel`, `RiskMeter`, `InternalsPanel`, `NudgeToast`, `DecisionHero`, `SessionClock`, `SensorRail`, `CountdownOverlay`, `StatusPill`) are imported from `src/shared` and `src/renderer`. Two things are demo-local by necessity, both commented at the call site: the scripted behaviour stream, and the six lines of luma arithmetic that mirror `frameStats` (the app's copy sits in a module that also decodes JPEG/PNG through Node-only libraries). `StatusCluster` itself reads `useAppState()`, so the header composes the same three pills from the same `sessionChrome`/`deskChrome`/`plugChrome` view-models instead.
 

@@ -68,7 +68,7 @@ Everything runs on your computer. There's no cloud API and no network call when 
 - **Focus Plan.** Estimates how long you can focus before drifting, and treats rounds with no drift as "at least this long" instead of throwing them out. It won't claim you're improving until seven statistical checks pass. It never enforces anything ([details](docs/FOCUS-PLAN.md)).
 - **Correction loop.** When the camera pauses your clock by mistake, tap **I was working**. The clock resumes right away. Over time those corrections can refit a personal model, but it's only installed if it beats the shipped one on the same test set ([details](docs/CORRECTION-LOOP.md)).
 
-Built with Electron, React, and TypeScript. MIT license. AI tools used to build it are listed in [docs/AI-DISCLOSURE.md](docs/AI-DISCLOSURE.md).
+Built with Electron, React, and TypeScript. MIT license.
 
 ## For developers
 
